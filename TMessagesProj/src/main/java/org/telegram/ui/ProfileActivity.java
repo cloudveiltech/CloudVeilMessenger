@@ -213,17 +213,23 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
 
             TLRPC.FileLocation photoBig = null;
+            //CloudVeil start
             if (user_id != 0) {
+                boolean allowPhoto =  !GlobalSecuritySettings.getLockDisableOthersPhoto();
+                if(user_id == UserConfig.getCurrentUser().id) {
+                    allowPhoto = UserConfig.getCurrentUser().id == user_id && !GlobalSecuritySettings.getLockDisableOwnPhoto();
+                }
                 TLRPC.User user = MessagesController.getInstance().getUser(user_id);
-                if (user != null && user.photo != null && user.photo.photo_big != null) {
+                if (user != null && user.photo != null && user.photo.photo_big != null && allowPhoto) {
                     photoBig = user.photo.photo_big;
                 }
             } else if (chat_id != 0) {
                 TLRPC.Chat chat = MessagesController.getInstance().getChat(chat_id);
-                if (chat != null && chat.photo != null && chat.photo.photo_big != null) {
+                if (chat != null && chat.photo != null && chat.photo.photo_big != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                     photoBig = chat.photo.photo_big;
                 }
             }
+            //CloudVeil end
 
 
             if (photoBig != null && photoBig.local_id == fileLocation.local_id && photoBig.volume_id == fileLocation.volume_id && photoBig.dc_id == fileLocation.dc_id) {
@@ -1134,6 +1140,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     writeButton.setImageResource(R.drawable.floating_message);
                     writeButton.setPadding(0, AndroidUtilities.dp(3), 0, 0);
                 } else {
+                    //CloudVeil start
+                    if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                        writeButton.setVisibility(View.GONE);
+                    }
+                    //CloudVeil end
+
                     writeButton.setImageResource(R.drawable.floating_camera);
                 }
             }
@@ -2172,7 +2184,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             TLRPC.TL_userFull userFull = MessagesController.getInstance().getUserFull(user_id);
             boolean hasUsername = user != null && !TextUtils.isEmpty(user.username);
-            if (userFull != null && !TextUtils.isEmpty(userFull.about)) {
+            //CLoudVeil start
+            if (userFull != null && !TextUtils.isEmpty(userFull.about) && !GlobalSecuritySettings.getLockDisableOthersBio()) {
+            //CloudVeil end
                 if (phoneRow != -1) {
                     userSectionRow = rowCount++;
                 }
@@ -2295,10 +2309,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.User user = MessagesController.getInstance().getUser(user_id);
             TLRPC.FileLocation photo = null;
             TLRPC.FileLocation photoBig = null;
-            if (user.photo != null) {
+
+            //CloudVeil start
+            if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 photo = user.photo.photo_small;
                 photoBig = user.photo.photo_big;
             }
+            //CloudVeil end
+
             avatarDrawable.setInfo(user);
             avatarImage.setImage(photo, "50_50", avatarDrawable);
 
@@ -2439,10 +2457,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             TLRPC.FileLocation photo = null;
             TLRPC.FileLocation photoBig = null;
-            if (chat.photo != null) {
+            //CloudVeil start
+            if (chat.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 photo = chat.photo.photo_small;
                 photoBig = chat.photo.photo_big;
             }
+            //CloudVeil end
+            
             avatarDrawable.setInfo(chat);
             avatarImage.setImage(photo, "50_50", avatarDrawable);
             avatarImage.getImageReceiver().setVisible(!PhotoViewer.getInstance().isShowingImage(photoBig), false);
