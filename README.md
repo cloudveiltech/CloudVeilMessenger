@@ -16,10 +16,6 @@ MTproto protocol manuals: https://core.telegram.org/mtproto
 First of all, take a look at **src/main/java/org/telegram/messenger/BuildVars.java** and fill it with correct values.
 Import the root folder into your IDE (tested on Android Studio), then run project.
 
-### Localization
-
-We moved all translations to https://www.transifex.com/projects/p/telegram/. Please use it.
-
 # Step-by-step guide
 
 1. Install git
