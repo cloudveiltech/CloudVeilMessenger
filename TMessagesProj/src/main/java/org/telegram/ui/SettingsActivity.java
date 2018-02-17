@@ -177,6 +177,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             if (fileLocation == null) {
                 return null;
             }
+
+            //CloudVeil start
+            if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+                return null;
+            }
+            //CloudVeil end
+
             TLRPC.User user = MessagesController.getInstance().getUser(UserConfig.getClientUserId());
             if (user != null && user.photo != null && user.photo.photo_big != null) {
                 TLRPC.FileLocation photoBig = user.photo.photo_big;
@@ -605,9 +612,12 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 } else if (position == usernameRow) {
                     presentFragment(new ChangeUsernameActivity());
                 } else if (position == bioRow) {
-                    TLRPC.TL_userFull userFull = MessagesController.getInstance().getUserFull(UserConfig.getClientUserId());
-                    if (userFull != null) {
-                        presentFragment(new ChangeBioActivity());
+                    //CloudVeil start
+                    if(!GlobalSecuritySettings.getLockDisableOwnBio()) {
+                        TLRPC.TL_userFull userFull = MessagesController.getInstance().getUserFull(UserConfig.getClientUserId());
+                        if (userFull != null) {
+                            presentFragment(new ChangeBioActivity());
+                        }
                     }
                 } else if (position == numberRow) {
                     presentFragment(new ChangePhoneHelpActivity());
@@ -869,6 +879,12 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 showDialog(builder.create());
             }
         });
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            writeButton.setVisibility(View.GONE);
+        }
+        //CloudVeil end
 
         needLayout();
 
@@ -1337,6 +1353,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                             value = LocaleController.getString("UserBioEmpty", R.string.UserBioEmpty);
                         }
                         textCell.setTextWithEmojiAndValue(value, LocaleController.getString("UserBio", R.string.UserBio), false);
+
                     }
                     break;
                 }

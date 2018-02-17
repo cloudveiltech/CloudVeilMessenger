@@ -19,6 +19,7 @@ import android.text.style.URLSpan;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
@@ -36,9 +37,13 @@ public class ChatActionCell extends BaseCell {
 
     public interface ChatActionCellDelegate {
         void didClickedImage(ChatActionCell cell);
+
         void didLongPressed(ChatActionCell cell);
+
         void needOpenUserProfile(int uid);
+
         void didPressedBotButton(MessageObject messageObject, TLRPC.KeyboardButton button);
+
         void didPressedReplyMessage(ChatActionCell cell, int id);
     }
 
@@ -123,7 +128,9 @@ public class ChatActionCell extends BaseCell {
                 imageReceiver.setImage(currentMessageObject.messageOwner.action.newUserPhoto.photo_small, "50_50", avatarDrawable, null, 0);
             } else {
                 TLRPC.PhotoSize photo = FileLoader.getClosestPhotoSizeWithSize(currentMessageObject.photoThumbs, AndroidUtilities.dp(64));
-                if (photo != null) {
+                //CloudVeil start
+                if (photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                //CloudVeil end
                     imageReceiver.setImage(photo.location, "50_50", avatarDrawable, null, 0);
                 } else {
                     imageReceiver.setImageBitmap(avatarDrawable);
@@ -201,7 +208,7 @@ public class ChatActionCell extends BaseCell {
                     y -= textY;
                     x -= textXLeft;
 
-                    final int line = textLayout.getLineForVertical((int)y);
+                    final int line = textLayout.getLineForVertical((int) y);
                     final int off = textLayout.getOffsetForHorizontal(line, x);
                     final float left = textLayout.getLineLeft(line);
                     if (left <= x && left + textLayout.getLineWidth(line) >= x && currentMessageObject.messageText instanceof Spannable) {
@@ -278,12 +285,12 @@ public class ChatActionCell extends BaseCell {
                     if (lineWidth > maxWidth) {
                         lineWidth = maxWidth;
                     }
-                    textHeight = (int)Math.max(textHeight, Math.ceil(textLayout.getLineBottom(a)));
+                    textHeight = (int) Math.max(textHeight, Math.ceil(textLayout.getLineBottom(a)));
                 } catch (Exception e) {
                     FileLog.e(e);
                     return;
                 }
-                textWidth = (int)Math.max(textWidth, Math.ceil(lineWidth));
+                textWidth = (int) Math.max(textWidth, Math.ceil(lineWidth));
             }
         } catch (Exception e) {
             FileLog.e(e);

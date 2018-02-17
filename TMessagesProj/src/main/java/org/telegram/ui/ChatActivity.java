@@ -424,6 +424,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                return null;
+            }
+            //CloudVeil end
+
             int count = chatListView.getChildCount();
 
             for (int a = 0; a < count; a++) {

@@ -20,6 +20,7 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.ChatObject;
@@ -1024,6 +1025,17 @@ public class DialogCell extends BaseCell {
                 }
                 avatarDrawable.setInfo(chat);
             }
+
+            //CloudVeil start
+            boolean allowPhoto =  !GlobalSecuritySettings.getLockDisableOthersPhoto();
+            if(user != null && user.id == UserConfig.getCurrentUser().id) {
+                allowPhoto = !GlobalSecuritySettings.getLockDisableOwnPhoto();
+            }
+            if(!allowPhoto) {
+                photo = null;
+            }
+            //CloudVeil end
+
             avatarImage.setImage(photo, "50_50", avatarDrawable, null, 0);
         }
         if (getMeasuredWidth() != 0 || getMeasuredHeight() != 0) {

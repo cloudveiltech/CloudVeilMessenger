@@ -18,6 +18,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -343,7 +344,11 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
     public void setChatAvatar(TLRPC.Chat chat) {
         TLRPC.FileLocation newPhoto = null;
         if (chat.photo != null) {
-            newPhoto = chat.photo.photo_small;
+            //CloudVeil start
+            if (!GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                newPhoto = chat.photo.photo_small;
+            }
+            //CloudVeil end
         }
         avatarDrawable.setInfo(chat);
         if (avatarImageView != null) {
@@ -357,7 +362,11 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
         if (UserObject.isUserSelf(user)) {
             avatarDrawable.setSavedMessages(2);
         } else if (user.photo != null) {
-            newPhoto = user.photo.photo_small;
+            //CloudVeil start
+            if (!GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                newPhoto = user.photo.photo_small;
+            }
+            //CloudVeil end
         }
 
         if (avatarImageView != null) {
@@ -385,6 +394,12 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
             }
             avatarDrawable.setInfo(chat);
         }
+        //CloudVeil start
+        if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            newPhoto = null;
+        }
+        //CloudVeil end
+
         if (avatarImageView != null) {
             avatarImageView.setImage(newPhoto, "50_50", avatarDrawable);
         }

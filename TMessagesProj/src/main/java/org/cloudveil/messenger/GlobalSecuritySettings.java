@@ -27,6 +27,11 @@ public class GlobalSecuritySettings {
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
     public static final boolean LOCK_DISABLE_STICKERS = true;
 
+    private static final boolean DEFAULT_LOCK_DISABLE_OWN_BIO = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_OWN_PHOTO = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_BIO = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_PHOTO = true;
+
     public static boolean isDisabledSecretChat() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         return preferences.getBoolean("disabledSecretChat", DEFAULT_LOCK_DISABLE_SECRET_CHAT);
@@ -46,4 +51,45 @@ public class GlobalSecuritySettings {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putInt("minChatTtl", ttl).apply();
     }
+
+    public static boolean getLockDisableOwnBio() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("disabledOwnBio", DEFAULT_LOCK_DISABLE_OWN_BIO);
+    }
+
+    public static void setLockDisableOwnBio(boolean lockDisableOwnBio) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("disabledOwnBio", lockDisableOwnBio).apply();
+    }
+
+    public static boolean getLockDisableOwnPhoto() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("disabledOwnPhoto", DEFAULT_LOCK_DISABLE_OWN_PHOTO);
+    }
+
+    public static void setLockDisableOwnPhoto(boolean lockDisableOwnPhoto) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("disabledOwnPhoto", lockDisableOwnPhoto).apply();
+    }
+
+    public static boolean getLockDisableOthersBio() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("disabledOthersBio", DEFAULT_LOCK_DISABLE_OTHERS_BIO);
+    }
+
+    public static void setLockDisableOthersBio(boolean lockDisableOthersBio) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("disabledOthersBio", lockDisableOthersBio).apply();
+    }
+
+    public static boolean getLockDisableOthersPhoto() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("disabledOthersPhoto", DEFAULT_LOCK_DISABLE_OTHERS_PHOTO);
+    }
+
+    public static void setLockDisableOthersPhoto(boolean lockDisableOthersPhoto) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("disabledOthersPhoto", lockDisableOthersPhoto).apply();
+    }
+
 }

@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
@@ -138,8 +139,11 @@ public class ChannelCheckingService extends Service {
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
         GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
-
-
+        
+        GlobalSecuritySettings.setLockDisableOthersBio(settingsResponse.disableBio);
+        GlobalSecuritySettings.setLockDisableOwnBio(settingsResponse.disableBioChange);
+        GlobalSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
+        GlobalSecuritySettings.setLockDisableOthersPhoto(settingsResponse.disableProfilePhoto);
 
         NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
     }

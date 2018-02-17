@@ -14,4 +14,8 @@ public class SettingsResponse {
     public boolean secretChat;
     public int secretChatMinimumLength;
 
+    public boolean disableBio;
+    public boolean disableBioChange;
+    public boolean disableProfilePhoto;
+    public boolean disableProfilePhotoChange;
 }
