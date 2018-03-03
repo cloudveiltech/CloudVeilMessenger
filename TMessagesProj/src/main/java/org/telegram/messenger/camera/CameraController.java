@@ -20,7 +20,9 @@ import android.media.ThumbnailUtils;
 import android.os.Build;
 import android.provider.MediaStore;
 
+import org.cloudveil.messenger.util.CameraUtil;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Bitmaps;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLoader;
@@ -88,6 +90,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             public void run() {
                 try {
                     if (cameraInfos == null) {
+
                         int count = Camera.getNumberOfCameras();
                         ArrayList<CameraInfo> result = new ArrayList<>();
                         Camera.CameraInfo info = new Camera.CameraInfo();
@@ -96,6 +99,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             Camera.getCameraInfo(cameraId, info);
                             CameraInfo cameraInfo = new CameraInfo(cameraId, info);
 
+                            //CloudVeil start
+                            CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                            //CloudVeil end
                             Camera camera = Camera.open(cameraInfo.getCameraId());
                             Camera.Parameters params = camera.getParameters();
 
@@ -414,6 +420,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             public void run() {
                 Camera camera = session.cameraInfo.camera;
                 try {
+                    //CloudVeil start
+                    CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                    //CloudVeil end
                     if (camera == null) {
                         camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                     }
@@ -440,6 +449,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             public void run() {
                 Camera camera = session.cameraInfo.camera;
                 try {
+                    //CloudVeil start
+                    CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                    //CloudVeil end
                     FileLog.e("start creating round camera session");
                     if (camera == null) {
                         camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
@@ -477,6 +489,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             public void run() {
                 Camera camera = session.cameraInfo.camera;
                 try {
+                    //CloudVeil start
+                    CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                    //CloudVeil end
                     if (camera == null) {
                         camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                     }
