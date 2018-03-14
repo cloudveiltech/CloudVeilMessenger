@@ -9037,6 +9037,17 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         return isDialogIdAllowed(dialog.id);
     }
 
+    public boolean isUserAllowed(TLRPC.User user) {
+        if (user.bot) {
+            if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
+                return false;
+            }
+            long id = (long)user.id;
+            return !allowedBots.containsKey(id) || allowedBots.get(id);
+        }
+        return true;
+    }
+
     public boolean isDialogIdAllowed(long currentDialogId) {
         int lower_id = (int) currentDialogId;
         int high_id = (int) (currentDialogId >> 32);
@@ -9071,14 +9082,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         } else if (chat != null) {
             return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
         } else if (user != null) {
-            if (user.bot) {
-                if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
-                    return false;
-                }
-                return !allowedBots.containsKey(currentDialogId) || allowedBots.get(currentDialogId);
-            } else {
-                return true;
-            }
+            return isUserAllowed(user);
         }
         return false;
     }

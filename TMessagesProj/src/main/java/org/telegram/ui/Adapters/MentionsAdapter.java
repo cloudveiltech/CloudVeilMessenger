@@ -60,7 +60,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
 
     public interface MentionsAdapterDelegate {
         void needChangePanelVisibility(boolean show);
+
         void onContextSearch(boolean searching);
+
         void onContextClick(TLRPC.BotInlineResult result);
     }
 
@@ -207,7 +209,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
     }
 
     public void setNeedBotContext(boolean value) {
-        if(GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
+        if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
             value = false;
         }
         needBotContext = value;
@@ -716,6 +718,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                 int count = 0;
                 for (int a = 0; a < SearchQuery.inlineBots.size(); a++) {
                     TLRPC.User user = MessagesController.getInstance().getUser(SearchQuery.inlineBots.get(a).peer.user_id);
+                    //CloudVeil start
+                    if(!MessagesController.getInstance().isUserAllowed(user)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     if (user == null) {
                         continue;
                     }

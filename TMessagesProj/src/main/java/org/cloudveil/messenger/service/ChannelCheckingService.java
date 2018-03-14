@@ -26,6 +26,7 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -75,6 +76,7 @@ public class ChannelCheckingService extends Service {
     private void sendDataCheckRequest() {
         final SettingsRequest request = new SettingsRequest();
         addDialogsToRequest(request);
+        addInlineBotsToRequest(request);
 
         request.userPhone = UserConfig.getCurrentUser().phone;
         request.userId = UserConfig.getCurrentUser().id;
@@ -86,8 +88,8 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsResponse cached = loadFromCache();
-        if(!ConnectionsManager.isNetworkOnline()) {
-            if(cached != null) {
+        if (!ConnectionsManager.isNetworkOnline()) {
+            if (cached != null) {
                 processResponse(request, cached);
             }
             return;
@@ -110,11 +112,25 @@ public class ChannelCheckingService extends Service {
                     @Override
                     public void accept(Throwable throwable) throws Exception {
                         freeSubscription();
-                        if(cached != null) {
+                        if (cached != null) {
                             processResponse(request, cached);
                         }
                     }
                 });
+    }
+
+    private void addInlineBotsToRequest(SettingsRequest request) {
+        Collection<TLRPC.User> values = MessagesController.getInstance().getUsers().values();
+        for (TLRPC.User user : values) {
+            if (user.bot) {
+                SettingsRequest.Row row = new SettingsRequest.Row();
+                row.id = user.id;
+
+                row.title = user.username;
+                row.userName = user.username;
+                request.addBot(row);
+            }
+        }
     }
 
     private void processResponse(@NonNull SettingsRequest request, @NonNull SettingsResponse settingsResponse) {
@@ -127,19 +143,19 @@ public class ChannelCheckingService extends Service {
             allowedDialogs.put(groupId, true);
         }
 
-        addBlackListedDialogs(request.channels);
-        addBlackListedDialogs(request.groups);
-        addBlackListedBots(request.bots);
-
         ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
         allowedBots.clear();
         for (Long groupId : settingsResponse.bots) {
             allowedBots.put(groupId, true);
         }
 
+        addBlackListedDialogs(request.channels);
+        addBlackListedDialogs(request.groups);
+        addBlackListedBots(request.bots);
+
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
         GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
-        
+
         GlobalSecuritySettings.setLockDisableOthersBio(settingsResponse.disableBio);
         GlobalSecuritySettings.setLockDisableOwnBio(settingsResponse.disableBioChange);
         GlobalSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
@@ -150,8 +166,8 @@ public class ChannelCheckingService extends Service {
 
     private void addBlackListedDialogs(ArrayList<SettingsRequest.Row> rows) {
         ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance().allowedDialogs;
-        for(SettingsRequest.Row dlg : rows) {
-            if(!allowedDialogs.containsKey(dlg.id)) {
+        for (SettingsRequest.Row dlg : rows) {
+            if (!allowedDialogs.containsKey(dlg.id)) {
                 allowedDialogs.put(dlg.id, false);
             }
         }
@@ -159,8 +175,8 @@ public class ChannelCheckingService extends Service {
 
     private void addBlackListedBots(ArrayList<SettingsRequest.Row> rows) {
         ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
-        for(SettingsRequest.Row dlg : rows) {
-            if(!allowedBots.containsKey(dlg.id)) {
+        for (SettingsRequest.Row dlg : rows) {
+            if (!allowedBots.containsKey(dlg.id)) {
                 allowedBots.put(dlg.id, false);
             }
         }
@@ -245,6 +261,7 @@ public class ChannelCheckingService extends Service {
                 }
             } else if (user != null) {
                 if (user.bot) {
+                    row.id = user.id;
                     row.title = user.username;
                     row.userName = user.username;
                     request.addBot(row);
