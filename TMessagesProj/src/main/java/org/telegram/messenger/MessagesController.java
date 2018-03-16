@@ -37,6 +37,7 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.ProfileActivity;
@@ -9042,7 +9043,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
                 return false;
             }
-            long id = (long)user.id;
+            long id = (long) user.id;
             return !allowedBots.containsKey(id) || allowedBots.get(id);
         }
         return true;
@@ -9101,5 +9102,35 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         }
         return filtered;
     }
+
+
+    public boolean isMessageAllowed(MessageObject messageObject) {
+        if (messageObject.messageOwner.via_bot_id <= 0) {
+            return true;
+        }
+
+        TLRPC.User botUser = MessagesController.getInstance().getUser(messageObject.messageOwner.via_bot_id);
+        if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
+            return isUserAllowed(botUser);
+        }
+        return false;
+    }
+
+
+    public ArrayList<MessageObject> filterMessages(ArrayList<MessageObject> messages) {
+        ArrayList<MessageObject> filtered = new ArrayList<>();
+        if (messages == null) {
+            return filtered;
+        }
+
+        for (MessageObject messageObject : messages) {
+            if (isMessageAllowed(messageObject)) {
+                filtered.add(messageObject);
+            }
+        }
+        return filtered;
+    }
+
+
     //CloudVeil end
 }

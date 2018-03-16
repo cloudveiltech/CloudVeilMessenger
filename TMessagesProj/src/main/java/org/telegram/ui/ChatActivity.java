@@ -365,6 +365,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     private HashMap<Integer, MessageObject>[] messagesDict = new HashMap[]{new HashMap<>(), new HashMap<>()};
     private HashMap<String, ArrayList<MessageObject>> messagesByDays = new HashMap<>();
+
+
     protected ArrayList<MessageObject> messages = new ArrayList<>();
     private HashMap<Long, MessageObject.GroupedMessages> groupedMessagesMap = new HashMap<>();
     private int maxMessageId[] = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
@@ -420,12 +422,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private Path aspectPath;
     private Paint aspectPaint;
 
+
     private PhotoViewer.PhotoViewerProvider photoViewerProvider = new PhotoViewer.EmptyPhotoViewerProvider() {
 
         @Override
         public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index) {
             //CloudVeil start
-            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 return null;
             }
             //CloudVeil end
@@ -8636,6 +8639,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             }
         }
+
+        //CloudVeil start
+        messages = MessagesController.getInstance().filterMessages(messages);
+        chatAdapter.notifyDataSetChanged();
+        //CloudVeil end
     }
 
     public boolean processSwitchButton(TLRPC.TL_keyboardButtonSwitchInline button) {

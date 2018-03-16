@@ -2087,6 +2087,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             photoImage.setParentMessageObject(null);
             photoImage.setRoundRadius(AndroidUtilities.dp(3));
 
+
             if (messageChanged) {
                 firstVisibleBlockNum = 0;
                 lastVisibleBlockNum = 0;
