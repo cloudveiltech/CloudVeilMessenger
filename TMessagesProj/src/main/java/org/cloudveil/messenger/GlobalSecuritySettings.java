@@ -31,6 +31,7 @@ public class GlobalSecuritySettings {
     private static final boolean DEFAULT_LOCK_DISABLE_OWN_PHOTO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_BIO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_PHOTO = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_INLINE_VIDEO = true;
 
     public static boolean isDisabledSecretChat() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
@@ -92,4 +93,13 @@ public class GlobalSecuritySettings {
         preferences.edit().putBoolean("disabledOthersPhoto", lockDisableOthersPhoto).apply();
     }
 
+    public static boolean getDisabledVideoInlineRecording() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("inputToggleVoiceVideo", DEFAULT_LOCK_DISABLE_INLINE_VIDEO);
+    }
+
+    public static void setDisabledVideoInlineRecording(boolean lockDisableInlineVideo) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("inputToggleVoiceVideo", lockDisableInlineVideo).apply();
+    }
 }

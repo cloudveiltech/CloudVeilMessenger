@@ -1914,6 +1914,13 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (!MediaController.getInstance().canInAppCamera()) {
             hasRecordVideo = false;
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getDisabledVideoInlineRecording()) {
+            hasRecordVideo = false;
+        }
+        //CloudVeil end
+
         if (hasRecordVideo) {
             CameraController.getInstance().initCamera();
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);

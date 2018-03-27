@@ -9090,7 +9090,8 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
 
     public ArrayList<TLRPC.TL_dialog> filterDialogs(ArrayList<TLRPC.TL_dialog> dialogs) {
-        ArrayList<TLRPC.TL_dialog> filtered = new ArrayList<>();
+        return dialogs;
+      /*todo remove  ArrayList<TLRPC.TL_dialog> filtered = new ArrayList<>();
         if (dialogs == null) {
             return filtered;
         }
@@ -9100,7 +9101,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                 filtered.add(dlg);
             }
         }
-        return filtered;
+        return filtered;*/
     }
 
 

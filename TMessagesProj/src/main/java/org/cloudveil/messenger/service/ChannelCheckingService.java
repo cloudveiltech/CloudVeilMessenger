@@ -160,6 +160,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setLockDisableOwnBio(settingsResponse.disableBioChange);
         GlobalSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
         GlobalSecuritySettings.setLockDisableOthersPhoto(settingsResponse.disableProfilePhoto);
+        GlobalSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
 
         NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
     }

@@ -18,4 +18,5 @@ public class SettingsResponse {
     public boolean disableBioChange;
     public boolean disableProfilePhoto;
     public boolean disableProfilePhotoChange;
+    public boolean inputToggleVoiceVideo;
 }

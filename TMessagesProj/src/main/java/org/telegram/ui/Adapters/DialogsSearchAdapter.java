@@ -261,9 +261,9 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                                     TLRPC.Message message = res.messages.get(a);
                                     //CloudVeil start
                                     long dialog_id = MessageObject.getDialogId(message);
-                                    if(!MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
-                                        continue;
-                                    }
+                                   //todo remove if(!MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
+                                   //     continue;
+                                  //  }
                                     //CloudVeil end
                                     searchResultMessages.add(new MessageObject(message, null, false));
 
@@ -523,9 +523,9 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                     while (cursor.next()) {
                         long id = cursor.longValue(0);
                         //CloudVeil start
-                        if(!MessagesController.getInstance().isDialogIdAllowed(id)) {
-                            continue;
-                        }
+                       //todo remove if(!MessagesController.getInstance().isDialogIdAllowed(id)) {
+                       //     continue;
+                       // }
                         //CloudVeil end
 
                         DialogSearchResult dialogSearchResult = new DialogSearchResult();
