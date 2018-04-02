@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.IBinder;
-import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
@@ -18,7 +17,6 @@ import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
@@ -40,9 +38,13 @@ import io.reactivex.schedulers.Schedulers;
 
 public class ChannelCheckingService extends Service {
     private static final String ACTION_CHECK_CHANNELS = "org.cloudveil.messenger.service.check.channels";
+    private static final String EXTRA_ADDITION_DIALOG_ID = "extra_dialog_id";
     private static final long DEBOUNCE_TIME_MS = 200;
+
     private Disposable subscription;
     Handler handler = new Handler();
+    private long additionalDialogId = 0;
+
 
     @Nullable
     @Override
@@ -56,11 +58,23 @@ public class ChannelCheckingService extends Service {
         context.startService(intent);
     }
 
+    public static void startDataChecking(long dialogId, @NonNull Context context) {
+        Intent intent = new Intent(ACTION_CHECK_CHANNELS);
+        intent.setClass(context, ChannelCheckingService.class);
+        intent.putExtra(EXTRA_ADDITION_DIALOG_ID, dialogId);
+        context.startService(intent);
+    }
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_CHECK_CHANNELS)) {
             handler.removeCallbacks(checkDataRunnable);
+            long additionalId = intent.getLongExtra(EXTRA_ADDITION_DIALOG_ID, 0);
+            if(additionalId != 0) {
+                additionalDialogId = additionalId;
+            }
+
             handler.postDelayed(checkDataRunnable, DEBOUNCE_TIME_MS);
         }
         return super.onStartCommand(intent, flags, startId);
@@ -216,57 +230,66 @@ public class ChannelCheckingService extends Service {
         addDialogsToRequest(request, MessagesController.getInstance().dialogsForward);
         addDialogsToRequest(request, MessagesController.getInstance().dialogsGroupsOnly);
         addDialogsToRequest(request, MessagesController.getInstance().dialogsServerOnly);
+
+        if(additionalDialogId != 0) {
+            addDialogToRequest(additionalDialogId, request);
+            additionalDialogId = 0;
+        }
     }
 
     private void addDialogsToRequest(@NonNull SettingsRequest request, ArrayList<TLRPC.TL_dialog> dialogs) {
-        //this is very complicated code from Telegram core to separate dialogs to users, groups and channels
         for (TLRPC.TL_dialog dlg : dialogs) {
             long currentDialogId = dlg.id;
-            int lower_id = (int) currentDialogId;
-            int high_id = (int) (currentDialogId >> 32);
-            TLRPC.Chat chat = null;
-            TLRPC.User user = null;
-            if (lower_id != 0) {
-                if (high_id == 1) {
-                    chat = MessagesController.getInstance().getChat(lower_id);
-                } else {
-                    if (lower_id < 0) {
-                        chat = MessagesController.getInstance().getChat(-lower_id);
-                        if (chat != null && chat.migrated_to != null) {
-                            TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
-                            if (chat2 != null) {
-                                chat = chat2;
-                            }
-                        }
-                    } else {
-                        user = MessagesController.getInstance().getUser(lower_id);
-                    }
-                }
+            addDialogToRequest(currentDialogId, request);
+        }
+    }
+
+    private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
+        //this is very complicated code from Telegram core to separate dialogs to users, groups and channels
+        int lower_id = (int) currentDialogId;
+        int high_id = (int) (currentDialogId >> 32);
+        TLRPC.Chat chat = null;
+        TLRPC.User user = null;
+        if (lower_id != 0) {
+            if (high_id == 1) {
+                chat = MessagesController.getInstance().getChat(lower_id);
             } else {
-                TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
-                if (encryptedChat != null) {
-                    user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+                if (lower_id < 0) {
+                    chat = MessagesController.getInstance().getChat(-lower_id);
+                    if (chat != null && chat.migrated_to != null) {
+                        TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                        if (chat2 != null) {
+                            chat = chat2;
+                        }
+                    }
+                } else {
+                    user = MessagesController.getInstance().getUser(lower_id);
                 }
             }
+        } else {
+            TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+            if (encryptedChat != null) {
+                user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+            }
+        }
 
-            SettingsRequest.Row row = new SettingsRequest.Row();
-            row.id = dlg.id;
-            if (chat != null) {
-                row.title = chat.title;
-                row.userName = chat.username;
+        SettingsRequest.Row row = new SettingsRequest.Row();
+        row.id = currentDialogId;
+        if (chat != null) {
+            row.title = chat.title;
+            row.userName = chat.username;
 
-                if (DialogObject.isChannel(dlg)) {
-                    request.addChannel(row);
-                } else {
-                    request.addGroup(row);
-                }
-            } else if (user != null) {
-                if (user.bot) {
-                    row.id = user.id;
-                    row.title = user.username;
-                    row.userName = user.username;
-                    request.addBot(row);
-                }
+            if (chat instanceof TLRPC.TL_channel) {
+                request.addChannel(row);
+            } else {
+                request.addGroup(row);
+            }
+        } else if (user != null) {
+            if (user.bot) {
+                row.id = user.id;
+                row.title = user.username;
+                row.userName = user.username;
+                request.addBot(row);
             }
         }
     }

@@ -75,6 +75,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -173,6 +174,7 @@ import org.telegram.ui.Components.voip.VoIPHelper;
 
 import java.io.File;
 import java.net.URLDecoder;
+import java.nio.channels.Channel;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -366,7 +368,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private HashMap<Integer, MessageObject>[] messagesDict = new HashMap[]{new HashMap<>(), new HashMap<>()};
     private HashMap<String, ArrayList<MessageObject>> messagesByDays = new HashMap<>();
 
-
+    //CloudVeil start
+    protected ArrayList<MessageObject> messagesOld = new ArrayList<>();
+    //CloudVeil end
     protected ArrayList<MessageObject> messages = new ArrayList<>();
     private HashMap<Long, MessageObject.GroupedMessages> groupedMessagesMap = new HashMap<>();
     private int maxMessageId[] = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
@@ -783,6 +787,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         NotificationCenter.getInstance().addObserver(this, NotificationCenter.didSetNewWallpapper);
         NotificationCenter.getInstance().addObserver(this, NotificationCenter.channelRightsUpdated);
         NotificationCenter.getInstance().addObserver(this, NotificationCenter.updateMentionsCount);
+        //CloudVeil start
+        NotificationCenter.getInstance().addObserver(this, NotificationCenter.filterDialogsReady);
+        //CloudVeil end
 
         super.onFragmentCreate();
 
@@ -918,6 +925,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         NotificationCenter.getInstance().removeObserver(this, NotificationCenter.didSetNewWallpapper);
         NotificationCenter.getInstance().removeObserver(this, NotificationCenter.channelRightsUpdated);
         NotificationCenter.getInstance().removeObserver(this, NotificationCenter.updateMentionsCount);
+        //CloudVeil start
+        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+        //CloudVeil end
 
         if (AndroidUtilities.isTablet()) {
             NotificationCenter.getInstance().postNotificationName(NotificationCenter.openedChatChanged, dialog_id, true);
@@ -1731,6 +1741,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 } else {
                     emptyView.setText(LocaleController.getString("NoMessages", R.string.NoMessages));
                 }
+                //CloudVeil start
+                if (!MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
+                    emptyView.setText(LocaleController.getString("cloudveil_hidden_for_protection", R.string.cloudveil_hidden_for_protection));
+                }
+                //CloudVeil end
+
                 emptyView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
                 emptyView.setGravity(Gravity.CENTER);
                 emptyView.setTextColor(Theme.getColor(Theme.key_chat_serviceText));
@@ -6469,7 +6485,20 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     @Override
     public void didReceivedNotification(int id, final Object... args) {
-        if (id == NotificationCenter.messagesDidLoaded) {
+        //CloudVeil start
+        if (id == NotificationCenter.filterDialogsReady) {
+            MessagesController messagesController = MessagesController.getInstance();
+            boolean isDialogAllowed = messagesController.isDialogIdAllowed(dialog_id);
+            if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
+                messages = messagesController.filterMessages(messagesOld);
+                chatAdapter.notifyDataSetChanged();
+                NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+            } else if (!isDialogAllowed) {
+                showWarning(getParentActivity());
+                NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+            }
+            //ClloudVeil end
+        } else if (id == NotificationCenter.messagesDidLoaded) {
             int guid = (Integer) args[10];
             if (guid == classGuid) {
                 if (!openAnimationEnded) {
@@ -8641,7 +8670,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
         //CloudVeil start
-        messages = MessagesController.getInstance().filterMessages(messages);
+        for(MessageObject message : messages) {
+            messagesOld.add(message);
+        }
+        if (MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
+            messages = MessagesController.getInstance().filterMessages(messages);
+        } else {
+            messages = new ArrayList<>();
+            ChannelCheckingService.startDataChecking(dialog_id, getParentActivity());
+        }
+
         chatAdapter.notifyDataSetChanged();
         //CloudVeil end
     }

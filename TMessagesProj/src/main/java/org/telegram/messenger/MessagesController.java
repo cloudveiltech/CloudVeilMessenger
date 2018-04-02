@@ -9034,10 +9034,6 @@ public class MessagesController implements NotificationCenter.NotificationCenter
     }
 
     //CLoudVeil start
-    public boolean isDialogAllowed(TLRPC.TL_dialog dialog) {
-        return isDialogIdAllowed(dialog.id);
-    }
-
     public boolean isUserAllowed(TLRPC.User user) {
         if (user.bot) {
             if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
@@ -9088,20 +9084,50 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         return false;
     }
 
-
-    public ArrayList<TLRPC.TL_dialog> filterDialogs(ArrayList<TLRPC.TL_dialog> dialogs) {
-        return dialogs;
-      /*todo remove  ArrayList<TLRPC.TL_dialog> filtered = new ArrayList<>();
-        if (dialogs == null) {
-            return filtered;
-        }
-        int i = 0;
-        for (TLRPC.TL_dialog dlg : dialogs) {
-            if (isDialogAllowed(dlg)) {
-                filtered.add(dlg);
+    public boolean isDialogCheckedOnServer(long currentDialogId) {
+        int lower_id = (int) currentDialogId;
+        int high_id = (int) (currentDialogId >> 32);
+        TLRPC.Chat chat = null;
+        TLRPC.User user = null;
+        TLRPC.EncryptedChat encryptedChat = null;
+        if (lower_id != 0) {
+            if (high_id == 1) {
+                chat = MessagesController.getInstance().getChat(lower_id);
+            } else {
+                if (lower_id < 0) {
+                    chat = MessagesController.getInstance().getChat(-lower_id);
+                    if (chat != null && chat.migrated_to != null) {
+                        TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                        if (chat2 != null) {
+                            chat = chat2;
+                        }
+                    }
+                } else {
+                    user = MessagesController.getInstance().getUser(lower_id);
+                }
+            }
+        } else {
+            encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+            if (encryptedChat != null) {
+                user = MessagesController.getInstance().getUser(encryptedChat.user_id);
             }
         }
-        return filtered;*/
+
+        if (chat != null) {
+            return allowedDialogs.containsKey(currentDialogId);
+        } else if (user != null) {
+            if (user.bot) {
+                long id = (long) user.id;
+                return allowedBots.containsKey(id);
+            }
+            return true;
+        }
+        return false;
+    }
+
+
+    public ArrayList<TLRPC.TL_dialog> filterDialogs(ArrayList<TLRPC.TL_dialog> dialogs) {
+        return dialogs;//no filter yet
     }
 
 
