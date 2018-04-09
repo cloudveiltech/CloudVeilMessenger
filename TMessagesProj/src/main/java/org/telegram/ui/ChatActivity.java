@@ -174,7 +174,6 @@ import org.telegram.ui.Components.voip.VoIPHelper;
 
 import java.io.File;
 import java.net.URLDecoder;
-import java.nio.channels.Channel;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -4309,7 +4308,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             return;
         }
         //CloudVeil Start
-        if (GlobalSecuritySettings.LOCK_DISABLE_GIFS) {
+        if (GlobalSecuritySettings.isLockDisableGifs()) {
             return;
         }
         //CloudVeil End
@@ -8670,9 +8669,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
         //CloudVeil start
-        for(MessageObject message : messages) {
-            messagesOld.add(message);
-        }
+        backupMessages();
         if (MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
             messages = MessagesController.getInstance().filterMessages(messages);
         } else {
@@ -8682,6 +8679,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         chatAdapter.notifyDataSetChanged();
         //CloudVeil end
+    }
+
+    private void backupMessages() {
+        messagesOld.clear();
+        for(MessageObject m : messages) {
+            messagesOld.add(m);
+        }
     }
 
     public boolean processSwitchButton(TLRPC.TL_keyboardButtonSwitchInline button) {

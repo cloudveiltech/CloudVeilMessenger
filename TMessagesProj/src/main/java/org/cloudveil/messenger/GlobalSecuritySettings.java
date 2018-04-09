@@ -2,9 +2,6 @@ package org.cloudveil.messenger;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
-import android.support.annotation.NonNull;
-
-import com.google.gson.Gson;
 
 import org.telegram.messenger.ApplicationLoader;
 
@@ -17,15 +14,16 @@ public class GlobalSecuritySettings {
     public static final boolean LOCK_DISABLE_FORWARD_CHAT = false;
     public static final boolean LOCK_DISABLE_BOTS = false;
     public static final boolean LOCK_DISABLE_YOUTUBE_VIDEO = true;
+    private static final boolean DEFAULT_MANAGE_USERS = false;
 
 
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
     public static final boolean LOCK_DISABLE_IN_APP_BROWSER = true;
     public static final boolean LOCK_DISABLE_AUTOPLAY_GIFS = true;
-    public static final boolean LOCK_DISABLE_GIFS = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_GIFS = false;
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
-    public static final boolean LOCK_DISABLE_STICKERS = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
 
     private static final boolean DEFAULT_LOCK_DISABLE_OWN_BIO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OWN_PHOTO = true;
@@ -101,5 +99,29 @@ public class GlobalSecuritySettings {
     public static void setDisabledVideoInlineRecording(boolean lockDisableInlineVideo) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("inputToggleVoiceVideo", lockDisableInlineVideo).apply();
+    }
+
+    public static boolean isLockDisableGifs() {
+        return DEFAULT_LOCK_DISABLE_GIFS;
+    }
+
+    public static void setLockDisableStickers(boolean lockDisableStickers) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isLockDisableStickers", lockDisableStickers).apply();
+    }
+
+    public static boolean isLockDisableStickers() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isLockDisableStickers", DEFAULT_LOCK_DISABLE_STICKERS);
+    }
+
+    public static void setManageUsers(boolean isManagingUsers) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isManagingUsers", isManagingUsers).apply();
+    }
+
+    public static boolean getManageUsers() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isManagingUsers", DEFAULT_MANAGE_USERS);
     }
 }

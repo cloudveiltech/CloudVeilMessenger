@@ -1556,13 +1556,13 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             emojiView = null;
         }
         allowStickers = value;
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
             allowStickers = value;
         } else {
             allowStickers = false;
         }
 
-        if (!GlobalSecuritySettings.LOCK_DISABLE_GIFS) {
+        if (!GlobalSecuritySettings.isLockDisableGifs()) {
             allowGifs = value2;
         } else {
             allowGifs = false;
@@ -3043,7 +3043,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             return;
         }
         emojiView = new EmojiView(allowStickers, allowGifs, parentActivity, info);
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
             emojiView = new EmojiView(allowStickers, allowGifs, parentActivity,info);
         } else {
             emojiView = new EmojiView(false, false, parentActivity,info);
@@ -3153,7 +3153,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                 if (parentFragment == null || parentActivity == null) {
                     return;
                 }
-                if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+                if (!GlobalSecuritySettings.isLockDisableStickers()) {
                     if (stickerSet != null) {
                         inputStickerSet = new TLRPC.TL_inputStickerSetID();
                         inputStickerSet.access_hash = stickerSet.access_hash;
@@ -3254,8 +3254,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     @Override
     public void onStickerSelected(TLRPC.Document sticker) {
-        SendMessagesHelper.getInstance().sendSticker(sticker, dialog_id, replyingMessageObject);
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
             SendMessagesHelper.getInstance().sendSticker(sticker, dialog_id, replyingMessageObject);
         }
         if (delegate != null) {
@@ -3265,7 +3264,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     public void addStickerToRecent(TLRPC.Document sticker) {
         createEmojiView();
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
             emojiView.addRecentSticker(sticker);
         }
     }
@@ -3365,7 +3364,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (currentPage == 0 || !allowStickers && !allowGifs) {
             emojiButton.setImageResource(R.drawable.ic_msg_panel_smiles);
         } else if (currentPage == 1) {
-            if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+            if (!GlobalSecuritySettings.isLockDisableStickers()) {
                 emojiButton.setImageResource(R.drawable.ic_msg_panel_stickers);
             }
         } else if (currentPage == 2) {

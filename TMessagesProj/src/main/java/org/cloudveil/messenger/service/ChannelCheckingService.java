@@ -20,11 +20,13 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.query.StickersQuery;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -71,7 +73,7 @@ public class ChannelCheckingService extends Service {
         if (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_CHECK_CHANNELS)) {
             handler.removeCallbacks(checkDataRunnable);
             long additionalId = intent.getLongExtra(EXTRA_ADDITION_DIALOG_ID, 0);
-            if(additionalId != 0) {
+            if (additionalId != 0) {
                 additionalDialogId = additionalId;
             }
 
@@ -91,6 +93,7 @@ public class ChannelCheckingService extends Service {
         final SettingsRequest request = new SettingsRequest();
         addDialogsToRequest(request);
         addInlineBotsToRequest(request);
+        addStickersToRequest(request);
 
         request.userPhone = UserConfig.getCurrentUser().phone;
         request.userId = UserConfig.getCurrentUser().id;
@@ -104,7 +107,7 @@ public class ChannelCheckingService extends Service {
         final SettingsResponse cached = loadFromCache();
         if (!ConnectionsManager.isNetworkOnline()) {
             if (cached != null) {
-                processResponse(request, cached);
+                processResponse(cached);
             }
             return;
         }
@@ -117,7 +120,7 @@ public class ChannelCheckingService extends Service {
 
                     @Override
                     public void accept(SettingsResponse settingsResponse) throws Exception {
-                        processResponse(request, settingsResponse);
+                        processResponse(settingsResponse);
                         freeSubscription();
 
                         saveToCache(settingsResponse);
@@ -127,7 +130,7 @@ public class ChannelCheckingService extends Service {
                     public void accept(Throwable throwable) throws Exception {
                         freeSubscription();
                         if (cached != null) {
-                            processResponse(request, cached);
+                            processResponse(cached);
                         }
                     }
                 });
@@ -147,25 +150,52 @@ public class ChannelCheckingService extends Service {
         }
     }
 
-    private void processResponse(@NonNull SettingsRequest request, @NonNull SettingsResponse settingsResponse) {
+    private void addStickersToRequest(SettingsRequest request) {
+        for (int i = 0; i < StickersQuery.getStickersSetTypesCount(); i++) {
+            addStickerSetToRequest(StickersQuery.getStickerSets(i), request);
+        }
+
+        ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = StickersQuery.getFeaturedStickerSetsUnfiltered();
+        for (TLRPC.StickerSetCovered stickerSetCovered : featuredStickerSets) {
+            addStickerSetToRequest(stickerSetCovered.set, request);
+        }
+    }
+
+    private void addStickerSetToRequest(ArrayList<TLRPC.TL_messages_stickerSet> stickerSets, SettingsRequest request) {
+        for (TLRPC.TL_messages_stickerSet set : stickerSets) {
+            addStickerSetToRequest(set.set, request);
+        }
+    }
+
+    private void addStickerSetToRequest(TLRPC.StickerSet stickerSet, SettingsRequest request) {
+        SettingsRequest.Row row = new SettingsRequest.Row();
+        row.id = stickerSet.id;
+        row.title = stickerSet.title;
+        row.userName = stickerSet.short_name;
+
+        request.addSticker(row);
+    }
+
+    private void processResponse(@NonNull SettingsResponse settingsResponse) {
         ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance().allowedDialogs;
         allowedDialogs.clear();
-        for (Long channelId : settingsResponse.channels) {
-            allowedDialogs.put(channelId, true);
-        }
-        for (Long groupId : settingsResponse.groups) {
-            allowedDialogs.put(groupId, true);
-        }
+
+        appendAllowedDialogs(allowedDialogs, settingsResponse.access.channels);
+        appendAllowedDialogs(allowedDialogs, settingsResponse.access.groups);
+        appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
         ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
         allowedBots.clear();
-        for (Long groupId : settingsResponse.bots) {
-            allowedBots.put(groupId, true);
-        }
+        appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
 
-        addBlackListedDialogs(request.channels);
-        addBlackListedDialogs(request.groups);
-        addBlackListedBots(request.bots);
+        StickersQuery.allowedStickerSets.clear();
+        for (HashMap<Long, Boolean> data : settingsResponse.access.stickers) {
+            Long stickerId = data.keySet().iterator().next();
+            Boolean allowed = data.values().iterator().next();
+            if (allowed) {
+                StickersQuery.allowedStickerSets.add(stickerId);
+            }
+        }
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
         GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
@@ -175,25 +205,17 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
         GlobalSecuritySettings.setLockDisableOthersPhoto(settingsResponse.disableProfilePhoto);
         GlobalSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
+        GlobalSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
+        GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
 
         NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
     }
 
-    private void addBlackListedDialogs(ArrayList<SettingsRequest.Row> rows) {
-        ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance().allowedDialogs;
-        for (SettingsRequest.Row dlg : rows) {
-            if (!allowedDialogs.containsKey(dlg.id)) {
-                allowedDialogs.put(dlg.id, false);
-            }
-        }
-    }
-
-    private void addBlackListedBots(ArrayList<SettingsRequest.Row> rows) {
-        ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
-        for (SettingsRequest.Row dlg : rows) {
-            if (!allowedBots.containsKey(dlg.id)) {
-                allowedBots.put(dlg.id, false);
-            }
+    private void appendAllowedDialogs(ConcurrentHashMap<Long, Boolean> allowedDialogs, ArrayList<HashMap<Long, Boolean>> groups) {
+        for (HashMap<Long, Boolean> data : groups) {
+            Long id = data.keySet().iterator().next();
+            Boolean value = data.values().iterator().next();
+            allowedDialogs.put(id, value);
         }
     }
 
@@ -231,7 +253,7 @@ public class ChannelCheckingService extends Service {
         addDialogsToRequest(request, MessagesController.getInstance().dialogsGroupsOnly);
         addDialogsToRequest(request, MessagesController.getInstance().dialogsServerOnly);
 
-        if(additionalDialogId != 0) {
+        if (additionalDialogId != 0) {
             addDialogToRequest(additionalDialogId, request);
             additionalDialogId = 0;
         }
@@ -285,11 +307,15 @@ public class ChannelCheckingService extends Service {
                 request.addGroup(row);
             }
         } else if (user != null) {
-            if (user.bot) {
+            if (!user.self) {
                 row.id = user.id;
-                row.title = user.username;
+                row.title = user.first_name + " " + user.last_name;
                 row.userName = user.username;
-                request.addBot(row);
+                if (user.bot) {
+                    request.addBot(row);
+                } else {
+                    request.addUser(row);
+                }
             }
         }
     }

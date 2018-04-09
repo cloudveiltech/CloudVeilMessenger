@@ -186,7 +186,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         listView.setOnItemClickListener(new RecyclerListView.OnItemClickListener() {
             @Override
             public void onItemClick(View view, int position) {
-                if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+                if (!GlobalSecuritySettings.isLockDisableStickers()) {
                     if (position >= stickersStartRow && position < stickersEndRow && getParentActivity() != null) {
                         sendReorder();
                         final TLRPC.TL_messages_stickerSet stickerSet = StickersQuery.getStickerSets(currentType).get(position - stickersStartRow);

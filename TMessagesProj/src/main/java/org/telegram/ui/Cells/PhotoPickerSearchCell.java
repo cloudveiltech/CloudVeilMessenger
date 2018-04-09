@@ -88,7 +88,7 @@ public class PhotoPickerSearchCell extends LinearLayout {
         setOrientation(HORIZONTAL);
 
         /* Start Disable Giphy */
-        if (!GlobalSecuritySettings.LOCK_DISABLE_GIFS) {
+        if (!GlobalSecuritySettings.isLockDisableGifs()) {
             SearchButton searchButton = new SearchButton(context);
             searchButton.textView1.setText(LocaleController.getString("SearchImages", R.string.SearchImages));
             searchButton.textView2.setText(LocaleController.getString("SearchImagesInfo", R.string.SearchImagesInfo));

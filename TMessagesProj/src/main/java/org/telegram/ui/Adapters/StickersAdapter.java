@@ -197,7 +197,7 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
         } else if (i == stickers.size() - 1) {
             side = 1;
         }
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
             ((StickerCell) viewHolder.itemView).setSticker(stickers.get(i), side);
         }
     }

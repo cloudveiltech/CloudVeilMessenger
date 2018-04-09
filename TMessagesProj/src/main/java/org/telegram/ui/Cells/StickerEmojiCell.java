@@ -64,7 +64,8 @@ public class StickerEmojiCell extends FrameLayout {
     }
 
     public void setSticker(TLRPC.Document document, boolean showEmoji) {
-        if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+        //CloudVeil start
+        if (!GlobalSecuritySettings.isLockDisableStickers() && StickersQuery.isStickerAllowed(document)) {
             if (document != null) {
                 sticker = document;
                 if (document.thumb != null) {
@@ -92,6 +93,7 @@ public class StickerEmojiCell extends FrameLayout {
                 }
             }
         }
+        //CloudVeil end
     }
 
     public void disable() {

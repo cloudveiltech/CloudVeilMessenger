@@ -726,7 +726,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                     return StickerPreviewViewer.getInstance().onTouch(event, stickersGridView, EmojiView.this.getMeasuredHeight(), stickersOnItemClickListener, stickerPreviewViewerDelegate);
                 }
             });
-            if (!GlobalSecuritySettings.LOCK_DISABLE_STICKERS) {
+            if (!GlobalSecuritySettings.isLockDisableStickers()) {
                 stickersOnItemClickListener = new RecyclerListView.OnItemClickListener() {
                     @Override
                     public void onItemClick(View view, int position) {

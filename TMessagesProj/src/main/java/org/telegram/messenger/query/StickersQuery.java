@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -45,7 +46,7 @@ public class StickersQuery {
     public static final int TYPE_MASK = 1;
     public static final int TYPE_FAVE = 2;
 
-    private static ArrayList<TLRPC.TL_messages_stickerSet> stickerSets[] = new ArrayList[] {new ArrayList<>(), new ArrayList<>()};
+    private static ArrayList<TLRPC.TL_messages_stickerSet> stickerSets[] = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
     private static HashMap<Long, TLRPC.TL_messages_stickerSet> stickerSetsById = new HashMap<>();
     private static HashMap<Long, TLRPC.TL_messages_stickerSet> groupStickerSets = new HashMap<>();
     private static HashMap<String, TLRPC.TL_messages_stickerSet> stickerSetsByName = new HashMap<>();
@@ -59,7 +60,7 @@ public class StickersQuery {
     private static HashMap<Long, String> stickersByEmoji = new HashMap<>();
     private static HashMap<String, ArrayList<TLRPC.Document>> allStickers = new HashMap<>();
 
-    private static ArrayList<TLRPC.Document> recentStickers[] = new ArrayList[] {new ArrayList<>(), new ArrayList<>(), new ArrayList<>()};
+    private static ArrayList<TLRPC.Document> recentStickers[] = new ArrayList[]{new ArrayList<>(), new ArrayList<>(), new ArrayList<>()};
     private static boolean loadingRecentStickers[] = new boolean[3];
     private static boolean recentStickersLoaded[] = new boolean[3];
 
@@ -75,6 +76,10 @@ public class StickersQuery {
     private static ArrayList<Long> readingStickerSets = new ArrayList<>();
     private static boolean loadingFeaturedStickers;
     private static boolean featuredStickersLoaded;
+
+    //CloudVeil start
+    public static ArrayList<Long> allowedStickerSets = new ArrayList<>();
+    //CloudVeil end
 
     public static void cleanup() {
         for (int a = 0; a < 3; a++) {
@@ -117,13 +122,46 @@ public class StickersQuery {
         }
     }
 
-    public static ArrayList<TLRPC.Document> getRecentStickers(int type) {
-        return new ArrayList<>(recentStickers[type]);
+    //CloudVeil Start
+    public static int getStickersSetTypesCount() {
+        return stickerSets.length;
     }
 
-    public static ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
-        return recentStickers[type];
+    public static boolean isStickerAllowed(TLRPC.Document doc) {
+        if(doc == null) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        if(id < 0) {
+            return true;
+        }
+        return isStickerAllowed(id);
     }
+
+    public static boolean isStickerAllowed(TLRPC.TL_messages_stickerSet stickerSet) {
+        return isStickerAllowed(stickerSet.set.id);
+    }
+
+    public static boolean isStickerAllowed(long id) {
+        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.contains(id);
+    }
+
+    public static ArrayList<TLRPC.Document> getRecentStickers(int type) {
+        ArrayList<TLRPC.Document> stickers = new ArrayList<>();
+        for (TLRPC.Document doc : recentStickers[type]) {
+            if (isStickerAllowed(doc)) {
+                stickers.add(doc);
+            }
+        }
+
+        return stickers;
+    }
+
+
+    public static ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
+        return getRecentStickers(type);
+    }
+    //CloudVeil end
 
     public static boolean isStickerInFavorites(TLRPC.Document document) {
         for (int a = 0; a < recentStickers[TYPE_FAVE].size(); a++) {
@@ -267,12 +305,19 @@ public class StickersQuery {
         return loadingStickers[type];
     }
 
+    //CloudVeil start
     public static TLRPC.TL_messages_stickerSet getStickerSetByName(String name) {
-        return stickerSetsByName.get(name);
+        if (isStickerAllowed(stickerSetsByName.get(name))) {
+            return stickerSetsByName.get(name);
+        }
+        return null;
     }
 
     public static TLRPC.TL_messages_stickerSet getStickerSetById(Long id) {
-        return stickerSetsById.get(id);
+        if (isStickerAllowed(id)) {
+            return stickerSetsById.get(id);
+        }
+        return null;
     }
 
     public static TLRPC.TL_messages_stickerSet getGroupStickerSetById(TLRPC.StickerSet stickerSet) {
@@ -285,8 +330,13 @@ public class StickersQuery {
                 loadGroupStickerSet(stickerSet, false);
             }
         }
+        if(set != null && !isStickerAllowed(set)) {
+            return null;
+        }
+
         return set;
     }
+    //CloudVeil end
 
     public static void putGroupStickerSet(TLRPC.TL_messages_stickerSet stickerSet) {
         groupStickerSets.put(stickerSet.set.id, stickerSet);
@@ -379,9 +429,24 @@ public class StickersQuery {
         }
     }
 
+    //CloudVeil start
     public static HashMap<String, ArrayList<TLRPC.Document>> getAllStickers() {
         return allStickers;
     }
+    public static ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSetsUnfiltered() {
+        return featuredStickerSets;
+    }
+
+    public static ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+        ArrayList<TLRPC.StickerSetCovered> res = new ArrayList<>();
+        for(TLRPC.StickerSetCovered covered : featuredStickerSets) {
+            if(isStickerAllowed(covered.set.id)) {
+                res.add(covered);
+            }
+        }
+        return res;
+    }
+    //CloudVeil end
 
     public static boolean canAddStickerToFavorites() {
         return !stickersLoaded[0] || stickerSets[0].size() >= 5 || !recentStickers[TYPE_FAVE].isEmpty();
@@ -391,9 +456,6 @@ public class StickersQuery {
         return stickerSets[type];
     }
 
-    public static ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
-        return featuredStickerSets;
-    }
 
     public static ArrayList<Long> getUnreadStickerSets() {
         return unreadStickerSets;
@@ -1267,9 +1329,12 @@ public class StickersQuery {
 
                         for (int a = 0; a < res.size(); a++) {
                             TLRPC.TL_messages_stickerSet stickerSet = res.get(a);
-                            if (stickerSet == null) {
+                            //CloudVeil start
+                            if (stickerSet == null || !isStickerAllowed(stickerSet)) {
                                 continue;
                             }
+                            //CloudVeil end
+
                             stickerSetsNew.add(stickerSet);
                             stickerSetsByIdNew.put(stickerSet.set.id, stickerSet);
                             stickerSetsByNameNew.put(stickerSet.set.short_name, stickerSet);

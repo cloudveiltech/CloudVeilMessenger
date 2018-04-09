@@ -9041,6 +9041,9 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             }
             long id = (long) user.id;
             return !allowedBots.containsKey(id) || allowedBots.get(id);
+        } else if(GlobalSecuritySettings.getManageUsers()) {
+            long id = (long) user.id;
+            return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
         }
         return true;
     }
@@ -9119,6 +9122,8 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             if (user.bot) {
                 long id = (long) user.id;
                 return allowedBots.containsKey(id);
+            } else if(GlobalSecuritySettings.getManageUsers()) {
+                return allowedDialogs.containsKey(currentDialogId);
             }
             return true;
         }
@@ -9132,6 +9137,10 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
 
     public boolean isMessageAllowed(MessageObject messageObject) {
+        if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null && !StickersQuery.isStickerAllowed(messageObject.messageOwner.media.document)) {
+            return false;
+        }
+
         if (messageObject.messageOwner.via_bot_id <= 0) {
             return true;
         }

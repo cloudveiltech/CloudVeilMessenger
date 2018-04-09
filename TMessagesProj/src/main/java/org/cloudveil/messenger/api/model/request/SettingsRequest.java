@@ -14,6 +14,8 @@ public class SettingsRequest {
     public ArrayList<Row> groups = new ArrayList<>();
     public ArrayList<Row> channels = new ArrayList<>();
     public ArrayList<Row> bots = new ArrayList<>();
+    public ArrayList<Row> stickers = new ArrayList<>();
+    public ArrayList<Row> users = new ArrayList<>();
 
     public boolean isEmpty() {
         return groups.isEmpty() && channels.isEmpty() && bots.isEmpty();
@@ -35,6 +37,14 @@ public class SettingsRequest {
 
     public void addBot(Row bot) {
         addRow(bots, bot);
+    }
+
+    public void addUser(Row user) {
+        addRow(users, user);
+    }
+
+    public void addSticker(Row sticker) {
+        addRow(stickers, sticker);
     }
 
     private void addRow(ArrayList<Row> rows, Row data) {
