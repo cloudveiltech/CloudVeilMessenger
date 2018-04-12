@@ -307,6 +307,13 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             foundContextBot = null;
             inlineMediaEnabled = true;
         }
+
+        //CloudVeil start
+        if(!MessagesController.getInstance().isUserAllowed(foundContextBot)) {
+            foundContextBot = null;
+        }
+        //CloudVeil end
+
         if (foundContextBot == null) {
             noUserName = true;
         } else {
@@ -321,6 +328,12 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         if (foundContextBot != null && foundContextBot.username != null && foundContextBot.username.equals(username) && searchingContextQuery != null && searchingContextQuery.equals(query)) {
             return;
         }
+        //CloudVeil start
+        if(!MessagesController.getInstance().isUserAllowed(foundContextBot)) {
+            foundContextBot = null;
+        }
+        //CloudVeil end
+
         searchResultBotContext = null;
         searchResultBotContextById = null;
         searchResultBotContextSwitch = null;

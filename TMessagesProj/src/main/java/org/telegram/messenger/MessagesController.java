@@ -9035,6 +9035,9 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
     //CLoudVeil start
     public boolean isUserAllowed(TLRPC.User user) {
+        if(user == null) {
+            return true;
+        }
         if (user.bot) {
             if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
                 return false;
