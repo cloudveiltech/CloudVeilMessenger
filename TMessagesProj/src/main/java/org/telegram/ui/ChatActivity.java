@@ -8676,8 +8676,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             messages = new ArrayList<>();
             ChannelCheckingService.startDataChecking(dialog_id, getParentActivity());
         }
-
-        chatAdapter.notifyDataSetChanged();
+        if(chatAdapter != null) {
+            chatAdapter.notifyDataSetChanged();
+        }
         //CloudVeil end
     }
 

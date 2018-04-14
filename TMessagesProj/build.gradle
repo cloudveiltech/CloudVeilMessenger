@@ -121,7 +121,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 965
+    defaultConfig.versionCode = 966
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
