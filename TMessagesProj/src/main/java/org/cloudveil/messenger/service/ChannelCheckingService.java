@@ -46,6 +46,7 @@ public class ChannelCheckingService extends Service {
     private Disposable subscription;
     Handler handler = new Handler();
     private long additionalDialogId = 0;
+    private boolean firstCall = true;
 
 
     @Nullable
@@ -105,10 +106,11 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsResponse cached = loadFromCache();
+        if (cached != null && (firstCall || !ConnectionsManager.isNetworkOnline())) {
+            processResponse(cached);
+            firstCall = false;
+        }
         if (!ConnectionsManager.isNetworkOnline()) {
-            if (cached != null) {
-                processResponse(cached);
-            }
             return;
         }
 
@@ -129,9 +131,6 @@ public class ChannelCheckingService extends Service {
                     @Override
                     public void accept(Throwable throwable) throws Exception {
                         freeSubscription();
-                        if (cached != null) {
-                            processResponse(cached);
-                        }
                     }
                 });
     }
@@ -154,6 +153,8 @@ public class ChannelCheckingService extends Service {
         for (int i = 0; i < StickersQuery.getStickersSetTypesCount(); i++) {
             addStickerSetToRequest(StickersQuery.getStickerSets(i), request);
         }
+
+        addStickerSetToRequest(StickersQuery.newStickerSets, request);
 
         ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = StickersQuery.getFeaturedStickerSetsUnfiltered();
         for (TLRPC.StickerSetCovered stickerSetCovered : featuredStickerSets) {
@@ -189,13 +190,8 @@ public class ChannelCheckingService extends Service {
         appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
 
         StickersQuery.allowedStickerSets.clear();
-        for (HashMap<Long, Boolean> data : settingsResponse.access.stickers) {
-            Long stickerId = data.keySet().iterator().next();
-            Boolean allowed = data.values().iterator().next();
-            if (allowed) {
-                StickersQuery.allowedStickerSets.add(stickerId);
-            }
-        }
+
+        appendAllowedDialogs(StickersQuery.allowedStickerSets, settingsResponse.access.stickers);
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
         GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
@@ -207,6 +203,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
         GlobalSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
         GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
+        GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
 
         NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
     }

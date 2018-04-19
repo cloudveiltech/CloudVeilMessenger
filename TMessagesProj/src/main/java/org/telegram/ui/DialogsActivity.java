@@ -179,6 +179,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             NotificationCenter.getInstance().addObserver(this, NotificationCenter.reloadHints);
             //CloudVeil start
             NotificationCenter.getInstance().addObserver(this, NotificationCenter.filterDialogsReady);
+            NotificationCenter.getInstance().addObserver(this, NotificationCenter.stickersDidLoaded);
             //CloudVeil end
         }
 
@@ -216,6 +217,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
             //CloudVeil start
             NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+            NotificationCenter.getInstance().removeObserver(this, NotificationCenter.stickersDidLoaded);
             //CloudVeil end
         }
         if (commentView != null) {
@@ -1244,6 +1246,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else {
             showPopup(getParentActivity());
         }
+        //Cloudveil start
+        StickersQuery.loadStickers(StickersQuery.TYPE_IMAGE, true, false);
+        //Cloudveil end
     }
 
     @Override
@@ -1373,7 +1378,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @SuppressWarnings("unchecked")
     public void didReceivedNotification(int id, Object... args) {
         //CloudVeil start
-        if (id == NotificationCenter.dialogsNeedReload) {
+        if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoaded) {
             ChannelCheckingService.startDataChecking(ApplicationLoader.applicationContext);
         }
         if (id == NotificationCenter.filterDialogsReady) {

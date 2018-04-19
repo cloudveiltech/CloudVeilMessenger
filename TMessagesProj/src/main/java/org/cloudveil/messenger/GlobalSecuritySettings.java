@@ -21,7 +21,7 @@ public class GlobalSecuritySettings {
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
     public static final boolean LOCK_DISABLE_IN_APP_BROWSER = true;
     public static final boolean LOCK_DISABLE_AUTOPLAY_GIFS = true;
-    private static final boolean DEFAULT_LOCK_DISABLE_GIFS = false;
+    private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
     private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
 
@@ -123,5 +123,15 @@ public class GlobalSecuritySettings {
     public static boolean getManageUsers() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         return preferences.getBoolean("isManagingUsers", DEFAULT_MANAGE_USERS);
+    }
+
+    public static void setBlockedImageUrl(String blockedImageUrl) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putString("blockedImageUrl", blockedImageUrl).apply();
+    }
+
+    public static String getBlockedImageUrl() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getString("blockedImageUrl", "");
     }
 }

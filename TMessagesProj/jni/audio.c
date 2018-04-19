@@ -6,6 +6,7 @@
 #include <time.h>
 #include <opusfile.h>
 #include <math.h>
+#include <opusfile/internal.h>
 #include "utils.h"
 
 typedef struct {
@@ -569,7 +570,6 @@ int initPlayer(const char *path) {
         cleanupPlayer();
         return 0;
     }
-    
     _isSeekable = op_seekable(_opusFile);
     _totalPcmDuration = op_pcm_total(_opusFile, -1);
         

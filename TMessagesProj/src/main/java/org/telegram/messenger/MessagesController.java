@@ -9141,7 +9141,9 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
     public boolean isMessageAllowed(MessageObject messageObject) {
         if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null && !StickersQuery.isStickerAllowed(messageObject.messageOwner.media.document)) {
-            return false;
+            if(TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
+                return false;
+            }
         }
 
         if (messageObject.messageOwner.via_bot_id <= 0) {

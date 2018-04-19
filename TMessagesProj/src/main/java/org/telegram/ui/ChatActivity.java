@@ -367,9 +367,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private HashMap<Integer, MessageObject>[] messagesDict = new HashMap[]{new HashMap<>(), new HashMap<>()};
     private HashMap<String, ArrayList<MessageObject>> messagesByDays = new HashMap<>();
 
-    //CloudVeil start
-    protected ArrayList<MessageObject> messagesOld = new ArrayList<>();
-    //CloudVeil end
     protected ArrayList<MessageObject> messages = new ArrayList<>();
     private HashMap<Long, MessageObject.GroupedMessages> groupedMessagesMap = new HashMap<>();
     private int maxMessageId[] = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
@@ -6489,12 +6486,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             MessagesController messagesController = MessagesController.getInstance();
             boolean isDialogAllowed = messagesController.isDialogIdAllowed(dialog_id);
             if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
-                messages = messagesController.filterMessages(messagesOld);
                 chatAdapter.notifyDataSetChanged();
-                NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
             } else if (!isDialogAllowed) {
                 showWarning(getParentActivity());
-                NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+                return;
             }
             //ClloudVeil end
         } else if (id == NotificationCenter.messagesDidLoaded) {
@@ -8668,12 +8663,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
         }
 
+
         //CloudVeil start
-        backupMessages();
         if (MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
             messages = MessagesController.getInstance().filterMessages(messages);
         } else {
-            messages = new ArrayList<>();
             ChannelCheckingService.startDataChecking(dialog_id, getParentActivity());
         }
         if(chatAdapter != null) {
@@ -8682,12 +8676,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         //CloudVeil end
     }
 
-    private void backupMessages() {
-        messagesOld.clear();
-        for(MessageObject m : messages) {
-            messagesOld.add(m);
-        }
-    }
 
     public boolean processSwitchButton(TLRPC.TL_keyboardButtonSwitchInline button) {
         if (inlineReturn == 0 || button.same_peer || parentLayout == null) {
@@ -11258,6 +11246,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         public int getItemCount() {
+            if(!MessagesController.getInstance().isDialogCheckedOnServer(dialog_id) ||
+                    !MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
+                return 0;
+            }
             return rowCount;
         }
 
@@ -11516,7 +11508,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             SecretMediaViewer.getInstance().setParentActivity(getParentActivity());
                             SecretMediaViewer.getInstance().openMedia(message, photoViewerProvider);
                         } else if (message.type == 13) {
-                            showDialog(new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && ChatObject.canSendStickers(currentChat) ? chatActivityEnterView : null));
+                            //cloudveil start
+                            if(StickersQuery.isStickerAllowed(message.getInputStickerSet())) {
+                                showDialog(new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && ChatObject.canSendStickers(currentChat) ? chatActivityEnterView : null));
+                            }
+                            //cloudveil end
                         } else if (message.isVideo() || message.type == 1 || message.type == 0 && !message.isWebpageDocument() || message.isGif()) {
                             if (message.isVideo()) {
                                 sendSecretMessageRead(message);

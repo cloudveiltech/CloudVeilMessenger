@@ -80,23 +80,37 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
     public interface Listener {
         boolean onBackspace();
+
         void onEmojiSelected(String emoji);
+
         void onStickerSelected(TLRPC.Document sticker);
+
         void onStickersSettingsClick();
+
         void onStickersGroupClick(int chatId);
+
         void onGifSelected(TLRPC.Document gif);
+
         void onGifTab(boolean opened);
+
         void onStickersTab(boolean opened);
+
         void onClearEmojiRecent();
+
         void onShowStickerSet(TLRPC.StickerSet stickerSet, TLRPC.InputStickerSet inputStickerSet);
+
         void onStickerSetAdd(TLRPC.StickerSetCovered stickerSet);
+
         void onStickerSetRemove(TLRPC.StickerSetCovered stickerSet);
     }
 
-    public interface DragListener{
+    public interface DragListener {
         void onDragStart();
+
         void onDragEnd(float velocity);
+
         void onDragCancel();
+
         void onDrag(int offset);
     }
 
@@ -135,6 +149,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
     };
 
     private static final Field superListenerField;
+
     static {
         Field f = null;
         try {
@@ -145,6 +160,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
         superListenerField = f;
     }
+
     private static final ViewTreeObserver.OnScrollChangedListener NOP = new ViewTreeObserver.OnScrollChangedListener() {
         @Override
         public void onScrollChanged() {
@@ -636,7 +652,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         Drawable stickersDrawable = context.getResources().getDrawable(R.drawable.ic_smiles2_stickers);
         Theme.setDrawableColorByKey(stickersDrawable, Theme.key_chat_emojiPanelIcon);
-        icons = new Drawable[] {
+        icons = new Drawable[]{
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_recent, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_smile, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_nature, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
@@ -1052,7 +1068,19 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                                 saveNewPage();
                             }
                         }
+                    } else {
+                        if (page == trendingTabNum + 1) {
+                            if (trendingGridView.getVisibility() != VISIBLE) {
+                                showTrendingTab();
+                            }
+                        } else if (trendingGridView.getVisibility() == VISIBLE) {
+                            trendingGridView.setVisibility(GONE);
+                            stickersGridView.setVisibility(VISIBLE);
+                            stickersEmptyView.setVisibility(stickersGridAdapter.getItemCount() != 0 ? GONE : VISIBLE);
+                            saveNewPage();
+                        }
                     }
+
                     if (page == 0) {
                         pager.setCurrentItem(0);
                         return;
@@ -1292,7 +1320,9 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         trendingGridView.setVisibility(VISIBLE);
         stickersGridView.setVisibility(GONE);
         stickersEmptyView.setVisibility(GONE);
-        gifsGridView.setVisibility(GONE);
+        if (gifsGridView != null) {
+            gifsGridView.setVisibility(GONE);
+        }
         stickersTab.onPageScrolled(trendingTabNum + 1, (recentTabBum > 0 ? recentTabBum : stickersTabOffset) + 1);
         saveNewPage();
     }
@@ -1423,9 +1453,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         ArrayList<TLRPC.TL_messages_stickerSet> packs = StickersQuery.getStickerSets(StickersQuery.TYPE_IMAGE);
         for (int a = 0; a < packs.size(); a++) {
             TLRPC.TL_messages_stickerSet pack = packs.get(a);
-            if (pack.set.archived || pack.documents == null || pack.documents.isEmpty()) {
+            //CLoudVeil start
+            if (pack.set.archived || pack.documents == null || pack.documents.isEmpty() || !StickersQuery.isStickerAllowed(pack)) {
                 continue;
             }
+
             stickerSets.add(pack);
         }
         if (info != null) {
@@ -2087,7 +2119,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                     if (leftSide < AndroidUtilities.dp(320)) {
                         leftSide = AndroidUtilities.dp(320);
                     }
-                    width  = smallSide - leftSide;
+                    width = smallSide - leftSide;
                 } else {
                     width = AndroidUtilities.displaySize.x;
                 }

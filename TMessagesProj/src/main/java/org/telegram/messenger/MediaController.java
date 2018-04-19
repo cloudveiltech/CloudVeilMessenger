@@ -492,6 +492,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                         int currentNum = currentPart;
                         float nextNum = 0;
                         sampleStep = (float) len / 2 / (float) newPart;
+
                         for (int i = 0; i < len / 2; i++) {
                             short peak = buffer.getShort();
                             if (peak > 2500) {
@@ -3415,6 +3416,15 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         return false;
     }
 
+    //CloudVeil start
+    public boolean isAudioTrackPlaying() {
+        if (audioTrackPlayer == null && audioPlayer == null && videoPlayer == null || playingMessageObject == null) {
+            return false;
+        }
+        return !isPaused && !downloadingCurrentMessage;
+    }
+
+    //CloudVeil end
     public boolean isMessagePaused() {
         return isPaused || downloadingCurrentMessage;
     }

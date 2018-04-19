@@ -14,6 +14,7 @@ import android.content.SharedPreferences;
 import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -38,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
 public class StickersQuery {
@@ -47,6 +49,8 @@ public class StickersQuery {
     public static final int TYPE_FAVE = 2;
 
     private static ArrayList<TLRPC.TL_messages_stickerSet> stickerSets[] = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
+
+
     private static HashMap<Long, TLRPC.TL_messages_stickerSet> stickerSetsById = new HashMap<>();
     private static HashMap<Long, TLRPC.TL_messages_stickerSet> groupStickerSets = new HashMap<>();
     private static HashMap<String, TLRPC.TL_messages_stickerSet> stickerSetsByName = new HashMap<>();
@@ -78,7 +82,8 @@ public class StickersQuery {
     private static boolean featuredStickersLoaded;
 
     //CloudVeil start
-    public static ArrayList<Long> allowedStickerSets = new ArrayList<>();
+    public static ConcurrentHashMap<Long, Boolean> allowedStickerSets = new ConcurrentHashMap<>();//Cl
+    public static ArrayList<TLRPC.TL_messages_stickerSet> newStickerSets = new ArrayList<>();
     //CloudVeil end
 
     public static void cleanup() {
@@ -143,7 +148,7 @@ public class StickersQuery {
     }
 
     public static boolean isStickerAllowed(long id) {
-        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.contains(id);
+        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.containsKey(id) && allowedStickerSets.get(id);
     }
 
     public static ArrayList<TLRPC.Document> getRecentStickers(int type) {
@@ -157,6 +162,55 @@ public class StickersQuery {
         return stickers;
     }
 
+    public static void loadStickerSetAndSendToServer(TLRPC.InputStickerSet inputStickerSet) {
+        TLRPC.TL_messages_stickerSet stickerSet = null;
+
+        if (inputStickerSet.short_name != null) {
+            stickerSet = getStickerSetByName(inputStickerSet.short_name);
+        }
+        if (stickerSet == null) {
+            stickerSet = getStickerSetById(inputStickerSet.id);
+        }
+        for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
+            if(s.set.id == inputStickerSet.id) {
+                return;
+            }
+        }
+        if (stickerSet == null) {
+            TLRPC.TL_messages_getStickerSet req = new TLRPC.TL_messages_getStickerSet();
+            req.stickerset = inputStickerSet;
+            ConnectionsManager.getInstance().sendRequest(req, new RequestDelegate() {
+                @Override
+                public void run(final TLObject response, final TLRPC.TL_error error) {
+                    TLRPC.TL_messages_stickerSet stickerSet = (TLRPC.TL_messages_stickerSet) response;
+
+                    for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
+                        if(s.set.id == stickerSet.set.id) {
+                            return;
+                        }
+                    }
+                    newStickerSets.add(stickerSet);
+                    ChannelCheckingService.startDataChecking(ApplicationLoader.applicationContext);
+                }
+            });
+        }
+    }
+
+    public static boolean isStickerSetKnown(TLRPC.Document doc) {
+        if(doc == null) {
+            return true;
+        }
+        if(GlobalSecuritySettings.isLockDisableStickers()) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        return allowedStickerSets.containsKey(id);
+    }
+
+
+    public static boolean isStickerAllowed(TLRPC.InputStickerSet inputStickerSet) {
+        return isStickerAllowed(inputStickerSet.id);
+    }
 
     public static ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
         return getRecentStickers(type);

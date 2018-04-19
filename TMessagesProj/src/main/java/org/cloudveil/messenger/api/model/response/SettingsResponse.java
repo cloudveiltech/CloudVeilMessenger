@@ -28,4 +28,5 @@ public class SettingsResponse {
     public boolean disableStickers;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
+    public String disableStickersImage;
 }
