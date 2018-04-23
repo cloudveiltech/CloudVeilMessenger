@@ -121,7 +121,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 967
+    defaultConfig.versionCode = 968
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
@@ -193,7 +193,7 @@ android {
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 25
-        versionName "4.6.3"
+        versionName "4.6.4"
         multiDexEnabled true
 
         externalNativeBuild {

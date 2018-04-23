@@ -12,6 +12,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.tgnet.AbstractSerializedData;
 import org.telegram.tgnet.ConnectionsManager;

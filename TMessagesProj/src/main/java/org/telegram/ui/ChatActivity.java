@@ -3703,6 +3703,22 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         fixLayoutInternal();
 
+        //CloudVeil start
+        if(currentEncryptedChat != null) {
+            fragmentView.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    int oldTtl = currentEncryptedChat.ttl;
+                    currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
+                    if (oldTtl != currentEncryptedChat.ttl) {
+                        SecretChatHelper.getInstance().sendTTLMessage(currentEncryptedChat, null);
+                        MessagesStorage.getInstance().updateEncryptedChatTTL(currentEncryptedChat);
+                    }
+                }
+            }, 1000);
+        }
+        //CloudVeil end
+
         return fragmentView;
     }
 
