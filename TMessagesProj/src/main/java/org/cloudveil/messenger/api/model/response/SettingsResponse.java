@@ -15,6 +15,11 @@ public class SettingsResponse {
         public ArrayList<HashMap<Long, Boolean>> users;
         public ArrayList<HashMap<Long, Boolean>> stickers;
 
+        public boolean isValid() {
+            return groups != null &&
+                    bots != null &&
+                    channels != null;
+        }
     }
     public AccessList access;
 

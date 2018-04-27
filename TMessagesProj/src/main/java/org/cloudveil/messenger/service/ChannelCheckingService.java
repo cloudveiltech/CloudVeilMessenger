@@ -178,6 +178,10 @@ public class ChannelCheckingService extends Service {
     }
 
     private void processResponse(@NonNull SettingsResponse settingsResponse) {
+        if(settingsResponse.access == null || !settingsResponse.access.isValid()) {
+            return;
+        }
+
         ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance().allowedDialogs;
         allowedDialogs.clear();
 
@@ -185,13 +189,16 @@ public class ChannelCheckingService extends Service {
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.groups);
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
-        ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
-        allowedBots.clear();
-        appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
+        if(settingsResponse.access.bots != null) {
+            ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
+            allowedBots.clear();
+            appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
+        }
 
-        StickersQuery.allowedStickerSets.clear();
-
-        appendAllowedDialogs(StickersQuery.allowedStickerSets, settingsResponse.access.stickers);
+        if(settingsResponse.access.stickers != null) {
+            StickersQuery.allowedStickerSets.clear();
+            appendAllowedDialogs(StickersQuery.allowedStickerSets, settingsResponse.access.stickers);
+        }
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
         GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
