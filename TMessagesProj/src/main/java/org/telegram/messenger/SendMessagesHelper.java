@@ -10,6 +10,7 @@ package org.telegram.messenger;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -43,7 +44,6 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AlertsCreator;
-import org.telegram.ui.PaymentFormActivity;
 
 import java.io.File;
 import java.io.RandomAccessFile;
@@ -1464,13 +1464,22 @@ public class SendMessagesHelper implements NotificationCenter.NotificationCenter
                             sendCallback(false, messageObject, button, parentFragment);
                         } else if (response != null) {
                             if (button instanceof TLRPC.TL_keyboardButtonBuy) {
-                                if (response instanceof TLRPC.TL_payments_paymentForm) {
-                                    final TLRPC.TL_payments_paymentForm form = (TLRPC.TL_payments_paymentForm) response;
-                                    MessagesController.getInstance().putUsers(form.users, false);
-                                    parentFragment.presentFragment(new PaymentFormActivity(form, messageObject));
-                                } else if (response instanceof TLRPC.TL_payments_paymentReceipt) {
-                                    parentFragment.presentFragment(new PaymentFormActivity(messageObject, (TLRPC.TL_payments_paymentReceipt) response));
-                                }
+                                //CloudVeil start
+                                AlertDialog.Builder builder = new AlertDialog.Builder(parentFragment.getParentActivity());
+                                builder.setTitle(parentFragment.getParentActivity().getString(R.string.warning))
+                                        .setMessage(parentFragment.getParentActivity().getString(R.string.cloudveil_disabled_for_protection))
+                                        .setPositiveButton(parentFragment.getParentActivity().getString(R.string.OK), new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                            }
+                                        });
+
+                                parentFragment.showDialog(builder.create(), new DialogInterface.OnDismissListener() {
+                                    @Override
+                                    public void onDismiss(DialogInterface dialog) {
+                                    }
+                                });
+                                //CloudVeil end
                             } else {
                                 TLRPC.TL_messages_botCallbackAnswer res = (TLRPC.TL_messages_botCallbackAnswer) response;
                                 if (!cacheFinal && res.cache_time != 0) {
