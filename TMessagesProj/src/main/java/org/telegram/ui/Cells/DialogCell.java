@@ -24,11 +24,12 @@ import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.query.DraftQuery;
+import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.messenger.ContactsController;
@@ -59,19 +60,23 @@ public class DialogCell extends BaseCell {
         public boolean sent;
     }
 
+    private int currentAccount = UserConfig.selectedAccount;
     private CustomDialog customDialog;
     private long currentDialogId;
     private int currentEditDate;
     private boolean isDialogCell;
     private int lastMessageDate;
     private int unreadCount;
+    private boolean markUnread;
     private int mentionCount;
     private boolean lastUnreadState;
     private int lastSendState;
     private boolean dialogMuted;
     private MessageObject message;
+    private CharSequence lastMessageString;
     private int index;
     private int dialogsType;
+    private int messageId;
 
     private ImageReceiver avatarImage = new ImageReceiver(this);
     private AvatarDrawable avatarDrawable = new AvatarDrawable();
@@ -156,11 +161,13 @@ public class DialogCell extends BaseCell {
         isDialogCell = true;
         index = i;
         dialogsType = type;
+        messageId = 0;
         update(0);
     }
 
     public void setDialog(CustomDialog dialog) {
         customDialog = dialog;
+        messageId = 0;
         update(0);
     }
 
@@ -171,6 +178,8 @@ public class DialogCell extends BaseCell {
         lastMessageDate = date;
         currentEditDate = messageObject != null ? messageObject.messageOwner.edit_date : 0;
         unreadCount = 0;
+        markUnread = false;
+        messageId = messageObject != null ? messageObject.getId() : 0;
         mentionCount = 0;
         lastUnreadState = messageObject != null && messageObject.isUnread();
         if (message != null) {
@@ -181,6 +190,10 @@ public class DialogCell extends BaseCell {
 
     public long getDialogId() {
         return currentDialogId;
+    }
+
+    public int getMessageId() {
+        return messageId;
     }
 
     @Override
@@ -214,8 +227,16 @@ public class DialogCell extends BaseCell {
             checkBox.layout(x, y, x + checkBox.getMeasuredWidth(), y + checkBox.getMeasuredHeight());
         }
         if (changed) {
+            try {
             buildLayout();
+            } catch (Exception e) {
+                FileLog.e(e);
         }
+    }
+    }
+
+    public boolean isUnread() {
+        return (unreadCount != 0 || markUnread) && !dialogMuted;
     }
 
     public void buildLayout() {
@@ -226,7 +247,7 @@ public class DialogCell extends BaseCell {
         CharSequence messageString = "";
         CharSequence printingString = null;
         if (isDialogCell) {
-            printingString = MessagesController.getInstance().printingStrings.get(currentDialogId);
+            printingString = MessagesController.getInstance(currentAccount).printingStrings.get(currentDialogId);
         }
         TextPaint currentNamePaint = Theme.dialogs_namePaint;
         TextPaint currentMessagePaint = Theme.dialogs_messagePaint;
@@ -247,6 +268,8 @@ public class DialogCell extends BaseCell {
         } else {
             messageFormat = "%s: %s";
         }
+
+        lastMessageString = message != null ? message.messageText : null;
 
         if (customDialog != null) {
             if (customDialog.type == 2) {
@@ -388,7 +411,7 @@ public class DialogCell extends BaseCell {
             }
 
             if (isDialogCell) {
-                draftMessage = DraftQuery.getDraft(currentDialogId);
+                draftMessage = DataQuery.getInstance(currentAccount).getDraft(currentDialogId);
                 if (draftMessage != null && (TextUtils.isEmpty(draftMessage.message) && draftMessage.reply_to_msg_id == 0 || lastDate > draftMessage.date && unreadCount != 0) ||
                         ChatObject.isChannel(chat) && !chat.megagroup && !chat.creator && (chat.admin_rights == null || !chat.admin_rights.post_messages) ||
                         chat != null && (chat.left || chat.kicked)) {
@@ -436,7 +459,7 @@ public class DialogCell extends BaseCell {
                             } else if (encryptedChat instanceof TLRPC.TL_encryptedChatDiscarded) {
                                 messageString = LocaleController.getString("EncryptionRejected", R.string.EncryptionRejected);
                             } else if (encryptedChat instanceof TLRPC.TL_encryptedChat) {
-                                if (encryptedChat.admin_id == UserConfig.getClientUserId()) {
+                                if (encryptedChat.admin_id == UserConfig.getInstance(currentAccount).getClientUserId()) {
                                     if (user != null && user.first_name != null) {
                                         messageString = LocaleController.formatString("EncryptedChatStartedOutgoing", R.string.EncryptedChatStartedOutgoing, user.first_name);
                                     } else {
@@ -446,14 +469,16 @@ public class DialogCell extends BaseCell {
                                     messageString = LocaleController.getString("EncryptedChatStartedIncoming", R.string.EncryptedChatStartedIncoming);
                                 }
                             }
+                        } else {
+                            messageString = "";
                         }
                     } else {
                         TLRPC.User fromUser = null;
                         TLRPC.Chat fromChat = null;
                         if (message.isFromUser()) {
-                            fromUser = MessagesController.getInstance().getUser(message.messageOwner.from_id);
+                            fromUser = MessagesController.getInstance(currentAccount).getUser(message.messageOwner.from_id);
                         } else {
-                            fromChat = MessagesController.getInstance().getChat(message.messageOwner.to_id.channel_id);
+                            fromChat = MessagesController.getInstance(currentAccount).getChat(message.messageOwner.to_id.channel_id);
                         }
                         if (dialogsType == 3 && UserObject.isUserSelf(user)) {
                             messageString = LocaleController.getString("SavedMessagesInfo", R.string.SavedMessagesInfo);
@@ -562,6 +587,9 @@ public class DialogCell extends BaseCell {
                 if (unreadCount != 0 && (unreadCount != 1 || unreadCount != mentionCount || message == null || !message.messageOwner.mentioned)) {
                     drawCount = true;
                     countString = String.format("%d", unreadCount);
+                } else if (markUnread) {
+                    drawCount = true;
+                    countString = "";
                 } else {
                     drawCount = false;
                 }
@@ -599,6 +627,11 @@ public class DialogCell extends BaseCell {
                 }
             }
 
+            if (dialogsType == 0 && MessagesController.getInstance(currentAccount).isProxyDialog(currentDialogId)) {
+                drawPinBackground = true;
+                timeString = LocaleController.getString("UseProxySponsor", R.string.UseProxySponsor);
+            }
+
             if (chat != null) {
                 nameString = chat.title;
             } else if (user != null) {
@@ -607,8 +640,8 @@ public class DialogCell extends BaseCell {
                         drawPinBackground = true;
                     }
                     nameString = LocaleController.getString("SavedMessages", R.string.SavedMessages);
-                } else if (user.id / 1000 != 777 && user.id / 1000 != 333 && ContactsController.getInstance().contactsDict.get(user.id) == null) {
-                    if (ContactsController.getInstance().contactsDict.size() == 0 && (!ContactsController.getInstance().contactsLoaded || ContactsController.getInstance().isLoadingContacts())) {
+                } else if (user.id / 1000 != 777 && user.id / 1000 != 333 && ContactsController.getInstance(currentAccount).contactsDict.get(user.id) == null) {
+                    if (ContactsController.getInstance(currentAccount).contactsDict.size() == 0 && (!ContactsController.getInstance(currentAccount).contactsLoaded || ContactsController.getInstance(currentAccount).isLoadingContacts())) {
                         nameString = UserObject.getUserName(user);
                     } else {
                         if (user.phone != null && user.phone.length() != 0) {
@@ -847,6 +880,14 @@ public class DialogCell extends BaseCell {
         }
     }
 
+    public boolean isPointInsideAvatar(float x, float y) {
+        if (!LocaleController.isRTL) {
+            return x >= 0 && x < AndroidUtilities.dp(60);
+        } else {
+            return x >= getMeasuredWidth() - AndroidUtilities.dp(60) && x < getMeasuredWidth();
+        }
+    }
+
     public void setDialogSelected(boolean value) {
         if (isSelected != value) {
             invalidate();
@@ -858,14 +899,14 @@ public class DialogCell extends BaseCell {
         //CloudVeil start
         ArrayList<TLRPC.TL_dialog> dialogs = null;
         if (dialogsType == 0) {
-            dialogs = MessagesController.getInstance().dialogs;
+            return MessagesController.getInstance(currentAccount).dialogs;
         } else if (dialogsType == 1) {
-            dialogs = MessagesController.getInstance().dialogsServerOnly;
+            return MessagesController.getInstance(currentAccount).dialogsServerOnly;
         } else if (dialogsType == 2) {
-            dialogs = MessagesController.getInstance().dialogsGroupsOnly;
+            return MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
         } else if (dialogsType == 3) {
-            dialogs = MessagesController.getInstance().dialogsForward;
-        } else {
+            return MessagesController.getInstance(currentAccount).dialogsForward;
+        }
             return null;
         }
         dialogs = MessagesController.getInstance().filterDialogs(dialogs);
@@ -876,13 +917,14 @@ public class DialogCell extends BaseCell {
     public void checkCurrentDialogIndex() {
         if (index < getDialogsArray().size()) {
             TLRPC.TL_dialog dialog = getDialogsArray().get(index);
-            TLRPC.DraftMessage newDraftMessage = DraftQuery.getDraft(currentDialogId);
-            MessageObject newMessageObject = MessagesController.getInstance().dialogMessage.get(dialog.id);
+            TLRPC.DraftMessage newDraftMessage = DataQuery.getInstance(currentAccount).getDraft(currentDialogId);
+            MessageObject newMessageObject = MessagesController.getInstance(currentAccount).dialogMessage.get(dialog.id);
             if (currentDialogId != dialog.id ||
                     message != null && message.getId() != dialog.top_message ||
                     newMessageObject != null && newMessageObject.messageOwner.edit_date != currentEditDate ||
                     unreadCount != dialog.unread_count ||
                     mentionCount != dialog.unread_mentions_count ||
+                    markUnread != dialog.unread_mark ||
                     message != newMessageObject ||
                     message == null && newMessageObject != null || newDraftMessage != draftMessage || drawPin != dialog.pinned) {
                 currentDialogId = dialog.id;
@@ -909,11 +951,12 @@ public class DialogCell extends BaseCell {
             avatarImage.setImage((TLObject) null, "50_50", avatarDrawable, null, 0);
         } else {
             if (isDialogCell) {
-                TLRPC.TL_dialog dialog = MessagesController.getInstance().dialogs_dict.get(currentDialogId);
+                TLRPC.TL_dialog dialog = MessagesController.getInstance(currentAccount).dialogs_dict.get(currentDialogId);
                 if (dialog != null && mask == 0) {
-                    message = MessagesController.getInstance().dialogMessage.get(dialog.id);
+                    message = MessagesController.getInstance(currentAccount).dialogMessage.get(dialog.id);
                     lastUnreadState = message != null && message.isUnread();
                     unreadCount = dialog.unread_count;
+                    markUnread = dialog.unread_mark;
                     mentionCount = dialog.unread_mentions_count;
                     currentEditDate = message != null ? message.messageOwner.edit_date : 0;
                     lastMessageDate = dialog.last_message_date;
@@ -930,10 +973,15 @@ public class DialogCell extends BaseCell {
                 boolean continueUpdate = false;
                 if (isDialogCell) {
                     if ((mask & MessagesController.UPDATE_MASK_USER_PRINT) != 0) {
-                        CharSequence printString = MessagesController.getInstance().printingStrings.get(currentDialogId);
+                        CharSequence printString = MessagesController.getInstance(currentAccount).printingStrings.get(currentDialogId);
                         if (lastPrintString != null && printString == null || lastPrintString == null && printString != null || lastPrintString != null && printString != null && !lastPrintString.equals(printString)) {
                             continueUpdate = true;
                         }
+                    }
+                }
+                if (!continueUpdate && (mask & MessagesController.UPDATE_MASK_MESSAGE_TEXT) != 0) {
+                    if (message != null && message.messageText != lastMessageString) {
+                        continueUpdate = true;
                     }
                 }
                 if (!continueUpdate && (mask & MessagesController.UPDATE_MASK_AVATAR) != 0) {
@@ -961,10 +1009,11 @@ public class DialogCell extends BaseCell {
                         lastUnreadState = message.isUnread();
                         continueUpdate = true;
                     } else if (isDialogCell) {
-                        TLRPC.TL_dialog dialog = MessagesController.getInstance().dialogs_dict.get(currentDialogId);
-                        if (dialog != null && (unreadCount != dialog.unread_count || mentionCount != dialog.unread_mentions_count)) {
+                        TLRPC.TL_dialog dialog = MessagesController.getInstance(currentAccount).dialogs_dict.get(currentDialogId);
+                        if (dialog != null && (unreadCount != dialog.unread_count || markUnread != dialog.unread_mark || mentionCount != dialog.unread_mentions_count)) {
                             unreadCount = dialog.unread_count;
                             mentionCount = dialog.unread_mentions_count;
+                            markUnread = dialog.unread_mark;
                             continueUpdate = true;
                         }
                     }
@@ -981,7 +1030,7 @@ public class DialogCell extends BaseCell {
                 }
             }
 
-            dialogMuted = isDialogCell && MessagesController.getInstance().isDialogMuted(currentDialogId);
+            dialogMuted = isDialogCell && MessagesController.getInstance(currentAccount).isDialogMuted(currentDialogId);
             user = null;
             chat = null;
             encryptedChat = null;
@@ -990,24 +1039,24 @@ public class DialogCell extends BaseCell {
             int high_id = (int) (currentDialogId >> 32);
             if (lower_id != 0) {
                 if (high_id == 1) {
-                    chat = MessagesController.getInstance().getChat(lower_id);
+                    chat = MessagesController.getInstance(currentAccount).getChat(lower_id);
                 } else {
                     if (lower_id < 0) {
-                        chat = MessagesController.getInstance().getChat(-lower_id);
+                        chat = MessagesController.getInstance(currentAccount).getChat(-lower_id);
                         if (!isDialogCell && chat != null && chat.migrated_to != null) {
-                            TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                            TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(chat.migrated_to.channel_id);
                             if (chat2 != null) {
                                 chat = chat2;
                             }
                         }
                     } else {
-                        user = MessagesController.getInstance().getUser(lower_id);
+                        user = MessagesController.getInstance(currentAccount).getUser(lower_id);
                     }
                 }
             } else {
-                encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+                encryptedChat = MessagesController.getInstance(currentAccount).getEncryptedChat(high_id);
                 if (encryptedChat != null) {
-                    user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+                    user = MessagesController.getInstance(currentAccount).getUser(encryptedChat.user_id);
                 }
             }
 

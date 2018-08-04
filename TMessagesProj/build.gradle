@@ -16,7 +16,8 @@ apply plugin: 'io.fabric'
 
 repositories {
     mavenCentral()
-    maven { url 'https://maven.fabric.io/public' }
+    google()
+    jcenter()
 }
 
 configurations {
@@ -24,17 +25,19 @@ configurations {
 }
 
 dependencies {
-    compile 'com.android.support:multidex:1.0.1'
-    compile 'com.google.android.gms:play-services-gcm:11.0.4'
-    compile 'com.google.android.gms:play-services-maps:11.0.4'
-    compile 'com.google.android.gms:play-services-vision:11.0.4'
-    compile 'com.google.android.gms:play-services-wearable:11.0.4'
-    compile 'com.android.support:support-core-ui:25.3.1'
-    compile 'com.android.support:support-compat:25.3.1'
-    compile 'com.android.support:support-core-utils:25.3.1'
-    compile 'com.android.support:support-v13:25.3.1'
-    compile 'com.android.support:palette-v7:25.3.1'
-    compile 'net.hockeyapp.android:HockeySDK:4.1.3'
+    compile 'com.google.firebase:firebase-messaging:17.1.0'
+    compile 'com.google.firebase:firebase-config:16.0.0'
+    compile 'com.google.android.gms:play-services-maps:15.0.1'
+    compile 'com.google.android.gms:play-services-vision:15.0.2'
+    compile 'com.google.android.gms:play-services-wallet:15.0.1'
+    compile 'com.google.android.gms:play-services-wearable:15.0.1'
+    implementation 'com.android.support:support-core-ui:27.1.1'
+    implementation 'com.android.support:support-compat:27.1.1'
+    implementation 'com.android.support:support-core-utils:27.1.1'
+    implementation 'com.android.support:support-v13:27.1.1'
+    implementation 'com.android.support:palette-v7:27.1.1'
+    implementation 'com.android.support:exifinterface:27.1.1'
+    compile 'net.hockeyapp.android:HockeySDK:5.1.0'
     compile 'com.googlecode.mp4parser:isoparser:1.0.6'
     compile 'com.stripe:stripe-android:2.0.2'
     compile 'com.squareup.retrofit2:retrofit:2.3.0'
@@ -47,10 +50,9 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion '26.0.2'
+    compileSdkVersion 27
+    buildToolsVersion '27.0.3'
 
-    useLibrary 'org.apache.http.legacy'
     defaultConfig.applicationId = "org.cloudveil.messenger"
 
     sourceSets.main.jniLibs.srcDirs = ['./jni/']
@@ -66,6 +68,11 @@ android {
         ndkBuild {
             path "jni/Android.mk"
         }
+    }
+
+    lintOptions {
+        disable 'MissingTranslation'
+        disable 'ExtraTranslation'
     }
 
     dexOptions {
@@ -84,7 +91,6 @@ android {
             storePassword keystoreProperties['storePasswordCloudVeil']
             keyAlias keystoreProperties['keyAliasCloudVeil']
             keyPassword keystoreProperties['keyPasswordCloudVeil']
-            v2SigningEnabled false
         }
 
         release {
@@ -92,7 +98,6 @@ android {
             storePassword keystoreProperties['storePasswordCloudVeil']
             keyAlias keystoreProperties['keyAliasCloudVeil']
             keyPassword keystoreProperties['keyPasswordCloudVeil']
-            v2SigningEnabled false
         }
     }
 
@@ -102,13 +107,15 @@ android {
             jniDebuggable true
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
         release {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -120,7 +127,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 971
+    defaultConfig.versionCode = 1340
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
@@ -134,35 +141,28 @@ android {
         manifest.srcFile 'config/foss/AndroidManifest.xml'
     }
 
+    flavorDimensions "minApi"
+
     productFlavors {
-        x86 {
-            ndk {
-                abiFilter "x86"
-            }
-            versionCode = 2
-        }
         armv7 {
             ndk {
-                abiFilter "armeabi-v7a"
+                abiFilters "armeabi-v7a"
             }
-            versionCode = 1
+            ext {
+                abiVersionCode = 1
+            }
         }
-        x86_SDK23 {
+        x86 {
             ndk {
-                abiFilter "x86"
+                abiFilters "x86"
             }
-            sourceSets.debug {
-                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            ext {
+                abiVersionCode = 2
             }
-            sourceSets.release {
-                manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
-            }
-            minSdkVersion 23
-            versionCode = 4
         }
         armv7_SDK23 {
             ndk {
-                abiFilter "armeabi-v7a"
+                abiFilters "armeabi-v7a"
             }
             sourceSets.debug {
                 manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
@@ -171,34 +171,108 @@ android {
                 manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
             }
             minSdkVersion 23
-            versionCode = 3
+            ext {
+                abiVersionCode = 3
+            }
         }
-        fat {
+        x86_SDK23 {
+            ndk {
+                abiFilters "x86"
+            }
             sourceSets.debug {
                 manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
             }
             sourceSets.release {
                 manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
             }
-            versionCode = 5
+            minSdkVersion 23
+            ext {
+                abiVersionCode = 4
+            }
+        }
+        arm64 {
+            ndk {
+                abiFilters "arm64-v8a"
+            }
+            ext {
+                abiVersionCode = 5
+            }
+        }
+        x64 {
+            ndk {
+                abiFilters "x86_64"
+            }
+            ext {
+                abiVersionCode = 6
+            }
+        }
+        arm64_SDK23 {
+            ndk {
+                abiFilters "arm64-v8a"
+            }
+            sourceSets.debug {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.release {
+                manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
+            }
+            minSdkVersion 23
+            ext {
+                abiVersionCode = 7
+            }
+        }
+        x64_SDK23 {
+            ndk {
+                abiFilters "x86_64"
+            }
+            sourceSets.debug {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.release {
+                manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
+            }
+            minSdkVersion 23
+            ext {
+                abiVersionCode = 8
+            }
+        }
+        afat {
+            sourceSets.debug {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.release {
+                manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
+            }
+            ext {
+                abiVersionCode = 0
+            }
         }
     }
 
     applicationVariants.all { variant ->
-        def abiVersion = variant.productFlavors.get(0).versionCode
-        variant.mergedFlavor.versionCode = defaultConfig.versionCode * 10 + abiVersion
+        variant.outputs.all { output ->
+            output.processManifest.doLast {
+                def abiVersion = variant.productFlavors.get(0).abiVersionCode
+                String manifestPath = "$manifestOutputDirectory/AndroidManifest.xml"
+                def manifestContent = file(manifestPath).getText()
+                manifestContent = manifestContent.replace(String.format('android:versionCode="%d"', defaultConfig.versionCode), String.format('android:versionCode="%s"', defaultConfig.versionCode * 10 + abiVersion))
+                file(manifestPath).write(manifestContent)
+            }
+        }
     }
 
     defaultConfig {
-        minSdkVersion 14
-        targetSdkVersion 25
-        versionName "4.6.4"
+        minSdkVersion 16
+        targetSdkVersion 27
+        versionName "4.9.0"
         multiDexEnabled true
+
+		vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         externalNativeBuild {
             ndkBuild {
-                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-14", "LOCAL_SHORT_COMMANDS=true", "APP_SHORT_COMMANDS=true"
-                abiFilters "armeabi-v7a", "x86"
+                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-16", "-j8"
+                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             }
         }
     }
