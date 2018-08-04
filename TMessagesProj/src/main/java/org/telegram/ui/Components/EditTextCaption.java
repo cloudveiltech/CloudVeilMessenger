@@ -212,7 +212,7 @@ public class EditTextCaption extends EditTextBoldCursor {
         }
         if (delegate != null) {
             delegate.onSpansChanged();
-    }
+        }
     }
 
     @Override

@@ -255,7 +255,7 @@ public class GridLayoutManager extends LinearLayoutManager {
         return mSpanSizeLookup;
     }
 
-    protected void updateMeasurements() {
+    private void updateMeasurements() {
         int totalSpace;
         if (getOrientation() == VERTICAL) {
             totalSpace = getWidth() - getPaddingRight() - getPaddingLeft();
@@ -447,7 +447,7 @@ public class GridLayoutManager extends LinearLayoutManager {
         return mSpanSizeLookup.getSpanGroupIndex(adapterPosition, mSpanCount);
     }
 
-    protected int getSpanIndex(RecyclerView.Recycler recycler, RecyclerView.State state, int pos) {
+    private int getSpanIndex(RecyclerView.Recycler recycler, RecyclerView.State state, int pos) {
         if (!state.isPreLayout()) {
             return mSpanSizeLookup.getCachedSpanIndex(pos, mSpanCount);
         }
@@ -726,7 +726,7 @@ public class GridLayoutManager extends LinearLayoutManager {
      * @param maxSizeInOther The maximum size per span ratio from the measurement of the children.
      * @param currentOtherDirSize The size before this layout chunk. There is no reason to go below.
      */
-    protected void guessMeasurement(float maxSizeInOther, int currentOtherDirSize) {
+    private void guessMeasurement(float maxSizeInOther, int currentOtherDirSize) {
         final int contentSize = Math.round(maxSizeInOther * mSpanCount);
         // always re-calculate because borders were stretched during the fill
         calculateItemBorders(Math.max(contentSize, currentOtherDirSize));

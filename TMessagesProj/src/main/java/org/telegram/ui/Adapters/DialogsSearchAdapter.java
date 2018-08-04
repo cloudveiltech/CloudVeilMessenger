@@ -76,7 +76,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
     private SearchAdapterHelper searchAdapterHelper;
     private RecyclerListView innerListView;
     private int selfUserId;
-
+    
     private int currentAccount = UserConfig.selectedAccount;
 
     private ArrayList<RecentSearchObject> recentSearchObjects = new ArrayList<>();
@@ -262,14 +262,8 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                                 }
                                 for (int a = 0; a < res.messages.size(); a++) {
                                     TLRPC.Message message = res.messages.get(a);
-                                    //CloudVeil start
+                                    searchResultMessages.add(new MessageObject(currentAccount, message, false));
                                     long dialog_id = MessageObject.getDialogId(message);
-                                   //todo remove if(!MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
-                                   //     continue;
-                                  //  }
-                                    //CloudVeil end
-                                    searchResultMessages.add(new MessageObject(message, null, false));
-
                                     ConcurrentHashMap<Long, Integer> read_max = message.out ? MessagesController.getInstance(currentAccount).dialogs_read_outbox_max : MessagesController.getInstance(currentAccount).dialogs_read_inbox_max;
                                     Integer value = read_max.get(dialog_id);
                                     if (value == null) {
@@ -526,12 +520,6 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                     SQLiteCursor cursor = MessagesStorage.getInstance(currentAccount).getDatabase().queryFinalized("SELECT did, date FROM dialogs ORDER BY date DESC LIMIT 600");
                     while (cursor.next()) {
                         long id = cursor.longValue(0);
-                        //CloudVeil start
-                       //todo remove if(!MessagesController.getInstance().isDialogIdAllowed(id)) {
-                       //     continue;
-                       // }
-                        //CloudVeil end
-
                         DialogSearchResult dialogSearchResult = new DialogSearchResult();
                         dialogSearchResult.date = cursor.intValue(1);
                         dialogsResult.put(id, dialogSearchResult);
@@ -1161,10 +1149,10 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                                 spannableStringBuilder.setSpan(new ForegroundColorSpan(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4)), index, index + foundUserName.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                                 name = spannableStringBuilder;
                             } else if (un != null) {
-                        if (foundUserName.startsWith("@")) {
-                            foundUserName = foundUserName.substring(1);
-                        }
-                        try {
+                                if (foundUserName.startsWith("@")) {
+                                    foundUserName = foundUserName.substring(1);
+                                }
+                                try {
                                     SpannableStringBuilder spannableStringBuilder = new SpannableStringBuilder();
                                     spannableStringBuilder.append("@");
                                     spannableStringBuilder.append(un);
@@ -1178,12 +1166,12 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                                         spannableStringBuilder.setSpan(new ForegroundColorSpan(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4)), index, index + len, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                                     }
                                     username = spannableStringBuilder;
-                        } catch (Exception e) {
-                            username = un;
-                            FileLog.e(e);
+                                } catch (Exception e) {
+                                    username = un;
+                                    FileLog.e(e);
+                                }
+                            }
                         }
-                    }
-                }
                     }
                 }
                 boolean savedMessages = false;

@@ -50,37 +50,34 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ApplicationLoader;
+import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.MessageObject;
-import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
-import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
-import org.telegram.messenger.R;
 import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
-import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.support.widget.LinearLayoutManager;
 import org.telegram.messenger.support.widget.RecyclerView;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.ActionBarMenu;
-import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.R;
+import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
-import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.AboutLinkCell;
 import org.telegram.ui.Cells.DividerCell;
@@ -91,14 +88,19 @@ import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextDetailCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.UserCell;
+import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.ImageUpdater;
 import org.telegram.ui.Components.BackupImageView;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.IdenticonDrawable;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.voip.VoIPHelper;
 
 import java.util.ArrayList;
@@ -223,7 +225,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     photoBig = user.photo.photo_big;
                 }
             } else if (chat_id != 0) {
-                TLRPC.Chat chat = MessagesController.getInstance().getChat(chat_id);
+                TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(chat_id);
                 if (chat != null && chat.photo != null && chat.photo.photo_big != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                     photoBig = chat.photo.photo_big;
                 }
@@ -377,19 +379,19 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
 
         for (int a = 0; a < DataQuery.MEDIA_TYPES_COUNT; a++) {
-        if (dialog_id != 0) {
+            if (dialog_id != 0) {
                 if ((int) dialog_id == 0 && a == DataQuery.MEDIA_URL) {
                     continue;
                 }
                 DataQuery.getInstance(currentAccount).getMediaCount(dialog_id, a, classGuid, true);
-        } else if (user_id != 0) {
+            } else if (user_id != 0) {
                 DataQuery.getInstance(currentAccount).getMediaCount(user_id, a, classGuid, true);
-        } else if (chat_id > 0) {
+            } else if (chat_id > 0) {
                 DataQuery.getInstance(currentAccount).getMediaCount(-chat_id, a, classGuid, true);
-            if (mergeDialogId != 0) {
+                if (mergeDialogId != 0) {
                     DataQuery.getInstance(currentAccount).getMediaCount(mergeDialogId, a, classGuid, true);
+                }
             }
-        }
         }
 
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.mediaCountDidLoaded);
@@ -775,10 +777,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                                 if (i == 0 || i == 1) {
                                     SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                                     SharedPreferences.Editor editor = preferences.edit();
-                                if (i == 0) {
+                                    if (i == 0) {
                                         editor.remove("notify2_" + did);
                                     } else {
-                                    editor.putInt("notify2_" + did, 0);
+                                        editor.putInt("notify2_" + did, 0);
                                     }
                                     MessagesStorage.getInstance(currentAccount).setDialogFlags(did, 0);
                                     editor.commit();
@@ -1725,23 +1727,23 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 int type = (Integer) args[3];
                 int mCount = (Integer) args[1];
                 if (type == DataQuery.MEDIA_PHOTOVIDEO) {
-                if (uid == did) {
+                    if (uid == did) {
                         totalMediaCount = mCount;
-                } else {
+                    } else {
                         totalMediaCountMerge = mCount;
-                }
-                if (listView != null) {
-                    int count = listView.getChildCount();
-                    for (int a = 0; a < count; a++) {
-                        View child = listView.getChildAt(a);
-                        RecyclerListView.Holder holder = (RecyclerListView.Holder) listView.getChildViewHolder(child);
-                        if (holder.getAdapterPosition() == sharedMediaRow) {
-                            listAdapter.onBindViewHolder(holder, sharedMediaRow);
-                            break;
+                    }
+                    if (listView != null) {
+                        int count = listView.getChildCount();
+                        for (int a = 0; a < count; a++) {
+                            View child = listView.getChildAt(a);
+                            RecyclerListView.Holder holder = (RecyclerListView.Holder) listView.getChildViewHolder(child);
+                            if (holder.getAdapterPosition() == sharedMediaRow) {
+                                listAdapter.onBindViewHolder(holder, sharedMediaRow);
+                                break;
+                            }
                         }
                     }
                 }
-            }
                 if (uid == did) {
                     mediaCount[type] = mCount;
                 } else {
@@ -2225,9 +2227,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             TLRPC.TL_userFull userFull = MessagesController.getInstance(currentAccount).getUserFull(user_id);
             boolean hasUsername = user != null && !TextUtils.isEmpty(user.username);
-          //CLoudVeil start
+ //CLoudVeil start
             if (userFull != null && !TextUtils.isEmpty(userFull.about) && !GlobalSecuritySettings.getLockDisableOthersBio()) {
-            //CloudVeil end
+//CloudVeil end
                 if (phoneRow != -1) {
                     userSectionRow = rowCount++;
                 }
@@ -2352,7 +2354,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.FileLocation photoBig = null;
 
             //CloudVeil start
-            if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (user.photo != null &&  !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 photo = user.photo.photo_small;
                 photoBig = user.photo.photo_big;
             }
@@ -2794,10 +2796,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         TLRPC.TL_userFull userFull = MessagesController.getInstance(currentAccount).getUserFull(user_id);
                         textDetailCell.setMultiline(true);
                         textDetailCell.setTextAndValueAndIcon(userFull != null ? userFull.about : null, LocaleController.getString("UserBio", R.string.UserBio), R.drawable.profile_info, 11);
-                    } else if (i == userInfoDetailedRow) {
-                        TLRPC.TL_userFull userFull = MessagesController.getInstance().getUserFull(user_id);
-                        textDetailCell.setMultiline(true);
-                        textDetailCell.setTextAndValueAndIcon(userFull != null ? userFull.about : null, LocaleController.getString("UserBio", R.string.UserBio), R.drawable.profile_info, 11);
                     }
                     break;
                 case 3:
@@ -2895,9 +2893,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (i == startSecretChatRow) {
                         //CloudVeil Start
                         if (!GlobalSecuritySettings.isDisabledSecretChat()) {
-                            textCell.setText(LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat));
-                            textCell.setTag(Theme.key_windowBackgroundWhiteGreenText2);
-                            textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGreenText2));
+                        textCell.setText(LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat));
+                        textCell.setTag(Theme.key_windowBackgroundWhiteGreenText2);
+                        textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGreenText2));
                         }
                         //CloudVeil. End
                     } else if (i == settingsKeyRow) {
@@ -3030,14 +3028,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             @Override
             public void didSetColor() {
                 if (listView != null) {
-                int count = listView.getChildCount();
-                for (int a = 0; a < count; a++) {
-                    View child = listView.getChildAt(a);
-                    if (child instanceof UserCell) {
-                        ((UserCell) child).update(0);
+                    int count = listView.getChildCount();
+                    for (int a = 0; a < count; a++) {
+                        View child = listView.getChildAt(a);
+                        if (child instanceof UserCell) {
+                            ((UserCell) child).update(0);
+                        }
                     }
                 }
-            }
             }
         };
         return new ThemeDescription[]{

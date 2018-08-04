@@ -21,7 +21,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -98,10 +97,10 @@ public class AlertsCreator {
         } else if (request instanceof TLRPC.TL_messages_editMessage) {
             if (!error.text.equals("MESSAGE_NOT_MODIFIED")) {
                 if (fragment != null) {
-                showSimpleAlert(fragment, LocaleController.getString("EditMessageError", R.string.EditMessageError));
+                    showSimpleAlert(fragment, LocaleController.getString("EditMessageError", R.string.EditMessageError));
                 } else {
                     showSimpleToast(fragment, LocaleController.getString("EditMessageError", R.string.EditMessageError));
-            }
+                }
             }
         } else if (request instanceof TLRPC.TL_messages_sendMessage ||
                 request instanceof TLRPC.TL_messages_sendMedia ||
@@ -532,13 +531,13 @@ public class AlertsCreator {
                             TLRPC.TL_messages_report request = new TLRPC.TL_messages_report();
                             request.peer = peer;
                             request.id.add(messageId);
-                        if (i == 0) {
+                            if (i == 0) {
                                 request.reason = new TLRPC.TL_inputReportReasonSpam();
-                        } else if (i == 1) {
+                            } else if (i == 1) {
                                 request.reason = new TLRPC.TL_inputReportReasonViolence();
-                        } else if (i == 2) {
+                            } else if (i == 2) {
                                 request.reason = new TLRPC.TL_inputReportReasonPornography();
-                        }
+                            }
                             req = request;
                         } else {
                             TLRPC.TL_account_reportPeer request = new TLRPC.TL_account_reportPeer();
@@ -1159,7 +1158,7 @@ public class AlertsCreator {
                             option = 0;
                         } else {
                             option = 1;
-                    }
+                        }
                         editor.putInt(globalGroup ? "priority_group" : "priority_messages", option);
                     }
                     editor.commit();
@@ -1305,7 +1304,6 @@ public class AlertsCreator {
         } else if (encryptedChat.ttl == 0) {
             numberPicker.setValue(0);
         }
-
         numberPicker.setFormatter(new NumberPicker.Formatter() {
             @Override
             public String format(int value) {
@@ -1327,7 +1325,6 @@ public class AlertsCreator {
                 return "";
             }
         });
-
         builder.setView(numberPicker);
 
         //CloudVeil start

@@ -38,13 +38,9 @@ public class ChatActionCell extends BaseCell {
 
     public interface ChatActionCellDelegate {
         void didClickedImage(ChatActionCell cell);
-
         void didLongPressed(ChatActionCell cell);
-
         void needOpenUserProfile(int uid);
-
         void didPressedBotButton(MessageObject messageObject, TLRPC.KeyboardButton button);
-
         void didPressedReplyMessage(ChatActionCell cell, int id);
     }
 
@@ -209,7 +205,7 @@ public class ChatActionCell extends BaseCell {
                     y -= textY;
                     x -= textXLeft;
 
-                    final int line = textLayout.getLineForVertical((int) y);
+                    final int line = textLayout.getLineForVertical((int)y);
                     final int off = textLayout.getOffsetForHorizontal(line, x);
                     final float left = textLayout.getLineLeft(line);
                     if (left <= x && left + textLayout.getLineWidth(line) >= x && currentMessageObject.messageText instanceof Spannable) {
@@ -288,12 +284,12 @@ public class ChatActionCell extends BaseCell {
                     if (lineWidth > maxWidth) {
                         lineWidth = maxWidth;
                     }
-                    textHeight = (int) Math.max(textHeight, Math.ceil(textLayout.getLineBottom(a)));
+                    textHeight = (int)Math.max(textHeight, Math.ceil(textLayout.getLineBottom(a)));
                 } catch (Exception e) {
                     FileLog.e(e);
                     return;
                 }
-                textWidth = (int) Math.max(textWidth, Math.ceil(lineWidth));
+                textWidth = (int)Math.max(textWidth, Math.ceil(lineWidth));
             }
         } catch (Exception e) {
             FileLog.e(e);

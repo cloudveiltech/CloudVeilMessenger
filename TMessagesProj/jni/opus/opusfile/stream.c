@@ -99,11 +99,9 @@ static int op_fseek(void *_stream,opus_int64 _offset,int _whence){
 #else
   /*This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
      it except on Windows.*/
-  int res = fseek((FILE *)_stream,(off_t)_offset,_whence);
-  return res;
+  return fseeko((FILE *)_stream,(off_t)_offset,_whence);
 #endif
 }
-
 
 static opus_int64 op_ftell(void *_stream){
 #if defined(_WIN32)
@@ -116,7 +114,7 @@ static opus_int64 op_ftell(void *_stream){
 #else
   /*This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
      it except on Windows.*/
-  return ftell((FILE *)_stream);
+  return ftello((FILE *)_stream);
 #endif
 }
 

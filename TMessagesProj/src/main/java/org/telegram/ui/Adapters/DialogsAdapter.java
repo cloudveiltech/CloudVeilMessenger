@@ -8,7 +8,6 @@
 
 package org.telegram.ui.Adapters;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.ColorDrawable;
@@ -108,8 +107,8 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter {
         } else if (dialogsType == 3) {
             return MessagesController.getInstance(currentAccount).dialogsForward;
         }
-            return null;
-        }
+        return null;
+    }
         dialogs = MessagesController.getInstance().filterDialogs(dialogs);
         //CloudVeil end
         return dialogs;
@@ -123,13 +122,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter {
         if (dialogsCount == 0 && MessagesController.getInstance(currentAccount).loadingDialogs) {
             return 0;
         }
-        //CloudVeil start
-        /*if (!MessagesController.getInstance().dialogsEndReached || count == 0) {
+        int count = dialogsCount;
+        if (!MessagesController.getInstance(currentAccount).dialogsEndReached || dialogsCount == 0) {
             count++;
-        }*/
-        //CloudVeil end
-        if (hasHints) {
-            count += 2 + MessagesController.getInstance().hintDialogs.size();
         }
         if (hasHints) {
             count += 2 + MessagesController.getInstance(currentAccount).hintDialogs.size();
@@ -166,7 +161,6 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter {
         if (i < 0 || i >= arrayList.size()) {
             return null;
         }
-
         return arrayList.get(i);
     }
 

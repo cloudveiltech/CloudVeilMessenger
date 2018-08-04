@@ -22,15 +22,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DataQuery;
-import org.telegram.messenger.Emoji;
-import org.telegram.messenger.EmojiSuggestion;
-import org.telegram.messenger.ChatObject;
-import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.EmojiSuggestion;
 import org.telegram.messenger.LocaleController;
@@ -63,9 +58,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
 
     public interface MentionsAdapterDelegate {
         void needChangePanelVisibility(boolean show);
-
         void onContextSearch(boolean searching);
-
         void onContextClick(TLRPC.BotInlineResult result);
     }
 
@@ -195,7 +188,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                     notifyDataSetChanged();
                     delegate.needChangePanelVisibility(false);
                     processFoundUser(foundContextBot);
-    }
+                }
             }
         }
         if (lastText != null) {
@@ -208,9 +201,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
     }
 
     public void setNeedBotContext(boolean value) {
-        if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
-            value = false;
-        }
         needBotContext = value;
     }
 
@@ -383,9 +373,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             if (foundContextBot != null) {
                 delegate.onContextSearch(true);
             } else if (username.equals("gif")) {
-                //searchingContextUsername = "gif";
-                //delegate.onContextSearch(false);
-                return;
+                searchingContextUsername = "gif";
+                delegate.onContextSearch(false);
             }
         }
         final MessagesController messagesController = MessagesController.getInstance(currentAccount);
@@ -470,11 +459,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
     public String getBotCaption() {
         if (foundContextBot != null) {
             return foundContextBot.bot_inline_placeholder;
-        }
-        /*
-        else if (searchingContextUsername != null && searchingContextUsername.equals("gif")) {
+        } else if (searchingContextUsername != null && searchingContextUsername.equals("gif")) {
             return "Search GIFs";
-        }*/
+        }
         return null;
     }
 

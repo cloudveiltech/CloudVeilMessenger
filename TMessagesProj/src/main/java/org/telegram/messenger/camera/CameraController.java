@@ -23,7 +23,6 @@ import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Base64;
 
-import org.cloudveil.messenger.util.CameraUtil;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Bitmaps;
@@ -146,12 +145,12 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             }
                             serializedData.cleanup();
                         } else {
-                        int count = Camera.getNumberOfCameras();
-                        Camera.CameraInfo info = new Camera.CameraInfo();
+                            int count = Camera.getNumberOfCameras();
+                            Camera.CameraInfo info = new Camera.CameraInfo();
 
                             int bufferSize = 4;
-                        for (int cameraId = 0; cameraId < count; cameraId++) {
-                            Camera.getCameraInfo(cameraId, info);
+                            for (int cameraId = 0; cameraId < count; cameraId++) {
+                                Camera.getCameraInfo(cameraId, info);
                                 CameraInfo cameraInfo = new CameraInfo(cameraId, info.facing);
 
                                 if (ApplicationLoader.mainInterfacePaused && ApplicationLoader.externalInterfacePaused) {
@@ -160,39 +159,39 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             //CloudVeil start
                             CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                             //CloudVeil end
-                            Camera camera = Camera.open(cameraInfo.getCameraId());
-                            Camera.Parameters params = camera.getParameters();
+                                Camera camera = Camera.open(cameraInfo.getCameraId());
+                                Camera.Parameters params = camera.getParameters();
 
-                            List<Camera.Size> list = params.getSupportedPreviewSizes();
-                            for (int a = 0; a < list.size(); a++) {
-                                Camera.Size size = list.get(a);
+                                List<Camera.Size> list = params.getSupportedPreviewSizes();
+                                for (int a = 0; a < list.size(); a++) {
+                                    Camera.Size size = list.get(a);
                                     if (size.width == 1280 && size.height != 720) {
                                         continue;
                                     }
-                                if (size.height < 2160 && size.width < 2160) {
-                                    cameraInfo.previewSizes.add(new Size(size.width, size.height));
+                                    if (size.height < 2160 && size.width < 2160) {
+                                        cameraInfo.previewSizes.add(new Size(size.width, size.height));
                                         if (BuildVars.LOGS_ENABLED) {
                                             FileLog.d("preview size = " + size.width + " " + size.height);
-                                }
-                            }
+                                        }
+                                    }
                                 }
 
-                            list = params.getSupportedPictureSizes();
-                            for (int a = 0; a < list.size(); a++) {
-                                Camera.Size size = list.get(a);
+                                list = params.getSupportedPictureSizes();
+                                for (int a = 0; a < list.size(); a++) {
+                                    Camera.Size size = list.get(a);
                                     if (size.width == 1280 && size.height != 720) {
                                         continue;
                                     }
-                                if (!"samsung".equals(Build.MANUFACTURER) || !"jflteuc".equals(Build.PRODUCT) || size.width < 2048) {
-                                    cameraInfo.pictureSizes.add(new Size(size.width, size.height));
+                                    if (!"samsung".equals(Build.MANUFACTURER) || !"jflteuc".equals(Build.PRODUCT) || size.width < 2048) {
+                                        cameraInfo.pictureSizes.add(new Size(size.width, size.height));
                                         if (BuildVars.LOGS_ENABLED) {
                                             FileLog.d("picture size = " + size.width + " " + size.height);
-                                }
-                            }
+                                        }
+                                    }
                                 }
 
-                            camera.release();
-                            result.add(cameraInfo);
+                                camera.release();
+                                result.add(cameraInfo);
 
                                 Collections.sort(cameraInfo.previewSizes, comparator);
                                 Collections.sort(cameraInfo.pictureSizes, comparator);
@@ -235,7 +234,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             if (!onFinishCameraInitRunnables.isEmpty()) {
                                 for (int a = 0; a < onFinishCameraInitRunnables.size(); a++) {
                                     onFinishCameraInitRunnables.get(a).run();
-                        }
+                                }
                                 onFinishCameraInitRunnables.clear();
                             }
                             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.cameraInitied);
@@ -248,9 +247,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             onFinishCameraInitRunnables.clear();
                             loadingCameras = false;
                             cameraInitied = false;
-                }
+                        }
                     });
-            }
+                }
             }
         });
     }
@@ -431,7 +430,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                                 matrix.postScale(-1, 1);
                                 Bitmap scaled = Bitmaps.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
                                 if (scaled != bitmap) {
-                                bitmap.recycle();
+                                    bitmap.recycle();
                                 }
                                 FileOutputStream outputStream = new FileOutputStream(path);
                                 scaled.compress(Bitmap.CompressFormat.JPEG, 80, outputStream);
@@ -655,9 +654,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             recorder.setVideoFrameRate(30);
                             recorder.setMaxDuration(0);
                             org.telegram.messenger.camera.Size pictureSize;
-                                pictureSize = new Size(16, 9);
-                                pictureSize = CameraController.chooseOptimalSize(info.getPictureSizes(), 720, 480, pictureSize);
-                                recorder.setVideoEncodingBitRate(900000 * 2);
+                            pictureSize = new Size(16, 9);
+                            pictureSize = CameraController.chooseOptimalSize(info.getPictureSizes(), 720, 480, pictureSize);
+                            recorder.setVideoEncodingBitRate(900000 * 2);
                             recorder.setVideoSize(pictureSize.getWidth(), pictureSize.getHeight());
                             recorder.setOnInfoListener(CameraController.this);
                             recorder.prepare();
@@ -714,7 +713,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         SharedConfig.saveConfig();
         final long durationFinal = duration;
         AndroidUtilities.runOnUIThread(new Runnable() {
-    @Override
+            @Override
             public void run() {
                 if (onVideoTakeCallback != null) {
                     String path = cacheFile.getAbsolutePath();
@@ -739,9 +738,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             }
             if (onVideoTakeCallback != null) {
                 finishRecordingVideo();
-                        }
-                    }
             }
+        }
+    }
 
     public void stopVideoRecording(final CameraSession session, final boolean abandon) {
         threadPool.execute(new Runnable() {

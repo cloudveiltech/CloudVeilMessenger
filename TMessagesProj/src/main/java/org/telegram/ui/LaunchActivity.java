@@ -42,8 +42,6 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
@@ -57,12 +55,15 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationsController;
-import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.camera.CameraController;
 import org.telegram.messenger.support.widget.DefaultItemAnimator;
@@ -71,8 +72,10 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.ActionBarLayout;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.Adapters.DrawerLayoutAdapter;
+import org.telegram.ui.ActionBar.ActionBarLayout;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.DrawerLayoutContainer;
 import org.telegram.ui.Cells.DrawerAddCell;
@@ -89,6 +92,7 @@ import org.telegram.ui.Components.PipRoundVideoView;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SharingLocationsAlert;
 import org.telegram.ui.Components.StickersAlert;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.TermsOfServiceView;
 import org.telegram.ui.Components.ThemeEditorView;
 import org.telegram.ui.Components.UpdateAppAlertDialog;
@@ -98,9 +102,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.crashlytics.android.Crashlytics;
-import io.fabric.sdk.android.Fabric;
 
 public class LaunchActivity extends Activity implements ActionBarLayout.ActionBarLayoutDelegate, NotificationCenter.NotificationCenterDelegate, DialogsActivity.DialogsActivityDelegate {
 
@@ -152,7 +153,6 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Fabric.with(this, new Crashlytics());
         ApplicationLoader.postInitApplication();
         AndroidUtilities.checkDisplaySize(this, getResources().getConfiguration());
         currentAccount = UserConfig.selectedAccount;
@@ -161,15 +161,15 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             boolean isProxy = false;
             if (intent != null && intent.getAction() != null) {
                 if (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())) {
-                super.onCreate(savedInstanceState);
-                finish();
-                return;
+                    super.onCreate(savedInstanceState);
+                    finish();
+                    return;
                 } else if (Intent.ACTION_VIEW.equals(intent.getAction())) {
                     Uri uri = intent.getData();
                     if (uri != null) {
                         String url = uri.toString().toLowerCase();
                         isProxy = url.startsWith("tg:proxy") || url.startsWith("tg://proxy") || url.startsWith("tg:socks") || url.startsWith("tg://socks");
-            }
+                    }
                 }
             }
             SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -392,7 +392,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                         if (!UserConfig.getInstance(a).isClientActivated()) {
                             freeAccount = a;
                             break;
-                    }
+                        }
                     }
                     if (freeAccount >= 0) {
                         presentFragment(new LoginActivity(freeAccount));
@@ -401,9 +401,9 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                 } else {
                     int id = drawerLayoutAdapter.getId(position);
                     if (id == 2) {
-                    presentFragment(new GroupCreateActivity());
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 3) {
+                        presentFragment(new GroupCreateActivity());
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 3) {
                     //CloudVeil Start
                     if (!GlobalSecuritySettings.isDisabledSecretChat()) {
                         Bundle args = new Bundle();
@@ -415,39 +415,39 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                         drawerLayoutContainer.closeDrawer(false);
                     }
                     //CloudVeil End
-                } else if (id == 4) {
+                    } else if (id == 4) {
                         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
-                    if (!BuildVars.DEBUG_VERSION && preferences.getBoolean("channel_intro", false)) {
-                        Bundle args = new Bundle();
-                        args.putInt("step", 0);
-                        presentFragment(new ChannelCreateActivity(args));
-                    } else {
-                        presentFragment(new ChannelIntroActivity());
-                        preferences.edit().putBoolean("channel_intro", true).commit();
-                    }
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 6) {
-                    presentFragment(new ContactsActivity(null));
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 7) {
+                        if (!BuildVars.DEBUG_VERSION && preferences.getBoolean("channel_intro", false)) {
+                            Bundle args = new Bundle();
+                            args.putInt("step", 0);
+                            presentFragment(new ChannelCreateActivity(args));
+                        } else {
+                            presentFragment(new ChannelIntroActivity());
+                            preferences.edit().putBoolean("channel_intro", true).commit();
+                        }
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 6) {
+                        presentFragment(new ContactsActivity(null));
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 7) {
                         presentFragment(new InviteContactsActivity());
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 8) {
-                    presentFragment(new SettingsActivity());
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 9) {
-                    Browser.openUrl(LaunchActivity.this, LocaleController.getString("TelegramFaqUrl", R.string.TelegramFaqUrl));
-                    drawerLayoutContainer.closeDrawer(false);
-                } else if (id == 10) {
-                    presentFragment(new CallLogActivity());
-                    drawerLayoutContainer.closeDrawer(false);
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 8) {
+                        presentFragment(new SettingsActivity());
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 9) {
+                        Browser.openUrl(LaunchActivity.this, LocaleController.getString("TelegramFaqUrl", R.string.TelegramFaqUrl));
+                        drawerLayoutContainer.closeDrawer(false);
+                    } else if (id == 10) {
+                        presentFragment(new CallLogActivity());
+                        drawerLayoutContainer.closeDrawer(false);
                     } else if (id == 11) {
                         Bundle args = new Bundle();
                         args.putInt("user_id", UserConfig.getInstance(currentAccount).getClientUserId());
                         presentFragment(new ChatActivity(args));
                         drawerLayoutContainer.closeDrawer(false);
+                    }
                 }
-            }
             }
         });
 
@@ -464,11 +464,6 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
         checkCurrentAccount();
 
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.closeOtherAppActivities, this);
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.reloadInterface);
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.suggestedLangpack);
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.openArticle);
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.hasNewContactsToImport);
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.didSetNewTheme);
 
         currentConnectionState = ConnectionsManager.getInstance(currentAccount).getConnectionState();
 
@@ -605,8 +600,8 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                             AndroidUtilities.displaySize.y = height;
                             if (BuildVars.LOGS_ENABLED) {
                                 FileLog.d("fix display size y to " + AndroidUtilities.displaySize.y);
+                            }
                         }
-                    }
                     }
                 });
             }
@@ -619,7 +614,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
     public void switchToAccount(int account, boolean removeAll) {
         if (account == UserConfig.selectedAccount) {
             return;
-    }
+        }
 
         ConnectionsManager.getInstance(currentAccount).setAppPaused(true, false);
         UserConfig.selectedAccount = account;
@@ -855,16 +850,13 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             if (AndroidUtilities.isTablet()) {
                 layersActionBarLayout.showLastFragment();
                 rightActionBarLayout.showLastFragment();
-    }
+            }
             return true;
         }
         if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().isVisible()) {
             if (intent == null || !Intent.ACTION_MAIN.equals(intent.getAction())) {
                 PhotoViewer.getInstance().closePhoto(false, true);
             }
-        }
-        if (AndroidUtilities.handleProxyIntent(this, intent)) {
-            return true;
         }
         int flags = intent.getFlags();
         final int intentAccount[] = new int[]{intent.getIntExtra("currentAccount", UserConfig.selectedAccount)};
@@ -1158,13 +1150,13 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                             auth.put("payload", data.getQueryParameter("payload"));
                                             auth.put("callback_url", data.getQueryParameter("callback_url"));
                                         } else {
-                                        botUser = data.getQueryParameter("start");
-                                        botChat = data.getQueryParameter("startgroup");
-                                        game = data.getQueryParameter("game");
-                                        messageId = Utilities.parseInt(data.getQueryParameter("post"));
-                                        if (messageId == 0) {
-                                            messageId = null;
-                                        }
+                                            botUser = data.getQueryParameter("start");
+                                            botChat = data.getQueryParameter("startgroup");
+                                            game = data.getQueryParameter("game");
+                                            messageId = Utilities.parseInt(data.getQueryParameter("post"));
+                                            if (messageId == 0) {
+                                                messageId = null;
+                                            }
                                         }
                                     } else if (url.startsWith("tg:join") || url.startsWith("tg://join")) {
                                         url = url.replace("tg:join", "tg://telegram.org").replace("tg://join", "tg://telegram.org");
@@ -1238,9 +1230,9 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                         int index;
                                         if ((index = unsupportedUrl.indexOf('?')) >= 0) {
                                             unsupportedUrl = unsupportedUrl.substring(0, index);
+                                        }
                                     }
                                 }
-                            }
                             }
                             if (message != null && message.startsWith("@")) {
                                 message = " " + message;
@@ -1281,9 +1273,9 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                 } finally {
                                     if (cursor != null) {
                                         cursor.close();
+                                    }
                                 }
                             }
-                        }
                         }
                     } else if (intent.getAction().equals("org.telegram.messenger.OPEN_ACCOUNT")) {
                         open_settings = 1;
@@ -1396,8 +1388,8 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                     args.putBoolean("allowSwitchAccount", true);
                     if (contactsToSend != null) {
                         if (contactsToSend.size() != 1) {
-                        args.putString("selectAlertString", LocaleController.getString("SendContactTo", R.string.SendMessagesTo));
-                        args.putString("selectAlertStringGroup", LocaleController.getString("SendContactToGroup", R.string.SendContactToGroup));
+                            args.putString("selectAlertString", LocaleController.getString("SendContactTo", R.string.SendMessagesTo));
+                            args.putString("selectAlertStringGroup", LocaleController.getString("SendContactToGroup", R.string.SendContactToGroup));
                         }
                     } else {
                         args.putString("selectAlertString", LocaleController.getString("SendMessagesTo", R.string.SendMessagesTo));
@@ -1838,7 +1830,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             final int bot_id = Utilities.parseInt(auth.get("bot_id"));
             if (bot_id == 0) {
                 return;
-        }
+            }
             final String payload = auth.get("payload");
             final String callbackUrl = auth.get("callback_url");
             final TLRPC.TL_account_getAuthorizationForm req = new TLRPC.TL_account_getAuthorizationForm();
@@ -2109,6 +2101,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                     SendMessagesHelper.getInstance(account).sendMessage(user, did, null, null, null);
                 }
             }
+        }
 
         photoPathsArray = null;
         videoPath = null;
@@ -2136,12 +2129,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.wasUnableToFindCurrentLocation);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.openArticle);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.hasNewContactsToImport);
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.reloadInterface);
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.suggestedLangpack);
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.openArticle);
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.hasNewContactsToImport);
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.didSetNewTheme);
-    }
+        }
 
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.needShowAlert);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetNewWallpapper);
@@ -2318,16 +2306,16 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             PhotoViewer.getPipInstance().destroyPhotoViewer();
         }
         if (PhotoViewer.hasInstance()) {
-        PhotoViewer.getInstance().destroyPhotoViewer();
+            PhotoViewer.getInstance().destroyPhotoViewer();
         }
         if (SecretMediaViewer.hasInstance()) {
             SecretMediaViewer.getInstance().destroyPhotoViewer();
         }
         if (ArticleViewer.hasInstance()) {
-        ArticleViewer.getInstance().destroyArticleViewer();
+            ArticleViewer.getInstance().destroyArticleViewer();
         }
         if (StickerPreviewViewer.hasInstance()) {
-        StickerPreviewViewer.getInstance().destroy();
+            StickerPreviewViewer.getInstance().destroy();
         }
         PipRoundVideoView pipRoundVideoView = PipRoundVideoView.getInstance();
         MediaController.getInstance().setBaseActivity(this, false);
@@ -2460,7 +2448,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             int state = ConnectionsManager.getInstance(account).getConnectionState();
             if (currentConnectionState != state) {
                 if (BuildVars.LOGS_ENABLED) {
-                FileLog.d("switch to state " + state);
+                    FileLog.d("switch to state " + state);
                 }
                 currentConnectionState = state;
                 updateCurrentConnectionState(account);
@@ -2502,7 +2490,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             MessagesController.getInstance(currentAccount).performLogout(2);
-            }
+                        }
                     });
                 } else {
                     builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), null);
@@ -2903,7 +2891,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                         } else {
                             if (BuildVars.LOGS_ENABLED) {
                                 FileLog.d("didn't pass lock check");
-                        }
+                            }
                         }
                         lockRunnable = null;
                     }
@@ -2949,7 +2937,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             title = LocaleController.getString("ConnectingToProxy", R.string.ConnectingToProxy);
         } else if (currentConnectionState == ConnectionsManager.ConnectionStateConnecting) {
             title = LocaleController.getString("Connecting", R.string.Connecting);
-                    }
+        }
         if (currentConnectionState == ConnectionsManager.ConnectionStateConnecting || currentConnectionState == ConnectionsManager.ConnectionStateConnectingToProxy) {
             action = new Runnable() {
                 @Override

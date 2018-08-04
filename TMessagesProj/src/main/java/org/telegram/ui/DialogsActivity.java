@@ -38,17 +38,16 @@ import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.DialogObject;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
@@ -58,7 +57,7 @@ import org.telegram.messenger.UserObject;
 import org.telegram.messenger.support.widget.LinearLayoutManager;
 import org.telegram.messenger.support.widget.LinearSmoothScrollerMiddle;
 import org.telegram.messenger.support.widget.RecyclerView;
-import org.telegram.tgnet.TLObject;
+import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -68,10 +67,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
-import org.telegram.ui.ActionBar.MenuDrawable;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Adapters.DialogsAdapter;
 import org.telegram.ui.Adapters.DialogsSearchAdapter;
@@ -88,30 +84,33 @@ import org.telegram.ui.Cells.HintDialogCell;
 import org.telegram.ui.Cells.LoadingCell;
 import org.telegram.ui.Cells.ProfileSearchCell;
 import org.telegram.ui.Cells.UserCell;
-import org.telegram.ui.Components.ChatActivityEnterView;
+import org.telegram.ui.Cells.DialogCell;
+import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.MenuDrawable;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AnimatedArrowDrawable;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.CombinedDrawable;
-import org.telegram.ui.Components.EmptyTextProgressView;
 import org.telegram.ui.Components.FragmentContextView;
-import org.telegram.ui.Components.JoinGroupAlert;
+import org.telegram.ui.Components.EmptyTextProgressView;
 import org.telegram.ui.Components.JoinGroupAlert;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ProxyDrawable;
 import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.Components.SizeNotifierFrameLayout;
-import org.telegram.ui.Components.StickersAlert;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.StickersAlert;
 
 import java.util.ArrayList;
 
 public class DialogsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
-
+    
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
     private DialogsAdapter dialogsAdapter;
@@ -132,8 +131,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private RecyclerView sideMenu;
     private ChatActivityEnterView commentView;
     private ActionBarMenuItem switchItem;
-    private FragmentContextView fragmentLocationContextView;
-    private ChatActivityEnterView commentView;
 
     private AlertDialog permissionDialog;
     private boolean askAboutContacts = true;
@@ -206,7 +203,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             NotificationCenter.getInstance().addObserver(this, NotificationCenter.filterDialogsReady);
             NotificationCenter.getInstance().addObserver(this, NotificationCenter.stickersDidLoaded);
             //CloudVeil end
-        }
+            }
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateInterfaces);
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.encryptedChatUpdated);
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.contactsDidLoaded);
@@ -252,7 +249,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
             NotificationCenter.getInstance().removeObserver(this, NotificationCenter.stickersDidLoaded);
             //CloudVeil end
-        }
+            }
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateInterfaces);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.encryptedChatUpdated);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.contactsDidLoaded);
@@ -293,7 +290,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 })
                 .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
+    @Override
                     public void onDismiss(DialogInterface dialog) {
                         setPopupShown();
                     }
@@ -384,7 +381,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     //CloudVeil start
                     if (MessagesController.getInstance().loadingDialogs && getDialogsArray().isEmpty()) {
                         //CloudVeil end
-                        listView.setEmptyView(progressView);
+                    listView.setEmptyView(progressView);
                     } else {
                         progressView.setVisibility(View.GONE);
                         listView.setEmptyView(null);
@@ -509,7 +506,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 } else if (id >= 10 && id < 10 + UserConfig.MAX_ACCOUNT_COUNT) {
                     if (getParentActivity() == null) {
                         return;
-                }
+                    }
                     DialogsActivityDelegate oldDelegate = delegate;
                     LaunchActivity launchActivity = (LaunchActivity) getParentActivity();
                     launchActivity.switchToAccount(id - 10, true);
@@ -517,7 +514,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     DialogsActivity dialogsActivity = new DialogsActivity(arguments);
                     dialogsActivity.setDelegate(oldDelegate);
                     launchActivity.presentFragment(dialogsActivity, false, true);
-            }
+                }
             }
         });
 
@@ -739,7 +736,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         if (!onlySelect) {
                             dialogsSearchAdapter.putRecentSearch(dialog_id, (TLRPC.User) obj);
                         }
-                    } else if (obj instanceof TLRPC.Chat) {               
+                    } else if (obj instanceof TLRPC.Chat) {
  if (dialogsSearchAdapter.isGlobalSearch(position)) {
                             //CloudVeil Start
                             if (GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
@@ -1278,12 +1275,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     if (searching && searchWas) {
-                    AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
-                }
+                        AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
+                    }
                     scrollingManually = true;
                 } else {
                     scrollingManually = false;
-            }
+                }
             }
 
             @Override
@@ -1427,7 +1424,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (MessagesController.getInstance().loadingDialogs && getDialogsArray().isEmpty()) {
             //CloudVeil end
             searchEmptyView.setVisibility(View.GONE);
-            listView.setEmptyView(progressView);
+        listView.setEmptyView(progressView);
         if (searchString != null) {
             actionBar.openSearchField(searchString);
         }
@@ -1848,7 +1845,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         break;
                     case Manifest.permission.WRITE_EXTERNAL_STORAGE:
                         if (grantResults[a] == PackageManager.PERMISSION_GRANTED) {
-                        ImageLoader.getInstance().checkMediaPaths();
+                            ImageLoader.getInstance().checkMediaPaths();
                         }
                         break;
                 }
@@ -1915,7 +1912,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     dialogsAdapter.notifyDataSetChanged();
                 }
             } else {
-            updateVisibleRows(0);
+                updateVisibleRows(0);
             }
         } else if (id == NotificationCenter.openedChatChanged) {
             if (dialogsType == 0 && AndroidUtilities.isTablet()) {
@@ -1954,7 +1951,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (currentConnectionState != state) {
                 currentConnectionState = state;
                 updateProxyButton(true);
-        }
+            }
         } else if (id == NotificationCenter.dialogsUnreadCounterChanged) {
             /*if (!onlySelect) {
                 int count = (Integer) args[0];
@@ -1970,7 +1967,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         @Override
                         public void onAnimationEnd(Animator animation) {
                             unreadFloatingButtonContainer.setVisibility(View.INVISIBLE);
-    }
+                        }
                     }).start();
                 }
             }*/
@@ -1989,8 +1986,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else if (dialogsType == 3) {
             return MessagesController.getInstance(currentAccount).dialogsForward;
         }
-            return null;
-        }
+        return null;
+    }
         dialogs = MessagesController.getInstance().filterDialogs(dialogs);
         //CloudVeil end
         return dialogs;
@@ -2169,28 +2166,28 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             @Override
             public void didSetColor() {
                 if (listView != null) {
-                int count = listView.getChildCount();
-                for (int a = 0; a < count; a++) {
-                    View child = listView.getChildAt(a);
-                    if (child instanceof ProfileSearchCell) {
-                        ((ProfileSearchCell) child).update(0);
-                    } else if (child instanceof DialogCell) {
-                        ((DialogCell) child).update(0);
-                    }
-                }
-                }
-                if (dialogsSearchAdapter != null) {
-                RecyclerListView recyclerListView = dialogsSearchAdapter.getInnerListView();
-                if (recyclerListView != null) {
-                        int count = recyclerListView.getChildCount();
+                    int count = listView.getChildCount();
                     for (int a = 0; a < count; a++) {
-                        View child = recyclerListView.getChildAt(a);
-                        if (child instanceof HintDialogCell) {
-                            ((HintDialogCell) child).update();
+                        View child = listView.getChildAt(a);
+                        if (child instanceof ProfileSearchCell) {
+                            ((ProfileSearchCell) child).update(0);
+                        } else if (child instanceof DialogCell) {
+                            ((DialogCell) child).update(0);
                         }
                     }
                 }
-            }
+                if (dialogsSearchAdapter != null) {
+                    RecyclerListView recyclerListView = dialogsSearchAdapter.getInnerListView();
+                    if (recyclerListView != null) {
+                        int count = recyclerListView.getChildCount();
+                        for (int a = 0; a < count; a++) {
+                            View child = recyclerListView.getChildAt(a);
+                            if (child instanceof HintDialogCell) {
+                                ((HintDialogCell) child).update();
+                            }
+                        }
+                    }
+                }
             }
         };
         return new ThemeDescription[]{
@@ -2233,7 +2230,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 new ThemeDescription(null, 0, null, null, null, cellDelegate, Theme.key_avatar_backgroundBlue),
                 new ThemeDescription(null, 0, null, null, null, cellDelegate, Theme.key_avatar_backgroundPink),
                 new ThemeDescription(null, 0, null, null, null, cellDelegate, Theme.key_avatar_backgroundSaved),
-                new ThemeDescription(null, 0, null, null, null, ñellDelegate, Theme.key_avatar_backgroundSaved),
                 new ThemeDescription(listView, 0, new Class[]{DialogCell.class}, Theme.dialogs_countPaint, null, null, Theme.key_chats_unreadCounter),
                 new ThemeDescription(listView, 0, new Class[]{DialogCell.class}, Theme.dialogs_countGrayPaint, null, null, Theme.key_chats_unreadCounterMuted),
                 new ThemeDescription(listView, 0, new Class[]{DialogCell.class}, Theme.dialogs_countTextPaint, null, null, Theme.key_chats_unreadCounterText),
@@ -2305,15 +2301,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND | ThemeDescription.FLAG_CHECKTAG, new Class[]{FragmentContextView.class}, new String[]{"frameLayout"}, null, null, null, Theme.key_returnToCallBackground),
                 new ThemeDescription(fragmentView, ThemeDescription.FLAG_TEXTCOLOR | ThemeDescription.FLAG_CHECKTAG, new Class[]{FragmentContextView.class}, new String[]{"titleTextView"}, null, null, null, Theme.key_returnToCallText),
-
-                new ThemeDescription(fragmentLocationContextView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{FragmentContextView.class}, new String[]{"frameLayout"}, null, null, null, Theme.key_inappPlayerBackground),
-                new ThemeDescription(fragmentLocationContextView, 0, new Class[]{FragmentContextView.class}, new String[]{"playButton"}, null, null, null, Theme.key_inappPlayerPlayPause),
-                new ThemeDescription(fragmentLocationContextView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FragmentContextView.class}, new String[]{"titleTextView"}, null, null, null, Theme.key_inappPlayerTitle),
-                new ThemeDescription(fragmentLocationContextView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FragmentContextView.class}, new String[]{"frameLayout"}, null, null, null, Theme.key_inappPlayerPerformer),
-                new ThemeDescription(fragmentLocationContextView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{FragmentContextView.class}, new String[]{"closeButton"}, null, null, null, Theme.key_inappPlayerClose),
-
-                new ThemeDescription(fragmentLocationContextView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{FragmentContextView.class}, new String[]{"frameLayout"}, null, null, null, Theme.key_returnToCallBackground),
-                new ThemeDescription(fragmentLocationContextView, 0, new Class[]{FragmentContextView.class}, new String[]{"titleTextView"}, null, null, null, Theme.key_returnToCallText),
 
                 new ThemeDescription(null, 0, null, null, null, null, Theme.key_dialogBackground),
                 new ThemeDescription(null, 0, null, null, null, null, Theme.key_dialogBackgroundGray),

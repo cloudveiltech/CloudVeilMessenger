@@ -10,7 +10,6 @@ package org.telegram.ui.Cells;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -19,7 +18,6 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.UserConfig;
@@ -69,33 +67,33 @@ public class StickerEmojiCell extends FrameLayout {
     public void setSticker(TLRPC.Document document, boolean showEmoji) {
         //CloudVeil start
         if (!GlobalSecuritySettings.isLockDisableStickers() && StickersQuery.isStickerAllowed(document)) {
-            if (document != null) {
-                sticker = document;
-                if (document.thumb != null) {
-                    imageView.setImage(document.thumb.location, null, "webp", null);
-                }
+        if (document != null) {
+            sticker = document;
+            if (document.thumb != null) {
+                imageView.setImage(document.thumb.location, null, "webp", null);
+            }
 
-                if (showEmoji) {
-                    boolean set = false;
-                    for (int a = 0; a < document.attributes.size(); a++) {
-                        TLRPC.DocumentAttribute attribute = document.attributes.get(a);
-                        if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
-                            if (attribute.alt != null && attribute.alt.length() > 0) {
-                                emojiTextView.setText(Emoji.replaceEmoji(attribute.alt, emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
-                                set = true;
-                            }
-                            break;
+            if (showEmoji) {
+                boolean set = false;
+                for (int a = 0; a < document.attributes.size(); a++) {
+                    TLRPC.DocumentAttribute attribute = document.attributes.get(a);
+                    if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
+                        if (attribute.alt != null && attribute.alt.length() > 0) {
+                            emojiTextView.setText(Emoji.replaceEmoji(attribute.alt, emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
+                            set = true;
                         }
+                        break;
                     }
-                    if (!set) {
-                    emojiTextView.setText(Emoji.replaceEmoji(DataQuery.getInstance(currentAccount).getEmojiForSticker(sticker.id), emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
-                    }
-                    emojiTextView.setVisibility(VISIBLE);
-                } else {
-                    emojiTextView.setVisibility(INVISIBLE);
                 }
+                if (!set) {
+                    emojiTextView.setText(Emoji.replaceEmoji(DataQuery.getInstance(currentAccount).getEmojiForSticker(sticker.id), emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
+                }
+                emojiTextView.setVisibility(VISIBLE);
+            } else {
+                emojiTextView.setVisibility(INVISIBLE);
             }
         }
+    }
         //CloudVeil end
     }
 

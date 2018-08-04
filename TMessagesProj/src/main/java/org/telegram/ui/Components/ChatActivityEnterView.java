@@ -65,24 +65,23 @@ import org.telegram.messenger.ChatObject;
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.Emoji;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
-import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
-import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.VideoEditedInfo;
-import org.telegram.messenger.camera.CameraController;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.messenger.camera.CameraController;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
@@ -120,7 +119,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     private int currentAccount = UserConfig.selectedAccount;
 
-        private SeekBarWaveform seekBarWaveform;
+    private SeekBarWaveform seekBarWaveform;
 
     private class SeekBarWaveformView extends View {
 
@@ -403,7 +402,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                 }
                 if (!CameraController.getInstance().isCameraInitied()) {
                     CameraController.getInstance().initCamera(onFinishInitCameraRunnable);
-            } else {
+                } else {
                     onFinishInitCameraRunnable.run();
                 }
             } else {
@@ -412,8 +411,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                         parentActivity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 3);
                         return;
                     }
-                        }
-                delegate.needStartRecordAudio(1);
+                }
                 delegate.needStartRecordAudio(1);
                 startedDraggingX = -1;
                 MediaController.getInstance().startRecording(currentAccount, dialog_id, replyingMessageObject);
@@ -876,9 +874,9 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                             emojiView.closeSearch(true);
                             messageEditText.requestFocus();
                         } else {
-                        showPopup(0, 0);
-                        removeGifFromInputField();
-                    }
+                            showPopup(0, 0);
+                            removeGifFromInputField();
+                        }
                     }
                     return true;
                 } else if (i == KeyEvent.KEYCODE_ENTER && (ctrlPressed || sendByEnter) && keyEvent.getAction() == KeyEvent.ACTION_DOWN && editingMessageObject == null) {
@@ -1016,7 +1014,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                     }
                     if (stickersExpanded) {
                         setStickersExpanded(false, false);
-                }
+                    }
                 }
             });
 
@@ -1640,7 +1638,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         }
 
         if (!GlobalSecuritySettings.isLockDisableGifs()) {
-            allowGifs = value2;
+        allowGifs = value2;
         } else {
             allowGifs = false;
         }
@@ -1874,7 +1872,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         textFieldContainer.setLayoutParams(layoutParams);
         if (stickersExpanded) {
             setStickersExpanded(false, true);
-    }
+        }
     }
 
     public void onDestroy() {
@@ -1929,7 +1927,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (showKeyboardOnResume) {
             showKeyboardOnResume = false;
             if (!searchingStickers) {
-            messageEditText.requestFocus();
+                messageEditText.requestFocus();
             }
             AndroidUtilities.showKeyboard(messageEditText);
             if (!AndroidUtilities.usingHardwareInput && !keyboardVisible && !AndroidUtilities.isInMultiwindow) {
@@ -2053,14 +2051,14 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-(int) dialog_id);
             isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
         }
-            if (editingMessageObject != null) {
+        if (editingMessageObject != null) {
             messageEditText.setHintText(editingCaption ? LocaleController.getString("Caption", R.string.Caption) : LocaleController.getString("TypeMessage", R.string.TypeMessage));
         } else if (isChannel) {
-                if (silent) {
+            if (silent) {
                 messageEditText.setHintText(LocaleController.getString("ChannelSilentBroadcast", R.string.ChannelSilentBroadcast));
-                } else {
+            } else {
                 messageEditText.setHintText(LocaleController.getString("ChannelBroadcast", R.string.ChannelBroadcast));
-                }
+            }
         } else {
             messageEditText.setHintText(LocaleController.getString("TypeMessage", R.string.TypeMessage));
         }
@@ -2118,7 +2116,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             delegate.needStartRecordVideo(4);
             hideRecordedAudioPanel();
             checkSendButton(true);
-                return;
+            return;
         } else if (audioToSend != null) {
             MessageObject playing = MediaController.getInstance().getPlayingMessageObject();
             if (playing != null && playing == audioToSendMessageObject) {
@@ -2723,62 +2721,62 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             if (caption) {
                 inputFilters[0] = new InputFilter.LengthFilter(MessagesController.getInstance(currentAccount).maxCaptionLength);
                 editingText = editingMessageObject.caption;
-                } else {
+            } else {
                 inputFilters[0] = new InputFilter.LengthFilter(MessagesController.getInstance(currentAccount).maxMessageLength);
                 editingText = editingMessageObject.messageText;
-                }
+            }
             if (editingText != null) {
-                    ArrayList<TLRPC.MessageEntity> entities = editingMessageObject.messageOwner.entities;//MessagesQuery.getEntities(message);
+                ArrayList<TLRPC.MessageEntity> entities = editingMessageObject.messageOwner.entities;//MessagesQuery.getEntities(message);
                 DataQuery.sortEntities(entities);
                 SpannableStringBuilder stringBuilder = new SpannableStringBuilder(editingText);
-                    Object spansToRemove[] = stringBuilder.getSpans(0, stringBuilder.length(), Object.class);
-                    if (spansToRemove != null && spansToRemove.length > 0) {
-                        for (int a = 0; a < spansToRemove.length; a++) {
-                            stringBuilder.removeSpan(spansToRemove[a]);
-                        }
+                Object spansToRemove[] = stringBuilder.getSpans(0, stringBuilder.length(), Object.class);
+                if (spansToRemove != null && spansToRemove.length > 0) {
+                    for (int a = 0; a < spansToRemove.length; a++) {
+                        stringBuilder.removeSpan(spansToRemove[a]);
                     }
-                    if (entities != null) {
-                        int addToOffset = 0;
-                        try {
-                            for (int a = 0; a < entities.size(); a++) {
-                                TLRPC.MessageEntity entity = entities.get(a);
-                                if (entity.offset + entity.length + addToOffset > stringBuilder.length()) {
-                                    continue;
+                }
+                if (entities != null) {
+                    int addToOffset = 0;
+                    try {
+                        for (int a = 0; a < entities.size(); a++) {
+                            TLRPC.MessageEntity entity = entities.get(a);
+                            if (entity.offset + entity.length + addToOffset > stringBuilder.length()) {
+                                continue;
+                            }
+                            if (entity instanceof TLRPC.TL_inputMessageEntityMentionName) {
+                                if (entity.offset + entity.length + addToOffset < stringBuilder.length() && stringBuilder.charAt(entity.offset + entity.length + addToOffset) == ' ') {
+                                    entity.length++;
                                 }
-                                if (entity instanceof TLRPC.TL_inputMessageEntityMentionName) {
-                                    if (entity.offset + entity.length + addToOffset < stringBuilder.length() && stringBuilder.charAt(entity.offset + entity.length + addToOffset) == ' ') {
-                                        entity.length++;
-                                    }
                                 stringBuilder.setSpan(new URLSpanUserMention("" + ((TLRPC.TL_inputMessageEntityMentionName) entity).user_id.user_id, 1), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                             } else if (entity instanceof TLRPC.TL_messageEntityMentionName) {
                                 if (entity.offset + entity.length + addToOffset < stringBuilder.length() && stringBuilder.charAt(entity.offset + entity.length + addToOffset) == ' ') {
                                     entity.length++;
                                 }
                                 stringBuilder.setSpan(new URLSpanUserMention("" + ((TLRPC.TL_messageEntityMentionName) entity).user_id, 1), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                                } else if (entity instanceof TLRPC.TL_messageEntityCode) {
-                                    stringBuilder.insert(entity.offset + entity.length + addToOffset, "`");
-                                    stringBuilder.insert(entity.offset + addToOffset, "`");
-                                    addToOffset += 2;
-                                } else if (entity instanceof TLRPC.TL_messageEntityPre) {
-                                    stringBuilder.insert(entity.offset + entity.length + addToOffset, "```");
-                                    stringBuilder.insert(entity.offset + addToOffset, "```");
-                                    addToOffset += 6;
-                                } else if (entity instanceof TLRPC.TL_messageEntityBold) {
-                                    stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/rmedium.ttf")), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                                } else if (entity instanceof TLRPC.TL_messageEntityItalic) {
-                                    stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/ritalic.ttf")), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            } else if (entity instanceof TLRPC.TL_messageEntityCode) {
+                                stringBuilder.insert(entity.offset + entity.length + addToOffset, "`");
+                                stringBuilder.insert(entity.offset + addToOffset, "`");
+                                addToOffset += 2;
+                            } else if (entity instanceof TLRPC.TL_messageEntityPre) {
+                                stringBuilder.insert(entity.offset + entity.length + addToOffset, "```");
+                                stringBuilder.insert(entity.offset + addToOffset, "```");
+                                addToOffset += 6;
+                            } else if (entity instanceof TLRPC.TL_messageEntityBold) {
+                                stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/rmedium.ttf")), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            } else if (entity instanceof TLRPC.TL_messageEntityItalic) {
+                                stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/ritalic.ttf")), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                             } else if (entity instanceof TLRPC.TL_messageEntityTextUrl) {
                                 stringBuilder.setSpan(new URLSpanReplacement(entity.url), entity.offset + addToOffset, entity.offset + entity.length + addToOffset, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                                }
                             }
-                        } catch (Exception e) {
-                            FileLog.e(e);
                         }
+                    } catch (Exception e) {
+                        FileLog.e(e);
                     }
-                setFieldText(Emoji.replaceEmoji(new SpannableStringBuilder(stringBuilder), messageEditText.getPaint().getFontMetricsInt(), AndroidUtilities.dp(20), false));
-                } else {
-                    setFieldText("");
                 }
+                setFieldText(Emoji.replaceEmoji(new SpannableStringBuilder(stringBuilder), messageEditText.getPaint().getFontMetricsInt(), AndroidUtilities.dp(20), false));
+            } else {
+                setFieldText("");
+            }
             messageEditText.setFilters(inputFilters);
             openKeyboard();
             FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) messageEditText.getLayoutParams();
@@ -3277,11 +3275,11 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                     return;
                 }
                 if (!GlobalSecuritySettings.isLockDisableStickers()) {
-                    if (stickerSet != null) {
-                        inputStickerSet = new TLRPC.TL_inputStickerSetID();
-                        inputStickerSet.access_hash = stickerSet.access_hash;
-                        inputStickerSet.id = stickerSet.id;
-                    }
+                if (stickerSet != null) {
+                    inputStickerSet = new TLRPC.TL_inputStickerSetID();
+                    inputStickerSet.access_hash = stickerSet.access_hash;
+                    inputStickerSet.id = stickerSet.id;
+                }
                 }
                 parentFragment.showDialog(new StickersAlert(parentActivity, parentFragment, inputStickerSet, null, ChatActivityEnterView.this));
             }
@@ -3416,8 +3414,8 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     public void addStickerToRecent(TLRPC.Document sticker) {
         createEmojiView();
         if (!GlobalSecuritySettings.isLockDisableStickers()) {
-            emojiView.addRecentSticker(sticker);
-        }
+        emojiView.addRecentSticker(sticker);
+    }
     }
 
     private void showPopup(int show, int contentType) {
@@ -3516,7 +3514,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             emojiButton.setImageResource(R.drawable.ic_msg_panel_smiles);
         } else if (currentPage == 1) {
             if (!GlobalSecuritySettings.isLockDisableStickers()) {
-                emojiButton.setImageResource(R.drawable.ic_msg_panel_stickers);
+            emojiButton.setImageResource(R.drawable.ic_msg_panel_stickers);
             }
         } else if (currentPage == 2) {
             emojiButton.setImageResource(R.drawable.ic_msg_panel_gif);
@@ -3540,10 +3538,10 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                     emojiView.closeSearch(false);
                     messageEditText.requestFocus();
                 }
-            showPopup(0, 0);
-            removeGifFromInputField();
+                showPopup(0, 0);
+                removeGifFromInputField();
+            }
         }
-    }
     }
 
     private void removeGifFromInputField() {

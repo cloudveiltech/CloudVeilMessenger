@@ -30,7 +30,6 @@ import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.FileLog;
 import org.telegram.tgnet.TLObject;
-import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.Emoji;
@@ -228,11 +227,11 @@ public class DialogCell extends BaseCell {
         }
         if (changed) {
             try {
-            buildLayout();
+                buildLayout();
             } catch (Exception e) {
                 FileLog.e(e);
+            }
         }
-    }
     }
 
     public boolean isUnread() {
@@ -907,8 +906,8 @@ public class DialogCell extends BaseCell {
         } else if (dialogsType == 3) {
             return MessagesController.getInstance(currentAccount).dialogsForward;
         }
-            return null;
-        }
+        return null;
+    }
         dialogs = MessagesController.getInstance().filterDialogs(dialogs);
         //CloudVeil end
         return dialogs;

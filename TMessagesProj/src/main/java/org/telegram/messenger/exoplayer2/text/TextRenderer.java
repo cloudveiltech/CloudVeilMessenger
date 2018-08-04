@@ -68,27 +68,6 @@ public final class TextRenderer extends BaseRenderer implements Callback {
    */
   private static final int REPLACEMENT_STATE_WAIT_END_OF_STREAM = 2;
 
-  @Retention(RetentionPolicy.SOURCE)
-  @IntDef({REPLACEMENT_STATE_NONE, REPLACEMENT_STATE_SIGNAL_END_OF_STREAM,
-      REPLACEMENT_STATE_WAIT_END_OF_STREAM})
-  private @interface ReplacementState {}
-  /**
-   * The decoder does not need to be replaced.
-   */
-  private static final int REPLACEMENT_STATE_NONE = 0;
-  /**
-   * The decoder needs to be replaced, but we haven't yet signaled an end of stream to the existing
-   * decoder. We need to do so in order to ensure that it outputs any remaining buffers before we
-   * release it.
-   */
-  private static final int REPLACEMENT_STATE_SIGNAL_END_OF_STREAM = 1;
-  /**
-   * The decoder needs to be replaced, and we've signaled an end of stream to the existing decoder.
-   * We're waiting for the decoder to output an end of stream signal to indicate that it has output
-   * any remaining buffers before we release it.
-   */
-  private static final int REPLACEMENT_STATE_WAIT_END_OF_STREAM = 2;
-
   private static final int MSG_UPDATE_OUTPUT = 0;
 
   private final Handler outputHandler;

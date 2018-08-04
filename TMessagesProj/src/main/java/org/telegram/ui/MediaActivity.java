@@ -530,7 +530,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                 } else if (id == gotochat) {
                     if (selectedFiles[0].size() != 1) {
                         return;
-                }
+                    }
                     Bundle args = new Bundle();
                     int lower_part = (int) dialog_id;
                     int high_id = (int) (dialog_id >> 32);
@@ -545,7 +545,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                                 if (chat != null && chat.migrated_to != null) {
                                     args.putInt("migrated_to", lower_part);
                                     lower_part = -chat.migrated_to.channel_id;
-            }
+                                }
                                 args.putInt("chat_id", -lower_part);
                             }
                         }
@@ -622,9 +622,9 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             public void onSearchCollapse() {
                 searching = false;
                 searchWas = false;
-                    documentsSearchAdapter.search(null);
-                    linksSearchAdapter.search(null);
-                    audioSearchAdapter.search(null);
+                documentsSearchAdapter.search(null);
+                linksSearchAdapter.search(null);
+                audioSearchAdapter.search(null);
                 if (ignoreSearchCollapse) {
                     ignoreSearchCollapse = false;
                     return;
@@ -891,15 +891,15 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                     scrollToPositionOnRecreate = mediaPages[a].layoutManager.findFirstVisibleItemPosition();
                     if (scrollToPositionOnRecreate != mediaPages[a].layoutManager.getItemCount() - 1) {
                         RecyclerListView.Holder holder = (RecyclerListView.Holder) mediaPages[a].listView.findViewHolderForAdapterPosition(scrollToPositionOnRecreate);
-                if (holder != null) {
-                    scrollToOffsetOnRecreate = holder.itemView.getTop();
-                } else {
-                    scrollToPositionOnRecreate = -1;
+                        if (holder != null) {
+                            scrollToOffsetOnRecreate = holder.itemView.getTop();
+                        } else {
+                            scrollToPositionOnRecreate = -1;
+                        }
+                    } else {
+                        scrollToPositionOnRecreate = -1;
+                    }
                 }
-            } else {
-                scrollToPositionOnRecreate = -1;
-            }
-        }
             }
             final MediaPage mediaPage = new MediaPage(context) {
                 @Override
@@ -926,37 +926,37 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             mediaPages[a].listView.setLayoutManager(layoutManager);
             mediaPages[a].addView(mediaPages[a].listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             mediaPages[a].listView.setOnItemClickListener(new RecyclerListView.OnItemClickListener() {
-            @Override
-            public void onItemClick(View view, int position) {
+                @Override
+                public void onItemClick(View view, int position) {
                     if (mediaPage.selectedType == 1 && view instanceof SharedDocumentCell) {
                         MediaActivity.this.onItemClick(position, view, ((SharedDocumentCell) view).getMessage(), 0, mediaPage.selectedType);
                     } else if (mediaPage.selectedType == 3 && view instanceof SharedLinkCell) {
                         MediaActivity.this.onItemClick(position, view, ((SharedLinkCell) view).getMessage(), 0, mediaPage.selectedType);
                     } else if ((mediaPage.selectedType == 2 || mediaPage.selectedType == 4) && view instanceof SharedAudioCell) {
                         MediaActivity.this.onItemClick(position, view, ((SharedAudioCell) view).getMessage(), 0, mediaPage.selectedType);
+                    }
                 }
-            }
-        });
+            });
             mediaPages[a].listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                if (newState == RecyclerView.SCROLL_STATE_DRAGGING && searching && searchWas) {
-                    AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
+                @Override
+                public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                    if (newState == RecyclerView.SCROLL_STATE_DRAGGING && searching && searchWas) {
+                        AndroidUtilities.hideKeyboard(getParentActivity().getCurrentFocus());
+                    }
+                    scrolling = newState != RecyclerView.SCROLL_STATE_IDLE;
                 }
-                scrolling = newState != RecyclerView.SCROLL_STATE_IDLE;
-            }
 
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                if (searching && searchWas) {
-                    return;
-                }
-                int firstVisibleItem = layoutManager.findFirstVisibleItemPosition();
-                int visibleItemCount = firstVisibleItem == RecyclerView.NO_POSITION ? 0 : Math.abs(layoutManager.findLastVisibleItemPosition() - firstVisibleItem) + 1;
-                int totalItemCount = recyclerView.getAdapter().getItemCount();
+                @Override
+                public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                    if (searching && searchWas) {
+                        return;
+                    }
+                    int firstVisibleItem = layoutManager.findFirstVisibleItemPosition();
+                    int visibleItemCount = firstVisibleItem == RecyclerView.NO_POSITION ? 0 : Math.abs(layoutManager.findLastVisibleItemPosition() - firstVisibleItem) + 1;
+                    int totalItemCount = recyclerView.getAdapter().getItemCount();
 
                     if (visibleItemCount != 0 && firstVisibleItem + visibleItemCount > totalItemCount - 2 && !sharedMediaData[mediaPage.selectedType].loading) {
-                    int type;
+                        int type;
                         if (mediaPage.selectedType == 0) {
                             type = DataQuery.MEDIA_PHOTOVIDEO;
                         } else if (mediaPage.selectedType == 1) {
@@ -965,35 +965,35 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             type = DataQuery.MEDIA_AUDIO;
                         } else if (mediaPage.selectedType == 4) {
                             type = DataQuery.MEDIA_MUSIC;
-                    } else {
+                        } else {
                             type = DataQuery.MEDIA_URL;
-                    }
+                        }
                         if (!sharedMediaData[mediaPage.selectedType].endReached[0]) {
                             sharedMediaData[mediaPage.selectedType].loading = true;
                             DataQuery.getInstance(currentAccount).loadMedia(dialog_id, 50, sharedMediaData[mediaPage.selectedType].max_id[0], type, true, classGuid);
                         } else if (mergeDialogId != 0 && !sharedMediaData[mediaPage.selectedType].endReached[1]) {
                             sharedMediaData[mediaPage.selectedType].loading = true;
                             DataQuery.getInstance(currentAccount).loadMedia(mergeDialogId, 50, sharedMediaData[mediaPage.selectedType].max_id[1], type, true, classGuid);
+                        }
                     }
                 }
-            }
-        });
+            });
             mediaPages[a].listView.setOnItemLongClickListener(new RecyclerListView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemClick(View view, int position) {
+                @Override
+                public boolean onItemClick(View view, int position) {
                     if (mediaPage.selectedType == 1 && view instanceof SharedDocumentCell) {
                         return MediaActivity.this.onItemLongClick(((SharedDocumentCell) view).getMessage(), view, 0);
                     } else if (mediaPage.selectedType == 3 && view instanceof SharedLinkCell) {
                         return MediaActivity.this.onItemLongClick(((SharedLinkCell) view).getMessage(), view, 0);
                     } else if ((mediaPage.selectedType == 2 || mediaPage.selectedType == 4) && view instanceof SharedAudioCell) {
                         return MediaActivity.this.onItemLongClick(((SharedAudioCell) view).getMessage(), view, 0);
+                    }
+                    return false;
                 }
-                return false;
-            }
-        });
+            });
             if (a == 0 && scrollToPositionOnRecreate != -1) {
-            layoutManager.scrollToPositionWithOffset(scrollToPositionOnRecreate, scrollToOffsetOnRecreate);
-        }
+                layoutManager.scrollToPositionWithOffset(scrollToPositionOnRecreate, scrollToOffsetOnRecreate);
+            }
 
             mediaPages[a].emptyView = new LinearLayout(context);
             mediaPages[a].emptyView.setOrientation(LinearLayout.VERTICAL);
@@ -1002,11 +1002,11 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             mediaPages[a].emptyView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
             mediaPages[a].addView(mediaPages[a].emptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             mediaPages[a].emptyView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return true;
-            }
-        });
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    return true;
+                }
+            });
 
             mediaPages[a].emptyImageView = new ImageView(context);
             mediaPages[a].emptyView.addView(mediaPages[a].emptyImageView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
@@ -1073,36 +1073,36 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                         if (!sharedMediaData[type].loading) {
                             if (mediaPages[a].progressView != null) {
                                 mediaPages[a].progressView.setVisibility(View.GONE);
-                    }
+                            }
                             if (mediaPages[a].selectedType == type && mediaPages[a].listView != null) {
                                 if (mediaPages[a].listView.getEmptyView() == null) {
                                     mediaPages[a].listView.setEmptyView(mediaPages[a].emptyView);
+                                }
+                            }
                         }
-                    }
-                }
                     }
 
                     if (mediaPages[a].selectedType == 0 && type == 0) {
-                    if (photoVideoAdapter != null) {
-                        photoVideoAdapter.notifyDataSetChanged();
-                    }
+                        if (photoVideoAdapter != null) {
+                            photoVideoAdapter.notifyDataSetChanged();
+                        }
                     } else if (mediaPages[a].selectedType == 1 && type == 1) {
-                    if (documentsAdapter != null) {
-                        documentsAdapter.notifyDataSetChanged();
-                    }
+                        if (documentsAdapter != null) {
+                            documentsAdapter.notifyDataSetChanged();
+                        }
                     } else if (mediaPages[a].selectedType == 2 && type == 2) {
                         if (voiceAdapter != null) {
                             voiceAdapter.notifyDataSetChanged();
                         }
                     } else if (mediaPages[a].selectedType == 3 && type == 3) {
-                    if (linksAdapter != null) {
-                        linksAdapter.notifyDataSetChanged();
-                    }
+                        if (linksAdapter != null) {
+                            linksAdapter.notifyDataSetChanged();
+                        }
                     } else if (mediaPages[a].selectedType == 4 && type == 4) {
-                    if (audioAdapter != null) {
-                        audioAdapter.notifyDataSetChanged();
+                        if (audioAdapter != null) {
+                            audioAdapter.notifyDataSetChanged();
+                        }
                     }
-                }
                 }
             }
         } else if (id == NotificationCenter.messagesDeleted) {
@@ -1149,7 +1149,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                 if (audioAdapter != null) {
                     audioAdapter.notifyDataSetChanged();
                 }
-                }
+            }
         } else if (id == NotificationCenter.didReceivedNewMessages) {
             long uid = (Long) args[0];
             if (uid == dialog_id) {
@@ -1188,8 +1188,8 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                         audioAdapter.notifyDataSetChanged();
                     }
                     updateTabs();
-                    }
                 }
+            }
         } else if (id == NotificationCenter.messageReceivedByServer) {
             Integer msgId = (Integer) args[0];
             Integer newMsgId = (Integer) args[1];
@@ -1207,10 +1207,10 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             MessageObject messageObject = cell.getMessage();
                             if (messageObject != null) {
                                 cell.updateButtonState(false);
-        }
-    }
-        }
-    }
+                            }
+                        }
+                    }
+                }
             } else if (id == NotificationCenter.messagePlayingDidStarted) {
                 MessageObject messageObject = (MessageObject) args[0];
                 if (messageObject.eventId != 0) {
@@ -1248,7 +1248,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
         }
         for (int a = 0; a < mediaPages.length; a++) {
             fixLayoutInternal(a);
-    }
+        }
     }
 
     @Override
@@ -1258,16 +1258,16 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             if (mediaPages[a].listView != null) {
                 final int num = a;
                 ViewTreeObserver obs = mediaPages[a].listView.getViewTreeObserver();
-            obs.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-                @Override
-                public boolean onPreDraw() {
+                obs.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
                         mediaPages[num].getViewTreeObserver().removeOnPreDrawListener(this);
                         fixLayoutInternal(num);
-                    return true;
-                }
-            });
+                        return true;
+                    }
+                });
+            }
         }
-    }
     }
 
     @Override
@@ -1316,7 +1316,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
         }
         if (hasMedia[2] != 0 && !scrollSlidingTextTabStrip.hasTab(2)) {
             changed = true;
-    }
+        }
         if (changed) {
             scrollSlidingTextTabStrip.removeTabs();
             if (hasMedia[0] != 0 || hasMedia[1] == 0 && hasMedia[2] == 0 && hasMedia[3] == 0 && hasMedia[4] == 0) {
@@ -1372,7 +1372,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
     private void switchToCurrentSelectedMode(boolean animated) {
         for (int a = 0; a < mediaPages.length; a++) {
             mediaPages[a].listView.stopScroll();
-    }
+        }
         int a = animated ? 1 : 0;
         RecyclerView.Adapter currentAdapter = mediaPages[a].listView.getAdapter();
         if (searching && searchWas) {
@@ -1423,27 +1423,27 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             recycleAdapter(currentAdapter);
                             mediaPages[a].listView.setAdapter(documentsSearchAdapter);
                         }
-                    documentsSearchAdapter.notifyDataSetChanged();
+                        documentsSearchAdapter.notifyDataSetChanged();
                     } else if (mediaPages[a].selectedType == 3) {
                         if (currentAdapter != linksSearchAdapter) {
                             recycleAdapter(currentAdapter);
                             mediaPages[a].listView.setAdapter(linksSearchAdapter);
                         }
-                    linksSearchAdapter.notifyDataSetChanged();
+                        linksSearchAdapter.notifyDataSetChanged();
                     } else if (mediaPages[a].selectedType == 4) {
                         if (currentAdapter != audioSearchAdapter) {
                             recycleAdapter(currentAdapter);
                             mediaPages[a].listView.setAdapter(audioSearchAdapter);
                         }
-                    audioSearchAdapter.notifyDataSetChanged();
+                        audioSearchAdapter.notifyDataSetChanged();
+                    }
                 }
-            }
                 if (searchItemState != 2 && mediaPages[a].emptyTextView != null) {
                     mediaPages[a].emptyTextView.setText(LocaleController.getString("NoResult", R.string.NoResult));
                     mediaPages[a].emptyTextView.setPadding(AndroidUtilities.dp(40), 0, AndroidUtilities.dp(40), AndroidUtilities.dp(30));
                     mediaPages[a].emptyTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
                     mediaPages[a].emptyImageView.setVisibility(View.GONE);
-            }
+                }
             }
 
         } else {
@@ -1478,22 +1478,22 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                     mediaPages[a].listView.setAdapter(voiceAdapter);
                 }
                 mediaPages[a].emptyImageView.setImageResource(R.drawable.tip5);
-                    if ((int) dialog_id == 0) {
+                if ((int) dialog_id == 0) {
                     mediaPages[a].emptyTextView.setText(LocaleController.getString("NoSharedVoiceSecret", R.string.NoSharedVoiceSecret));
-                    } else {
+                } else {
                     mediaPages[a].emptyTextView.setText(LocaleController.getString("NoSharedVoice", R.string.NoSharedVoice));
-                    }
+                }
             } else if (mediaPages[a].selectedType == 3) {
                 if (currentAdapter != linksAdapter) {
                     recycleAdapter(currentAdapter);
                     mediaPages[a].listView.setAdapter(linksAdapter);
                 }
                 mediaPages[a].emptyImageView.setImageResource(R.drawable.tip3);
-                    if ((int) dialog_id == 0) {
+                if ((int) dialog_id == 0) {
                     mediaPages[a].emptyTextView.setText(LocaleController.getString("NoSharedLinksSecret", R.string.NoSharedLinksSecret));
-                    } else {
+                } else {
                     mediaPages[a].emptyTextView.setText(LocaleController.getString("NoSharedLinks", R.string.NoSharedLinks));
-                    }
+                }
             } else if (mediaPages[a].selectedType == 4) {
                 if (currentAdapter != audioAdapter) {
                     recycleAdapter(currentAdapter);
@@ -1515,7 +1515,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                     searchItem.setAlpha(1.0f);
                     searchItem.setVisibility(View.GONE);
                 }
-                } else {
+            } else {
                 if (animated) {
                     if (searchItem.getVisibility() != View.VISIBLE && !actionBar.isSearchFieldVisible()) {
                         searchItemState = 1;
@@ -1523,7 +1523,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                         searchItem.setAlpha(0.0f);
                     } else {
                         searchItemState = 0;
-                }
+                    }
                 } else {
                     searchItemState = 0;
                     searchItem.setAlpha(1.0f);
@@ -1540,13 +1540,13 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                 mediaPages[a].progressView.setVisibility(View.VISIBLE);
                 mediaPages[a].listView.setEmptyView(null);
                 mediaPages[a].emptyView.setVisibility(View.GONE);
-                } else {
+            } else {
                 mediaPages[a].progressView.setVisibility(View.GONE);
                 mediaPages[a].listView.setEmptyView(mediaPages[a].emptyView);
-                }
+            }
             mediaPages[a].listView.setVisibility(View.VISIBLE);
             mediaPages[a].listView.setPadding(0, 0, 0, AndroidUtilities.dp(4));
-            }
+        }
         if (searchItemState == 2 && actionBar.isSearchFieldVisible()) {
             ignoreSearchCollapse = true;
             actionBar.closeSearchField();
@@ -1760,11 +1760,11 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
         WindowManager manager = (WindowManager) ApplicationLoader.applicationContext.getSystemService(Activity.WINDOW_SERVICE);
         int rotation = manager.getDefaultDisplay().getRotation();
         if (num == 0) {
-        if (!AndroidUtilities.isTablet() && ApplicationLoader.applicationContext.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            selectedMessagesCountTextView.setTextSize(18);
-        } else {
-            selectedMessagesCountTextView.setTextSize(20);
-        }
+            if (!AndroidUtilities.isTablet() && ApplicationLoader.applicationContext.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                selectedMessagesCountTextView.setTextSize(18);
+            } else {
+                selectedMessagesCountTextView.setTextSize(20);
+            }
         }
 
         if (AndroidUtilities.isTablet()) {
@@ -1780,7 +1780,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             }
         }
         if (num == 0) {
-        photoVideoAdapter.notifyDataSetChanged();
+            photoVideoAdapter.notifyDataSetChanged();
         }
     }
 
@@ -1788,12 +1788,12 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
         @Override
         public void needOpenWebView(TLRPC.WebPage webPage) {
             MediaActivity.this.openWebView(webPage);
-            }
+        }
 
         @Override
         public boolean canPerformActions() {
             return !actionBar.isActionModeShowed();
-            }
+        }
 
         @Override
         public void onLinkLongPress(final String urlFinal) {
@@ -1810,9 +1810,9 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             url = url.substring(7);
                         } else if (url.startsWith("tel:")) {
                             url = url.substring(4);
-        }
+                        }
                         AndroidUtilities.addToClipboard(url);
-    }
+                    }
                 }
             });
             showDialog(builder.create());
@@ -2003,7 +2003,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                                 return result;
                             } else if (messageObject.isMusic()) {
                                 return MediaController.getInstance().setPlaylist(sharedMediaData[currentType].messages, messageObject);
-            }
+                            }
                             return false;
                         }
                     };
@@ -2042,10 +2042,10 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             sharedAudioCell.setChecked(selectedFiles[messageObject.getDialogId() == dialog_id ? 0 : 1].indexOfKey(messageObject.getId()) >= 0, !scrolling);
                         } else {
                             sharedAudioCell.setChecked(false, !scrolling);
-                }
+                        }
                         break;
-            }
-        }
+                    }
+                }
             }
         }
 
@@ -2058,9 +2058,9 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                     if (currentType == 2 || currentType == 4) {
                         return 3;
                     } else {
-                    return 1;
+                        return 1;
+                    }
                 }
-            }
             }
             return 2;
         }
@@ -2285,13 +2285,13 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                         @Override
                         public void run() {
                             if (reqId != 0) {
-                            if (currentReqId == lastReqId) {
-                                globalSearch = messageObjects;
+                                if (currentReqId == lastReqId) {
+                                    globalSearch = messageObjects;
                                     searchesInProgress--;
-                                notifyDataSetChanged();
+                                    notifyDataSetChanged();
+                                }
+                                reqId = 0;
                             }
-                            reqId = 0;
-                        }
                         }
                     });
                 }
@@ -2309,14 +2309,14 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
             }
             if (TextUtils.isEmpty(query)) {
                 if (!searchResult.isEmpty() || !globalSearch.isEmpty() || searchesInProgress != 0) {
-                searchResult.clear();
+                    searchResult.clear();
                     globalSearch.clear();
                     if (reqId != 0) {
                         ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
                         reqId = 0;
                         searchesInProgress--;
                     }
-                notifyDataSetChanged();
+                    notifyDataSetChanged();
                 }
             } else {
                 for (int a = 0; a < mediaPages.length; a++) {
@@ -2353,11 +2353,11 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                 @Override
                 public void run() {
                     if (!sharedMediaData[currentType].messages.isEmpty() && (currentType == 1 || currentType == 4)) {
-                            MessageObject messageObject = sharedMediaData[currentType].messages.get(sharedMediaData[currentType].messages.size() - 1);
-                            queryServerSearch(query, messageObject.getId(), messageObject.getDialogId());
-                        } else if (currentType == 3) {
-                            queryServerSearch(query, 0, dialog_id);
-                        }
+                        MessageObject messageObject = sharedMediaData[currentType].messages.get(sharedMediaData[currentType].messages.size() - 1);
+                        queryServerSearch(query, messageObject.getId(), messageObject.getDialogId());
+                    } else if (currentType == 3) {
+                        queryServerSearch(query, 0, dialog_id);
+                    }
                     if (currentType == 1 || currentType == 4) {
                         final ArrayList<MessageObject> copy = new ArrayList<>(sharedMediaData[currentType].messages);
                         searchesInProgress++;
@@ -2502,13 +2502,13 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             MediaController.getInstance().setVoiceMessagesPlaylist(result ? searchResult : null, false);
                             if (messageObject.isRoundVideo()) {
                                 MediaController.getInstance().setCurrentRoundVisible(false);
-                    }
+                            }
                             return result;
                         } else if (messageObject.isMusic()) {
                             return MediaController.getInstance().setPlaylist(searchResult, messageObject);
-                    }
+                        }
                         return false;
-            }
+                    }
                 };
             } else {
                 view = new SharedLinkCell(mContext);
@@ -2545,8 +2545,8 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                     sharedAudioCell.setChecked(selectedFiles[messageObject.getDialogId() == dialog_id ? 0 : 1].indexOfKey(messageObject.getId()) >= 0, !scrolling);
                 } else {
                     sharedAudioCell.setChecked(false, !scrolling);
+                }
             }
-        }
         }
 
         @Override
@@ -2592,19 +2592,19 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
         for (int a = 0; a < mediaPages.length; a++) {
             final int num = a;
             ThemeDescription.ThemeDescriptionDelegate cellDelegate = new ThemeDescription.ThemeDescriptionDelegate() {
-            @Override
+                @Override
                 public void didSetColor() {
                     if (mediaPages[num].listView != null) {
                         int count = mediaPages[num].listView.getChildCount();
-                for (int a = 0; a < count; a++) {
+                        for (int a = 0; a < count; a++) {
                             View child = mediaPages[num].listView.getChildAt(a);
-                    if (child instanceof SharedPhotoVideoCell) {
-                        ((SharedPhotoVideoCell) child).updateCheckboxColor();
+                            if (child instanceof SharedPhotoVideoCell) {
+                                ((SharedPhotoVideoCell) child).updateCheckboxColor();
+                            }
+                        }
                     }
                 }
-            }
-                }
-        };
+            };
 
             arrayList.add(new ThemeDescription(mediaPages[a].emptyView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
             arrayList.add(new ThemeDescription(mediaPages[a].progressView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));

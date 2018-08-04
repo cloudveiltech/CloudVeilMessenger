@@ -202,14 +202,6 @@ public class SharedDocumentCell extends FrameLayout implements DownloadControlle
         }
     }
 
-    @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        if (progressView.getVisibility() == VISIBLE) {
-            updateFileExistIcon();
-        }
-    }
-
     public void setChecked(boolean checked, boolean animated) {
         if (checkBox.getVisibility() != VISIBLE) {
             checkBox.setVisibility(VISIBLE);

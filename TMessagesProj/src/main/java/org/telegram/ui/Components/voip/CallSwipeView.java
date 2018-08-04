@@ -78,7 +78,7 @@ public class CallSwipeView extends View {
 			public void onAnimationEnd(Animator animation) {
 				if (System.currentTimeMillis() - startTime < animation.getDuration() / 4) {
 					if (BuildVars.LOGS_ENABLED) {
-					FileLog.w("Not repeating animation because previous loop was too fast");
+						FileLog.w("Not repeating animation because previous loop was too fast");
 					}
 					return;
 				}

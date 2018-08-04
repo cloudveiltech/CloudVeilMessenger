@@ -202,7 +202,7 @@ public class SearchAdapterHelper {
                                             chatsMap.put(chat.id, chat);
 
                                                
-                                                }
+                                        }
                                 }
                                                 //CloudVeil End
                                         }
@@ -244,7 +244,7 @@ public class SearchAdapterHelper {
                                                     }
                                                       //CloudVeil Start
                                             if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
-                                                globalSearch.add(user);
+                                                    globalSearch.add(user);
                                             }
                                 lastFoundUsername = query;
                                             //CloudVeil End
