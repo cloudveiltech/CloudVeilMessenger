@@ -37,6 +37,8 @@ import android.util.LongSparseArray;
 import android.util.SparseArray;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -63,6 +65,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
 public class DataQuery {
@@ -154,6 +157,11 @@ public class DataQuery {
     private boolean loadingFeaturedStickers;
     private boolean featuredStickersLoaded;
 
+    //CloudVeil start
+    public ConcurrentHashMap<Long, Boolean> allowedStickerSets = new ConcurrentHashMap<>();//Cl
+    public ArrayList<TLRPC.TL_messages_stickerSet> newStickerSets = new ArrayList<>();
+    //CloudVeil end
+
     public void cleanup() {
         for (int a = 0; a < 3; a++) {
             recentStickers[a].clear();
@@ -213,14 +221,96 @@ public class DataQuery {
         }
     }
 
+    //CloudVeil Start
+    public int getStickersSetTypesCount() {
+        return stickerSets.length;
+    }
+
+    public boolean isStickerAllowed(TLRPC.Document doc) {
+        if(doc == null) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        if(id < 0) {
+            return true;
+        }
+        return isStickerAllowed(id);
+    }
+
+    public boolean isStickerAllowed(TLRPC.TL_messages_stickerSet stickerSet) {
+        return isStickerAllowed(stickerSet.set.id);
+    }
+
+    public boolean isStickerAllowed(long id) {
+        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.containsKey(id) && allowedStickerSets.get(id);
+    }
+
+
     public ArrayList<TLRPC.Document> getRecentStickers(int type) {
-        ArrayList<TLRPC.Document> arrayList = recentStickers[type];
-        return new ArrayList<>(arrayList.subList(0, Math.min(arrayList.size(), 20)));
+        ArrayList<TLRPC.Document> stickers = new ArrayList<>();
+        for (TLRPC.Document doc : recentStickers[type]) {
+            if (isStickerAllowed(doc)) {
+                stickers.add(doc);
+            }
+        }
+        return new ArrayList<>(stickers.subList(0, Math.min(stickers.size(), 20)));
     }
 
     public ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
         return recentStickers[type];
     }
+
+
+    public void loadStickerSetAndSendToServer(TLRPC.InputStickerSet inputStickerSet) {
+        TLRPC.TL_messages_stickerSet stickerSet = null;
+
+        if (inputStickerSet.short_name != null) {
+            stickerSet = getStickerSetByName(inputStickerSet.short_name);
+        }
+        if (stickerSet == null) {
+            stickerSet = getStickerSetById(inputStickerSet.id);
+        }
+        for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
+            if(s.set.id == inputStickerSet.id) {
+                return;
+            }
+        }
+        if (stickerSet == null) {
+            TLRPC.TL_messages_getStickerSet req = new TLRPC.TL_messages_getStickerSet();
+            req.stickerset = inputStickerSet;
+            ConnectionsManager.getInstance(currentAccount).sendRequest(req, new RequestDelegate() {
+                @Override
+                public void run(final TLObject response, final TLRPC.TL_error error) {
+                    TLRPC.TL_messages_stickerSet stickerSet = (TLRPC.TL_messages_stickerSet) response;
+
+                    for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
+                        if(s.set.id == stickerSet.set.id) {
+                            return;
+                        }
+                    }
+                    newStickerSets.add(stickerSet);
+                    ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
+                }
+            });
+        }
+    }
+
+    public boolean isStickerSetKnown(TLRPC.Document doc) {
+        if(doc == null) {
+            return true;
+        }
+        if(GlobalSecuritySettings.isLockDisableStickers()) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        return allowedStickerSets.containsKey(id);
+    }
+
+
+    public boolean isStickerAllowed(TLRPC.InputStickerSet inputStickerSet) {
+        return isStickerAllowed(inputStickerSet.id);
+    }
+    //CloudVeil end
 
     public boolean isStickerInFavorites(TLRPC.Document document) {
         for (int a = 0; a < recentStickers[TYPE_FAVE].size(); a++) {
@@ -496,9 +586,21 @@ public class DataQuery {
         }
     }
 
-    public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+    //CloudVeil start
+    public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSetsUnfiltered() {
         return featuredStickerSets;
     }
+
+    public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+        ArrayList<TLRPC.StickerSetCovered> res = new ArrayList<>();
+        for(TLRPC.StickerSetCovered covered : featuredStickerSets) {
+            if(isStickerAllowed(covered.set.id)) {
+                res.add(covered);
+            }
+        }
+        return res;
+    }
+    //CloudVeil end
 
     public ArrayList<Long> getUnreadStickerSets() {
         return unreadStickerSets;

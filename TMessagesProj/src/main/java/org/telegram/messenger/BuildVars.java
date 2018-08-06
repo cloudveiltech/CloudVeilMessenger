@@ -18,6 +18,8 @@ public class BuildVars {
     public static boolean LOGS_ENABLED = false;
     public static boolean CHECK_UPDATES = false;
     public static int BUILD_VERSION = 1340;
+    public static String BUILD_VERSION_STRING = "4.9.0";
+    public static int APP_ID = 66408;
     public static String APP_HASH = "2db8d372e3978a884a38ee57d04d4ee1"; //obtain your own APP_HASH at https://core.telegram.org/api/obtaining_api_id
     public static String HOCKEY_APP_HASH = "e683f2bc25474272a9d987ffc3c73763";
     public static String HOCKEY_APP_HASH_DEBUG = "e683f2bc25474272a9d987ffc3c73763";

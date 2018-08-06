@@ -14,17 +14,15 @@ public class GlobalSecuritySettings {
     public static final boolean LOCK_DISABLE_FORWARD_CHAT = false;
     public static final boolean LOCK_DISABLE_BOTS = false;
     public static final boolean LOCK_DISABLE_YOUTUBE_VIDEO = true;
-    private static final boolean DEFAULT_MANAGE_USERS = false;
-
-
-    private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
-    private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
     public static final boolean LOCK_DISABLE_IN_APP_BROWSER = true;
     public static final boolean LOCK_DISABLE_AUTOPLAY_GIFS = true;
-    private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
-    private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
 
+    private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
+    private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
+    private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
+    private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
+    private static final boolean DEFAULT_MANAGE_USERS = false;
     private static final boolean DEFAULT_LOCK_DISABLE_OWN_BIO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OWN_PHOTO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_BIO = true;

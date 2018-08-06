@@ -52,6 +52,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.BuildConfig;
@@ -176,11 +177,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             if (fileLocation == null) {
                 return null;
             }
-   //CloudVeil start
-            if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+
+            //CloudVeil start
+            if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
                 return null;
             }
             //CloudVeil end
+
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(UserConfig.getInstance(currentAccount).getClientUserId());
             if (user != null && user.photo != null && user.photo.photo_big != null) {
                 TLRPC.FileLocation photoBig = user.photo.photo_big;
@@ -542,13 +545,12 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                         ((TextCheckCell) view).setChecked(SharedConfig.raiseToSpeak);
                     }
                 } else if (position == autoplayGifsRow) {
-                    SharedConfig.toggleAutoplayGifs();
-//CloudVeil Start
+                    //CloudVeil Start
                     if (!GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS) {
-                        MediaController.getInstance().toggleAutoplayGifs();
-                    if (view instanceof TextCheckCell) {
-                        ((TextCheckCell) view).setChecked(SharedConfig.autoplayGifs);
-                    }
+                        SharedConfig.toggleAutoplayGifs();
+                        if (view instanceof TextCheckCell) {
+                            ((TextCheckCell) view).setChecked(SharedConfig.autoplayGifs);
+                        }
                     }
                     //CloudVeil End
                 } else if (position == saveToGalleryRow) {
@@ -557,13 +559,15 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                         ((TextCheckCell) view).setChecked(SharedConfig.saveToGallery);
                     }
                 } else if (position == customTabsRow) {
-                    SharedConfig.toggleCustomTabs();
-                    if (view instanceof TextCheckCell) {
-                        ((TextCheckCell) view).setChecked(SharedConfig.customTabs);
-                    }
+                    //CloudVeil Start
+                    if (!GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER) {
+                        SharedConfig.toggleCustomTabs();
+                        if (view instanceof TextCheckCell) {
+                            ((TextCheckCell) view).setChecked(SharedConfig.customTabs);
+                        }
                     }
                     //CloudVeil End
-                } else if(position == directShareRow) {
+                } else if (position == directShareRow) {
                     SharedConfig.toggleDirectShare();
                     if (view instanceof TextCheckCell) {
                         ((TextCheckCell) view).setChecked(SharedConfig.directShare);
@@ -627,9 +631,11 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 } else if (position == usernameRow) {
                     presentFragment(new ChangeUsernameActivity());
                 } else if (position == bioRow) {
-                    TLRPC.TL_userFull userFull = MessagesController.getInstance(currentAccount).getUserFull(UserConfig.getInstance(currentAccount).getClientUserId());
-                    if (userFull != null) {
-                        presentFragment(new ChangeBioActivity());
+                    if (!GlobalSecuritySettings.getLockDisableOwnBio()) {
+                        TLRPC.TL_userFull userFull = MessagesController.getInstance(currentAccount).getUserFull(UserConfig.getInstance(currentAccount).getClientUserId());
+                        if (userFull != null) {
+                            presentFragment(new ChangeBioActivity());
+                        }
                     }
                 } else if (position == numberRow) {
                     presentFragment(new ChangePhoneHelpActivity());
@@ -706,7 +712,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     if (view instanceof TextCheckCell) {
                         ((TextCheckCell) view).setChecked(!dump);
                     }
-                }else if (position == forceTcpInCallsRow) {
+                } else if (position == forceTcpInCallsRow) {
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                     boolean dump = preferences.getBoolean("dbg_force_tcp_in_calls", false);
                     SharedPreferences.Editor editor = preferences.edit();
@@ -1149,7 +1155,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             nameTextView.setTranslationX(-21 * AndroidUtilities.density * diff);
             nameTextView.setTranslationY((float) Math.floor(avatarY) - (float) Math.ceil(AndroidUtilities.density) + (float) Math.floor(7 * AndroidUtilities.density * diff));
             onlineTextView.setTranslationX(-21 * AndroidUtilities.density * diff);
-            onlineTextView.setTranslationY((float) Math.floor(avatarY) + AndroidUtilities.dp(22) + (float )Math.floor(11 * AndroidUtilities.density) * diff);
+            onlineTextView.setTranslationY((float) Math.floor(avatarY) + AndroidUtilities.dp(22) + (float) Math.floor(11 * AndroidUtilities.density) * diff);
             nameTextView.setScaleX(1.0f + 0.12f * diff);
             nameTextView.setScaleY(1.0f + 0.12f * diff);
         }

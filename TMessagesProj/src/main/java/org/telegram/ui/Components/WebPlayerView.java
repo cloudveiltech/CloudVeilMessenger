@@ -193,6 +193,16 @@ public class WebPlayerView extends ViewGroup implements VideoPlayer.VideoPlayerD
         public abstract Object run(Object[] args);
     }
 
+    //Cloudveil start
+    public static boolean isYoutubeUrl(String url) {
+        if(TextUtils.isEmpty(url)) {
+            return false;
+        }
+        Matcher matcher = youtubeIdRegex.matcher(url);
+        return matcher.find();
+    }
+    //Cloudveil end
+
     private class JSExtractor {
 
         ArrayList<String> codeLines = new ArrayList<>();

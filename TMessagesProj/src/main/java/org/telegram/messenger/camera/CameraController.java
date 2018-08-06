@@ -23,6 +23,7 @@ import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Base64;
 
+import org.cloudveil.messenger.util.CameraUtil;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Bitmaps;
@@ -156,9 +157,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                                 if (ApplicationLoader.mainInterfacePaused && ApplicationLoader.externalInterfacePaused) {
                                     throw new RuntimeException("app paused");
                                 }
-                            //CloudVeil start
-                            CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
-                            //CloudVeil end
+                                //CloudVeil start
+                                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                                //CloudVeil end
                                 Camera camera = Camera.open(cameraInfo.getCameraId());
                                 Camera.Parameters params = camera.getParameters();
 
@@ -261,31 +262,31 @@ public class CameraController implements MediaRecorder.OnInfoListener {
     public void close(final CameraSession session, final CountDownLatch countDownLatch, final Runnable beforeDestroyRunnable) {
         session.destroy();
         threadPool.execute(new Runnable() {
-                               @Override
-                               public void run() {
-                                   if (beforeDestroyRunnable != null) {
-                                       beforeDestroyRunnable.run();
-                                   }
-                                   if (session.cameraInfo.camera == null) {
-                                       return;
-                                   }
-                                   try {
-                                       session.cameraInfo.camera.stopPreview();
-                                       session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
-                                   } catch (Exception e) {
-                                       FileLog.e(e);
-                                   }
-                                   try {
-                                       session.cameraInfo.camera.release();
-                                   } catch (Exception e) {
-                                       FileLog.e(e);
-                                   }
-                                   session.cameraInfo.camera = null;
-                                   if (countDownLatch != null) {
-                                       countDownLatch.countDown();
-                                   }
-                               }
-                           });
+            @Override
+            public void run() {
+                if (beforeDestroyRunnable != null) {
+                    beforeDestroyRunnable.run();
+                }
+                if (session.cameraInfo.camera == null) {
+                    return;
+                }
+                try {
+                    session.cameraInfo.camera.stopPreview();
+                    session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    session.cameraInfo.camera.release();
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                session.cameraInfo.camera = null;
+                if (countDownLatch != null) {
+                    countDownLatch.countDown();
+                }
+            }
+        });
         if (countDownLatch != null) {
             try {
                 countDownLatch.await();
@@ -509,7 +510,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             public void run() {
                 Camera camera = session.cameraInfo.camera;
                 try {
-    				//CloudVeil start
+                    //CloudVeil start
                     CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                     //CloudVeil end
                     if (camera == null) {

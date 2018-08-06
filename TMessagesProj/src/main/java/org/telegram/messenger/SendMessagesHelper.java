@@ -9,6 +9,7 @@
 package org.telegram.messenger;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -1888,13 +1889,14 @@ public class SendMessagesHelper implements NotificationCenter.NotificationCenter
                             sendCallback(false, messageObject, button, parentFragment);
                         } else if (response != null) {
                             if (button instanceof TLRPC.TL_keyboardButtonBuy) {
-                                if (response instanceof TLRPC.TL_payments_paymentForm) {
-                                    final TLRPC.TL_payments_paymentForm form = (TLRPC.TL_payments_paymentForm) response;
-                                    MessagesController.getInstance(currentAccount).putUsers(form.users, false);
-                                    parentFragment.presentFragment(new PaymentFormActivity(form, messageObject));
-                                } else if (response instanceof TLRPC.TL_payments_paymentReceipt) {
-                                    parentFragment.presentFragment(new PaymentFormActivity(messageObject, (TLRPC.TL_payments_paymentReceipt) response));
-                                }
+                                //CloudVeil start
+                                AlertDialog.Builder builder = new AlertDialog.Builder(parentFragment.getParentActivity());
+                                builder.setTitle(parentFragment.getParentActivity().getString(R.string.warning))
+                                        .setMessage(parentFragment.getParentActivity().getString(R.string.cloudveil_disabled_for_protection))
+                                        .setPositiveButton(parentFragment.getParentActivity().getString(R.string.OK), new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                dialog.dismiss();
+                                            }
                                         });
 
                                 parentFragment.showDialog(builder.create(), new DialogInterface.OnDismissListener() {

@@ -29,6 +29,7 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -42,6 +43,8 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -110,7 +113,7 @@ import org.telegram.ui.Components.StickersAlert;
 import java.util.ArrayList;
 
 public class DialogsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
-    
+
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
     private DialogsAdapter dialogsAdapter;
@@ -199,10 +202,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (!onlySelect) {
                 NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.closeSearchByActiveAction);
                 NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.proxySettingsChanged);
-            //CloudVeil start
-            NotificationCenter.getInstance().addObserver(this, NotificationCenter.filterDialogsReady);
-            NotificationCenter.getInstance().addObserver(this, NotificationCenter.stickersDidLoaded);
-            //CloudVeil end
             }
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateInterfaces);
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.encryptedChatUpdated);
@@ -220,6 +219,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.dialogsUnreadCounterChanged);
 
             NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetPasscode);
+
+            //CloudVeil start
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.filterDialogsReady);
+            NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.stickersDidLoaded);
+            //CloudVeil end
         }
 
         if (!dialogsLoaded[currentAccount]) {
@@ -244,11 +248,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (!onlySelect) {
                 NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.closeSearchByActiveAction);
                 NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.proxySettingsChanged);
-
-            //CloudVeil start
-            NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
-            NotificationCenter.getInstance().removeObserver(this, NotificationCenter.stickersDidLoaded);
-            //CloudVeil end
             }
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateInterfaces);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.encryptedChatUpdated);
@@ -266,6 +265,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.dialogsUnreadCounterChanged);
 
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetPasscode);
+
+            //CloudVeil start
+            NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.filterDialogsReady);
+            NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.stickersDidLoaded);
+            //CloudVeil end
         }
         if (commentView != null) {
             commentView.onDestroy();
@@ -290,7 +294,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 })
                 .setOnDismissListener(new DialogInterface.OnDismissListener() {
-    @Override
+                    @Override
                     public void onDismiss(DialogInterface dialog) {
                         setPopupShown();
                     }
@@ -379,14 +383,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 searchWas = false;
                 if (listView != null) {
                     //CloudVeil start
-                    if (MessagesController.getInstance().loadingDialogs && getDialogsArray().isEmpty()) {
+                    if (MessagesController.getInstance(currentAccount).loadingDialogs && getDialogsArray().isEmpty()) {
                         //CloudVeil end
-                    listView.setEmptyView(progressView);
+                        listView.setEmptyView(progressView);
                     } else {
                         progressView.setVisibility(View.GONE);
                         listView.setEmptyView(null);
                     }
                     searchEmptyView.setVisibility(View.GONE);
+
                     if (!onlySelect) {
                         floatingButton.setVisibility(View.VISIBLE);
                         if (currentUnreadCount != 0) {
@@ -653,7 +658,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         };
         fragmentView = contentView;
-        
+
         listView = new RecyclerListView(context);
         listView.setVerticalScrollBarEnabled(true);
         listView.setItemAnimator(null);
@@ -737,17 +742,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             dialogsSearchAdapter.putRecentSearch(dialog_id, (TLRPC.User) obj);
                         }
                     } else if (obj instanceof TLRPC.Chat) {
- if (dialogsSearchAdapter.isGlobalSearch(position)) {
-                            //CloudVeil Start
-                            if (GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
-                                ArrayList<TLRPC.Chat> chats = new ArrayList<>();
-                                chats.add((TLRPC.Chat) obj);
-                                MessagesController.getInstance().putChats(chats, false);
-                                MessagesStorage.getInstance().putUsersAndChats(null, chats, false, true);
-                            }
-                            //CloudVeil End
-                        }
-                        }
                         if (((TLRPC.Chat) obj).id > 0) {
                             dialog_id = -((TLRPC.Chat) obj).id;
                         } else {
@@ -1420,11 +1414,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         });
 
-//CloudVeil start
-        if (MessagesController.getInstance().loadingDialogs && getDialogsArray().isEmpty()) {
+        //CloudVeil start
+        if (MessagesController.getInstance(currentAccount).loadingDialogs && getDialogsArray().isEmpty()) {
             //CloudVeil end
             searchEmptyView.setVisibility(View.GONE);
-        listView.setEmptyView(progressView);
+            listView.setEmptyView(progressView);
+        } else {
+            searchEmptyView.setVisibility(View.GONE);
+            progressView.setVisibility(View.GONE);
+            listView.setEmptyView(null);
+        }
+
         if (searchString != null) {
             actionBar.openSearchField(searchString);
         }
@@ -1592,11 +1592,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
-        } else {
-            showPopup(getParentActivity());
         }
+
         //Cloudveil start
-        StickersQuery.loadStickers(StickersQuery.TYPE_IMAGE, true, false);
+        DataQuery.getInstance(currentAccount).loadStickers(DataQuery.TYPE_IMAGE, true, false);
         //Cloudveil end
     }
 
@@ -1858,7 +1857,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     public void didReceivedNotification(int id, int account, Object... args) {
         //CloudVeil start
         if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoaded) {
-            ChannelCheckingService.startDataChecking(ApplicationLoader.applicationContext);
+            ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         }
         if (id == NotificationCenter.filterDialogsReady) {
             //CloudVeil end
@@ -1978,17 +1977,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         //CloudVeil start
         ArrayList<TLRPC.TL_dialog> dialogs = null;
         if (dialogsType == 0) {
-            return MessagesController.getInstance(currentAccount).dialogs;
+            dialogs = MessagesController.getInstance(currentAccount).dialogs;
         } else if (dialogsType == 1) {
-            return MessagesController.getInstance(currentAccount).dialogsServerOnly;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsServerOnly;
         } else if (dialogsType == 2) {
-            return MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
         } else if (dialogsType == 3) {
-            return MessagesController.getInstance(currentAccount).dialogsForward;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsForward;
+        } else {
+            return null;
         }
-        return null;
-    }
-        dialogs = MessagesController.getInstance().filterDialogs(dialogs);
+        dialogs = MessagesController.getInstance(currentAccount).filterDialogs(dialogs);
         //CloudVeil end
         return dialogs;
     }

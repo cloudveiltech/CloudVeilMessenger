@@ -24,6 +24,7 @@ import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.SparseLongArray;
 import org.telegram.messenger.voip.VoIPService;
@@ -321,6 +322,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
     private int currentAccount;
     private static volatile MessagesController[] Instance = new MessagesController[UserConfig.MAX_ACCOUNT_COUNT];
+
     public static MessagesController getInstance(int num) {
         MessagesController localInstance = Instance[num];
         if (localInstance == null) {
@@ -982,7 +984,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                         oldUser.photo = user.photo;
                         oldUser.flags |= 32;
                     } else {
-                        oldUser.flags = oldUser.flags &~ 32;
+                        oldUser.flags = oldUser.flags & ~32;
                         oldUser.photo = null;
                     }
                 }
@@ -1016,7 +1018,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                     user.photo = oldUser.photo;
                     user.flags |= 32;
                 } else {
-                    user.flags = user.flags &~ 32;
+                    user.flags = user.flags & ~32;
                     user.photo = null;
                 }
                 users.put(user.id, user);
@@ -1074,7 +1076,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                         oldChat.username = chat.username;
                         oldChat.flags |= 64;
                     } else {
-                        oldChat.flags = oldChat.flags &~ 64;
+                        oldChat.flags = oldChat.flags & ~64;
                         oldChat.username = null;
                     }
                     if (chat.participants_count != 0) {
@@ -1120,7 +1122,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                     chat.username = oldChat.username;
                     chat.flags |= 64;
                 } else {
-                    chat.flags = chat.flags &~ 64;
+                    chat.flags = chat.flags & ~64;
                     chat.username = null;
                 }
                 if (oldChat.participants_count != 0 && chat.participants_count == 0) {
@@ -9571,7 +9573,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                                     continue;
                                 }
                                 TelephonyManager tm = (TelephonyManager) ApplicationLoader.applicationContext.getSystemService(Context.TELEPHONY_SERVICE);
-                                if (svc != null || VoIPService.callIShouldHavePutIntoIntent!=null || tm.getCallState() != TelephonyManager.CALL_STATE_IDLE) {
+                                if (svc != null || VoIPService.callIShouldHavePutIntoIntent != null || tm.getCallState() != TelephonyManager.CALL_STATE_IDLE) {
                                     if (BuildVars.LOGS_ENABLED) {
                                         FileLog.d("Auto-declining call " + call.id + " because there's already active one");
                                     }
@@ -9600,9 +9602,9 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                                 intent.putExtra("user_id", call.participant_id == UserConfig.getInstance(currentAccount).getClientUserId() ? call.admin_id : call.participant_id);
                                 intent.putExtra("account", currentAccount);
                                 try {
-                                    if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O){
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                         ApplicationLoader.applicationContext.startForegroundService(intent);
-                                    }else{
+                                    } else {
                                         ApplicationLoader.applicationContext.startService(intent);
                                     }
                                 } catch (Throwable e) {
@@ -10359,7 +10361,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             if (fragment.getParentActivity() == null) {
                 return;
             }
-            final AlertDialog progressDialog[] = new AlertDialog[] {new AlertDialog(fragment.getParentActivity(), 1)};
+            final AlertDialog progressDialog[] = new AlertDialog[]{new AlertDialog(fragment.getParentActivity(), 1)};
 
             TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
             req.username = username;
@@ -10427,16 +10429,16 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
     //CLoudVeil start
     public boolean isUserAllowed(TLRPC.User user) {
-        if(user == null) {
+        if (user == null) {
             return true;
-}
+        }
         if (user.bot) {
             if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
                 return false;
             }
             long id = (long) user.id;
             return !allowedBots.containsKey(id) || allowedBots.get(id);
-        } else if(GlobalSecuritySettings.getManageUsers()) {
+        } else if (GlobalSecuritySettings.getManageUsers()) {
             long id = (long) user.id;
             return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
         }
@@ -10451,24 +10453,24 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         TLRPC.EncryptedChat encryptedChat = null;
         if (lower_id != 0) {
             if (high_id == 1) {
-                chat = MessagesController.getInstance().getChat(lower_id);
+                chat = getChat(lower_id);
             } else {
                 if (lower_id < 0) {
-                    chat = MessagesController.getInstance().getChat(-lower_id);
+                    chat = getChat(-lower_id);
                     if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
                         if (chat2 != null) {
                             chat = chat2;
                         }
                     }
                 } else {
-                    user = MessagesController.getInstance().getUser(lower_id);
+                    user = getUser(lower_id);
                 }
             }
         } else {
-            encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+            encryptedChat = getEncryptedChat(high_id);
             if (encryptedChat != null) {
-                user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+                user = getUser(encryptedChat.user_id);
             }
         }
 
@@ -10490,24 +10492,24 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         TLRPC.EncryptedChat encryptedChat = null;
         if (lower_id != 0) {
             if (high_id == 1) {
-                chat = MessagesController.getInstance().getChat(lower_id);
+                chat = getChat(lower_id);
             } else {
                 if (lower_id < 0) {
-                    chat = MessagesController.getInstance().getChat(-lower_id);
+                    chat = getChat(-lower_id);
                     if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
                         if (chat2 != null) {
                             chat = chat2;
                         }
                     }
                 } else {
-                    user = MessagesController.getInstance().getUser(lower_id);
+                    user = getUser(lower_id);
                 }
             }
         } else {
-            encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+            encryptedChat = getEncryptedChat(high_id);
             if (encryptedChat != null) {
-                user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+                user = getUser(encryptedChat.user_id);
             }
         }
 
@@ -10517,7 +10519,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             if (user.bot) {
                 long id = (long) user.id;
                 return allowedBots.containsKey(id);
-            } else if(GlobalSecuritySettings.getManageUsers()) {
+            } else if (GlobalSecuritySettings.getManageUsers()) {
                 return allowedDialogs.containsKey(currentDialogId);
             }
             return true;
@@ -10532,8 +10534,9 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
 
     public boolean isMessageAllowed(MessageObject messageObject) {
-        if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null && !StickersQuery.isStickerAllowed(messageObject.messageOwner.media.document)) {
-            if(TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
+        if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
+                && !DataQuery.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)) {
+            if (TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
                 return false;
             }
         }
@@ -10542,7 +10545,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             return true;
         }
 
-        TLRPC.User botUser = MessagesController.getInstance().getUser(messageObject.messageOwner.via_bot_id);
+        TLRPC.User botUser = getUser(messageObject.messageOwner.via_bot_id);
         if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
             return isUserAllowed(botUser);
         }

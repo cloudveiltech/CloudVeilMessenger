@@ -80,6 +80,7 @@ import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.BuildVars;
@@ -440,6 +441,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index) {
+            //CloudVeil start
+            if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                return null;
+            }
+            //CloudVeil end
+
             int count = chatListView.getChildCount();
 
             for (int a = 0; a < count; a++) {
@@ -751,9 +758,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (currentUser != null) {
             MediaController.getInstance().startMediaObserver();
         }
-        //CloudVeil start
-        NotificationCenter.getInstance().addObserver(this, NotificationCenter.filterDialogsReady);
-        //CloudVeil end
 
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messagesDidLoaded);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiDidLoaded);
@@ -799,6 +803,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetNewWallpapper);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.channelRightsUpdated);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateMentionsCount);
+
+        //CloudVeil start
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.filterDialogsReady);
+        //CloudVeil end
 
         super.onFragmentCreate();
 
@@ -935,8 +943,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetNewWallpapper);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.channelRightsUpdated);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateMentionsCount);
+
         //CloudVeil start
-        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.filterDialogsReady);
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.filterDialogsReady);
         //CloudVeil end
 
         if (AndroidUtilities.isTablet()) {
@@ -1065,10 +1074,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     if (getParentActivity() == null) {
                         return;
                     }
-                    // createDeleteMessagesAlert(null, null);
                     //CloudVeil Start
                     if (!GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
-                    createDeleteMessagesAlert(null, null);
+                        createDeleteMessagesAlert(null, null);
                     }
                     //CloudVeil End
                 } else if (id == forward) {
@@ -1480,9 +1488,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         actionMode.getItem(copy).setVisibility(selectedMessagesCanCopyIds[0].size() + selectedMessagesCanCopyIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.getItem(star).setVisibility(selectedMessagesCanStarIds[0].size() + selectedMessagesCanStarIds[1].size() != 0 ? View.VISIBLE : View.GONE);
         actionMode.getItem(delete).setVisibility(cantDeleteMessagesCount == 0 ? View.VISIBLE : View.GONE);
-        if (GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
-            actionMode.getItem(delete).setVisibility(View.GONE);
-        }
         checkActionBarMenu();
 
         fragmentView = new SizeNotifierFrameLayout(context) {
@@ -1807,8 +1812,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 } else {
                     emptyView.setText(LocaleController.getString("NoMessages", R.string.NoMessages));
                 }
+
                 //CloudVeil start
-                if (!MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
+                if (!MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                     emptyView.setText(LocaleController.getString("cloudveil_hidden_for_protection", R.string.cloudveil_hidden_for_protection));
                 }
                 //CloudVeil end
@@ -4145,8 +4151,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     int oldTtl = currentEncryptedChat.ttl;
                     currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
                     if (oldTtl != currentEncryptedChat.ttl) {
-                        SecretChatHelper.getInstance().sendTTLMessage(currentEncryptedChat, null);
-                        MessagesStorage.getInstance().updateEncryptedChatTTL(currentEncryptedChat);
+                        SecretChatHelper.getInstance(currentAccount).sendTTLMessage(currentEncryptedChat, null);
+                        MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(currentEncryptedChat);
                     }
                 }
             }, 1000);
@@ -4775,6 +4781,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             return;
         }
         //CloudVeil End
+
         preferences.edit().putBoolean("gifhint", true).commit();
 
         if (getParentActivity() == null || fragmentView == null || gifHintTextView != null) {
@@ -5378,7 +5385,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             chatActivityEnterView.setButtons(botButtons);
         }
     }
-    
+
     public void hideFieldPanel() {
         showFieldPanel(false, null, null, null, null, false);
     }
@@ -6681,9 +6688,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 int newCopyVisible = copyItem.getVisibility();
                 int newStarVisible = starItem.getVisibility();
                 actionBar.createActionMode().getItem(delete).setVisibility(cantDeleteMessagesCount == 0 ? View.VISIBLE : View.GONE);
-				if (GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
-                    actionBar.createActionMode().getItem(delete).setVisibility(View.GONE);
-                }
                 if (editItem != null) {
                     editItem.setVisibility(canEditMessagesCount == 1 && selectedMessagesIds[0].size() + selectedMessagesIds[1].size() == 1 ? View.VISIBLE : View.GONE);
                 }
@@ -7065,7 +7069,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     public void didReceivedNotification(int id, int account, final Object... args) {
         //CloudVeil start
         if (id == NotificationCenter.filterDialogsReady) {
-            MessagesController messagesController = MessagesController.getInstance();
+            MessagesController messagesController = MessagesController.getInstance(currentAccount);
             boolean isDialogAllowed = messagesController.isDialogIdAllowed(dialog_id);
             if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
                 chatAdapter.notifyDataSetChanged();
@@ -9276,18 +9280,52 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             }
         }
-  
- //CloudVeil start
-        if (MessagesController.getInstance().isDialogCheckedOnServer(dialog_id)) {
-            messages = MessagesController.getInstance().filterMessages(messages);
+
+
+
+        //CloudVeil start
+        if (MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+            messages = MessagesController.getInstance(currentAccount).filterMessages(messages);
         } else {
-            ChannelCheckingService.startDataChecking(dialog_id, getParentActivity());
-    }
+            ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
+        }
         if(chatAdapter != null) {
             chatAdapter.notifyDataSetChanged();
         }
         //CloudVeil end
     }
+
+    //CloudVeil start
+    private void showWarning(Context context) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(context.getString(R.string.cloudveil_message_dialog_forbidden))
+                .setPositiveButton(context.getString(R.string.OK), new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        finishFragment();
+                    }
+                })
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+                        finishFragment();
+                    }
+                })
+                .setOnBackButtonListener(new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        finishFragment();
+                    }
+                });
+        showDialog(builder.create(), new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                finishFragment();
+            }
+        });
+    }
+    //CloudVeil end
 
     private void checkSecretMessageForLocation(MessageObject messageObject) {
         if (messageObject.type != 4 || locationAlertShown || SharedConfig.isSecretMapPreviewSet()) {
@@ -10033,7 +10071,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         super.onResume();
 
         //CloudVeil start
-        if (!MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
+        if (!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             showWarning(getParentActivity());
         }
         //CloudVeil end
@@ -11099,6 +11137,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             item.setVisibility(View.GONE);
         }
         //CloudVeil End
+
         actionBar.showActionMode();
         updatePinnedMessageView(true);
 
@@ -11140,7 +11179,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         checkEditTimer();
 
         chatActivityEnterView.setAllowStickersAndGifs(false, false);
-        
+
         updatePinnedMessageView(true);
         updateVisibleRows();
 
@@ -11247,7 +11286,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     selectedObjectGroup = null;
                     return;
                 }
-                createDeleteMessagesAlert(selectedObject, selectedObjectGroup);
+
+                //CloudVeil Start
+                if (!GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+                    createDeleteMessagesAlert(selectedObject, selectedObjectGroup);
+                }
+                //CloudVeil End
+
                 break;
             }
             case 2: {
@@ -11499,12 +11544,12 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 /*if (!TextUtils.isEmpty(selectedObject.messageOwner.media.vcard)) {
                     openVCard(selectedObject.messageOwner.media.vcard, selectedObject.messageOwner.media.first_name, selectedObject.messageOwner.media.last_name);
                 } else {*/
-                    Bundle args = new Bundle();
-                    args.putInt("user_id", selectedObject.messageOwner.media.user_id);
-                    args.putString("phone", selectedObject.messageOwner.media.phone_number);
-                    args.putBoolean("addContact", true);
-                    presentFragment(new ContactAddActivity(args));
-                    break;
+                Bundle args = new Bundle();
+                args.putInt("user_id", selectedObject.messageOwner.media.user_id);
+                args.putString("phone", selectedObject.messageOwner.media.phone_number);
+                args.putBoolean("addContact", true);
+                presentFragment(new ContactAddActivity(args));
+                break;
                 //}
             }
             case 16: {
@@ -12086,10 +12131,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         public int getItemCount() {
-            if(!MessagesController.getInstance().isDialogCheckedOnServer(dialog_id) ||
-                    !MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
-                return 0;
-            }
             return rowCount;
         }
 
@@ -12347,11 +12388,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             SecretMediaViewer.getInstance().setParentActivity(getParentActivity());
                             SecretMediaViewer.getInstance().openMedia(message, photoViewerProvider);
                         } else if (message.type == 13) {
-							//cloudveil start
-                            if(StickersQuery.isStickerAllowed(message.getInputStickerSet())) {
-                            showDialog(new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && ChatObject.canSendStickers(currentChat) ? chatActivityEnterView : null));
+                            //cloudveil start
+                            if(DataQuery.getInstance(currentAccount).isStickerAllowed(message.getInputStickerSet())) {
+                                showDialog(new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && ChatObject.canSendStickers(currentChat) ? chatActivityEnterView : null));
                             }
-                            //cloudveil end                         
+                            //cloudveil end
                         } else if (message.isVideo() || message.type == 1 || message.type == 0 && !message.isWebpageDocument() || message.isGif()) {
                             if (message.isVideo()) {
                                 sendSecretMessageRead(message);

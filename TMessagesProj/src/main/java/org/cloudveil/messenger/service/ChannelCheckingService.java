@@ -17,10 +17,10 @@ import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.query.StickersQuery;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
@@ -41,13 +41,14 @@ import io.reactivex.schedulers.Schedulers;
 public class ChannelCheckingService extends Service {
     private static final String ACTION_CHECK_CHANNELS = "org.cloudveil.messenger.service.check.channels";
     private static final String EXTRA_ADDITION_DIALOG_ID = "extra_dialog_id";
+    private static final String EXTRA_ACCOUNT_NUMBER = "extra_account_number";
     private static final long DEBOUNCE_TIME_MS = 200;
 
     private Disposable subscription;
     Handler handler = new Handler();
     private long additionalDialogId = 0;
     private boolean firstCall = true;
-
+    private int accountNumber = 0;
 
     @Nullable
     @Override
@@ -55,19 +56,20 @@ public class ChannelCheckingService extends Service {
         return null;
     }
 
-    public static void startDataChecking(@NonNull Context context) {
+    public static void startDataChecking(int accountNum, @NonNull Context context) {
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
+        intent.putExtra(EXTRA_ACCOUNT_NUMBER, accountNum);
         intent.setClass(context, ChannelCheckingService.class);
         context.startService(intent);
     }
 
-    public static void startDataChecking(long dialogId, @NonNull Context context) {
+    public static void startDataChecking(int accountNum, long dialogId, @NonNull Context context) {
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
         intent.setClass(context, ChannelCheckingService.class);
         intent.putExtra(EXTRA_ADDITION_DIALOG_ID, dialogId);
+        intent.putExtra(EXTRA_ACCOUNT_NUMBER, accountNum);
         context.startService(intent);
     }
-
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -77,6 +79,8 @@ public class ChannelCheckingService extends Service {
             if (additionalId != 0) {
                 additionalDialogId = additionalId;
             }
+
+            accountNumber = intent.getIntExtra(EXTRA_ACCOUNT_NUMBER, 0);
 
             handler.postDelayed(checkDataRunnable, DEBOUNCE_TIME_MS);
         }
@@ -96,12 +100,12 @@ public class ChannelCheckingService extends Service {
         addInlineBotsToRequest(request);
         addStickersToRequest(request);
 
-        request.userPhone = UserConfig.getCurrentUser().phone;
-        request.userId = UserConfig.getCurrentUser().id;
-        request.userName = UserConfig.getCurrentUser().username;
+        request.userPhone = UserConfig.getInstance(accountNumber).getCurrentUser().phone;
+        request.userId = UserConfig.getInstance(accountNumber).getCurrentUser().id;
+        request.userName = UserConfig.getInstance(accountNumber).getCurrentUser().username;
 
         if (request.isEmpty()) {
-            NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
+            NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
             return;
         }
 
@@ -114,7 +118,7 @@ public class ChannelCheckingService extends Service {
             return;
         }
 
-        NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
+        NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
                 observeOn(AndroidSchedulers.mainThread()).
@@ -136,7 +140,7 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {
-        Collection<TLRPC.User> values = MessagesController.getInstance().getUsers().values();
+        Collection<TLRPC.User> values = MessagesController.getInstance(accountNumber).getUsers().values();
         for (TLRPC.User user : values) {
             if (user.bot) {
                 SettingsRequest.Row row = new SettingsRequest.Row();
@@ -150,13 +154,13 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addStickersToRequest(SettingsRequest request) {
-        for (int i = 0; i < StickersQuery.getStickersSetTypesCount(); i++) {
-            addStickerSetToRequest(StickersQuery.getStickerSets(i), request);
+        for (int i = 0; i < DataQuery.getInstance(accountNumber).getStickersSetTypesCount(); i++) {
+            addStickerSetToRequest(DataQuery.getInstance(accountNumber).getStickerSets(i), request);
         }
 
-        addStickerSetToRequest(StickersQuery.newStickerSets, request);
+        addStickerSetToRequest(DataQuery.getInstance(accountNumber).newStickerSets, request);
 
-        ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = StickersQuery.getFeaturedStickerSetsUnfiltered();
+        ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = DataQuery.getInstance(accountNumber).getFeaturedStickerSetsUnfiltered();
         for (TLRPC.StickerSetCovered stickerSetCovered : featuredStickerSets) {
             addStickerSetToRequest(stickerSetCovered.set, request);
         }
@@ -178,26 +182,26 @@ public class ChannelCheckingService extends Service {
     }
 
     private void processResponse(@NonNull SettingsResponse settingsResponse) {
-        if(settingsResponse.access == null || !settingsResponse.access.isValid()) {
+        if (settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
 
-        ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance().allowedDialogs;
+        ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance(accountNumber).allowedDialogs;
         allowedDialogs.clear();
 
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.channels);
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.groups);
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
-        if(settingsResponse.access.bots != null) {
-            ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance().allowedBots;
+        if (settingsResponse.access.bots != null) {
+            ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance(accountNumber).allowedBots;
             allowedBots.clear();
             appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
         }
 
-        if(settingsResponse.access.stickers != null) {
-            StickersQuery.allowedStickerSets.clear();
-            appendAllowedDialogs(StickersQuery.allowedStickerSets, settingsResponse.access.stickers);
+        if (settingsResponse.access.stickers != null) {
+            DataQuery.getInstance(accountNumber).allowedStickerSets.clear();
+            appendAllowedDialogs(DataQuery.getInstance(accountNumber).allowedStickerSets, settingsResponse.access.stickers);
         }
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
@@ -212,7 +216,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
         GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
 
-        NotificationCenter.getInstance().postNotificationName(NotificationCenter.filterDialogsReady);
+        NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
     }
 
     private void appendAllowedDialogs(ConcurrentHashMap<Long, Boolean> allowedDialogs, ArrayList<HashMap<Long, Boolean>> groups) {
@@ -225,7 +229,7 @@ public class ChannelCheckingService extends Service {
 
     private SettingsResponse loadFromCache() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(this.getClass().getCanonicalName(), Activity.MODE_PRIVATE);
-        String json = preferences.getString("settings", null);
+        String json = preferences.getString("settings." + accountNumber, null);
         if (json == null) {
             return null;
         }
@@ -235,7 +239,7 @@ public class ChannelCheckingService extends Service {
     private void saveToCache(@NonNull SettingsResponse settings) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(this.getClass().getCanonicalName(), Activity.MODE_PRIVATE);
         String json = new Gson().toJson(settings);
-        preferences.edit().putString("settings", json).apply();
+        preferences.edit().putString("settings." + accountNumber, json).apply();
     }
 
     private void freeSubscription() {
@@ -252,10 +256,10 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addDialogsToRequest(@NonNull SettingsRequest request) {
-        addDialogsToRequest(request, MessagesController.getInstance().dialogs);
-        addDialogsToRequest(request, MessagesController.getInstance().dialogsForward);
-        addDialogsToRequest(request, MessagesController.getInstance().dialogsGroupsOnly);
-        addDialogsToRequest(request, MessagesController.getInstance().dialogsServerOnly);
+        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogs);
+        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsForward);
+        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsGroupsOnly);
+        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsServerOnly);
 
         if (additionalDialogId != 0) {
             addDialogToRequest(additionalDialogId, request);
@@ -278,24 +282,24 @@ public class ChannelCheckingService extends Service {
         TLRPC.User user = null;
         if (lower_id != 0) {
             if (high_id == 1) {
-                chat = MessagesController.getInstance().getChat(lower_id);
+                chat = MessagesController.getInstance(accountNumber).getChat(lower_id);
             } else {
                 if (lower_id < 0) {
-                    chat = MessagesController.getInstance().getChat(-lower_id);
+                    chat = MessagesController.getInstance(accountNumber).getChat(-lower_id);
                     if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = MessagesController.getInstance().getChat(chat.migrated_to.channel_id);
+                        TLRPC.Chat chat2 = MessagesController.getInstance(accountNumber).getChat(chat.migrated_to.channel_id);
                         if (chat2 != null) {
                             chat = chat2;
                         }
                     }
                 } else {
-                    user = MessagesController.getInstance().getUser(lower_id);
+                    user = MessagesController.getInstance(accountNumber).getUser(lower_id);
                 }
             }
         } else {
-            TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance().getEncryptedChat(high_id);
+            TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance(accountNumber).getEncryptedChat(high_id);
             if (encryptedChat != null) {
-                user = MessagesController.getInstance().getUser(encryptedChat.user_id);
+                user = MessagesController.getInstance(accountNumber).getUser(encryptedChat.user_id);
             }
         }
 

@@ -8,9 +8,9 @@
 
 package org.telegram.ui.Adapters;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import android.util.SparseArray;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.AndroidUtilities;
@@ -39,6 +39,7 @@ public class SearchAdapterHelper {
 
     public interface SearchAdapterHelperDelegate {
         void onDataSetChanged();
+
         void onSetHashtags(ArrayList<HashtagObject> arrayList, HashMap<String, HashtagObject> hashMap);
     }
 
@@ -196,16 +197,8 @@ public class SearchAdapterHelper {
                                         SparseArray<TLRPC.Chat> chatsMap = new SparseArray<>();
                                         SparseArray<TLRPC.User> usersMap = new SparseArray<>();
                                         for (int a = 0; a < res.chats.size(); a++) {
- //CloudVeil Start
-                                                if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             TLRPC.Chat chat = res.chats.get(a);
                                             chatsMap.put(chat.id, chat);
-
-                                               
-                                        }
-                                }
-                                                //CloudVeil End
-                                        }
                                         }
                                         for (int a = 0; a < res.users.size(); a++) {
                                             TLRPC.User user = res.users.get(a);
@@ -236,18 +229,23 @@ public class SearchAdapterHelper {
                                                     if (!allowChats) {
                                                         continue;
                                                     }
-                                                    globalSearch.add(chat);
+                                                    //globalSearch.add(chat);
+                                                    //CloudVeil Start
+                                                    if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+                                                        globalSearch.add(chat);
+                                                    }
+                                                    //CloudVeil End
                                                     globalSearchMap.put(-chat.id, chat);
                                                 } else if (user != null) {
                                                     if (!allowBots && user.bot || !allowSelf && user.self) {
                                                         continue;
                                                     }
-                                                      //CloudVeil Start
-                                            if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
-                                                    globalSearch.add(user);
-                                            }
-                                lastFoundUsername = query;
-                                            //CloudVeil End
+                                                    //globalSearch.add(user);
+                                                    //CloudVeil Start
+                                                    if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+                                                        globalSearch.add(user);
+                                                    }
+                                                    //CloudVeil End
                                                     globalSearchMap.put(user.id, user);
                                                 }
                                             }

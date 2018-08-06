@@ -656,7 +656,7 @@ public class NotificationsController {
                             popupArrayAdd.add(0, messageObject);
                         }
                         //CloudVeil start
-                        if(MessagesController.getInstance().isDialogIdAllowed(dialog_id)) {
+                        if(MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                             delayedPushMessages.add(messageObject);
                             pushMessages.add(0, messageObject);
                         if (mid != 0) {

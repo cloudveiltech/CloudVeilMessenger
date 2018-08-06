@@ -50,6 +50,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.ChatObject;
@@ -217,10 +218,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
            //CloudVeil start
             if (user_id != 0) {
                 boolean allowPhoto =  !GlobalSecuritySettings.getLockDisableOthersPhoto();
-                if(user_id == UserConfig.getCurrentUser().id) {
-                    allowPhoto = UserConfig.getCurrentUser().id == user_id && !GlobalSecuritySettings.getLockDisableOwnPhoto();
+                if(user_id == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
+                    allowPhoto = UserConfig.getInstance(currentAccount).getCurrentUser().id == user_id && !GlobalSecuritySettings.getLockDisableOwnPhoto();
                 }
-                TLRPC.User user = MessagesController.getInstance().getUser(user_id);
+                TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(user_id);
                 if (user != null && user.photo != null && user.photo.photo_big != null && allowPhoto) {
                     photoBig = user.photo.photo_big;
                 }

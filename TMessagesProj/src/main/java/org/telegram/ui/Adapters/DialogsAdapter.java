@@ -99,17 +99,17 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter {
         //CloudVeil start
         ArrayList<TLRPC.TL_dialog> dialogs = null;
         if (dialogsType == 0) {
-            return MessagesController.getInstance(currentAccount).dialogs;
+            dialogs = MessagesController.getInstance(currentAccount).dialogs;
         } else if (dialogsType == 1) {
-            return MessagesController.getInstance(currentAccount).dialogsServerOnly;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsServerOnly;
         } else if (dialogsType == 2) {
-            return MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
         } else if (dialogsType == 3) {
-            return MessagesController.getInstance(currentAccount).dialogsForward;
+            dialogs = MessagesController.getInstance(currentAccount).dialogsForward;
+        } else {
+            return null;
         }
-        return null;
-    }
-        dialogs = MessagesController.getInstance().filterDialogs(dialogs);
+        dialogs = MessagesController.getInstance(currentAccount).filterDialogs(dialogs);
         //CloudVeil end
         return dialogs;
     }

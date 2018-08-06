@@ -55,6 +55,7 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DataQuery;
@@ -91,26 +92,43 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
     public interface Listener {
         boolean onBackspace();
+
         void onEmojiSelected(String emoji);
+
         void onStickerSelected(TLRPC.Document sticker);
+
         void onStickersSettingsClick();
+
         void onStickersGroupClick(int chatId);
+
         void onGifSelected(TLRPC.Document gif);
+
         void onGifTab(boolean opened);
+
         void onStickersTab(boolean opened);
+
         void onClearEmojiRecent();
+
         void onShowStickerSet(TLRPC.StickerSet stickerSet, TLRPC.InputStickerSet inputStickerSet);
+
         void onStickerSetAdd(TLRPC.StickerSetCovered stickerSet);
+
         void onStickerSetRemove(TLRPC.StickerSetCovered stickerSet);
+
         void onSearchOpenClose(boolean open);
+
         boolean isSearchOpened();
+
         boolean isExpanded();
     }
 
-    public interface DragListener{
+    public interface DragListener {
         void onDragStart();
+
         void onDragEnd(float velocity);
+
         void onDragCancel();
+
         void onDrag(int offset);
     }
 
@@ -135,6 +153,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
     };
 
     private static final Field superListenerField;
+
     static {
         Field f = null;
         try {
@@ -145,6 +164,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
         superListenerField = f;
     }
+
     private static final ViewTreeObserver.OnScrollChangedListener NOP = new ViewTreeObserver.OnScrollChangedListener() {
         @Override
         public void onScrollChanged() {
@@ -658,7 +678,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         stickersDrawable = context.getResources().getDrawable(R.drawable.ic_smiles2_stickers);
         Theme.setDrawableColorByKey(stickersDrawable, Theme.key_chat_emojiPanelIcon);
-        icons = new Drawable[] {
+        icons = new Drawable[]{
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_recent, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_smile, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
                 Theme.createEmojiIconSelectorDrawable(context, R.drawable.ic_smiles2_nature, Theme.getColor(Theme.key_chat_emojiPanelIcon), Theme.getColor(Theme.key_chat_emojiPanelIconSelected)),
@@ -785,28 +805,28 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 }
             });
             if (!GlobalSecuritySettings.isLockDisableStickers()) {
-            stickersOnItemClickListener = new RecyclerListView.OnItemClickListener() {
-                @Override
-                public void onItemClick(View view, int position) {
-                    if (stickersGridView.getAdapter() == stickersSearchGridAdapter) {
-                        TLRPC.StickerSetCovered pack = stickersSearchGridAdapter.positionsToSets.get(position);
-                        if (pack != null) {
-                            listener.onShowStickerSet(pack.set, null);
+                stickersOnItemClickListener = new RecyclerListView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(View view, int position) {
+                        if (stickersGridView.getAdapter() == stickersSearchGridAdapter) {
+                            TLRPC.StickerSetCovered pack = stickersSearchGridAdapter.positionsToSets.get(position);
+                            if (pack != null) {
+                                listener.onShowStickerSet(pack.set, null);
+                                return;
+                            }
+                        }
+                        if (!(view instanceof StickerEmojiCell)) {
                             return;
                         }
+                        StickerPreviewViewer.getInstance().reset();
+                        StickerEmojiCell cell = (StickerEmojiCell) view;
+                        if (cell.isDisabled()) {
+                            return;
+                        }
+                        cell.disable();
+                        listener.onStickerSelected(cell.getSticker());
                     }
-                    if (!(view instanceof StickerEmojiCell)) {
-                        return;
-                    }
-                    StickerPreviewViewer.getInstance().reset();
-                    StickerEmojiCell cell = (StickerEmojiCell) view;
-                    if (cell.isDisabled()) {
-                        return;
-                    }
-                    cell.disable();
-                    listener.onStickerSelected(cell.getSticker());
-                }
-            };
+                };
             }
             stickersGridView.setOnItemClickListener(stickersOnItemClickListener);
             stickersGridView.setGlowColor(Theme.getColor(Theme.key_chat_emojiPanelBackground));
@@ -1724,7 +1744,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         for (int a = 0; a < packs.size(); a++) {
             TLRPC.TL_messages_stickerSet pack = packs.get(a);
             //CLoudVeil start
-            if (pack.set.archived || pack.documents == null || pack.documents.isEmpty() || !StickersQuery.isStickerAllowed(pack)) {
+            if (pack.set.archived || pack.documents == null || pack.documents.isEmpty() || !DataQuery.getInstance(currentAccount).isStickerAllowed(pack)) {
                 continue;
             }
 
@@ -2471,7 +2491,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                     if (leftSide < AndroidUtilities.dp(320)) {
                         leftSide = AndroidUtilities.dp(320);
                     }
-                    width  = smallSide - leftSide;
+                    width = smallSide - leftSide;
                 } else {
                     width = AndroidUtilities.displaySize.x;
                 }

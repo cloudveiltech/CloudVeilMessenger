@@ -146,6 +146,10 @@ public class NotificationCenter {
     public static final int playerDidStartPlaying = totalEvents++;
     public static final int closeSearchByActiveAction = totalEvents++;
 
+    //CloudVeil start
+    public static final int filterDialogsReady = totalEvents++;
+    //CloudVeil end
+
     private SparseArray<ArrayList<Object>> observers = new SparseArray<>();
     private SparseArray<ArrayList<Object>> removeAfterBroadcast = new SparseArray<>();
     private SparseArray<ArrayList<Object>> addAfterBroadcast = new SparseArray<>();

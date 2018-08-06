@@ -45,6 +45,7 @@ import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.DownloadController;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.ImageLoader;
@@ -78,6 +79,7 @@ import org.telegram.ui.Components.TypefaceSpan;
 import org.telegram.ui.Components.URLSpanBotCommand;
 import org.telegram.ui.Components.URLSpanMono;
 import org.telegram.ui.Components.URLSpanNoUnderline;
+import org.telegram.ui.Components.WebPlayerView;
 import org.telegram.ui.PhotoViewer;
 import org.telegram.ui.SecretMediaViewer;
 
@@ -877,6 +879,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         }
         return false;
     }
+
 
     private boolean checkInstantButtonMotionEvent(MotionEvent event) {
         if (!drawInstantView || currentMessageObject.type == 0) {
@@ -3286,15 +3289,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     currentPhotoObjectThumb = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 80);
 
                     //CloudVeil start
-                    if ((!StickersQuery.isStickerAllowed(messageObject.messageOwner.media.document)) && !TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
+                    if ((!DataQuery.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)) && !TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
                         photoImage.setImage(null, GlobalSecuritySettings.getBlockedImageUrl(),
                                 String.format(Locale.US, "%d_%d", photoWidth, photoHeight),
                                 null,
                                 null,
                                 null,
                                 0, "png", 1);
-                        if (!StickersQuery.isStickerSetKnown(messageObject.messageOwner.media.document)) {
-                            StickersQuery.loadStickerSetAndSendToServer(messageObject.getInputStickerSet());
+                        if (!DataQuery.getInstance(currentAccount).isStickerSetKnown(messageObject.messageOwner.media.document)) {
+                            DataQuery.getInstance(currentAccount).loadStickerSetAndSendToServer(messageObject.getInputStickerSet());
                         }
                     } else {
                     if (messageObject.attachPathExists) {

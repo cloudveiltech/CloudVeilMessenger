@@ -18,6 +18,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -351,8 +352,8 @@ public class ChatAvatarContainer extends FrameLayout implements NotificationCent
         if (chat.photo != null) {
             //CloudVeil start
             if (!GlobalSecuritySettings.getLockDisableOthersPhoto()) {
-            newPhoto = chat.photo.photo_small;
-        }
+                newPhoto = chat.photo.photo_small;
+            }
             //CloudVeil end
         }
         avatarDrawable.setInfo(chat);

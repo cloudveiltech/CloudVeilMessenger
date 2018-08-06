@@ -60,9 +60,9 @@ import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
@@ -1630,7 +1630,8 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             sizeNotifierLayout.removeView(emojiView);
             emojiView = null;
         }
-        allowStickers = value;
+
+        //CloudVeil start
         if (!GlobalSecuritySettings.isLockDisableStickers()) {
             allowStickers = value;
         } else {
@@ -1638,10 +1639,12 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         }
 
         if (!GlobalSecuritySettings.isLockDisableGifs()) {
-        allowGifs = value2;
+            allowGifs = value2;
         } else {
             allowGifs = false;
         }
+        //CloudVeil end
+
         setEmojiButtonImage();
     }
 
@@ -2020,11 +2023,13 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (!SharedConfig.inappCamera) {
             hasRecordVideo = false;
         }
-     //CloudVeil start
+
+        //CloudVeil start
         if(GlobalSecuritySettings.getDisabledVideoInlineRecording()) {
             hasRecordVideo = false;
         }
         //CloudVeil end
+
         if (hasRecordVideo) {
             if (SharedConfig.hasCameraCache) {
                 CameraController.getInstance().initCamera(null);
@@ -2904,7 +2909,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             return;
         }
         if (focus) {
-             if (!searchingStickers && !messageEditText.isFocused()) {
+            if (!searchingStickers && !messageEditText.isFocused()) {
                 messageEditText.postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -3160,6 +3165,13 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             return;
         }
         emojiView = new EmojiView(allowStickers, allowGifs, parentActivity, info);
+        //CloudVeil start
+        if (!GlobalSecuritySettings.isLockDisableStickers()) {
+            emojiView = new EmojiView(allowStickers, allowGifs, parentActivity,info);
+        } else {
+            emojiView = new EmojiView(false, false, parentActivity,info);
+        }
+        //CloudVeil end
         emojiView.setVisibility(GONE);
         emojiView.setListener(new EmojiView.Listener() {
 
@@ -3274,13 +3286,17 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                 if (parentFragment == null || parentActivity == null) {
                     return;
                 }
+
+                //CloudVeil start
                 if (!GlobalSecuritySettings.isLockDisableStickers()) {
-                if (stickerSet != null) {
-                    inputStickerSet = new TLRPC.TL_inputStickerSetID();
-                    inputStickerSet.access_hash = stickerSet.access_hash;
-                    inputStickerSet.id = stickerSet.id;
+                    if (stickerSet != null) {
+                        inputStickerSet = new TLRPC.TL_inputStickerSetID();
+                        inputStickerSet.access_hash = stickerSet.access_hash;
+                        inputStickerSet.id = stickerSet.id;
+                    }
                 }
-                }
+                //CloudVeil end
+
                 parentFragment.showDialog(new StickersAlert(parentActivity, parentFragment, inputStickerSet, null, ChatActivityEnterView.this));
             }
 
@@ -3394,10 +3410,6 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     @Override
     public void onStickerSelected(TLRPC.Document sticker) {
- if (!GlobalSecuritySettings.isLockDisableStickers()) {
-            SendMessagesHelper.getInstance().sendSticker(sticker, dialog_id, replyingMessageObject);
-        }
-
         if (searchingStickers) {
             searchingStickers = false;
             emojiView.closeSearch(true);
@@ -3405,7 +3417,6 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         }
         setStickersExpanded(false, true);
         SendMessagesHelper.getInstance(currentAccount).sendSticker(sticker, dialog_id, replyingMessageObject);
-        }
         if (delegate != null) {
             delegate.onMessageSend(null);
         }
@@ -3413,9 +3424,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     public void addStickerToRecent(TLRPC.Document sticker) {
         createEmojiView();
-        if (!GlobalSecuritySettings.isLockDisableStickers()) {
         emojiView.addRecentSticker(sticker);
-    }
     }
 
     private void showPopup(int show, int contentType) {
@@ -3513,9 +3522,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (currentPage == 0 || !allowStickers && !allowGifs) {
             emojiButton.setImageResource(R.drawable.ic_msg_panel_smiles);
         } else if (currentPage == 1) {
-            if (!GlobalSecuritySettings.isLockDisableStickers()) {
             emojiButton.setImageResource(R.drawable.ic_msg_panel_stickers);
-            }
         } else if (currentPage == 2) {
             emojiButton.setImageResource(R.drawable.ic_msg_panel_gif);
         }

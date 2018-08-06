@@ -1,9 +1,25 @@
+def keystorePropertiesFile = rootProject.file("../keystore.properties");
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+
+buildscript {
+    repositories {
+        maven { url 'https://maven.fabric.io/public' }
+    }
+
+    dependencies {
+        classpath 'io.fabric.tools:gradle:1.+'
+    }
+}
 apply plugin: 'com.android.application'
+apply plugin: 'io.fabric'
 
 repositories {
     mavenCentral()
     google()
     jcenter()
+    maven { url 'https://maven.fabric.io/public' }
 }
 
 configurations {
@@ -11,28 +27,36 @@ configurations {
 }
 
 dependencies {
-    compile 'com.google.firebase:firebase-messaging:17.1.0'
-    compile 'com.google.firebase:firebase-config:16.0.0'
-    compile 'com.google.android.gms:play-services-maps:15.0.1'
-    compile 'com.google.android.gms:play-services-vision:15.0.2'
-    compile 'com.google.android.gms:play-services-wallet:15.0.1'
-    compile 'com.google.android.gms:play-services-wearable:15.0.1'
+    compile 'com.android.support:multidex:1.0.3'
+    implementation 'com.google.firebase:firebase-messaging:17.1.0'
+    implementation 'com.google.firebase:firebase-config:16.0.0'
+    implementation 'com.google.android.gms:play-services-maps:15.0.1'
+    implementation 'com.google.android.gms:play-services-vision:15.0.2'
+    implementation 'com.google.android.gms:play-services-wallet:15.0.1'
+    implementation 'com.google.android.gms:play-services-wearable:15.0.1'
     implementation 'com.android.support:support-core-ui:27.1.1'
     implementation 'com.android.support:support-compat:27.1.1'
     implementation 'com.android.support:support-core-utils:27.1.1'
     implementation 'com.android.support:support-v13:27.1.1'
     implementation 'com.android.support:palette-v7:27.1.1'
     implementation 'com.android.support:exifinterface:27.1.1'
-    compile 'net.hockeyapp.android:HockeySDK:5.1.0'
-    compile 'com.googlecode.mp4parser:isoparser:1.0.6'
-    compile 'com.stripe:stripe-android:2.0.2'
+    implementation 'net.hockeyapp.android:HockeySDK:5.1.0'
+    implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
+    implementation 'com.stripe:stripe-android:2.0.2'
+    implementation 'com.squareup.retrofit2:retrofit:2.4.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.4.0'
+    implementation 'com.squareup.retrofit2:adapter-rxjava2:2.4.0'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    implementation('com.crashlytics.sdk.android:crashlytics:2.6.7@aar') {
+        transitive = true;
+    }
 }
 
 android {
     compileSdkVersion 27
     buildToolsVersion '27.0.3'
 
-    defaultConfig.applicationId = "org.telegram.messenger"
+    defaultConfig.applicationId = "org.cloudveil.messenger"
 
     sourceSets.main.jniLibs.srcDirs = ['./jni/']
 
@@ -58,17 +82,17 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file("config/release.keystore")
-            storePassword RELEASE_STORE_PASSWORD
-            keyAlias RELEASE_KEY_ALIAS
-            keyPassword RELEASE_KEY_PASSWORD
+            storeFile file(keystoreProperties['storeFileCloudVeil'])
+            storePassword keystoreProperties['storePasswordCloudVeil']
+            keyAlias keystoreProperties['keyAliasCloudVeil']
+            keyPassword keystoreProperties['keyPasswordCloudVeil']
         }
 
         release {
-            storeFile file("config/release.keystore")
-            storePassword RELEASE_STORE_PASSWORD
-            keyAlias RELEASE_KEY_ALIAS
-            keyPassword RELEASE_KEY_PASSWORD
+            storeFile file(keystoreProperties['storeFileCloudVeil'])
+            storePassword keystoreProperties['storePasswordCloudVeil']
+            keyAlias keystoreProperties['keyAliasCloudVeil']
+            keyPassword keystoreProperties['keyPasswordCloudVeil']
         }
     }
 
@@ -78,7 +102,7 @@ android {
             jniDebuggable true
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
@@ -86,7 +110,7 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled true
+            minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -236,12 +260,13 @@ android {
         minSdkVersion 16
         targetSdkVersion 27
         versionName "4.9.0"
+        multiDexEnabled true
 
 		vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         externalNativeBuild {
             ndkBuild {
-                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-16", "-j8"
+                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-16", "-j8", "LOCAL_SHORT_COMMANDS=true", "APP_SHORT_COMMANDS=true"
                 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             }
         }

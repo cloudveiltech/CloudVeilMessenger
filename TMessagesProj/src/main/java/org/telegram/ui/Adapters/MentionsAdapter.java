@@ -58,7 +58,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
 
     public interface MentionsAdapterDelegate {
         void needChangePanelVisibility(boolean show);
+
         void onContextSearch(boolean searching);
+
         void onContextClick(TLRPC.BotInlineResult result);
     }
 
@@ -298,7 +300,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         }
 
         //CloudVeil start
-        if(!MessagesController.getInstance().isUserAllowed(foundContextBot)) {
+        if (!MessagesController.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
         }
         //CloudVeil end
@@ -317,8 +319,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         if (foundContextBot != null && foundContextBot.username != null && foundContextBot.username.equals(username) && searchingContextQuery != null && searchingContextQuery.equals(query)) {
             return;
         }
+
         //CloudVeil start
-        if(!MessagesController.getInstance().isUserAllowed(foundContextBot)) {
+        if (!MessagesController.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
         }
         //CloudVeil end
@@ -720,7 +723,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                 for (int a = 0; a < inlineBots.size(); a++) {
                     TLRPC.User user = messagesController.getUser(inlineBots.get(a).peer.user_id);
                     //CloudVeil start
-                    if(!MessagesController.getInstance().isUserAllowed(user)) {
+                    if (!MessagesController.getInstance(currentAccount).isUserAllowed(user)) {
                         continue;
                     }
                     //CloudVeil end

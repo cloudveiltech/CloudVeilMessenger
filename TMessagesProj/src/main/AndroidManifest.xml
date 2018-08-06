@@ -302,8 +302,9 @@
                 <action android:name="android.telecom.ConnectionService" />
             </intent-filter>
         </service>
+        <service android:name="org.cloudveil.messenger.service.ChannelCheckingService" />
 
-		<receiver android:name=".MusicPlayerReceiver" >
+        <receiver android:name=".MusicPlayerReceiver" >
             <intent-filter>
                 <action android:name="org.telegram.android.musicplayer.close" />
                 <action android:name="org.telegram.android.musicplayer.pause" />
@@ -376,6 +377,9 @@
         <meta-data android:name="com.samsung.android.icon_container.has_icon_container" android:value="true"/>
         <meta-data android:name="android.max_aspect" android:value="2.5" />
 
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="4c97095717c496e2a456216afde05cc8bb101711" />
     </application>
 
 </manifest>
