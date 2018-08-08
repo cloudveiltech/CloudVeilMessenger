@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
-    <string name="AppNameBeta">Telegram</string>
+    <string name="AppName">CloudVeil Messenger</string>
+    <string name="AppNameBeta">CloudVeil Messenger</string>
     <string name="LanguageName">Italiano</string>
     <string name="English">Inglese</string>
     <string name="LanguageNameInEnglish">Italian</string>
@@ -621,7 +621,7 @@
     <string name="URL">URL</string>
     <string name="MapPreviewProvider">Fornitore anteprima mappa</string>
     <string name="ChooseMapPreviewProvider">Scegli fornitore anteprima mappa</string>
-    <string name="MapPreviewProviderTelegram">Telegram</string>
+    <string name="MapPreviewProviderTelegram">CloudVeil Messenger</string>
     <string name="MapPreviewProviderGoogle">Google</string>
     <string name="MapPreviewProviderYandex">Yandex</string>
     <string name="MapPreviewProviderNobody">Nessuno</string>
@@ -719,7 +719,7 @@
     <string name="NotificationActionPinnedGeoLiveChannel">%1$s ha fissato una posizione attuale</string>
     <string name="NotificationActionPinnedGifChannel">%1$s ha fissato una GIF</string>
     <string name="NotificationActionPinnedMusicChannel">%1$s ha fissato una traccia</string>
-    <string name="SecretChatName">Telegram</string>
+    <string name="SecretChatName">CloudVeil Messenger</string>
     <!--contacts view-->
     <string name="SelectContact">Seleziona contatto</string>
     <string name="ContactShare">CONDIVIDI CONTATTO</string>
@@ -1730,7 +1730,7 @@
     <string name="PermissionDrawAboveOtherApps">Telegram deve accedere allo spostamento su altre app per riprodurre i video in modalità PiP.</string>
     <string name="PermissionOpenSettings">IMPOSTAZIONI</string>
     <!--Intro view-->
-    <string name="Page1Title">Telegram</string>
+    <string name="Page1Title">CloudVeil Messenger</string>
     <string name="Page2Title">Veloce</string>
     <string name="Page3Title">Gratis</string>
     <string name="Page4Title">Sicuro</string>

@@ -793,11 +793,8 @@ public class LocaleController {
 
     private String getStringInternal(String key, int res) {
         String value = localeValues.get(key);
-        //CloudVeil start
-        if(res == R.string.AppName) {
-            value = null;
-        }
-        //CloudVeil end
+
+
         if (value == null) {
             try {
                 value = ApplicationLoader.applicationContext.getString(res);
@@ -809,7 +806,9 @@ public class LocaleController {
             value = "LOC_ERR:" + key;
         }
 
-        return value;
+        //CloudVeil start
+        return value.replace("Telegram", "CloudVeil Messenger");
+        //CloudVeil end
     }
 
     public static String getString(String key, int res) {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
-    <string name="AppNameBeta">Telegram</string>
+    <string name="AppName">CloudVeil Messenger</string>
+    <string name="AppNameBeta">CloudVeil Messenger</string>
     <string name="LanguageName">Deutsch</string>
     <string name="English">Englisch</string>
     <string name="LanguageNameInEnglish">German</string>
@@ -621,7 +621,7 @@
     <string name="URL">URL</string>
     <string name="MapPreviewProvider">Kartenvorschau</string>
     <string name="ChooseMapPreviewProvider">Anbieter der Kartenvorschau</string>
-    <string name="MapPreviewProviderTelegram">Telegram</string>
+    <string name="MapPreviewProviderTelegram">CloudVeil Messenger</string>
     <string name="MapPreviewProviderGoogle">Google</string>
     <string name="MapPreviewProviderYandex">Yandex</string>
     <string name="MapPreviewProviderNobody">Keine</string>
@@ -719,7 +719,7 @@
     <string name="NotificationActionPinnedGeoLiveChannel">%1$s hat einen Live-Standort angeheftet</string>
     <string name="NotificationActionPinnedGifChannel">%1$s hat ein GIF angeheftet</string>
     <string name="NotificationActionPinnedMusicChannel">%1$s hat ein Musikstück angeheftet</string>
-    <string name="SecretChatName">Telegram</string>
+    <string name="SecretChatName">CloudVeil Messenger</string>
     <!--contacts view-->
     <string name="SelectContact">Kontakt auswählen</string>
     <string name="ContactShare">KONTAKT TEILEN</string>
@@ -1730,7 +1730,7 @@
     <string name="PermissionDrawAboveOtherApps">Telegram braucht Zugriff auf die Funktion \'Über andere Apps einblenden\'. Nur so können Videos im Bild in Bild Modus wiedergegeben werden.</string>
     <string name="PermissionOpenSettings">EINSTELLUNGEN</string>
     <!--Intro view-->
-    <string name="Page1Title">Telegram</string>
+    <string name="Page1Title">CloudVeil Messenger</string>
     <string name="Page2Title">Schnell</string>
     <string name="Page3Title">Kostenlos</string>
     <string name="Page4Title">Sicher</string>

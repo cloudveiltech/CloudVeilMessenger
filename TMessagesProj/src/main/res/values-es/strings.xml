@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
-    <string name="AppNameBeta">Telegram</string>
+    <string name="AppName">CloudVeil Messenger</string>
+    <string name="AppNameBeta">CloudVeil Messenger</string>
     <string name="LanguageName">Español</string>
     <string name="English">Inglés</string>
     <string name="LanguageNameInEnglish">Spanish</string>
@@ -621,7 +621,7 @@
     <string name="URL">URL</string>
     <string name="MapPreviewProvider">Vista previa del mapa</string>
     <string name="ChooseMapPreviewProvider">Elige el proveedor de vista previa del mapa</string>
-    <string name="MapPreviewProviderTelegram">Telegram</string>
+    <string name="MapPreviewProviderTelegram">CloudVeil Messenger</string>
     <string name="MapPreviewProviderGoogle">Google</string>
     <string name="MapPreviewProviderYandex">Yandex</string>
     <string name="MapPreviewProviderNobody">Ninguno</string>
@@ -719,7 +719,7 @@
     <string name="NotificationActionPinnedGeoLiveChannel">%1$s ancló una ubicación en directo</string>
     <string name="NotificationActionPinnedGifChannel">%1$s ancló un GIF</string>
     <string name="NotificationActionPinnedMusicChannel">%1$s ancló una pista</string>
-    <string name="SecretChatName">Telegram</string>
+    <string name="SecretChatName">CloudVeil Messenger</string>
     <!--contacts view-->
     <string name="SelectContact">Elegir contacto</string>
     <string name="ContactShare">COMPARTIR CONTACTO</string>
@@ -1730,7 +1730,7 @@
     <string name="PermissionDrawAboveOtherApps">Telegram necesita acceso a mostrarse sobre otras aplicaciones para usar el modo Picture-in-Picture.</string>
     <string name="PermissionOpenSettings">AJUSTES</string>
     <!--Intro view-->
-    <string name="Page1Title">Telegram</string>
+    <string name="Page1Title">CloudVeil Messenger</string>
     <string name="Page2Title">Rápida</string>
     <string name="Page3Title">Gratis</string>
     <string name="Page4Title">Segura</string>

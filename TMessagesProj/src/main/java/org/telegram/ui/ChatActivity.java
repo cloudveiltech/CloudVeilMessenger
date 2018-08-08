@@ -381,13 +381,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private HashMap<String, ArrayList<MessageObject>> messagesByDays = new HashMap<>();
     protected ArrayList<MessageObject> messages = new ArrayList<>();
     private LongSparseArray<MessageObject.GroupedMessages> groupedMessagesMap = new LongSparseArray<>();
-    private int maxMessageId[] = new int[] {Integer.MAX_VALUE, Integer.MAX_VALUE};
-    private int minMessageId[] = new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE};
-    private int maxDate[] = new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE};
+    private int maxMessageId[] = new int[]{Integer.MAX_VALUE, Integer.MAX_VALUE};
+    private int minMessageId[] = new int[]{Integer.MIN_VALUE, Integer.MIN_VALUE};
+    private int maxDate[] = new int[]{Integer.MIN_VALUE, Integer.MIN_VALUE};
     private int minDate[] = new int[2];
     private boolean endReached[] = new boolean[2];
     private boolean cacheEndReached[] = new boolean[2];
-    private boolean forwardEndReached[] = new boolean[] {true, true};
+    private boolean forwardEndReached[] = new boolean[]{true, true};
     private boolean loading;
     private boolean firstLoading = true;
     private boolean firstUnreadSent = false;
@@ -1226,7 +1226,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     SendMessagesHelper.getInstance(currentAccount).sendMessage("/settings", dialog_id, null, null, false, null, null, null);
                 } else if (id == search) {
                     openSearchWithText(null);
-                } else if(id == call) {
+                } else if (id == call) {
                     if (currentUser != null && getParentActivity() != null) {
                         VoIPHelper.startCall(currentUser, getParentActivity(), MessagesController.getInstance(currentAccount).getUserFull(currentUser.id));
                     }
@@ -4143,22 +4143,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         fixLayoutInternal();
 
-        //CloudVeil start
-        if(currentEncryptedChat != null) {
-            fragmentView.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    int oldTtl = currentEncryptedChat.ttl;
-                    currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
-                    if (oldTtl != currentEncryptedChat.ttl) {
-                        SecretChatHelper.getInstance(currentAccount).sendTTLMessage(currentEncryptedChat, null);
-                        MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(currentEncryptedChat);
-                    }
-                }
-            }, 1000);
-        }
-        //CloudVeil end
-
         return fragmentView;
     }
 
@@ -4973,7 +4957,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             int checkLoadCount;
             if (scroll) {
                 checkLoadCount = 25;
-            } else  {
+            } else {
                 checkLoadCount = 5;
             }
             if (totalItemCount - firstVisibleItem - visibleItemCount <= checkLoadCount && !loading) {
@@ -5920,7 +5904,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 roundVideoContainer.setTranslationY(-AndroidUtilities.roundMessageSize - 100);
                 fragmentView.invalidate();
                 MessageObject messageObject = MediaController.getInstance().getPlayingMessageObject();
-                if (messageObject != null && messageObject.isRoundVideo() && messageObject.eventId == 0 &&checkTextureViewPosition) {
+                if (messageObject != null && messageObject.isRoundVideo() && messageObject.eventId == 0 && checkTextureViewPosition) {
                     MediaController.getInstance().setCurrentRoundVisible(false);
                 }
             } else {
@@ -6374,6 +6358,15 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 hideKeyboard = true;
             } else if (currentEncryptedChat instanceof TLRPC.TL_encryptedChat) {
                 bottomOverlay.setVisibility(View.INVISIBLE);
+
+                //CloudVeil start
+                int oldTtl = currentEncryptedChat.ttl;
+                currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
+                if (oldTtl != currentEncryptedChat.ttl) {
+                    SecretChatHelper.getInstance(currentAccount).sendTTLMessage(currentEncryptedChat, null);
+                    MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(currentEncryptedChat);
+                }
+                //CloudVeil end
             }
             checkRaiseSensors();
             checkActionBarMenu();
@@ -9282,14 +9275,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
 
-
         //CloudVeil start
         if (MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
             messages = MessagesController.getInstance(currentAccount).filterMessages(messages);
         } else {
             ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
         }
-        if(chatAdapter != null) {
+        if (chatAdapter != null) {
             chatAdapter.notifyDataSetChanged();
         }
         //CloudVeil end
@@ -10061,8 +10053,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
 
-
-
         updateBottomOverlay();
     }
 
@@ -10196,13 +10186,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             chatActivityEnterView.setFieldFocused(false);
         }
         if (chatAttachAlert != null) {
-            if (!ignoreAttachOnPause){
+            if (!ignoreAttachOnPause) {
                 chatAttachAlert.onPause();
             } else {
                 ignoreAttachOnPause = false;
             }
         }
-        CharSequence[] message = new CharSequence[] {draftMessage};
+        CharSequence[] message = new CharSequence[]{draftMessage};
         ArrayList<TLRPC.MessageEntity> entities = DataQuery.getInstance(currentAccount).getEntities(message);
         DataQuery.getInstance(currentAccount).saveDraft(dialog_id, message[0], entities, replyMessage != null ? replyMessage.messageOwner : null, !searchWebpage);
 
@@ -10539,7 +10529,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
             if (user != null && user.id != UserConfig.getInstance(currentAccount).getClientUserId() && loadParticipant != 2) {
                 if (loadParticipant == 1 && !currentChat.creator) {
-                    final AlertDialog progressDialog[] = new AlertDialog[] {new AlertDialog(getParentActivity(), 1)};
+                    final AlertDialog progressDialog[] = new AlertDialog[]{new AlertDialog(getParentActivity(), 1)};
 
                     TLRPC.TL_channels_getParticipant req = new TLRPC.TL_channels_getParticipant();
                     req.channel = MessagesController.getInputChannel(currentChat);
@@ -10896,7 +10886,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             TLRPC.TL_messageActionPhoneCall call = (TLRPC.TL_messageActionPhoneCall) message.messageOwner.action;
                             items.add((call.reason instanceof TLRPC.TL_phoneCallDiscardReasonMissed || call.reason instanceof TLRPC.TL_phoneCallDiscardReasonBusy) && !message.isOutOwner() ? LocaleController.getString("CallBack", R.string.CallBack) : LocaleController.getString("CallAgain", R.string.CallAgain));
                             options.add(18);
-                            if(VoIPHelper.canRateCall(call)){
+                            if (VoIPHelper.canRateCall(call)) {
                                 items.add(LocaleController.getString("CallMessageReportProblem", R.string.CallMessageReportProblem));
                                 options.add(19);
                             }
@@ -11133,7 +11123,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
         //CloudVeil Start
-        if (!GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+        if (GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
             item.setVisibility(View.GONE);
         }
         //CloudVeil End
@@ -12389,7 +12379,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             SecretMediaViewer.getInstance().openMedia(message, photoViewerProvider);
                         } else if (message.type == 13) {
                             //cloudveil start
-                            if(DataQuery.getInstance(currentAccount).isStickerAllowed(message.getInputStickerSet())) {
+                            if (DataQuery.getInstance(currentAccount).isStickerAllowed(message.getInputStickerSet())) {
                                 showDialog(new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && ChatObject.canSendStickers(currentChat) ? chatActivityEnterView : null));
                             }
                             //cloudveil end

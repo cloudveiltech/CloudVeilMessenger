@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
-    <string name="AppNameBeta">Telegram</string>
+    <string name="AppName">CloudVeil Messenger</string>
+    <string name="AppNameBeta">CloudVeil Messenger</string>
     <string name="LanguageName">Português (Brasil)</string>
     <string name="English">Inglês</string>
     <string name="LanguageNameInEnglish">Portuguese (Brazil)</string>
@@ -621,7 +621,7 @@
     <string name="URL">URL</string>
     <string name="MapPreviewProvider">Map Preview Provider</string>
     <string name="ChooseMapPreviewProvider">Choose Map Preview Provider</string>
-    <string name="MapPreviewProviderTelegram">Telegram</string>
+    <string name="MapPreviewProviderTelegram">CloudVeil Messenger</string>
     <string name="MapPreviewProviderGoogle">Google</string>
     <string name="MapPreviewProviderYandex">Yandex</string>
     <string name="MapPreviewProviderNobody">Nobody</string>
@@ -719,7 +719,7 @@
     <string name="NotificationActionPinnedGeoLiveChannel">%1$s fixou uma localização em tempo real</string>
     <string name="NotificationActionPinnedGifChannel">%1$s fixou um GIF</string>
     <string name="NotificationActionPinnedMusicChannel">%1$s fixou uma música</string>
-    <string name="SecretChatName">Telegram</string>
+    <string name="SecretChatName">CloudVeil Messenger</string>
     <!--contacts view-->
     <string name="SelectContact">Selecionar Contato</string>
     <string name="ContactShare">COMPARTILHAR CONTATO</string>
@@ -1730,7 +1730,7 @@
     <string name="PermissionDrawAboveOtherApps">Telegram precisa de acesso para sobrescrever outros apps para reproduzir vídeos no modo PiP.</string>
     <string name="PermissionOpenSettings">CONFIGURAÇÕES</string>
     <!--Intro view-->
-    <string name="Page1Title">Telegram</string>
+    <string name="Page1Title">CloudVeil Messenger</string>
     <string name="Page2Title">Rápido</string>
     <string name="Page3Title">Grátis</string>
     <string name="Page4Title">Seguro</string>

@@ -854,8 +854,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         } else {
                             TLRPC.WebPage webPage = currentMessageObject.messageOwner.media.webpage;
                             //CloudVeil Start
-                            boolean isYoutube = !GlobalSecuritySettings.LOCK_DISABLE_YOUTUBE_VIDEO || (webPage != null && WebPlayerView.isYoutubeUrl(webPage.embed_url));
-                            if (webPage != null && !TextUtils.isEmpty(webPage.embed_url) && !isYoutube) {
+                            boolean isYoutube = !GlobalSecuritySettings.LOCK_DISABLE_YOUTUBE_VIDEO && (webPage != null && WebPlayerView.isYoutubeUrl(webPage.embed_url));
+                            if (webPage != null && !TextUtils.isEmpty(webPage.embed_url) && isYoutube) {
                                 delegate.needOpenWebView(webPage.embed_url, webPage.site_name, webPage.title, webPage.url, webPage.embed_width, webPage.embed_height);
                             } else if (buttonState == -1 || buttonState == 3) {
                                 delegate.didPressedImage(this);

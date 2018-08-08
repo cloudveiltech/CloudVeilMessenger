@@ -548,9 +548,11 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     //CloudVeil Start
                     if (!GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS) {
                         SharedConfig.toggleAutoplayGifs();
-                        if (view instanceof TextCheckCell) {
-                            ((TextCheckCell) view).setChecked(SharedConfig.autoplayGifs);
-                        }
+                    } else if(SharedConfig.autoplayGifs) {
+                        SharedConfig.toggleAutoplayGifs();
+                    }
+                    if (view instanceof TextCheckCell) {
+                        ((TextCheckCell) view).setChecked(SharedConfig.autoplayGifs);
                     }
                     //CloudVeil End
                 } else if (position == saveToGalleryRow) {
@@ -562,9 +564,11 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     //CloudVeil Start
                     if (!GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER) {
                         SharedConfig.toggleCustomTabs();
-                        if (view instanceof TextCheckCell) {
-                            ((TextCheckCell) view).setChecked(SharedConfig.customTabs);
-                        }
+                    } else if(SharedConfig.customTabs) {
+                        SharedConfig.toggleCustomTabs();
+                    }
+                    if (view instanceof TextCheckCell) {
+                        ((TextCheckCell) view).setChecked(SharedConfig.customTabs);
                     }
                     //CloudVeil End
                 } else if (position == directShareRow) {

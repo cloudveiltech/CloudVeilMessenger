@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
+    <string name="AppName">CloudVeil Messenger</string>
     <string name="AppNameBeta">Telegram-bèta</string>
     <string name="LanguageName">Nederlands</string>
     <string name="English">Engels</string>
@@ -621,7 +621,7 @@
     <string name="URL">URL</string>
     <string name="MapPreviewProvider">Kaartvoorvertoning</string>
     <string name="ChooseMapPreviewProvider">Kies kaartvoorvertoning</string>
-    <string name="MapPreviewProviderTelegram">Telegram</string>
+    <string name="MapPreviewProviderTelegram">CloudVeil Messenger</string>
     <string name="MapPreviewProviderGoogle">Google</string>
     <string name="MapPreviewProviderYandex">Yandex</string>
     <string name="MapPreviewProviderNobody">Geen</string>
@@ -719,7 +719,7 @@
     <string name="NotificationActionPinnedGeoLiveChannel">%1$s heeft een live-locatie vastgezet</string>
     <string name="NotificationActionPinnedGifChannel">%1$s heeft GIF vastgezet</string>
     <string name="NotificationActionPinnedMusicChannel">%1$s heeft muziekbestand vastgezet</string>
-    <string name="SecretChatName">Telegram</string>
+    <string name="SecretChatName">CloudVeil Messenger</string>
     <!--contacts view-->
     <string name="SelectContact">Contact kiezen</string>
     <string name="ContactShare">Contact delen</string>
@@ -1730,7 +1730,7 @@
     <string name="PermissionDrawAboveOtherApps">Telegram heeft de toestemming \'over andere apps tekenen\' nodig om video\'s af te spelen in Picture-in-Picture-modus.</string>
     <string name="PermissionOpenSettings">INSTELLINGEN</string>
     <!--Intro view-->
-    <string name="Page1Title">Telegram</string>
+    <string name="Page1Title">CloudVeil Messenger</string>
     <string name="Page2Title">Snel</string>
     <string name="Page3Title">Gratis</string>
     <string name="Page4Title">Veilig</string>

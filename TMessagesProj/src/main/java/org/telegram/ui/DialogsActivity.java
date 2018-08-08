@@ -1592,11 +1592,19 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
+    //Cloudveil start
+        } else {
+            showPopup(getParentActivity());
+            if (GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS && SharedConfig.autoplayGifs) {
+                SharedConfig.toggleAutoplayGifs();
+            }
+            if (GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER && SharedConfig.customTabs) {
+                SharedConfig.toggleCustomTabs();
+            }
         }
 
-        //Cloudveil start
         DataQuery.getInstance(currentAccount).loadStickers(DataQuery.TYPE_IMAGE, true, false);
-        //Cloudveil end
+    //Cloudveil end
     }
 
     @Override
@@ -1860,6 +1868,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         }
         if (id == NotificationCenter.filterDialogsReady) {
+            if (dialogsAdapter != null) {
+                dialogsAdapter.notifyDataSetChanged();
+            }
+
             //CloudVeil end
             checkUnreadCount(true);
             if (dialogsAdapter != null) {
