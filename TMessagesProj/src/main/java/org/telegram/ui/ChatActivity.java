@@ -441,12 +441,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         @Override
         public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index) {
-            //CloudVeil start
-            if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
-                return null;
-            }
-            //CloudVeil end
-
             int count = chatListView.getChildCount();
 
             for (int a = 0; a < count; a++) {
@@ -12387,6 +12381,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             if (message.isVideo()) {
                                 sendSecretMessageRead(message);
                             }
+
                             PhotoViewer.getInstance().setParentActivity(getParentActivity());
                             if (PhotoViewer.getInstance().openPhoto(message, message.type != 0 ? dialog_id : 0, message.type != 0 ? mergeDialogId : 0, photoViewerProvider)) {
                                 PhotoViewer.getInstance().setParentChatActivity(ChatActivity.this);

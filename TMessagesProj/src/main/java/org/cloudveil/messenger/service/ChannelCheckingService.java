@@ -1,14 +1,20 @@
 package org.cloudveil.messenger.service;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.ContextCompat;
 
 import com.google.gson.Gson;
 
@@ -60,7 +66,7 @@ public class ChannelCheckingService extends Service {
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
         intent.putExtra(EXTRA_ACCOUNT_NUMBER, accountNum);
         intent.setClass(context, ChannelCheckingService.class);
-        context.startService(intent);
+        ContextCompat.startForegroundService(context, intent);
     }
 
     public static void startDataChecking(int accountNum, long dialogId, @NonNull Context context) {
@@ -68,7 +74,7 @@ public class ChannelCheckingService extends Service {
         intent.setClass(context, ChannelCheckingService.class);
         intent.putExtra(EXTRA_ADDITION_DIALOG_ID, dialogId);
         intent.putExtra(EXTRA_ACCOUNT_NUMBER, accountNum);
-        context.startService(intent);
+        ContextCompat.startForegroundService(context, intent);
     }
 
     @Override
@@ -84,7 +90,27 @@ public class ChannelCheckingService extends Service {
 
             handler.postDelayed(checkDataRunnable, DEBOUNCE_TIME_MS);
         }
+
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String CHANNEL_ID = "CVM channel 1";
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                    "CVM channel",
+                    NotificationManager.IMPORTANCE_NONE);
+
+            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
+
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle("")
+                    .setContentText("").build();
+
+            startForeground(1, notification);
+        }
     }
 
     Runnable checkDataRunnable = new Runnable() {

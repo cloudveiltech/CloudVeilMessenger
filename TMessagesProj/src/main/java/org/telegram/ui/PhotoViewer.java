@@ -6827,6 +6827,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             wm.addView(windowView, windowLayoutParams);
         } catch (Exception e) {
             FileLog.e(e);
+            Toast.makeText(ApplicationLoader.applicationContext, "openPhoto 33", Toast.LENGTH_SHORT).show();
             return false;
         }
 
@@ -7034,6 +7035,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             containerView.setAlpha(1.0f);
             onPhotoShow(messageObject, fileLocation, messages, documents, photos, index, object);
         }
+
+
         return true;
     }
 
