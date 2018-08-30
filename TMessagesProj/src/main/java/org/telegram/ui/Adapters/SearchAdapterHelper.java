@@ -19,13 +19,11 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
-import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -118,12 +116,7 @@ public class SearchAdapterHelper {
             req.offset = 0;
             req.channel = MessagesController.getInstance(currentAccount).getInputChannel(channelId);
             final int currentReqId = ++channelLastReqId;
-            channelReqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, new RequestDelegate() {
-                @Override
-                public void run(final TLObject response, final TLRPC.TL_error error) {
-                    AndroidUtilities.runOnUIThread(new Runnable() {
-                        @Override
-                        public void run() {
+            channelReqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                             if (currentReqId == channelLastReqId) {
                                 if (error == null) {
                                     TLRPC.TL_channels_channelParticipants res = (TLRPC.TL_channels_channelParticipants) response;
@@ -134,10 +127,7 @@ public class SearchAdapterHelper {
                                 }
                             }
                             channelReqId = 0;
-                        }
-                    });
-                }
-            }, ConnectionsManager.RequestFlagFailOnServerErrors);
+            }), ConnectionsManager.RequestFlagFailOnServerErrors);
             if (kicked) {
                 req = new TLRPC.TL_channels_getParticipants();
                 req.filter = new TLRPC.TL_channelParticipantsKicked();
@@ -146,12 +136,7 @@ public class SearchAdapterHelper {
                 req.offset = 0;
                 req.channel = MessagesController.getInstance(currentAccount).getInputChannel(channelId);
                 final int currentReqId2 = ++channelLastReqId2;
-                channelReqId2 = ConnectionsManager.getInstance(currentAccount).sendRequest(req, new RequestDelegate() {
-                    @Override
-                    public void run(final TLObject response, final TLRPC.TL_error error) {
-                        AndroidUtilities.runOnUIThread(new Runnable() {
-                            @Override
-                            public void run() {
+                channelReqId2 = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                                 if (currentReqId2 == channelLastReqId2) {
                                     if (error == null) {
                                         TLRPC.TL_channels_channelParticipants res = (TLRPC.TL_channels_channelParticipants) response;
@@ -162,11 +147,8 @@ public class SearchAdapterHelper {
                                     }
                                 }
                                 channelReqId2 = 0;
+                }), ConnectionsManager.RequestFlagFailOnServerErrors);
                             }
-                        });
-                    }
-                }, ConnectionsManager.RequestFlagFailOnServerErrors);
-            }
         } else {
             groupSearch.clear();
             groupSearch2.clear();
@@ -179,12 +161,7 @@ public class SearchAdapterHelper {
                 req.q = query;
                 req.limit = 50;
                 final int currentReqId = ++lastReqId;
-                reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, new RequestDelegate() {
-                    @Override
-                    public void run(final TLObject response, final TLRPC.TL_error error) {
-                        AndroidUtilities.runOnUIThread(new Runnable() {
-                            @Override
-                            public void run() {
+                reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                                 if (currentReqId == lastReqId) {
                                     if (error == null) {
                                         TLRPC.TL_contacts_found res = (TLRPC.TL_contacts_found) response;
@@ -279,10 +256,7 @@ public class SearchAdapterHelper {
                                     }
                                 }
                                 reqId = 0;
-                            }
-                        });
-                    }
-                }, ConnectionsManager.RequestFlagFailOnServerErrors);
+                }), ConnectionsManager.RequestFlagFailOnServerErrors);
             } else {
                 globalSearch.clear();
                 globalSearchMap.clear();
@@ -301,9 +275,7 @@ public class SearchAdapterHelper {
         if (hashtagsLoadedFromDb) {
             return true;
         }
-        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(new Runnable() {
-            @Override
-            public void run() {
+        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(() -> {
                 try {
                     SQLiteCursor cursor = MessagesStorage.getInstance(currentAccount).getDatabase().queryFinalized("SELECT id, date FROM hashtag_recent_v2 WHERE 1");
                     final ArrayList<HashtagObject> arrayList = new ArrayList<>();
@@ -316,9 +288,7 @@ public class SearchAdapterHelper {
                         hashMap.put(hashtagObject.hashtag, hashtagObject);
                     }
                     cursor.dispose();
-                    Collections.sort(arrayList, new Comparator<HashtagObject>() {
-                        @Override
-                        public int compare(HashtagObject lhs, HashtagObject rhs) {
+                Collections.sort(arrayList, (lhs, rhs) -> {
                             if (lhs.date < rhs.date) {
                                 return 1;
                             } else if (lhs.date > rhs.date) {
@@ -326,18 +296,11 @@ public class SearchAdapterHelper {
                             } else {
                                 return 0;
                             }
-                        }
                     });
-                    AndroidUtilities.runOnUIThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            setHashtags(arrayList, hashMap);
-                        }
-                    });
+                AndroidUtilities.runOnUIThread(() -> setHashtags(arrayList, hashMap));
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
-            }
         });
         return false;
     }
@@ -379,7 +342,7 @@ public class SearchAdapterHelper {
             return;
         }
         boolean changed = false;
-        Pattern pattern = Pattern.compile("(^|\\s)#[\\w@\\.]+");
+        Pattern pattern = Pattern.compile("(^|\\s)#[\\w@.]+");
         Matcher matcher = pattern.matcher(message);
         while (matcher.find()) {
             int start = matcher.start();
@@ -410,9 +373,7 @@ public class SearchAdapterHelper {
     }
 
     private void putRecentHashtags(final ArrayList<HashtagObject> arrayList) {
-        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(new Runnable() {
-            @Override
-            public void run() {
+        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(() -> {
                 try {
                     MessagesStorage.getInstance(currentAccount).getDatabase().beginTransaction();
                     SQLitePreparedStatement state = MessagesStorage.getInstance(currentAccount).getDatabase().executeFast("REPLACE INTO hashtag_recent_v2 VALUES(?, ?)");
@@ -438,7 +399,6 @@ public class SearchAdapterHelper {
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
-            }
         });
     }
 
@@ -477,15 +437,12 @@ public class SearchAdapterHelper {
     public void clearRecentHashtags() {
         hashtags = new ArrayList<>();
         hashtagsByText = new HashMap<>();
-        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(new Runnable() {
-            @Override
-            public void run() {
+        MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(() -> {
                 try {
                     MessagesStorage.getInstance(currentAccount).getDatabase().executeFast("DELETE FROM hashtag_recent_v2 WHERE 1").stepThis().dispose();
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
-            }
         });
     }
 
