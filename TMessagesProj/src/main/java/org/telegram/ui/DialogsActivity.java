@@ -286,30 +286,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle(context.getString(R.string.warning))
                 .setMessage(context.getString(R.string.cloudveil_message_warning))
-                .setPositiveButton(context.getString(R.string.OK), new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        setPopupShown();
-                    }
+                .setPositiveButton(context.getString(R.string.OK), (dialog, which) -> {
+                    dialog.dismiss();
+                    setPopupShown();
                 })
-                .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        setPopupShown();
-                    }
-                })
-                .setOnBackButtonListener(new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        setPopupShown();
-                    }
-                });
-        showDialog(builder.create(), new DialogInterface.OnDismissListener() {
-            @Override
-            public void onDismiss(DialogInterface dialog) {
-                setPopupShown();
-            }
-        });
+                .setOnDismissListener(dialog -> setPopupShown())
+                .setOnBackButtonListener((dialog, which) -> setPopupShown());
+        showDialog(builder.create(), dialog -> setPopupShown());
     }
 
     private void setPopupShown() {
