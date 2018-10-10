@@ -69,9 +69,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
 public class DataQuery {
+    //CloudVeil start
+    private static final long STICKERSET_NOT_FOUND = -1;
+    private static final long STICKER_ID_NOT_LOADED = -2;
+    //CloudVeil end
 
     private int currentAccount;
     private static volatile DataQuery[] Instance = new DataQuery[3];
+
     public static DataQuery getInstance(int num) {
         DataQuery localInstance = Instance[num];
         if (localInstance == null) {
@@ -124,7 +129,7 @@ public class DataQuery {
     public static final int TYPE_FAVE = 2;
     public static final int TYPE_FEATURED = 3;
 
-    private ArrayList<TLRPC.TL_messages_stickerSet> stickerSets[] = new ArrayList[] {new ArrayList<>(), new ArrayList<>(), new ArrayList(0), new ArrayList()};
+    private ArrayList<TLRPC.TL_messages_stickerSet> stickerSets[] = new ArrayList[]{new ArrayList<>(), new ArrayList<>(), new ArrayList(0), new ArrayList()};
     private LongSparseArray<TLRPC.TL_messages_stickerSet> stickerSetsById = new LongSparseArray<>();
     private LongSparseArray<TLRPC.TL_messages_stickerSet> installedStickerSetsById = new LongSparseArray<>();
     private LongSparseArray<TLRPC.TL_messages_stickerSet> groupStickerSets = new LongSparseArray<>();
@@ -140,7 +145,7 @@ public class DataQuery {
     private HashMap<String, ArrayList<TLRPC.Document>> allStickers = new HashMap<>();
     private HashMap<String, ArrayList<TLRPC.Document>> allStickersFeatured = new HashMap<>();
 
-    private ArrayList<TLRPC.Document> recentStickers[] = new ArrayList[] {new ArrayList<>(), new ArrayList<>(), new ArrayList<>()};
+    private ArrayList<TLRPC.Document> recentStickers[] = new ArrayList[]{new ArrayList<>(), new ArrayList<>(), new ArrayList<>()};
     private boolean loadingRecentStickers[] = new boolean[3];
     private boolean recentStickersLoaded[] = new boolean[3];
 
@@ -227,12 +232,15 @@ public class DataQuery {
     }
 
     public boolean isStickerAllowed(TLRPC.Document doc) {
-        if(doc == null) {
+        if (doc == null) {
             return true;
         }
         long id = getStickerSetId(doc);
-        if(id < 0) {
+        if (id == STICKERSET_NOT_FOUND) {
             return true;
+        }
+        if (id == STICKER_ID_NOT_LOADED) {
+            return false;
         }
         return isStickerAllowed(id);
     }
@@ -270,8 +278,8 @@ public class DataQuery {
         if (stickerSet == null) {
             stickerSet = getStickerSetById(inputStickerSet.id);
         }
-        for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
-            if(s.set.id == inputStickerSet.id) {
+        for (TLRPC.TL_messages_stickerSet s : newStickerSets) {
+            if (s.set.id == inputStickerSet.id) {
                 return;
             }
         }
@@ -283,8 +291,8 @@ public class DataQuery {
                 public void run(final TLObject response, final TLRPC.TL_error error) {
                     TLRPC.TL_messages_stickerSet stickerSet = (TLRPC.TL_messages_stickerSet) response;
 
-                    for(TLRPC.TL_messages_stickerSet s : newStickerSets) {
-                        if(s.set.id == stickerSet.set.id) {
+                    for (TLRPC.TL_messages_stickerSet s : newStickerSets) {
+                        if (s.set.id == stickerSet.set.id) {
                             return;
                         }
                     }
@@ -296,10 +304,10 @@ public class DataQuery {
     }
 
     public boolean isStickerSetKnown(TLRPC.Document doc) {
-        if(doc == null) {
+        if (doc == null) {
             return true;
         }
-        if(GlobalSecuritySettings.isLockDisableStickers()) {
+        if (GlobalSecuritySettings.isLockDisableStickers()) {
             return true;
         }
         long id = getStickerSetId(doc);
@@ -593,8 +601,8 @@ public class DataQuery {
 
     public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
         ArrayList<TLRPC.StickerSetCovered> res = new ArrayList<>();
-        for(TLRPC.StickerSetCovered covered : featuredStickerSets) {
-            if(isStickerAllowed(covered.set.id)) {
+        for (TLRPC.StickerSetCovered covered : featuredStickerSets) {
+            if (isStickerAllowed(covered.set.id)) {
                 res.add(covered);
             }
         }
@@ -1433,17 +1441,29 @@ public class DataQuery {
         return null;
     }
 
-    public static long getStickerSetId(TLRPC.Document document) {
+    public long getStickerSetId(TLRPC.Document document) {
         for (int a = 0; a < document.attributes.size(); a++) {
             TLRPC.DocumentAttribute attribute = document.attributes.get(a);
             if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
                 if (attribute.stickerset instanceof TLRPC.TL_inputStickerSetID) {
                     return attribute.stickerset.id;
+                } else if (attribute.stickerset.short_name != null) {
+                    TLRPC.TL_messages_stickerSet stickerSetByName = getStickerSetByName(attribute.stickerset.short_name);
+                    if (stickerSetByName != null && stickerSetByName.set.id > 0) {
+                        return stickerSetByName.set.id;
+                    }
+
+                    for (int i = 0; i < newStickerSets.size(); i++) {
+                        TLRPC.TL_messages_stickerSet stickerSet = newStickerSets.get(i);
+                        if(stickerSet.set.short_name.equals(attribute.stickerset.short_name)) {
+                            return stickerSet.set.id;
+                        }
+                    }
+                    return STICKER_ID_NOT_LOADED;
                 }
-                break;
             }
         }
-        return -1;
+        return STICKERSET_NOT_FOUND;
     }
 
     private static int calcStickersHash(ArrayList<TLRPC.TL_messages_stickerSet> sets) {
@@ -1666,10 +1686,10 @@ public class DataQuery {
     private int mergeReqId;
     private long lastMergeDialogId;
     private int lastReqId;
-    private int messagesSearchCount[] = new int[] {0, 0};
-    private boolean messagesSearchEndReached[] = new boolean[] {false, false};
+    private int messagesSearchCount[] = new int[]{0, 0};
+    private boolean messagesSearchEndReached[] = new boolean[]{false, false};
     private ArrayList<MessageObject> searchResultMessages = new ArrayList<>();
-    private SparseArray<MessageObject> searchResultMessagesMap[] = new SparseArray[] {new SparseArray<>(), new SparseArray<>()};
+    private SparseArray<MessageObject> searchResultMessagesMap[] = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     private String lastSearchQuery;
     private int lastReturnedNum;
 
@@ -1892,7 +1912,7 @@ public class DataQuery {
     public void loadMedia(final long uid, final int count, final int max_id, final int type, final boolean fromCache, final int classGuid) {
         final boolean isChannel = (int) uid < 0 && ChatObject.isChannel(-(int) uid, currentAccount);
 
-        int lower_part = (int)uid;
+        int lower_part = (int) uid;
         if (fromCache || lower_part == 0) {
             loadMediaDatabase(uid, count, max_id, type, classGuid, isChannel);
         } else {
@@ -1936,7 +1956,7 @@ public class DataQuery {
     }
 
     public void getMediaCount(final long uid, final int type, final int classGuid, boolean fromCache) {
-        int lower_part = (int)uid;
+        int lower_part = (int) uid;
         if (fromCache || lower_part == 0) {
             getMediaCountDatabase(uid, type, classGuid);
         } else {
@@ -2036,7 +2056,7 @@ public class DataQuery {
     }
 
     private void processLoadedMedia(final TLRPC.messages_Messages res, final long uid, int count, int max_id, final int type, final boolean fromCache, final int classGuid, final boolean isChannel, final boolean topReached) {
-        int lower_part = (int)uid;
+        int lower_part = (int) uid;
         if (fromCache && res.messages.isEmpty() && lower_part != 0) {
             loadMedia(uid, count, max_id, type, false, classGuid);
         } else {
@@ -2116,7 +2136,7 @@ public class DataQuery {
                         count = cursor.intValue(0);
                     }
                     cursor.dispose();
-                    int lower_part = (int)uid;
+                    int lower_part = (int) uid;
                     if (count == -1 && lower_part == 0) {
                         cursor = MessagesStorage.getInstance(currentAccount).getDatabase().queryFinalized(String.format(Locale.US, "SELECT COUNT(mid) FROM media_v2 WHERE uid = %d AND type = %d LIMIT 1", uid, type));
                         if (cursor.next()) {

@@ -12,6 +12,7 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.Emoji;
@@ -109,6 +110,12 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
         if (document == null) {
             return;
         }
+        //CloudVeil start
+        if(!DataQuery.getInstance(currentAccount).isStickerAllowed(document)) {
+            return;
+        }
+        //CloudVeil end
+
         String key = document.dc_id + "_" + document.id;
         if (stickersMap != null && stickersMap.containsKey(key)) {
             return;
@@ -168,6 +175,13 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
                 }
                 return;
             }
+
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableStickers()) {
+                return;
+            }
+            //CloudVeil end
+
             stickers = null;
             stickersMap = null;
 
