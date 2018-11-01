@@ -148,21 +148,14 @@ public class ChannelCheckingService extends Service {
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
                 observeOn(AndroidSchedulers.mainThread()).
-                subscribe(new Consumer<SettingsResponse>() {
+                subscribe(settingsResponse -> {
+                    processResponse(settingsResponse);
+                    freeSubscription();
 
-                    @Override
-                    public void accept(SettingsResponse settingsResponse) throws Exception {
-                        processResponse(settingsResponse);
-                        freeSubscription();
-
-                        saveToCache(settingsResponse);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        freeSubscription();
-                    }
-                });
+                    saveToCache(settingsResponse);
+                    stopForeground(true);
+                    stopSelf();
+                }, throwable -> freeSubscription());
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {

@@ -9606,6 +9606,45 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         return true;
     }
 
+    public TLObject getObjectByDialogId(long currentDialogId) {
+        int lower_id = (int) currentDialogId;
+        int high_id = (int) (currentDialogId >> 32);
+        TLRPC.Chat chat = null;
+        TLRPC.User user = null;
+        TLRPC.EncryptedChat encryptedChat = null;
+        if (lower_id != 0) {
+            if (high_id == 1) {
+                chat = getChat(lower_id);
+            } else {
+                if (lower_id < 0) {
+                    chat = getChat(-lower_id);
+                    if (chat != null && chat.migrated_to != null) {
+                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
+                        if (chat2 != null) {
+                            chat = chat2;
+                        }
+                    }
+                } else {
+                    user = getUser(lower_id);
+                }
+            }
+        } else {
+            encryptedChat = getEncryptedChat(high_id);
+            if (encryptedChat != null) {
+                user = getUser(encryptedChat.user_id);
+            }
+        }
+
+        if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
+            return encryptedChat;
+        } else if (chat != null) {
+             return chat;
+        } else if (user != null) {
+            return user;
+        }
+        return null;
+    }
+
     public boolean isDialogIdAllowed(long currentDialogId) {
         int lower_id = (int) currentDialogId;
         int high_id = (int) (currentDialogId >> 32);
