@@ -45,6 +45,8 @@ import io.reactivex.schedulers.Schedulers;
  */
 
 public class ChannelCheckingService extends Service {
+    private static final int NOTIFICATION_ID = ChannelCheckingService.class.getName().hashCode();
+
     private static final String ACTION_CHECK_CHANNELS = "org.cloudveil.messenger.service.check.channels";
     private static final String EXTRA_ADDITION_DIALOG_ID = "extra_dialog_id";
     private static final String EXTRA_ACCOUNT_NUMBER = "extra_account_number";
@@ -109,7 +111,7 @@ public class ChannelCheckingService extends Service {
                     .setContentTitle("")
                     .setContentText("").build();
 
-            startForeground(1, notification);
+            startForeground(NOTIFICATION_ID, notification);
         }
     }
 
