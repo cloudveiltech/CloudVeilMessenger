@@ -21,6 +21,8 @@ public class SmsListener extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+       /*
+        CloudVeil start
         boolean outgoing = false;
         if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED") || (outgoing = intent.getAction().equals("android.provider.Telephony.NEW_OUTGOING_SMS"))) {
             if (!AndroidUtilities.isWaitingForSms()) {
@@ -64,5 +66,7 @@ public class SmsListener extends BroadcastReceiver {
                 }
             }
         }
+        CloudVeil end
+        */
     }
 }
