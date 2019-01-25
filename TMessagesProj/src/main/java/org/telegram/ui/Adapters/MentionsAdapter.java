@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 3.x.x
+ * This is the source code of Telegram for Android v. 5.x.x
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2017.
+ * Copyright Nikolai Kudashov, 2013-2018.
  */
 
 package org.telegram.ui.Adapters;
@@ -56,9 +56,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
 
     public interface MentionsAdapterDelegate {
         void needChangePanelVisibility(boolean show);
-
         void onContextSearch(boolean searching);
-
         void onContextClick(TLRPC.BotInlineResult result);
     }
 
@@ -308,7 +306,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         if (foundContextBot != null && foundContextBot.username != null && foundContextBot.username.equals(username) && searchingContextQuery != null && searchingContextQuery.equals(query)) {
             return;
         }
-
         //CloudVeil start
         if (!MessagesController.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
@@ -695,14 +692,15 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                 int count = 0;
                 for (int a = 0; a < inlineBots.size(); a++) {
                     TLRPC.User user = messagesController.getUser(inlineBots.get(a).peer.user_id);
+                    if (user == null) {
+                        continue;
+                    }
                     //CloudVeil start
                     if (!MessagesController.getInstance(currentAccount).isUserAllowed(user)) {
                         continue;
                     }
                     //CloudVeil end
-                    if (user == null) {
-                        continue;
-                    }
+
                     if (user.username != null && user.username.length() > 0 && (usernameString.length() > 0 && user.username.toLowerCase().startsWith(usernameString) || usernameString.length() == 0)) {
                         newResult.add(user);
                         newResultsHashMap.put(user.id, user);
@@ -769,8 +767,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                         req.channel = MessagesController.getInputChannel(chat);
                         req.limit = 20;
                         req.offset = 0;
-                        req.filter = new TLRPC.TL_channelParticipantsSearch();
-                        req.filter.q = usernameString;
+                        TLRPC.TL_channelParticipantsSearch channelParticipantsSearch = new TLRPC.TL_channelParticipantsSearch();
+                        channelParticipantsSearch.q = usernameString;
+                        req.filter = channelParticipantsSearch;
                         final int currentReqId = ++channelLastReqId;
                         channelReqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                             if (channelReqId != 0 && currentReqId == channelLastReqId && searchResultUsernamesMap != null && searchResultUsernames != null) {
@@ -1060,7 +1059,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             TextView textView = (TextView) holder.itemView;
             TLRPC.Chat chat = parentFragment.getCurrentChat();
             if (chat != null) {
-                if (AndroidUtilities.isBannedForever(chat.banned_rights.until_date)) {
+                if (!ChatObject.hasAdminRights(chat) && chat.default_banned_rights != null && chat.default_banned_rights.send_inline) {
+                    textView.setText(LocaleController.getString("GlobalAttachInlineRestricted", R.string.GlobalAttachInlineRestricted));
+                } else if (AndroidUtilities.isBannedForever(chat.banned_rights)) {
                     textView.setText(LocaleController.getString("AttachInlineRestrictedForever", R.string.AttachInlineRestrictedForever));
                 } else {
                     textView.setText(LocaleController.formatString("AttachInlineRestricted", R.string.AttachInlineRestricted, LocaleController.formatDateForBan(chat.banned_rights.until_date)));

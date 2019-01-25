@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 3.x.x.
+ * This is the source code of Telegram for Android v. 5.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2017.
+ * Copyright Nikolai Kudashov, 2013-2018.
  */
 
 package org.telegram.messenger.camera;
@@ -160,6 +160,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                                 //CloudVeil start
                                 CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                                 //CloudVeil end
+
                                 Camera camera = Camera.open(cameraInfo.getCameraId());
                                 Camera.Parameters params = camera.getParameters();
 
@@ -262,31 +263,31 @@ public class CameraController implements MediaRecorder.OnInfoListener {
     public void close(final CameraSession session, final CountDownLatch countDownLatch, final Runnable beforeDestroyRunnable) {
         session.destroy();
         threadPool.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (beforeDestroyRunnable != null) {
-                    beforeDestroyRunnable.run();
-                }
-                if (session.cameraInfo.camera == null) {
-                    return;
-                }
-                try {
-                    session.cameraInfo.camera.stopPreview();
-                    session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
-                try {
-                    session.cameraInfo.camera.release();
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
-                session.cameraInfo.camera = null;
-                if (countDownLatch != null) {
-                    countDownLatch.countDown();
-                }
-            }
-        });
+                               @Override
+                               public void run() {
+                                   if (beforeDestroyRunnable != null) {
+                                       beforeDestroyRunnable.run();
+                                   }
+                                   if (session.cameraInfo.camera == null) {
+                                       return;
+                                   }
+                                   try {
+                                       session.cameraInfo.camera.stopPreview();
+                                       session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
+                                   } catch (Exception e) {
+                                       FileLog.e(e);
+                                   }
+                                   try {
+                                       session.cameraInfo.camera.release();
+                                   } catch (Exception e) {
+                                       FileLog.e(e);
+                                   }
+                                   session.cameraInfo.camera = null;
+                                   if (countDownLatch != null) {
+                                       countDownLatch.countDown();
+                                   }
+                               }
+                           });
         if (countDownLatch != null) {
             try {
                 countDownLatch.await();
@@ -485,6 +486,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     //CloudVeil start
                     CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                     //CloudVeil end
+
                     if (camera == null) {
                         camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                     }

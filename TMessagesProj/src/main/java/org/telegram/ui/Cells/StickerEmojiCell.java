@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 3.x.x
+ * This is the source code of Telegram for Android v. 5.x.x
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2017.
+ * Copyright Nikolai Kudashov, 2013-2018.
  */
 
 package org.telegram.ui.Cells;
@@ -21,6 +21,7 @@ import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.BackupImageView;
@@ -30,6 +31,7 @@ public class StickerEmojiCell extends FrameLayout {
 
     private BackupImageView imageView;
     private TLRPC.Document sticker;
+    private Object parentObject;
     private TextView emojiTextView;
     private float alpha = 1;
     private boolean changingAlpha;
@@ -57,6 +59,10 @@ public class StickerEmojiCell extends FrameLayout {
         return sticker;
     }
 
+    public Object getParentObject() {
+        return parentObject;
+    }
+
     public boolean isRecent() {
         return recent;
     }
@@ -65,36 +71,38 @@ public class StickerEmojiCell extends FrameLayout {
         recent = value;
     }
 
-    public void setSticker(TLRPC.Document document, boolean showEmoji) {
+    public void setSticker(TLRPC.Document document, Object parent, boolean showEmoji) {
         //CloudVeil start
         if (!GlobalSecuritySettings.isLockDisableStickers() && DataQuery.getInstance(currentAccount).isStickerAllowed(document)) {
-        if (document != null) {
-            sticker = document;
-            if (document.thumb != null) {
-                imageView.setImage(document.thumb.location, null, "webp", null);
-            }
+            if (document != null) {
+                sticker = document;
+                parentObject = parent;
+                TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 90);
+                if (thumb != null) {
+                    imageView.setImage(thumb, null, "webp", null, parentObject);
+                }
 
-            if (showEmoji) {
-                boolean set = false;
-                for (int a = 0; a < document.attributes.size(); a++) {
-                    TLRPC.DocumentAttribute attribute = document.attributes.get(a);
-                    if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
-                        if (attribute.alt != null && attribute.alt.length() > 0) {
-                            emojiTextView.setText(Emoji.replaceEmoji(attribute.alt, emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
-                            set = true;
+                if (showEmoji) {
+                    boolean set = false;
+                    for (int a = 0; a < document.attributes.size(); a++) {
+                        TLRPC.DocumentAttribute attribute = document.attributes.get(a);
+                        if (attribute instanceof TLRPC.TL_documentAttributeSticker) {
+                            if (attribute.alt != null && attribute.alt.length() > 0) {
+                                emojiTextView.setText(Emoji.replaceEmoji(attribute.alt, emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
+                                set = true;
+                            }
+                            break;
                         }
-                        break;
                     }
+                    if (!set) {
+                        emojiTextView.setText(Emoji.replaceEmoji(DataQuery.getInstance(currentAccount).getEmojiForSticker(sticker.id), emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
+                    }
+                    emojiTextView.setVisibility(VISIBLE);
+                } else {
+                    emojiTextView.setVisibility(INVISIBLE);
                 }
-                if (!set) {
-                    emojiTextView.setText(Emoji.replaceEmoji(DataQuery.getInstance(currentAccount).getEmojiForSticker(sticker.id), emojiTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(16), false));
-                }
-                emojiTextView.setVisibility(VISIBLE);
-            } else {
-                emojiTextView.setVisibility(INVISIBLE);
             }
         }
-    }
         //CloudVeil end
     }
 

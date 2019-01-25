@@ -27,7 +27,6 @@ import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
-import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
@@ -37,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -138,11 +136,11 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsResponse cached = loadFromCache();
-        if (cached != null && (firstCall || !ConnectionsManager.isNetworkOnline())) {
+        if (cached != null && (firstCall || !ApplicationLoader.isNetworkOnline())) {
             processResponse(cached);
             firstCall = false;
         }
-        if (!ConnectionsManager.isNetworkOnline()) {
+        if (!ApplicationLoader.isNetworkOnline()) {
             return;
         }
 

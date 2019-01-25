@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 3.x.x.
+ * This is the source code of Telegram for Android v. 5.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2017.
+ * Copyright Nikolai Kudashov, 2013-2018.
  */
 
 package org.telegram.messenger;
@@ -19,10 +19,11 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.res.Configuration;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.PowerManager;
-import android.support.multidex.MultiDex;
-import android.support.multidex.MultiDexApplication;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.crashlytics.android.Crashlytics;
@@ -37,11 +38,15 @@ import org.telegram.ui.Components.ForegroundDetector;
 
 import java.io.File;
 
-public class ApplicationLoader extends MultiDexApplication {
+public class ApplicationLoader extends Application {
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
+    public static volatile NetworkInfo currentNetworkInfo;
+    public static volatile boolean unableGetCurrentNetwork;
     public static volatile Handler applicationHandler;
+
+    private static ConnectivityManager connectivityManager;
     private static volatile boolean applicationInited = false;
 
     public static volatile boolean isScreenOn = false;
@@ -49,12 +54,6 @@ public class ApplicationLoader extends MultiDexApplication {
     public static volatile boolean externalInterfacePaused = true;
     public static volatile boolean mainInterfacePausedStageQueue = true;
     public static volatile long mainInterfacePausedStageQueueTime;
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(base);
-        MultiDex.install(this);
-    }
 
     public static File getFilesDirFixed() {
         for (int a = 0; a < 10; a++) {
@@ -83,6 +82,26 @@ public class ApplicationLoader extends MultiDexApplication {
 
         try {
             LocaleController.getInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    currentNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                    boolean isSlow = isConnectionSlow();
+                    for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                        ConnectionsManager.getInstance(a).checkConnection();
+                        FileLoader.getInstance(a).onNetworkChanged(isSlow);
+                    }
+                }
+            };
+            IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+            ApplicationLoader.applicationContext.registerReceiver(networkStateReceiver, filter);
+            //Utilities.globalQueue.postRunnable(ApplicationLoader::ensureCurrentNetworkGet);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -196,10 +215,12 @@ public class ApplicationLoader extends MultiDexApplication {
                 }
                 Utilities.globalQueue.postRunnable(() -> {
                     try {
-                        String token = FirebaseInstanceId.getInstance().getToken();
-                        if (!TextUtils.isEmpty(token)) {
-                            GcmInstanceIDListenerService.sendRegistrationToServer(token);
-                        }
+                        FirebaseInstanceId.getInstance().getInstanceId().addOnSuccessListener(instanceIdResult -> {
+                            String token = instanceIdResult.getToken();
+                            if (!TextUtils.isEmpty(token)) {
+                                GcmPushListenerService.sendRegistrationToServer(token);
+                            }
+                        });
                     } catch (Throwable e) {
                         FileLog.e(e);
                     }
@@ -220,5 +241,198 @@ public class ApplicationLoader extends MultiDexApplication {
             FileLog.e(e);
         }
         return true;
+    }
+
+    /*
+    private static void ensureCurrentNetworkGet() {
+        if (currentNetworkInfo == null) {
+            try {
+                if (connectivityManager == null) {
+                    connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+                }
+                currentNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                unableGetCurrentNetwork = false;
+            } catch (Throwable ignore) {
+                unableGetCurrentNetwork = true;
+            }
+        }
+    }
+
+    public static boolean isRoaming() {
+        try {
+            ensureCurrentNetworkGet();
+            return currentNetworkInfo != null && currentNetworkInfo.isRoaming();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static boolean isConnectedOrConnectingToWiFi() {
+        try {
+            ensureCurrentNetworkGet();
+            if (currentNetworkInfo != null && currentNetworkInfo.getType() == ) {
+                NetworkInfo.State state = currentNetworkInfo.getState();
+                if (state == NetworkInfo.State.CONNECTED || state == NetworkInfo.State.CONNECTING || state == NetworkInfo.State.SUSPENDED) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static boolean isConnectedToWiFi() {
+        try {
+            ensureCurrentNetworkGet();
+            if (currentNetworkInfo != null && currentNetworkInfo.getType() == ConnectivityManager.TYPE_WIFI && currentNetworkInfo.getState() == NetworkInfo.State.CONNECTED) {
+                return true;
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static boolean isConnectionSlow() {
+        try {
+            ensureCurrentNetworkGet();
+            if (currentNetworkInfo != null && currentNetworkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
+                switch (currentNetworkInfo.getSubtype()) {
+                    case TelephonyManager.NETWORK_TYPE_1xRTT:
+                    case TelephonyManager.NETWORK_TYPE_CDMA:
+                    case TelephonyManager.NETWORK_TYPE_EDGE:
+                    case TelephonyManager.NETWORK_TYPE_GPRS:
+                    case TelephonyManager.NETWORK_TYPE_IDEN:
+                        return true;
+                }
+            }
+        } catch (Throwable ignore) {
+
+        }
+        return false;
+    }
+
+    public static boolean isNetworkOnline() {
+        try {
+            ensureCurrentNetworkGet();
+            if (!unableGetCurrentNetwork && currentNetworkInfo == null) {
+                return false;
+            }
+            if (currentNetworkInfo.isConnectedOrConnecting() || currentNetworkInfo.isAvailable()) {
+                return true;
+            }
+
+            NetworkInfo netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+            if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+                return true;
+            } else {
+                netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+            return true;
+        }
+        return false;
+    }
+    */
+
+    public static boolean isRoaming() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = connectivityManager.getActiveNetworkInfo();
+            if (netInfo != null) {
+                return netInfo.isRoaming();
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static boolean isConnectedOrConnectingToWiFi() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+            NetworkInfo.State state = netInfo.getState();
+            if (netInfo != null && (state == NetworkInfo.State.CONNECTED || state == NetworkInfo.State.CONNECTING || state == NetworkInfo.State.SUSPENDED)) {
+                return true;
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static boolean isConnectedToWiFi() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+            if (netInfo != null && netInfo.getState() == NetworkInfo.State.CONNECTED) {
+                return true;
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
+    public static int getCurrentNetworkType() {
+        if (isConnectedOrConnectingToWiFi()) {
+            return StatsController.TYPE_WIFI;
+        } else if (isRoaming()) {
+            return StatsController.TYPE_ROAMING;
+        } else {
+            return StatsController.TYPE_MOBILE;
+        }
+    }
+
+    public static boolean isConnectionSlow() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = connectivityManager.getActiveNetworkInfo();
+            if (netInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
+                switch (netInfo.getSubtype()) {
+                    case TelephonyManager.NETWORK_TYPE_1xRTT:
+                    case TelephonyManager.NETWORK_TYPE_CDMA:
+                    case TelephonyManager.NETWORK_TYPE_EDGE:
+                    case TelephonyManager.NETWORK_TYPE_GPRS:
+                    case TelephonyManager.NETWORK_TYPE_IDEN:
+                        return true;
+                }
+            }
+        } catch (Throwable ignore) {
+
+        }
+        return false;
+    }
+
+    public static boolean isNetworkOnline() {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = connectivityManager.getActiveNetworkInfo();
+            if (netInfo != null && (netInfo.isConnectedOrConnecting() || netInfo.isAvailable())) {
+                return true;
+            }
+
+            netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+
+            if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+                return true;
+            } else {
+                netInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+            return true;
+        }
+        return false;
     }
 }

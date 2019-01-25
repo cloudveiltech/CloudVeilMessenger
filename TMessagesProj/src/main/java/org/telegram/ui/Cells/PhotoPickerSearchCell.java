@@ -3,7 +3,7 @@
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2017.
+ * Copyright Nikolai Kudashov, 2013-2018.
  */
 
 package org.telegram.ui.Cells;
@@ -20,7 +20,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
@@ -87,8 +86,6 @@ public class PhotoPickerSearchCell extends LinearLayout {
         super(context);
         setOrientation(HORIZONTAL);
 
-        /* Start Disable Giphy */
-        if (!GlobalSecuritySettings.isLockDisableGifs()) {
         SearchButton searchButton = new SearchButton(context);
         searchButton.textView1.setText(LocaleController.getString("SearchImages", R.string.SearchImages));
         searchButton.textView2.setText(LocaleController.getString("SearchImagesInfo", R.string.SearchImagesInfo));
@@ -141,8 +138,6 @@ public class PhotoPickerSearchCell extends LinearLayout {
         } else {
             searchButton.setAlpha(0.5f);
         }
-    }
-        /*End Disable Giphy*/
     }
 
     public void setDelegate(PhotoPickerSearchCellDelegate delegate) {
