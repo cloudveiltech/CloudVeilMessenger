@@ -981,6 +981,10 @@ public class LocaleController {
                 value = ApplicationLoader.applicationContext.getString(res);
             }
 
+            //CloudVeil start
+            value = value.replace("Telegram", "CloudVeil Messenger");
+            //CloudVeil end
+
             if (getInstance().currentLocale != null) {
                 return String.format(getInstance().currentLocale, value, args);
             } else {

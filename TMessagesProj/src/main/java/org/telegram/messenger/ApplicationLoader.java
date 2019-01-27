@@ -23,6 +23,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.PowerManager;
+import android.support.multidex.MultiDex;
+import android.support.multidex.MultiDexApplication;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
@@ -38,7 +40,8 @@ import org.telegram.ui.Components.ForegroundDetector;
 
 import java.io.File;
 
-public class ApplicationLoader extends Application {
+//CloudVeil - multidex enabled
+public class ApplicationLoader extends MultiDexApplication {
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
@@ -54,6 +57,14 @@ public class ApplicationLoader extends Application {
     public static volatile boolean externalInterfacePaused = true;
     public static volatile boolean mainInterfacePausedStageQueue = true;
     public static volatile long mainInterfacePausedStageQueueTime;
+
+
+    @Override
+    //CloudVeil - multidex enabled
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
+    }
 
     public static File getFilesDirFixed() {
         for (int a = 0; a < 10; a++) {

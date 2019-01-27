@@ -15,7 +15,7 @@
     <string name="AccountAlreadyLoggedIn">This account is already logged in from this app.</string>
     <string name="AccountSwitch">Switch</string>
     <string name="SyncContacts">Sync Contacts</string>
-    <string name="SyncContactsDeleteInfo">This will remove your contacts from the Telegram servers. If \'Sync Contacts\' is enabled, contacts will be re-synced.</string>
+    <string name="SyncContactsDeleteInfo">This will remove your contacts from the CloudVeil Messenger servers. If \'Sync Contacts\' is enabled, contacts will be re-synced.</string>
     <string name="SyncContactsOn">Contacts from this device will be added to this account.</string>
     <string name="SyncContactsOff">Contacts from this device will not be added to this account.</string>
     <string name="SyncContactsInfoOn">Contacts from this device will be added to your account.</string>
@@ -24,12 +24,12 @@
     <!--code enter view-->
     <string name="YourCode">Phone verification</string>
     <string name="SentSmsCode">We\'ve sent an SMS with an activation code to your phone **%1$s**.</string>
-    <string name="SentAppCode">We\'ve sent the code to the **Telegram** app on your other device.</string>
-    <string name="SentAppCodeTitle">Check your Telegram messages</string>
+    <string name="SentAppCode">We\'ve sent the code to the **CloudVeil Messenger** app on your other device.</string>
+    <string name="SentAppCodeTitle">Check your CloudVeil Messenger messages</string>
     <string name="SentSmsCodeTitle">Enter code</string>
-    <string name="SentCallCode">We\'re calling your phone **%1$s**.\n\nDon\'t accept the call, Telegram will process everything automatically.</string>
+    <string name="SentCallCode">We\'re calling your phone **%1$s**.\n\nDon\'t accept the call, CloudVeil Messenger will process everything automatically.</string>
     <string name="SentCallOnly">We are calling your phone **%1$s** to dictate a code.</string>
-    <string name="CallText">Telegram will call you in %1$d:%2$02d</string>
+    <string name="CallText">CloudVeil Messenger will call you in %1$d:%2$02d</string>
     <string name="SmsText">We will send you an SMS in %1$d:%2$02d</string>
     <string name="Calling">Calling you...</string>
     <string name="SendingSms">Sending SMS...</string>
@@ -38,7 +38,7 @@
     <string name="DidNotGetTheCode">Didn\'t get the code?</string>
     <string name="DidNotGetTheCodeSms">Send the code as an SMS</string>
     <string name="CancelAccountReset">Cancel account reset</string>
-    <string name="CancelAccountResetInfo">Somebody with access to your phone number **%1$s** has requested to delete your Telegram account and reset your 2-Step Verification password.\n\nIf this wasn\'t you, please enter the code we\'ve just sent you via SMS to your number.</string>
+    <string name="CancelAccountResetInfo">Somebody with access to your phone number **%1$s** has requested to delete your CloudVeil Messenger account and reset your 2-Step Verification password.\n\nIf this wasn\'t you, please enter the code we\'ve just sent you via SMS to your number.</string>
     <string name="ResetAccount">Reset account</string>
     <string name="ResetAccountInfo">Since the account **%1$s** is active and protected by a password, we will delete it in 1 week for security purposes.\n\nYou can cancel this process at any time.</string>
     <string name="ResetAccountStatus">You\'ll be able to reset your account in:</string>
@@ -46,7 +46,7 @@
     <string name="ResetAccountButton">RESET ACCOUNT</string>
     <string name="CancelLinkExpired">Link is invalid or expired.</string>
     <string name="CancelLinkSuccess">The deletion process was cancelled for your account %1$s. You may close this window now.</string>
-    <string name="OtherLoginCode">Your login code is **%1$s**. Enter it in the Telegram app where you are trying to log in.\n\nDo not give this code to anyone.</string>
+    <string name="OtherLoginCode">Your login code is **%1$s**. Enter it in the CloudVeil Messenger app where you are trying to log in.\n\nDo not give this code to anyone.</string>
     <!--signup view-->
     <string name="YourName">Your name</string>
     <string name="RegisterText2">Please enter your full name and upload your profile picture.</string>
@@ -102,7 +102,7 @@
     <string name="PaymentFailed">Sorry, the payment was declined.</string>
     <string name="PaymentConnectionFailed">Unable to reach payment server. Please check your internet connection and try again.</string>
     <string name="PaymentWarning">Warning</string>
-    <string name="PaymentWarningText">Neither Telegram, nor %1$s will have access to your credit card information. Credit card details will be handled only by the payment system, %2$s.\n\nPayments will go directly to the developer of %1$s. Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of %1$s or your bank.</string>
+    <string name="PaymentWarningText">Neither CloudVeil Messenger, nor %1$s will have access to your credit card information. Credit card details will be handled only by the payment system, %2$s.\n\nPayments will go directly to the developer of %1$s. CloudVeil Messenger cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of %1$s or your bank.</string>
     <string name="PaymentPassword">Password &amp; Email</string>
     <string name="PaymentPasswordTitle">Password</string>
     <string name="PaymentPasswordEnter">Enter a password</string>
@@ -157,7 +157,7 @@
     <string name="DisappearingPhoto">Secret Photo</string>
     <string name="DisappearingVideo">Secret Video</string>
     <string name="DisappearingGif">Secret GIF</string>
-    <string name="CompatibilityChat">%1$s is using an older version of Telegram, so secret photos will be shown in compatibility mode.\n\nOnce %2$s updates Telegram, photos with timers for 1 minute or less will start working in \'Tap and hold to view\' mode, and you will be notified whenever the other party takes a screenshot.</string>
+    <string name="CompatibilityChat">%1$s is using an older version of CloudVeil Messenger, so secret photos will be shown in compatibility mode.\n\nOnce %2$s updates CloudVeil Messenger, photos with timers for 1 minute or less will start working in \'Tap and hold to view\' mode, and you will be notified whenever the other party takes a screenshot.</string>
     <string name="SearchMessages">Messages</string>
     <string name="Search">Search</string>
     <string name="MuteNotifications">Mute notifications</string>
@@ -186,10 +186,10 @@
     <string name="Italic">Italic</string>
     <string name="Mono">Mono</string>
     <string name="Regular">Regular</string>
-    <string name="ContactsPermissionAlert">**Telegram** needs access to your contacts so that you can connect with your friends across all your devices. Your contacts will be continuously synced with Telegram\'s heavily encrypted cloud servers.</string>
+    <string name="ContactsPermissionAlert">**CloudVeil Messenger** needs access to your contacts so that you can connect with your friends across all your devices. Your contacts will be continuously synced with CloudVeil Messenger\'s heavily encrypted cloud servers.</string>
     <string name="ContactsPermissionAlertNotNow">NOT NOW</string>
     <string name="ContactsPermissionAlertContinue">CONTINUE</string>
-    <string name="YourContacts">Your contacts on Telegram</string>
+    <string name="YourContacts">Your contacts on CloudVeil Messenger</string>
     <!--channels-->
     <string name="SetAsAdmin">Promote to admin</string>
     <string name="EditAdminRights">Edit admin rights</string>
@@ -308,7 +308,7 @@
     <string name="ChannelRemoveUserAdmin">Dismiss admin</string>
     <string name="ChannelEditPermissions">Edit permissions</string>
     <string name="ChannelMembersInfo">Only channel administrators can see this list.</string>
-    <string name="ChannelLinkInfo">Anyone who has Telegram installed will be able to join your channel by following this link.</string>
+    <string name="ChannelLinkInfo">Anyone who has CloudVeil Messenger installed will be able to join your channel by following this link.</string>
     <string name="ChannelAdminsInfo">You can add administrators to help you manage your channel. Tap and hold to remove admins.</string>
     <string name="ChannelJoinTo">Do you want to join the channel \'%1$s\'?</string>
     <string name="ChannelCantOpenPrivate">Sorry, this chat is no longer accessible.</string>
@@ -1226,7 +1226,7 @@
     <string name="Emoji">Emoji</string>
     <string name="EmojiBigSize">Draw single big emoji</string>
     <string name="EmojiUseDefault">Use system default emoji</string>
-    <string name="TelegramVersion">Telegram for Android %1$s</string>
+    <string name="TelegramVersion">CloudVeil Messenger for Android %1$s</string>
     <string name="DebugMenu">Debug Menu</string>
     <string name="DebugSendLogs">Send Logs</string>
     <string name="DebugClearLogs">Clear Logs</string>

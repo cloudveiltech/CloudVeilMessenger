@@ -15,6 +15,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
+import android.text.TextUtils;
 
 import com.google.gson.Gson;
 
@@ -336,7 +337,16 @@ public class ChannelCheckingService extends Service {
         } else if (user != null) {
             if (!user.self) {
                 row.id = user.id;
-                row.title = user.first_name + " " + user.last_name;
+                row.title = "";
+                if(user.first_name != null) {
+                    row.title = user.first_name;
+                }
+                if(user.last_name != null) {
+                    if(!TextUtils.isEmpty(row.title)) {
+                        row.title += " ";
+                    }
+                    row.title += user.last_name;
+                }
                 row.userName = user.username;
                 if (user.bot) {
                     request.addBot(row);
