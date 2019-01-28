@@ -66,6 +66,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -180,7 +181,8 @@ public class VoIPActivity extends Activity implements VoIPService.StateListener,
 		}
 
         user = VoIPService.getSharedInstance().getUser();
-        if (user.photo != null) {
+        //CloudVeil - disable others' avatar
+        if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
             photoView.getImageReceiver().setDelegate(new ImageReceiver.ImageReceiverDelegate() {
                 @Override
                 public void didSetImage(ImageReceiver imageReceiver, boolean set, boolean thumb) {

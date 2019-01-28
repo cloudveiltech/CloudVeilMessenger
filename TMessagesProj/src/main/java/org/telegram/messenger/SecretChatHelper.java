@@ -13,6 +13,7 @@ import android.content.Context;
 import android.util.LongSparseArray;
 import android.util.SparseArray;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.tgnet.AbstractSerializedData;
 import org.telegram.tgnet.ConnectionsManager;
@@ -1052,7 +1053,13 @@ public class SecretChatHelper {
                         if (serviceMessage.action.ttl_seconds < 0 || serviceMessage.action.ttl_seconds > 60 * 60 * 24 * 365) {
                             serviceMessage.action.ttl_seconds = 60 * 60 * 24 * 365;
                         }
-                        chat.ttl = serviceMessage.action.ttl_seconds;
+                        //CloudVeil start
+                        chat.ttl = Math.max(serviceMessage.action.ttl_seconds, GlobalSecuritySettings.getMinSecretChatTtl());
+                        if (chat.ttl != serviceMessage.action.ttl_seconds) {
+                            serviceMessage.action.ttl_seconds = chat.ttl;
+                            SecretChatHelper.getInstance(currentAccount).sendTTLMessage(chat, null);
+                        }
+                        //CloudVeil end
                         newMessage.action.encryptedAction = serviceMessage.action;
                         MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(chat);
                     } else if (serviceMessage.action instanceof TLRPC.TL_decryptedMessageActionScreenshotMessages) {

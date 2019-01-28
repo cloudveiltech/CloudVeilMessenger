@@ -1111,7 +1111,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             });
             //CloudVeil start
         } else if (chat_id != 0) {
-            if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (GlobalSecuritySettings.getLockDisableOthersPhoto() && writeButton != null) {
                 writeButton.setVisibility(View.GONE);
             }
         }

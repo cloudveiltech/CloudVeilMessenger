@@ -32,6 +32,7 @@ import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
@@ -1002,7 +1003,9 @@ public class VoIPService extends VoIPBaseService{
 	}
 
 	protected void showNotification(){
-		showNotification(ContactsController.formatName(user.first_name, user.last_name), user.photo!=null ? user.photo.photo_small : null, VoIPActivity.class);
+		//CloudVeil start
+		showNotification(ContactsController.formatName(user.first_name, user.last_name), user.photo!=null && !GlobalSecuritySettings.getLockDisableOthersPhoto() ? user.photo.photo_small : null, VoIPActivity.class);
+		//CloudVeil end
 	}
 
 	private void startConnectingSound() {

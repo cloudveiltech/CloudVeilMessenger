@@ -492,9 +492,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             } else if (position == usernameRow) {
                 presentFragment(new ChangeUsernameActivity());
             } else if (position == bioRow) {
-                if (userInfo != null) {
-                    presentFragment(new ChangeBioActivity());
+                //CloudVeil start
+                if (!GlobalSecuritySettings.getLockDisableOwnBio()) {
+                    if (userInfo != null) {
+                        presentFragment(new ChangeBioActivity());
+                    }
                 }
+                //CloudVeil end
             } else if (position == numberRow) {
                 presentFragment(new ChangePhoneHelpActivity());
             }

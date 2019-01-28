@@ -20,6 +20,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
@@ -146,6 +147,11 @@ public class HintDialogCell extends FrameLayout {
             parentObject = chat;
             currentUser = null;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            photo = null;
+        }
+        //CloudVeil end
         imageView.setImage(photo, "50_50", avatarDrawable, parentObject);
         if (counter) {
             update(0);

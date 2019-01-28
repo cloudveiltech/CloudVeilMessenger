@@ -50,6 +50,7 @@ import android.util.LongSparseArray;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -2538,6 +2539,12 @@ public class NotificationsController {
                             }
                         }
                     }
+
+                    //CloudVeil start
+                    if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                        photoPath = null;
+                    }
+                    //CloudVeil end
                 }
             } else {
                 if (pushDialogs.size() == 1 && dialog_id != globalSecretChatId) {
@@ -2969,6 +2976,11 @@ public class NotificationsController {
                 canReply = false;
             }
 
+            //CloudVeil start
+            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                photoPath = null;
+            }
+            //CloudVeil end
             if (photoPath != null) {
                 avatalFile = FileLoader.getPathToAttach(photoPath, true);
                 BitmapDrawable img = ImageLoader.getInstance().getImageFromMemory(photoPath, null, "50_50");

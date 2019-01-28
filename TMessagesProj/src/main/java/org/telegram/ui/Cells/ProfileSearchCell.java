@@ -16,6 +16,7 @@ import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -455,6 +456,12 @@ public class ProfileSearchCell extends BaseCell {
         } else {
             avatarDrawable.setInfo(0, null, null, false);
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            photo = null;
+        }
+        //CloudVeil end
 
         if (mask != 0) {
             boolean continueUpdate = false;
