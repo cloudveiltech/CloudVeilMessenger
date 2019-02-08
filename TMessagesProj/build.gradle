@@ -134,7 +134,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 1479
+    defaultConfig.versionCode = 1481
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
@@ -279,6 +279,9 @@ android {
         multiDexEnabled true
 
 		vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
+
+        buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapSdkKey}\""
+        manifestPlaceholders = [mapSdkKey: keystoreProperties.mapSdkKey]
 
         externalNativeBuild {
             ndkBuild {
