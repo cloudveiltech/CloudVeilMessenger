@@ -37,6 +37,7 @@ public class GlobalSecuritySettings {
     public static void setDisableSecretChat(boolean isDisabled) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("disabledSecretChat", isDisabled).apply();
+
     }
 
     public static int getMinSecretChatTtl() {

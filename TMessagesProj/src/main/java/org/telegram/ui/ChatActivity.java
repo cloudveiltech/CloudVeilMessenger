@@ -7065,7 +7065,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
                 chatAdapter.notifyDataSetChanged();
             } else if (!isDialogAllowed) {
-                showWarning(getParentActivity(), messagesController.getObjectByDialogId(dialog_id));
+                showWarning(this, messagesController.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
                 return;
             }
             //ClloudVeil end
@@ -9399,45 +9399,42 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     //CloudVeil start
-    private void showWarning(Context context, TLObject tlObject) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(context.getString(R.string.warning))
-                .setMessage(context.getString(R.string.cloudveil_message_dialog_forbidden))
-                .setPositiveButton(context.getString(R.string.contact), new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        finishFragment();
-                        sendUnlockEmail(tlObject);
+    public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.contact), (dialog, which) -> {
+                    dialog.dismiss();
+                    if(onOkRunnable != null) {
+                        onOkRunnable.run();
+                    }
+
+                    sendUnlockEmail(tlObject, fragment.getCurrentAccount());
+                })
+                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
+                    dialog.dismiss();
+                    if(onDismissRunnable != null) {
+                        onDismissRunnable.run();
                     }
                 })
-                .setNegativeButton(context.getString(R.string.cancel), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int i) {
-                        dialog.dismiss();
-                        finishFragment();
+                .setOnDismissListener(dialog -> {
+                    if(onDismissRunnable != null) {
+                        onDismissRunnable.run();
                     }
                 })
-                .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        finishFragment();
-                    }
-                })
-                .setOnBackButtonListener(new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        finishFragment();
+                .setOnBackButtonListener((dialog, which) -> {
+                    if(onDismissRunnable != null) {
+                        onDismissRunnable.run();
                     }
                 });
-        showDialog(builder.create(), new DialogInterface.OnDismissListener() {
-            @Override
-            public void onDismiss(DialogInterface dialog) {
-                finishFragment();
+        fragment.showDialog(builder.create(), dialog -> {
+            if (onDismissRunnable != null) {
+                onDismissRunnable.run();
             }
         });
     }
 
-    private void sendUnlockEmail(TLObject tlObject) {
+    private static void sendUnlockEmail(TLObject tlObject, int currentAccount) {
         String title = "";
         String userName = "";
         String type = "";
@@ -10324,7 +10321,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         //CloudVeil start
         if (!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-            showWarning(getParentActivity(), MessagesController.getInstance(currentAccount).getObjectByDialogId(dialog_id));
+            showWarning(this, MessagesController.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
         }
         //CloudVeil end
 

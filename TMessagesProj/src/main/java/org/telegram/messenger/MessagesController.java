@@ -9901,6 +9901,21 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                 closeLast = true;
             }
         }
+
+        //CloudVeil start
+        if(chat != null) {
+            if(!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(chat.id)) {
+                ChatActivity.showWarning(fragment, chat, null, null);
+                return;
+            }
+        } else if (user != null) {
+            if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
+                ChatActivity.showWarning(fragment, user, null, null);
+                return;
+            }
+        }
+
+        //CloudVeil end
         if (reason != null) {
             showCantOpenAlert(fragment, reason);
         } else {
