@@ -9904,7 +9904,8 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
         //CloudVeil start
         if(chat != null) {
-            if(!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(chat.id)) {
+            int dialogId = chat.id > 0 ? -chat.id : chat.id;
+            if(!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
                 ChatActivity.showWarning(fragment, chat, null, null);
                 return;
             }
