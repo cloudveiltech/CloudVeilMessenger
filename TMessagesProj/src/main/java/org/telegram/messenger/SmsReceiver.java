@@ -29,7 +29,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-         /*
+             /*
         CloudVeil start
         if (intent == null) {
             return;
@@ -76,7 +76,6 @@ public class SmsReceiver extends BroadcastReceiver {
         } catch (Throwable e) {
             FileLog.e(e);
         }
-
         CloudVeil end
         */
     }

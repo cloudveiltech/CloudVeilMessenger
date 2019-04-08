@@ -100,6 +100,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.PickerBottomLayout;
 import org.telegram.ui.Components.TypefaceSpan;
 import org.telegram.ui.ThemePreviewActivity;
+import org.telegram.ui.WallpapersListActivity;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -385,12 +386,20 @@ public class AndroidUtilities {
         if (pathString.matches(Pattern.quote(new File(ApplicationLoader.applicationContext.getCacheDir(), "voip_logs").getAbsolutePath()) + "/\\d+\\.log")) {
             return false;
         }
+        int tries = 0;
         while (true) {
+            if (pathString != null && pathString.length() > 4096) {
+                return true;
+            }
             String newPath = Utilities.readlink(pathString);
             if (newPath == null || newPath.equals(pathString)) {
                 break;
             }
             pathString = newPath;
+            tries++;
+            if (tries >= 10) {
+                return true;
+            }
         }
         if (pathString != null) {
             try {
@@ -1845,14 +1854,33 @@ public class AndroidUtilities {
     }
 
     public static String formatFileSize(long size) {
+        return formatFileSize(size, false);
+    }
+
+    public static String formatFileSize(long size, boolean removeZero) {
         if (size < 1024) {
             return String.format("%d B", size);
         } else if (size < 1024 * 1024) {
-            return String.format("%.1f KB", size / 1024.0f);
+            float value = size / 1024.0f;
+            if (removeZero && (value - (int) value) * 10 == 0) {
+                return String.format("%d KB", (int) value);
+            } else {
+                return String.format("%.1f KB", value);
+            }
         } else if (size < 1024 * 1024 * 1024) {
-            return String.format("%.1f MB", size / 1024.0f / 1024.0f);
+            float value = size / 1024.0f / 1024.0f;
+            if (removeZero && (value - (int) value) * 10 == 0) {
+                return String.format("%d MB", (int) value);
+            } else {
+                return String.format("%.1f MB", value);
+            }
         } else {
-            return String.format("%.1f GB", size / 1024.0f / 1024.0f / 1024.0f);
+            float value = size / 1024.0f / 1024.0f / 1024.0f;
+            if (removeZero && (value - (int) value) * 10 == 0) {
+                return String.format("%d GB", (int) value);
+            } else {
+                return String.format("%.1f GB", value);
+            }
         }
     }
 
@@ -2124,9 +2152,10 @@ public class AndroidUtilities {
         return rights == null || Math.abs(rights.until_date - System.currentTimeMillis() / 1000) > 5 * 365 * 24 * 60 * 60;
     }
 
-    public static void setRectToRect(Matrix matrix, RectF src, RectF dst, int rotation, Matrix.ScaleToFit align) {
+    public static void setRectToRect(Matrix matrix, RectF src, RectF dst, int rotation, boolean translate) {
         float tx, sx;
         float ty, sy;
+        boolean xLarger = false;
         if (rotation == 90 || rotation == 270) {
             sx = dst.height() / src.width();
             sy = dst.width() / src.height();
@@ -2134,17 +2163,16 @@ public class AndroidUtilities {
             sx = dst.width() / src.width();
             sy = dst.height() / src.height();
         }
-        if (align != Matrix.ScaleToFit.FILL) {
-            if (sx > sy) {
-                sx = sy;
-            } else {
-                sy = sx;
-            }
+        if (sx < sy) {
+            sx = sy;
+            xLarger = true;
+        } else {
+            sy = sx;
         }
-        tx = -src.left * sx;
-        ty = -src.top * sy;
 
-        matrix.setTranslate(dst.left, dst.top);
+        if (translate) {
+            matrix.setTranslate(dst.left, dst.top);
+        }
         if (rotation == 90) {
             matrix.preRotate(90);
             matrix.preTranslate(0, -dst.width());
@@ -2156,8 +2184,31 @@ public class AndroidUtilities {
             matrix.preTranslate(-dst.height(), 0);
         }
 
+        if (translate) {
+            tx = -src.left * sx;
+            ty = -src.top * sy;
+        } else {
+            tx = dst.left - src.left * sx;
+            ty = dst.top - src.top * sy;
+        }
+
+        float diff;
+        if (xLarger) {
+            diff = dst.width() - src.width() * sy;
+        } else {
+            diff = dst.height() - src.height() * sy;
+        }
+        diff = diff / 2.0f;
+        if (xLarger) {
+            tx += diff;
+        } else {
+            ty += diff;
+        }
+
         matrix.preScale(sx, sy);
-        matrix.preTranslate(tx, ty);
+        if (translate) {
+            matrix.preTranslate(tx, ty);
+        }
     }
 
     public static boolean handleProxyIntent(Activity activity, Intent intent) {
@@ -2383,5 +2434,157 @@ public class AndroidUtilities {
             }
             return sb.toString();
         }
+    }
+
+    public static float[] RGBtoHSB(int r, int g, int b) {
+        float hue, saturation, brightness;
+        float[] hsbvals = new float[3];
+        int cmax = (r > g) ? r : g;
+        if (b > cmax) {
+            cmax = b;
+        }
+        int cmin = (r < g) ? r : g;
+        if (b < cmin) {
+            cmin = b;
+        }
+
+        brightness = ((float) cmax) / 255.0f;
+        if (cmax != 0) {
+            saturation = ((float) (cmax - cmin)) / ((float) cmax);
+        } else {
+            saturation = 0;
+        }
+        if (saturation == 0) {
+            hue = 0;
+        } else {
+            float redc = ((float) (cmax - r)) / ((float) (cmax - cmin));
+            float greenc = ((float) (cmax - g)) / ((float) (cmax - cmin));
+            float bluec = ((float) (cmax - b)) / ((float) (cmax - cmin));
+            if (r == cmax) {
+                hue = bluec - greenc;
+            } else if (g == cmax) {
+                hue = 2.0f + redc - bluec;
+            } else {
+                hue = 4.0f + greenc - redc;
+            }
+            hue = hue / 6.0f;
+            if (hue < 0) {
+                hue = hue + 1.0f;
+            }
+        }
+        hsbvals[0] = hue;
+        hsbvals[1] = saturation;
+        hsbvals[2] = brightness;
+        return hsbvals;
+    }
+
+    public static int HSBtoRGB(float hue, float saturation, float brightness) {
+        int r = 0, g = 0, b = 0;
+        if (saturation == 0) {
+            r = g = b = (int) (brightness * 255.0f + 0.5f);
+        } else {
+            float h = (hue - (float) Math.floor(hue)) * 6.0f;
+            float f = h - (float) java.lang.Math.floor(h);
+            float p = brightness * (1.0f - saturation);
+            float q = brightness * (1.0f - saturation * f);
+            float t = brightness * (1.0f - (saturation * (1.0f - f)));
+            switch ((int) h) {
+                case 0:
+                    r = (int) (brightness * 255.0f + 0.5f);
+                    g = (int) (t * 255.0f + 0.5f);
+                    b = (int) (p * 255.0f + 0.5f);
+                    break;
+                case 1:
+                    r = (int) (q * 255.0f + 0.5f);
+                    g = (int) (brightness * 255.0f + 0.5f);
+                    b = (int) (p * 255.0f + 0.5f);
+                    break;
+                case 2:
+                    r = (int) (p * 255.0f + 0.5f);
+                    g = (int) (brightness * 255.0f + 0.5f);
+                    b = (int) (t * 255.0f + 0.5f);
+                    break;
+                case 3:
+                    r = (int) (p * 255.0f + 0.5f);
+                    g = (int) (q * 255.0f + 0.5f);
+                    b = (int) (brightness * 255.0f + 0.5f);
+                    break;
+                case 4:
+                    r = (int) (t * 255.0f + 0.5f);
+                    g = (int) (p * 255.0f + 0.5f);
+                    b = (int) (brightness * 255.0f + 0.5f);
+                    break;
+                case 5:
+                    r = (int) (brightness * 255.0f + 0.5f);
+                    g = (int) (p * 255.0f + 0.5f);
+                    b = (int) (q * 255.0f + 0.5f);
+                    break;
+            }
+        }
+        return 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+    }
+
+    public static int getPatternColor(int color) {
+        float hsb[] = RGBtoHSB(Color.red(color), Color.green(color), Color.blue(color));
+        if (hsb[1] > 0.0f || (hsb[2] < 1.0f && hsb[2] > 0.0f)) {
+            hsb[1] = Math.min(1.0f, hsb[1] + 0.05f + 0.1f * (1.0f - hsb[1]));
+        }
+        if (hsb[2] > 0.5f) {
+            hsb[2] = Math.max(0.0f, hsb[2] * 0.65f);
+        } else {
+            hsb[2] = Math.max(0.0f, Math.min(1.0f, 1.0f - hsb[2] * 0.65f));
+        }
+        return HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0x66ffffff;
+    }
+
+    public static int getPatternSideColor(int color) {
+        float hsb[] = RGBtoHSB(Color.red(color), Color.green(color), Color.blue(color));
+        hsb[1] = Math.min(1.0f, hsb[1] + 0.05f);
+        if (hsb[2] > 0.5f) {
+            hsb[2] = Math.max(0.0f, hsb[2] * 0.90f);
+        } else{
+            hsb[2] = Math.max(0.0f, hsb[2] * 0.90f);
+        }
+        return HSBtoRGB(hsb[0], hsb[1], hsb[2]) | 0xff000000;
+    }
+
+    public static String getWallPaperUrl(Object object, int currentAccount) {
+        String link;
+        if (object instanceof TLRPC.TL_wallPaper) {
+            TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) object;
+            link = "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/bg/" + wallPaper.slug;
+            StringBuilder modes = new StringBuilder();
+            if (wallPaper.settings != null) {
+                if (wallPaper.settings.blur) {
+                    modes.append("blur");
+                }
+                if (wallPaper.settings.motion) {
+                    if (modes.length() > 0) {
+                        modes.append("+");
+                    }
+                    modes.append("motion");
+                }
+            }
+            if (modes.length() > 0) {
+                link += "?mode=" + modes.toString();
+            }
+        } else if (object instanceof WallpapersListActivity.ColorWallpaper) {
+            WallpapersListActivity.ColorWallpaper wallPaper = (WallpapersListActivity.ColorWallpaper) object;
+            String color = String.format("%02x%02x%02x", (byte) (wallPaper.color >> 16) & 0xff, (byte) (wallPaper.color >> 8) & 0xff, (byte) (wallPaper.color & 0xff)).toLowerCase();
+            if (wallPaper.pattern != null) {
+                link = "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/bg/" + wallPaper.pattern.slug + "?intensity=" + (int) (wallPaper.intensity * 100) + "&bg_color=" + color;
+            } else {
+                link = "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/bg/" + color;
+            }
+        } else {
+            link = null;
+        }
+        return link;
+    }
+
+    public static float distanceInfluenceForSnapDuration(float f) {
+        f -= 0.5F;
+        f *= 0.47123894F;
+        return (float) Math.sin((double) f);
     }
 }

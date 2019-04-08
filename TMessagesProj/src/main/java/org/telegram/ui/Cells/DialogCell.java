@@ -39,6 +39,7 @@ import org.telegram.messenger.ImageReceiver;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.GroupCreateCheckBox;
+import org.telegram.ui.DialogsActivity;
 
 import java.util.ArrayList;
 
@@ -902,28 +903,9 @@ public class DialogCell extends BaseCell {
         isSelected = value;
     }
 
-    private ArrayList<TLRPC.TL_dialog> getDialogsArray() {
-        //CloudVeil start
-        ArrayList<TLRPC.TL_dialog> dialogs = null;
-        if (dialogsType == 0) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogs;
-        } else if (dialogsType == 1) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsServerOnly;
-        } else if (dialogsType == 2) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
-        } else if (dialogsType == 3) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsForward;
-        } else {
-            return null;
-        }
-        dialogs = MessagesController.getInstance(currentAccount).filterDialogs(dialogs);
-        //CloudVeil end
-        return dialogs;
-    }
-
     public void checkCurrentDialogIndex() {
-        if (index < getDialogsArray().size()) {
-            ArrayList<TLRPC.TL_dialog> dialogsArray = getDialogsArray();
+        ArrayList<TLRPC.TL_dialog> dialogsArray = DialogsActivity.getDialogsArray(dialogsType, currentAccount);
+        if (index < dialogsArray.size()) {
             TLRPC.TL_dialog dialog = dialogsArray.get(index);
             TLRPC.TL_dialog nextDialog = index + 1 < dialogsArray.size() ? dialogsArray.get(index + 1) : null;
             TLRPC.DraftMessage newDraftMessage = DataQuery.getInstance(currentAccount).getDraft(currentDialogId);
@@ -1099,7 +1081,6 @@ public class DialogCell extends BaseCell {
                 photo = null;
             }
             //CloudVeil end
-
             avatarImage.setImage(photo, "50_50", avatarDrawable, null, parentObject, 0);
         }
         if (getMeasuredWidth() != 0 || getMeasuredHeight() != 0) {

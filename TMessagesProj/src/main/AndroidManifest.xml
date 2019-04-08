@@ -67,7 +67,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="replace" />
 
     <application
-        android:name=".ApplicationLoader"
+        android:name="org.telegram.messenger.${applicationClassName}"
         android:allowBackup="false"
         android:hardwareAccelerated="@bool/useHardwareAcceleration"
         android:icon="@drawable/ic_launcher"
@@ -229,6 +229,20 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.auth.api.phone.SMS_RETRIEVED"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".CallReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE"/>
+            </intent-filter>
+        </receiver>
+
         <service android:name=".AuthenticatorService" android:exported="true">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator"/>
@@ -256,6 +270,7 @@
             </intent-filter>
         </service>
 
+        <service android:name="org.cloudveil.messenger.service.ChannelCheckingService" />
         <service android:name=".KeepAliveJob"
                  android:exported="false"
                  android:permission="android.permission.BIND_JOB_SERVICE"/>
@@ -287,7 +302,6 @@
                 <action android:name="android.telecom.ConnectionService" />
             </intent-filter>
         </service>
-        <service android:name="org.cloudveil.messenger.service.ChannelCheckingService" />
 
 		<receiver android:name=".MusicPlayerReceiver" >
             <intent-filter>
@@ -351,6 +365,11 @@
             android:exported="false"
             android:grantUriPermissions="true"/>
 
+        <provider
+            android:authorities="${applicationId}.call_sound_provider"
+            android:name=".voip.CallNotificationSoundProvider"
+            android:exported="true"/>
+
         <uses-library android:name="com.sec.android.app.multiwindow" android:required="false" />
         <meta-data android:name="com.sec.android.support.multiwindow" android:value="true" />
         <meta-data android:name="com.sec.android.multiwindow.DEFAULT_SIZE_W" android:value="632dp" />
@@ -359,6 +378,9 @@
         <meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_H" android:value="598dp" />
 
         <!--<meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />-->
+
+        <meta-data android:name="com.google.android.gms.car.notification.SmallIcon" android:resource="@drawable/ic_player" />
+        <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
 
         <meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="face" />
 

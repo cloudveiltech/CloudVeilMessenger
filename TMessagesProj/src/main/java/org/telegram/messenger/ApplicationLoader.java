@@ -33,12 +33,13 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.firebase.iid.FirebaseInstanceId;
 
-import io.fabric.sdk.android.Fabric;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.ForegroundDetector;
 
 import java.io.File;
+
+import io.fabric.sdk.android.Fabric;
 
 //CloudVeil - multidex enabled
 public class ApplicationLoader extends MultiDexApplication {
@@ -58,14 +59,6 @@ public class ApplicationLoader extends MultiDexApplication {
     public static volatile boolean mainInterfacePausedStageQueue = true;
     public static volatile long mainInterfacePausedStageQueueTime;
 
-
-    @Override
-    //CloudVeil - multidex enabled
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(base);
-        MultiDex.install(this);
-    }
-
     public static File getFilesDirFixed() {
         for (int a = 0; a < 10; a++) {
             File path = ApplicationLoader.applicationContext.getFilesDir();
@@ -83,6 +76,14 @@ public class ApplicationLoader extends MultiDexApplication {
         }
         return new File("/data/data/org.telegram.messenger/files");
     }
+
+    @Override
+    //CloudVeil - multidex enabled
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
+    }
+
 
     public static void postInitApplication() {
         if (applicationInited) {
@@ -102,7 +103,12 @@ public class ApplicationLoader extends MultiDexApplication {
             BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    currentNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                    try {
+                        currentNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                    } catch (Throwable ignore) {
+
+                    }
+
                     boolean isSlow = isConnectionSlow();
                     for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                         ConnectionsManager.getInstance(a).checkConnection();
@@ -164,12 +170,26 @@ public class ApplicationLoader extends MultiDexApplication {
         WearDataLayerListenerService.updateWatchConnectionState();
     }
 
+    public ApplicationLoader() {
+        super();
+    }
+
     @Override
     public void onCreate() {
+        try {
+            applicationContext = getApplicationContext();
+        } catch (Throwable ignore) {
+
+        }
+
         super.onCreate();
+
         Fabric.with(this, new Crashlytics());
 
-        applicationContext = getApplicationContext();
+        if (applicationContext == null) {
+            applicationContext = getApplicationContext();
+        }
+
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
         ConnectionsManager.native_setJava(false);
         new ForegroundDetector(this);

@@ -51,6 +51,8 @@ public class RadialProgress2 {
     private boolean isPressed;
     private boolean isPressedMini;
 
+    private boolean drawBackground = true;
+
     private Bitmap miniDrawBitmap;
     private Canvas miniDrawCanvas;
 
@@ -117,6 +119,10 @@ public class RadialProgress2 {
         iconPressedColorKey = iconPressed;
     }
 
+    public void setDrawBackground(boolean value) {
+        drawBackground = value;
+    }
+
     public void setProgressRect(int left, int top, int right, int bottom) {
         progressRect.set(left, top, right, bottom);
     }
@@ -148,6 +154,10 @@ public class RadialProgress2 {
 
     public int getIcon() {
         return mediaActionDrawable.getCurrentIcon();
+    }
+
+    public int getMiniIcon() {
+        return miniMediaActionDrawable.getCurrentIcon();
     }
 
     public void setIcon(int icon, boolean ifSame, boolean animated) {
@@ -217,7 +227,15 @@ public class RadialProgress2 {
             return;
         }
 
-        float wholeAlpha = mediaActionDrawable.getCurrentIcon() != MediaActionDrawable.ICON_NONE ? 1.0f : 1.0f - mediaActionDrawable.getTransitionProgress();
+        int currentIcon = mediaActionDrawable.getCurrentIcon();
+        int prevIcon = mediaActionDrawable.getPreviousIcon();
+
+        float wholeAlpha;
+        if ((currentIcon == MediaActionDrawable.ICON_CHECK || currentIcon == MediaActionDrawable.ICON_EMPTY) && prevIcon == MediaActionDrawable.ICON_NONE) {
+            wholeAlpha = mediaActionDrawable.getTransitionProgress();
+        } else {
+            wholeAlpha = currentIcon != MediaActionDrawable.ICON_NONE ? 1.0f : 1.0f - mediaActionDrawable.getTransitionProgress();
+        }
 
         if (isPressedMini) {
             if (iconPressedColorKey != null) {
@@ -311,11 +329,11 @@ public class RadialProgress2 {
             overlayImageView.setImageCoords(centerX - circleRadius, centerY - circleRadius, circleRadius * 2, circleRadius * 2);
         }
 
-        if (drawCircle) {
+        if (drawCircle && drawBackground) {
             if (drawMiniIcon && miniDrawCanvas != null) {
                 miniDrawCanvas.drawCircle(centerX, centerY, circleRadius, circlePaint);
             } else {
-                if (mediaActionDrawable.getCurrentIcon() != MediaActionDrawable.ICON_NONE || wholeAlpha != 0) {
+                if (currentIcon != MediaActionDrawable.ICON_NONE || wholeAlpha != 0) {
                     canvas.drawCircle(centerX, centerY, circleRadius * wholeAlpha, circlePaint);
                 }
             }
@@ -333,13 +351,13 @@ public class RadialProgress2 {
         }
         mediaActionDrawable.setBounds(centerX - circleRadius, centerY - circleRadius, centerX + circleRadius, centerY + circleRadius);
         if (drawMiniIcon) {
-            mediaActionDrawable.setAlpha((int) (255 * wholeAlpha * overrideAlpha));
             if (miniDrawCanvas != null) {
                 mediaActionDrawable.draw(miniDrawCanvas);
             } else {
                 mediaActionDrawable.draw(canvas);
             }
         } else {
+            mediaActionDrawable.setOverrideAlpha(overrideAlpha);
             mediaActionDrawable.draw(canvas);
         }
 
@@ -370,7 +388,6 @@ public class RadialProgress2 {
                 miniDrawCanvas.drawCircle(AndroidUtilities.dp(18 + size + offset), AndroidUtilities.dp(18 + size + offset), AndroidUtilities.dp(halfSize + 1) * alpha, Theme.checkboxSquare_eraserPaint);
             } else {
                 miniProgressBackgroundPaint.setColor(progressColor);
-                miniProgressBackgroundPaint.setAlpha((int) (255 * alpha * wholeAlpha * overrideAlpha));
                 canvas.drawCircle(cx, cy, AndroidUtilities.dp(12), miniProgressBackgroundPaint);
             }
 
@@ -379,7 +396,6 @@ public class RadialProgress2 {
             }
 
             canvas.drawCircle(cx, cy, AndroidUtilities.dp(halfSize) * alpha, circleMiniPaint);
-            miniMediaActionDrawable.setAlpha((int) (255 * wholeAlpha * overrideAlpha));
             miniMediaActionDrawable.setBounds((int) (cx - AndroidUtilities.dp(halfSize) * alpha), (int) (cy - AndroidUtilities.dp(halfSize) * alpha), (int) (cx + AndroidUtilities.dp(halfSize) * alpha), (int) (cy + AndroidUtilities.dp(halfSize) * alpha));
             miniMediaActionDrawable.draw(canvas);
         }

@@ -292,6 +292,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         }
         //CloudVeil end
 
+
         if (foundContextBot == null) {
             noUserName = true;
         } else {

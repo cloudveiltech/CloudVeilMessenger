@@ -56,7 +56,7 @@ public class FileRefController {
         if (parentObject instanceof MessageObject) {
             MessageObject messageObject = (MessageObject) parentObject;
             int channelId = messageObject.getChannelId();
-            return "message" + messageObject.getId() + "_" + channelId;
+            return "message" + messageObject.getRealId() + "_" + channelId;
         } else if (parentObject instanceof TLRPC.Message) {
             TLRPC.Message message = (TLRPC.Message) parentObject;
             int channelId = message.to_id != null ? message.to_id.channel_id : 0;
@@ -86,7 +86,7 @@ public class FileRefController {
             TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) parentObject;
             return "wallpaper" + wallPaper.id;
         }
-        return null;
+        return parentObject != null ? "" + parentObject : null;
     }
 
     @SuppressWarnings("unchecked")
@@ -200,7 +200,7 @@ public class FileRefController {
         }
         if (parentObject instanceof MessageObject) {
             MessageObject messageObject = (MessageObject) parentObject;
-            if (messageObject.getId() < 0 && messageObject.messageOwner.media.webpage != null) {
+            if (messageObject.getRealId() < 0 && messageObject.messageOwner.media.webpage != null) {
                 parentObject = messageObject.messageOwner.media.webpage;
             }
         }
@@ -266,11 +266,11 @@ public class FileRefController {
             if (channelId != 0) {
                 TLRPC.TL_channels_getMessages req = new TLRPC.TL_channels_getMessages();
                 req.channel = MessagesController.getInstance(currentAccount).getInputChannel(channelId);
-                req.id.add(messageObject.getId());
+                req.id.add(messageObject.getRealId());
                 ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> onRequestComplete(locationKey, parentKey, response, true));
             } else {
                 TLRPC.TL_messages_getMessages req = new TLRPC.TL_messages_getMessages();
-                req.id.add(messageObject.getId());
+                req.id.add(messageObject.getRealId());
                 ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> onRequestComplete(locationKey, parentKey, response, true));
             }
         } else if (parentObject instanceof TLRPC.TL_wallPaper) {
@@ -598,21 +598,21 @@ public class FileRefController {
             } else if (response instanceof TLRPC.TL_account_wallPapers) {
                 TLRPC.TL_account_wallPapers accountWallPapers = (TLRPC.TL_account_wallPapers) response;
                 for (int i = 0, size10 = accountWallPapers.wallpapers.size(); i < size10; i++) {
-                    result = getFileReference(accountWallPapers.wallpapers.get(i).document, requester.location);
+                    result = getFileReference(((TLRPC.TL_wallPaper) accountWallPapers.wallpapers.get(i)).document, requester.location);
                     if (result != null) {
                         break;
                     }
                 }
                 if (result != null && cache) {
-                    MessagesStorage.getInstance(currentAccount).putWallpapers(accountWallPapers.wallpapers, true);
+                    MessagesStorage.getInstance(currentAccount).putWallpapers(accountWallPapers.wallpapers, 1);
                 }
             } else if (response instanceof TLRPC.TL_wallPaper) {
                 TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) response;
                 result = getFileReference(wallPaper.document, requester.location);
                 if (result != null && cache) {
-                    ArrayList<TLRPC.TL_wallPaper> wallpapers = new ArrayList<>();
+                    ArrayList<TLRPC.WallPaper> wallpapers = new ArrayList<>();
                     wallpapers.add(wallPaper);
-                    MessagesStorage.getInstance(currentAccount).putWallpapers(wallpapers, false);
+                    MessagesStorage.getInstance(currentAccount).putWallpapers(wallpapers, 0);
                 }
             } else if (response instanceof TLRPC.Vector) {
                 TLRPC.Vector vector = (TLRPC.Vector) response;
@@ -872,6 +872,6 @@ public class FileRefController {
     }
 
     public static boolean isFileRefError(String error) {
-        return "FILEREF_EXPIRED".equals(error) || "FILE_REFERENCE_EXPIRED".equals(error) || "FILE_REFERENCE_EMPTY".equals(error);
+        return "FILEREF_EXPIRED".equals(error) || "FILE_REFERENCE_EXPIRED".equals(error) || "FILE_REFERENCE_EMPTY".equals(error) || error != null && error.startsWith("FILE_REFERENCE_");
     }
 }

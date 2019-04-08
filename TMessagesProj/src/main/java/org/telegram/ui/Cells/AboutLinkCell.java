@@ -174,7 +174,7 @@ public class AboutLinkCell extends FrameLayout {
                 textLayout = StaticLayout.Builder.obtain(stringBuilder, 0, stringBuilder.length(), Theme.profile_aboutTextPaint, maxWidth)
                         .setBreakStrategy(StaticLayout.BREAK_STRATEGY_HIGH_QUALITY)
                         .setHyphenationFrequency(StaticLayout.HYPHENATION_FREQUENCY_NONE)
-                        .setAlignment(LocaleController.isRTL ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL)
+                        .setAlignment(LocaleController.isRTL ? Layout.Alignment.ALIGN_RIGHT : Layout.Alignment.ALIGN_LEFT)
                         .build();
             } else {
                 textLayout = new StaticLayout(stringBuilder, Theme.profile_aboutTextPaint, maxWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);

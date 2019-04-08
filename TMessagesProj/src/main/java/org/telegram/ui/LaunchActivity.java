@@ -41,6 +41,9 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import com.crashlytics.android.Crashlytics;
+import io.fabric.sdk.android.Fabric;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
@@ -193,8 +196,13 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             try {
                 setTaskDescription(new ActivityManager.TaskDescription(null, null, Theme.getColor(Theme.key_actionBarDefault) | 0xff000000));
-            } catch (Exception e) {
-                //
+            } catch (Exception ignore) {
+
+            }
+            try {
+                getWindow().setNavigationBarColor(0xff000000);
+            } catch (Exception ignore) {
+
             }
         }
 
@@ -1045,7 +1053,6 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                             String username = null;
                             String group = null;
                             String sticker = null;
-                            String instantView[] = null;
                             HashMap<String, String> auth = null;
                             String unsupportedUrl = null;
                             String botUser = null;
@@ -1056,8 +1063,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                             String phoneHash = null;
                             String lang = null;
                             String code = null;
-                            String wallpaper = null;
-                            int wallpaperModes = 0;
+                            TLRPC.TL_wallPaper wallPaper = null;
                             Integer messageId = null;
                             boolean hasUrl = false;
                             String scheme = data.getScheme();
@@ -1069,19 +1075,39 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                         if (path != null && path.length() > 1) {
                                             path = path.substring(1);
                                             if (path.startsWith("bg/")) {
-                                                wallpaper = path.replace("bg/", "");
-                                                String mode = data.getQueryParameter("mode");
-                                                if (mode != null) {
-                                                    mode = mode.toLowerCase();
-                                                    String[] modes = mode.split(" ");
-                                                    if (modes != null && modes.length > 0) {
-                                                        for (int a = 0; a < modes.length; a++) {
-                                                            if ("blur".equals(modes[a])) {
-                                                                wallpaperModes |= 1;
-                                                            } else if ("motion".equals(modes[a])) {
-                                                                wallpaperModes |= 2;
+                                                wallPaper = new TLRPC.TL_wallPaper();
+                                                wallPaper.settings = new TLRPC.TL_wallPaperSettings();
+                                                wallPaper.slug = path.replace("bg/", "");
+                                                if (wallPaper.slug != null && wallPaper.slug.length() == 6) {
+                                                    try {
+                                                        wallPaper.settings.background_color = Integer.parseInt(wallPaper.slug, 16) | 0xff000000;
+                                                    } catch (Exception ignore) {
+
+                                                    }
+                                                    wallPaper.slug = null;
+                                                } else {
+                                                    String mode = data.getQueryParameter("mode");
+                                                    if (mode != null) {
+                                                        mode = mode.toLowerCase();
+                                                        String[] modes = mode.split(" ");
+                                                        if (modes != null && modes.length > 0) {
+                                                            for (int a = 0; a < modes.length; a++) {
+                                                                if ("blur".equals(modes[a])) {
+                                                                    wallPaper.settings.blur = true;
+                                                                } else if ("motion".equals(modes[a])) {
+                                                                    wallPaper.settings.motion = true;
+                                                                }
                                                             }
                                                         }
+                                                    }
+                                                    wallPaper.settings.intensity = Utilities.parseInt(data.getQueryParameter("intensity"));
+                                                    try {
+                                                        String bgColor = data.getQueryParameter("bg_color");
+                                                        if (!TextUtils.isEmpty(bgColor)) {
+                                                            wallPaper.settings.background_color = Integer.parseInt(bgColor, 16) | 0xff000000;
+                                                        }
+                                                    } catch (Exception ignore) {
+
                                                     }
                                                 }
                                             } else if (path.startsWith("login/")) {
@@ -1090,12 +1116,6 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                                 group = path.replace("joinchat/", "");
                                             } else if (path.startsWith("addstickers/")) {
                                                 sticker = path.replace("addstickers/", "");
-                                            } else if (path.startsWith("iv/")) {
-                                                instantView[0] = data.getQueryParameter("url");
-                                                instantView[1] = data.getQueryParameter("rhash");
-                                                if (TextUtils.isEmpty(instantView[0]) || TextUtils.isEmpty(instantView[1])) {
-                                                    instantView = null;
-                                                }
                                             } else if (path.startsWith("msg/") || path.startsWith("share/")) {
                                                 message = data.getQueryParameter("url");
                                                 if (message == null) {
@@ -1167,19 +1187,42 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                     } else if (url.startsWith("tg:bg") || url.startsWith("tg://bg")) {
                                         url = url.replace("tg:bg", "tg://telegram.org").replace("tg://bg", "tg://telegram.org");
                                         data = Uri.parse(url);
-                                        wallpaper = data.getQueryParameter("slug");
-                                        String mode = data.getQueryParameter("mode");
-                                        if (mode != null) {
-                                            mode = mode.toLowerCase();
-                                            String[] modes = mode.split(" ");
-                                            if (modes != null && modes.length > 0) {
-                                                for (int a = 0; a < modes.length; a++) {
-                                                    if ("blur".equals(modes[a])) {
-                                                        wallpaperModes |= 1;
-                                                    } else if ("motion".equals(modes[a])) {
-                                                        wallpaperModes |= 2;
+                                        wallPaper = new TLRPC.TL_wallPaper();
+                                        wallPaper.settings = new TLRPC.TL_wallPaperSettings();
+                                        wallPaper.slug = data.getQueryParameter("slug");
+                                        if (wallPaper.slug == null) {
+                                            wallPaper.slug = data.getQueryParameter("color");
+                                        }
+                                        if (wallPaper.slug != null && wallPaper.slug.length() == 6) {
+                                            try {
+                                                wallPaper.settings.background_color = Integer.parseInt(wallPaper.slug, 16) | 0xff000000;
+                                            } catch (Exception ignore) {
+
+                                            }
+                                            wallPaper.slug = null;
+                                        } else {
+                                            String mode = data.getQueryParameter("mode");
+                                            if (mode != null) {
+                                                mode = mode.toLowerCase();
+                                                String[] modes = mode.split(" ");
+                                                if (modes != null && modes.length > 0) {
+                                                    for (int a = 0; a < modes.length; a++) {
+                                                        if ("blur".equals(modes[a])) {
+                                                            wallPaper.settings.blur = true;
+                                                        } else if ("motion".equals(modes[a])) {
+                                                            wallPaper.settings.motion = true;
+                                                        }
                                                     }
                                                 }
+                                            }
+                                            wallPaper.settings.intensity = Utilities.parseInt(data.getQueryParameter("intensity"));
+                                            try {
+                                                String bgColor = data.getQueryParameter("bg_color");
+                                                if (!TextUtils.isEmpty(bgColor)) {
+                                                    wallPaper.settings.background_color = Integer.parseInt(bgColor, 16) | 0xff000000;
+                                                }
+                                            } catch (Exception ignore) {
+
                                             }
                                         }
                                     } else if (url.startsWith("tg:join") || url.startsWith("tg://join")) {
@@ -1278,11 +1321,11 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                     args.putString("phone", phone);
                                     args.putString("hash", phoneHash);
                                     AndroidUtilities.runOnUIThread(() -> presentFragment(new CancelAccountDeletionActivity(args)));
-                                } else if (username != null || group != null || sticker != null || message != null || game != null || instantView != null || auth != null || unsupportedUrl != null || lang != null || code != null || wallpaper != null) {
+                                } else if (username != null || group != null || sticker != null || message != null || game != null || auth != null || unsupportedUrl != null || lang != null || code != null || wallPaper != null) {
                                     if (message != null && message.startsWith("@")) {
                                         message = " " + message;
                                     }
-                                    runLinkRequest(intentAccount[0], username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, instantView, auth, lang, unsupportedUrl, code, wallpaper, wallpaperModes, 0);
+                                    runLinkRequest(intentAccount[0], username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, auth, lang, unsupportedUrl, code, wallPaper, 0);
                                 } else {
                                     try (Cursor cursor = getContentResolver().query(intent.getData(), null, null, null, null)) {
                                         if (cursor != null) {
@@ -1523,20 +1566,18 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                 final boolean hasUrl,
                                 final Integer messageId,
                                 final String game,
-                                final String[] instantView,
                                 final HashMap<String, String> auth,
                                 final String lang,
                                 final String unsupportedUrl,
                                 final String code,
-                                final String wallpaper,
-                                final int wallpaperModes,
+                                final TLRPC.TL_wallPaper wallPaper,
                                 final int state) {
         if (state == 0 && UserConfig.getActivatedAccountsCount() >= 2 && auth != null) {
             AlertsCreator.createAccountSelectDialog(this, account -> {
                 if (account != intentAccount) {
                     switchToAccount(account, true);
                 }
-                runLinkRequest(account, username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, instantView, auth, lang, unsupportedUrl, code, wallpaper, wallpaperModes, 1);
+                runLinkRequest(account, username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, auth, lang, unsupportedUrl, code, wallPaper, 1);
             }).show();
             return;
         } else if (code != null) {
@@ -1705,7 +1746,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                         }
                         if (error == null && actionBarLayout != null) {
                             TLRPC.ChatInvite invite = (TLRPC.ChatInvite) response;
-                            if (invite.chat != null && !ChatObject.isLeftFromChat(invite.chat)) {
+                            if (invite.chat != null && (!ChatObject.isLeftFromChat(invite.chat) || !invite.chat.kicked && !TextUtils.isEmpty(invite.chat.username))) {
                                 MessagesController.getInstance(intentAccount).putChat(invite.chat, false);
                                 ArrayList<TLRPC.Chat> chats = new ArrayList<>();
                                 chats.add(invite.chat);
@@ -1725,7 +1766,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                     AlertDialog.Builder builder = new AlertDialog.Builder(LaunchActivity.this);
                                     builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
                                     builder.setMessage(LocaleController.formatString("ChannelJoinTo", R.string.ChannelJoinTo, invite.chat != null ? invite.chat.title : invite.title));
-                                    builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> runLinkRequest(intentAccount, username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, instantView, auth, lang, unsupportedUrl, code, wallpaper, wallpaperModes, 1));
+                                    builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> runLinkRequest(intentAccount, username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, auth, lang, unsupportedUrl, code, wallPaper, 1));
                                     builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
                                     showAlertDialog(builder);
                                 }
@@ -1832,8 +1873,6 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                 }
             });
             presentFragment(fragment, false, true);
-        } else if (instantView != null) {
-
         } else if (auth != null) {
             final int bot_id = Utilities.parseInt(auth.get("bot_id"));
             if (bot_id == 0) {
@@ -1913,25 +1952,47 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                     }
                 }
             }));
-        } else if (wallpaper != null) {
-            TLRPC.TL_account_getWallPaper req = new TLRPC.TL_account_getWallPaper();
-            TLRPC.TL_inputWallPaperSlug inputWallPaperSlug = new TLRPC.TL_inputWallPaperSlug();
-            inputWallPaperSlug.slug = wallpaper;
-            req.wallpaper = inputWallPaperSlug;
-            requestId[0] = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+        } else if (wallPaper != null) {
+            boolean ok = false;
+            if (TextUtils.isEmpty(wallPaper.slug)) {
                 try {
-                    progressDialog.dismiss();
+                    WallpapersListActivity.ColorWallpaper colorWallpaper = new WallpapersListActivity.ColorWallpaper(-100, wallPaper.settings.background_color);
+                    WallpaperActivity wallpaperActivity = new WallpaperActivity(colorWallpaper, null);
+                    AndroidUtilities.runOnUIThread(() -> presentFragment(wallpaperActivity));
+                    ok = true;
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
-                if (response instanceof TLRPC.TL_wallPaper) {
-                    WallpaperActivity wallpaperActivity = new WallpaperActivity(response, null);
-                    wallpaperActivity.setInitialModes(wallpaperModes);
-                    presentFragment(wallpaperActivity);
-                } else {
-                    showAlertDialog(AlertsCreator.createSimpleAlert(LaunchActivity.this, LocaleController.getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text));
-                }
-            }));
+            }
+            if (!ok) {
+                TLRPC.TL_account_getWallPaper req = new TLRPC.TL_account_getWallPaper();
+                TLRPC.TL_inputWallPaperSlug inputWallPaperSlug = new TLRPC.TL_inputWallPaperSlug();
+                inputWallPaperSlug.slug = wallPaper.slug;
+                req.wallpaper = inputWallPaperSlug;
+                requestId[0] = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        progressDialog.dismiss();
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                    if (response instanceof TLRPC.TL_wallPaper) {
+                        TLRPC.TL_wallPaper res = (TLRPC.TL_wallPaper) response;
+                        Object object;
+                        if (wallPaper.settings.background_color != 0) {
+                            WallpapersListActivity.ColorWallpaper colorWallpaper = new WallpapersListActivity.ColorWallpaper(-1, wallPaper.settings.background_color, res.id, wallPaper.settings.intensity / 100.0f, wallPaper.settings.motion, null);
+                            colorWallpaper.pattern = res;
+                            object = colorWallpaper;
+                        } else {
+                            object = res;
+                        }
+                        WallpaperActivity wallpaperActivity = new WallpaperActivity(object, null);
+                        wallpaperActivity.setInitialModes(wallPaper.settings.blur, wallPaper.settings.motion);
+                        presentFragment(wallpaperActivity);
+                    } else {
+                        showAlertDialog(AlertsCreator.createSimpleAlert(LaunchActivity.this, LocaleController.getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text));
+                    }
+                }));
+            }
         }
 
         if (requestId[0] != 0) {
@@ -2592,10 +2653,11 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             }
         } else if (id == NotificationCenter.needSetDayNightTheme) {
             Theme.ThemeInfo theme = (Theme.ThemeInfo) args[0];
-            actionBarLayout.animateThemedValues(theme);
+            boolean nigthTheme = (Boolean) args[1];
+            actionBarLayout.animateThemedValues(theme, nigthTheme);
             if (AndroidUtilities.isTablet()) {
-                layersActionBarLayout.animateThemedValues(theme);
-                rightActionBarLayout.animateThemedValues(theme);
+                layersActionBarLayout.animateThemedValues(theme, nigthTheme);
+                rightActionBarLayout.animateThemedValues(theme, nigthTheme);
             }
         } else if (id == NotificationCenter.notificationsCountUpdated) {
             if (sideMenu != null) {
@@ -3050,6 +3112,20 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (!mainFragmentsStack.isEmpty() && (!PhotoViewer.hasInstance() || !PhotoViewer.getInstance().isVisible()) && event.getRepeatCount() == 0 && event.getAction() == KeyEvent.ACTION_DOWN && (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP || event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+            if (fragment instanceof ChatActivity) {
+                if (((ChatActivity) fragment).maybePlayVisibleVideo()) {
+                    return true;
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

@@ -1,0 +1,73 @@
+{
+  "project_info": {
+    "project_number": "326794357017",
+    "firebase_url": "https://messenger-28d82.firebaseio.com",
+    "project_id": "messenger-28d82",
+    "storage_bucket": "messenger-28d82.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326794357017:android:ced908e3a237f308",
+        "android_client_info": {
+          "package_name": "org.cloudveil.messenger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326794357017-570prpvsfon7qcdv8u7frvr70tcicga0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBefMpjsbqbmch1TOvCbhycbjKrY68jK4U"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326794357017:android:ecf635a934db5edd",
+        "android_client_info": {
+          "package_name": "org.cloudveil.messenger.beta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326794357017-570prpvsfon7qcdv8u7frvr70tcicga0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBefMpjsbqbmch1TOvCbhycbjKrY68jK4U"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

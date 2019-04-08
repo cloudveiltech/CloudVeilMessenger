@@ -1,0 +1,22 @@
+Executable : D:\android-ndk-r16b\ndk-build.cmd
+arguments : 
+NDK_PROJECT_PATH=null
+APP_BUILD_SCRIPT=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\jni\Android.mk
+NDK_APPLICATION_MK=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\jni\Application.mk
+APP_ABI=armeabi-v7a
+NDK_ALL_ABIS=armeabi-v7a
+NDK_DEBUG=0
+APP_PLATFORM=android-16
+NDK_OUT=D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/afat/HA/obj
+NDK_LIBS_OUT=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\build\intermediates\ndkBuild\afat\HA\lib
+NDK_APPLICATION_MK:=jni/Application.mk
+APP_PLATFORM:=android-16
+-j8
+LOCAL_SHORT_COMMANDS=true
+APP_SHORT_COMMANDS=true
+APP_SHORT_COMMANDS=false
+LOCAL_SHORT_COMMANDS=false
+-B
+-n
+jvmArgs : 
+

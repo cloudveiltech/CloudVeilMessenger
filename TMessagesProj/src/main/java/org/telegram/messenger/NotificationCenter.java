@@ -87,6 +87,7 @@ public class NotificationCenter {
     public static final int updateMentionsCount = totalEvents++;
     public static final int didUpdatePollResults = totalEvents++;
     public static final int chatOnlineCountDidLoad = totalEvents++;
+    public static final int videoLoadingStateChanged = totalEvents++;
 
     public static final int httpFileDidLoad = totalEvents++;
     public static final int httpFileDidFailedLoad = totalEvents++;
@@ -110,6 +111,7 @@ public class NotificationCenter {
     public static final int messagePlayingPlayStateChanged = totalEvents++;
     public static final int messagePlayingDidStart = totalEvents++;
     public static final int messagePlayingDidSeek = totalEvents++;
+    public static final int messagePlayingGoingToStop = totalEvents++;
     public static final int recordProgressChanged = totalEvents++;
     public static final int recordStarted = totalEvents++;
     public static final int recordStartError = totalEvents++;
@@ -134,6 +136,7 @@ public class NotificationCenter {
     public static final int pushMessagesUpdated = totalEvents++;
     public static final int stopEncodingService = totalEvents++;
     public static final int wallpapersDidLoad = totalEvents++;
+    public static final int wallpapersNeedReload = totalEvents++;
     public static final int didReceiveSmsCode = totalEvents++;
     public static final int didReceiveCall = totalEvents++;
     public static final int emojiDidLoad = totalEvents++;
@@ -154,14 +157,14 @@ public class NotificationCenter {
     public static final int playerDidStartPlaying = totalEvents++;
     public static final int closeSearchByActiveAction = totalEvents++;
 
+    //CloudVeil start
+    public static final int filterDialogsReady = totalEvents++;
+    //CloudVeil end
+
     private SparseArray<ArrayList<Object>> observers = new SparseArray<>();
     private SparseArray<ArrayList<Object>> removeAfterBroadcast = new SparseArray<>();
     private SparseArray<ArrayList<Object>> addAfterBroadcast = new SparseArray<>();
     private ArrayList<DelayedPost> delayedPosts = new ArrayList<>(10);
-
-    //CloudVeil start
-    public static final int filterDialogsReady = totalEvents++;
-    //CloudVeil end
 
     private int broadcasting = 0;
     private boolean animationInProgress;

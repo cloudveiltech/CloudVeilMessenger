@@ -115,7 +115,7 @@ import org.telegram.ui.Components.UndoView;
 import java.util.ArrayList;
 
 public class DialogsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
-
+    
     private RecyclerListView listView;
     private LinearLayoutManager layoutManager;
     private DialogsAdapter dialogsAdapter;
@@ -172,6 +172,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private long openedDialogId;
     private boolean cantSendToChannels;
     private boolean allowSwitchAccount;
+    private boolean checkCanWrite;
 
     private DialogsActivityDelegate delegate;
 
@@ -195,6 +196,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             selectAlertStringGroup = arguments.getString("selectAlertStringGroup");
             addToGroupAlertString = arguments.getString("addToGroupAlertString");
             allowSwitchAccount = arguments.getBoolean("allowSwitchAccount");
+            checkCanWrite = arguments.getBoolean("checkCanWrite", true);
         }
 
         if (dialogsType == 0) {
@@ -412,14 +414,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 searching = false;
                 searchWas = false;
                 if (listView != null) {
-                    //CloudVeil start
-                    if (MessagesController.getInstance(currentAccount).loadingDialogs && getDialogsArray().isEmpty()) {
-                        //CloudVeil end
-                        listView.setEmptyView(progressView);
-                    } else {
-                        progressView.setVisibility(View.GONE);
-                        listView.setEmptyView(null);
-                    }
+                    listView.setEmptyView(progressView);
                     searchEmptyView.setVisibility(View.GONE);
                     if (!onlySelect) {
                         floatingButtonContainer.setVisibility(View.VISIBLE);
@@ -684,7 +679,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         };
         fragmentView = contentView;
-
+        
         listView = new RecyclerListView(context);
         listView.setVerticalScrollBarEnabled(true);
         listView.setItemAnimator(null);
@@ -930,7 +925,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     return false;
                 }
                 final TLRPC.TL_dialog dialog;
-                ArrayList<TLRPC.TL_dialog> dialogs = getDialogsArray();
+                ArrayList<TLRPC.TL_dialog> dialogs = getDialogsArray(dialogsType, currentAccount);
                 if (position < 0 || position >= dialogs.size()) {
                     return false;
                 }
@@ -1024,14 +1019,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         TLRPC.Chat chat = isChat ? MessagesController.getInstance(currentAccount).getChat(-lower_id) : null;
                         if (lower_id == 0) {
                             TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance(currentAccount).getEncryptedChat(high_id);
-                            if (encryptedChat == null) {
-                                return false;
+                            if (encryptedChat != null) {
+                                user = MessagesController.getInstance(currentAccount).getUser(encryptedChat.user_id);
+                            } else {
+                                user = new TLRPC.TL_userEmpty();
                             }
-                            user = MessagesController.getInstance(currentAccount).getUser(encryptedChat.user_id);
                         } else {
                             user = !isChat && lower_id > 0 && high_id != 1 ? MessagesController.getInstance(currentAccount).getUser(lower_id) : null;
                         }
-                        final boolean isBot = user != null && user.bot;
+                        final boolean isBot = user != null && user.bot && !MessagesController.isSupportUser(user);
 
                         builder.setItems(new CharSequence[]{
                                 dialog.pinned ? LocaleController.getString("UnpinFromTop", R.string.UnpinFromTop) : LocaleController.getString("PinToTop", R.string.PinToTop),
@@ -1249,7 +1245,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             });
         }
-        unreadFloatingButtonCounter.setTextColor(Theme.getColor(Theme.key_chat_goDownButtonCounter));
+        unreadFloatingButtonCounter.setColors(Theme.getColor(Theme.key_chat_goDownButtonCounter));
         unreadFloatingButtonCounter.setGravity(Gravity.CENTER);
         unreadFloatingButtonCounter.setBackgroundDrawable(Theme.createRoundRectDrawable(AndroidUtilities.dp(11.5f), Theme.getColor(Theme.key_chat_goDownButtonCounterBackground)));
         unreadFloatingButtonCounter.setMinWidth(AndroidUtilities.dp(23));
@@ -1285,7 +1281,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     return;
                 }
                 if (visibleItemCount > 0) {
-                    if (layoutManager.findLastVisibleItemPosition() >= getDialogsArray().size() - 10) {
+                    if (layoutManager.findLastVisibleItemPosition() >= getDialogsArray(dialogsType, currentAccount).size() - 10) {
                         boolean fromCache = !MessagesController.getInstance(currentAccount).dialogsEndReached;
                         if (fromCache || !MessagesController.getInstance(currentAccount).serverDialogsEndReached) {
                             MessagesController.getInstance(currentAccount).loadDialogs(-1, 100, fromCache);
@@ -1402,17 +1398,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         });
 
-        //CloudVeil start
-        if (MessagesController.getInstance(currentAccount).loadingDialogs && getDialogsArray().isEmpty()) {
-            //CloudVeil end
-            searchEmptyView.setVisibility(View.GONE);
-            listView.setEmptyView(progressView);
-        } else {
-            searchEmptyView.setVisibility(View.GONE);
-            progressView.setVisibility(View.GONE);
-            listView.setEmptyView(null);
-        }
-
+        listView.setEmptyView(progressView);
         if (searchString != null) {
             actionBar.openSearchField(searchString, false);
         }
@@ -1572,7 +1558,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (activity != null) {
                 checkPermission = false;
                 if (activity.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED || activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    if (UserConfig.getInstance(currentAccount).syncContacts && activity.shouldShowRequestPermissionRationale(Manifest.permission.READ_CONTACTS)) {
+                    if (askAboutContacts && UserConfig.getInstance(currentAccount).syncContacts && activity.shouldShowRequestPermissionRationale(Manifest.permission.READ_CONTACTS)) {
                         AlertDialog.Builder builder = AlertsCreator.createContactsPermissionDialog(activity, param -> {
                             askAboutContacts = param != 0;
                             MessagesController.getGlobalNotificationsSettings().edit().putBoolean("askAboutContacts", askAboutContacts).commit();
@@ -1638,6 +1624,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         super.onPause();
         if (commentView != null) {
             commentView.onResume();
+        }
+        if (undoView != null) {
+            undoView.hide(true, false);
         }
     }
 
@@ -1866,7 +1855,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     protected void onDialogDismiss(Dialog dialog) {
         super.onDialogDismiss(dialog);
-        if (permissionDialog != null && dialog == permissionDialog && getParentActivity() != null) {
+        if (permissionDialog != null && dialog == permissionDialog && getParentActivity() != null && askAboutContacts) {
             askForPermissons(false);
         }
     }
@@ -1921,11 +1910,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoad) {
             ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         }
+
         if (id == NotificationCenter.filterDialogsReady) {
             if (dialogsAdapter != null) {
                 dialogsAdapter.notifyDataSetChanged();
             }
-
             //CloudVeil end
 
             //checkUnreadCount(true);
@@ -2056,23 +2045,24 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         }
     }
-    private ArrayList<TLRPC.TL_dialog> getDialogsArray() {
-        //CloudVeil start
-        ArrayList<TLRPC.TL_dialog> dialogs = null;
+
+    public static ArrayList<TLRPC.TL_dialog> getDialogsArray(int dialogsType, int currentAccount) {
         if (dialogsType == 0) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogs;
+            return MessagesController.getInstance(currentAccount).dialogs;
         } else if (dialogsType == 1) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsServerOnly;
+            return MessagesController.getInstance(currentAccount).dialogsServerOnly;
         } else if (dialogsType == 2) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
+            return MessagesController.getInstance(currentAccount).dialogsCanAddUsers;
         } else if (dialogsType == 3) {
-            dialogs = MessagesController.getInstance(currentAccount).dialogsForward;
-        } else {
-            return null;
+            return MessagesController.getInstance(currentAccount).dialogsForward;
+        } else if (dialogsType == 4) {
+            return MessagesController.getInstance(currentAccount).dialogsUsersOnly;
+        } else if (dialogsType == 5) {
+            return MessagesController.getInstance(currentAccount).dialogsChannelsOnly;
+        } else if (dialogsType == 6) {
+            return MessagesController.getInstance(currentAccount).dialogsGroupsOnly;
         }
-        dialogs = MessagesController.getInstance(currentAccount).filterDialogs(dialogs);
-        //CloudVeil end
-        return dialogs;
+        return null;
     }
 
     public void setSideMenu(RecyclerView recyclerView) {
@@ -2103,7 +2093,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
         floatingHidden = hide;
         AnimatorSet animatorSet = new AnimatorSet();
-        animatorSet.playTogether(ObjectAnimator.ofFloat(floatingButtonContainer, View.TRANSLATION_Y, (floatingHidden ? AndroidUtilities.dp(100) : -additionalFloatingTranslation))/*,
+        animatorSet.playTogether(ObjectAnimator.ofFloat(floatingButtonContainer, View.TRANSLATION_Y,  (floatingHidden ? AndroidUtilities.dp(100) : -additionalFloatingTranslation))/*,
                 ObjectAnimator.ofFloat(unreadFloatingButtonContainer, View.TRANSLATION_Y, floatingHidden ? AndroidUtilities.dp(74) : 0)*/);
         animatorSet.setDuration(300);
         animatorSet.setInterpolator(floatingInterpolator);
@@ -2164,7 +2154,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void didSelectResult(final long dialog_id, boolean useAlert, final boolean param) {
-        if (addToGroupAlertString == null) {
+        if (addToGroupAlertString == null && checkCanWrite) {
             if ((int) dialog_id < 0) {
                 TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-(int) dialog_id);
                 if (ChatObject.isChannel(chat) && !chat.megagroup && (cantSendToChannels || !ChatObject.isCanWriteToChannel(-(int) dialog_id, currentAccount))) {

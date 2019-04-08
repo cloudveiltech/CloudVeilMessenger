@@ -157,6 +157,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                                 if (ApplicationLoader.mainInterfacePaused && ApplicationLoader.externalInterfacePaused) {
                                     throw new RuntimeException("app paused");
                                 }
+
                                 //CloudVeil start
                                 CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                                 //CloudVeil end

@@ -705,8 +705,12 @@ public class SecretChatHelper {
                             if (isSecretVisibleMessage(newMsgObj)) {
                                 newMsgObj.date = res.date;
                             }
+                            int existFlags;
                             if (newMsg != null && res.file instanceof TLRPC.TL_encryptedFile) {
                                 updateMediaPaths(newMsg, res.file, req, originalPath);
+                                existFlags = newMsg.getMediaExistanceFlags();
+                            } else {
+                                existFlags = 0;
                             }
                             MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(() -> {
                                 if (isSecretInvisibleMessage(newMsgObj)) {
@@ -715,7 +719,7 @@ public class SecretChatHelper {
                                 MessagesStorage.getInstance(currentAccount).updateMessageStateAndId(newMsgObj.random_id, newMsgObj.id, newMsgObj.id, res.date, false, 0);
                                 AndroidUtilities.runOnUIThread(() -> {
                                     newMsgObj.send_state = MessageObject.MESSAGE_SEND_STATE_SENT;
-                                    NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageReceivedByServer, newMsgObj.id, newMsgObj.id, newMsgObj, newMsgObj.dialog_id, 0L);
+                                    NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.messageReceivedByServer, newMsgObj.id, newMsgObj.id, newMsgObj, newMsgObj.dialog_id, 0L, existFlags);
                                     SendMessagesHelper.getInstance(currentAccount).processSentMessage(newMsgObj.id);
                                     if (MessageObject.isVideoMessage(newMsgObj) || MessageObject.isNewGifMessage(newMsgObj) || MessageObject.isRoundVideoMessage(newMsgObj)) {
                                         SendMessagesHelper.getInstance(currentAccount).stopVideoService(attachPath);

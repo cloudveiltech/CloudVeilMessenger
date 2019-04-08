@@ -1,0 +1,53 @@
+{
+  "buildFiles": [
+    "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk",
+    "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk"
+  ],
+  "cleanCommands": [
+    "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue clean"
+  ],
+  "libraries": {
+    "crypto_armeabi-v7a-armv7Release-armeabi-v7a": {
+      "artifactName": "crypto_armeabi-v7a",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libcrypto_armeabi-v7a.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libcrypto_armeabi-v7a.a"
+    },
+    "cpufeatures-armv7Release-armeabi-v7a": {
+      "artifactName": "cpufeatures",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libcpufeatures.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libcpufeatures.a"
+    },
+    "tmessages.30-armv7Release-armeabi-v7a": {
+      "artifactName": "tmessages.30",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libtmessages.30.so",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libtmessages.30.so"
+    },
+    "sqlite-armv7Release-armeabi-v7a": {
+      "artifactName": "sqlite",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libsqlite.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libsqlite.a"
+    },
+    "tgnet-armv7Release-armeabi-v7a": {
+      "artifactName": "tgnet",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libtgnet.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libtgnet.a"
+    },
+    "webp-armv7Release-armeabi-v7a": {
+      "artifactName": "webp",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libwebp.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libwebp.a"
+    },
+    "flac-armv7Release-armeabi-v7a": {
+      "artifactName": "flac",
+      "buildCommand": "D:\\android-ndk-r16b\\ndk-build.cmd NDK_PROJECT_PATH\u003dnull APP_BUILD_SCRIPT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Android.mk NDK_APPLICATION_MK\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\jni\\Application.mk APP_ABI\u003darmeabi-v7a NDK_ALL_ABIS\u003darmeabi-v7a NDK_DEBUG\u003d0 APP_PLATFORM\u003dandroid-16 NDK_OUT\u003dD:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj NDK_LIBS_OUT\u003dD:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\lib NDK_APPLICATION_MK:\u003djni/Application.mk APP_PLATFORM:\u003dandroid-16 -j8 LOCAL_SHORT_COMMANDS\u003dtrue APP_SHORT_COMMANDS\u003dtrue D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/armv7/release/obj/local/armeabi-v7a/libflac.a",
+      "abi": "armeabi-v7a",
+      "output": "D:\\work\\CloudVeilMessenger\\CloudVeilMessenger\\TMessagesProj\\build\\intermediates\\ndkBuild\\armv7\\release\\obj\\local\\armeabi-v7a\\libflac.a"
+    }
+  }
+}

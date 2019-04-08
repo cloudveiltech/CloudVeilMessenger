@@ -40,6 +40,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -126,8 +127,8 @@ public class ActionBarLayout extends FrameLayout {
             //
             try {
                 return (!inPreviewMode || this != containerView) && super.dispatchTouchEvent(ev);
-            } catch (Throwable ignore) {
-
+            } catch (Throwable e) {
+                FileLog.e(e);
             }
             return false;
         }
@@ -171,6 +172,7 @@ public class ActionBarLayout extends FrameLayout {
     private float themeAnimationValue;
     private boolean animateThemeAfterAnimation;
     private Theme.ThemeInfo animateSetThemeAfterAnimation;
+    private boolean animateSetThemeNightAfterAnimation;
     private boolean rebuildAfterAnimation;
     private boolean rebuildLastAfterAnimation;
     private boolean showLastAfterAnimation;
@@ -1057,7 +1059,11 @@ public class ActionBarLayout extends FrameLayout {
             ViewGroup parent = (ViewGroup) fragmentView.getParent();
             if (parent != null) {
                 previousFragment.onRemoveFromParent();
-                parent.removeView(fragmentView);
+                try {
+                    parent.removeView(fragmentView);
+                } catch (Exception ignore) {
+
+                }
             }
             containerView.addView(fragmentView);
             LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) fragmentView.getLayoutParams();
@@ -1287,10 +1293,11 @@ public class ActionBarLayout extends FrameLayout {
         return themeAnimationValue;
     }
 
-    public void animateThemedValues(Theme.ThemeInfo theme) {
+    public void animateThemedValues(Theme.ThemeInfo theme, boolean nightTheme) {
         if (transitionAnimationInProgress || startedTracking) {
             animateThemeAfterAnimation = true;
             animateSetThemeAfterAnimation = theme;
+            animateSetThemeNightAfterAnimation = nightTheme;
             return;
         }
         if (themeAnimatorSet != null) {
@@ -1324,7 +1331,7 @@ public class ActionBarLayout extends FrameLayout {
                     }
                 }
                 if (i == 0) {
-                    Theme.applyTheme(theme, true);
+                    Theme.applyTheme(theme, nightTheme);
                 }
                 animateEndColors[i] = new int[themeAnimatorDescriptions[i].length];
                 for (int a = 0; a < themeAnimatorDescriptions[i].length; a++) {
@@ -1436,7 +1443,7 @@ public class ActionBarLayout extends FrameLayout {
             rebuildAllFragmentViews(rebuildLastAfterAnimation, showLastAfterAnimation);
             rebuildAfterAnimation = false;
         } else if (animateThemeAfterAnimation) {
-            animateThemedValues(animateSetThemeAfterAnimation);
+            animateThemedValues(animateSetThemeAfterAnimation, animateSetThemeNightAfterAnimation);
             animateSetThemeAfterAnimation = null;
             animateThemeAfterAnimation = false;
         }

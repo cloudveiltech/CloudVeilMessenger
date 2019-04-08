@@ -1722,7 +1722,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
             TLRPC.TL_messages_stickerSet pack = packs.get(a);
             //CLoudVeil start
             if (pack.set.archived || pack.documents == null || pack.documents.isEmpty() || !DataQuery.getInstance(currentAccount).isStickerAllowed(pack)) {
-            //CloudVeil end
+                //CloudVeil end
                 continue;
             }
             stickerSets.add(pack);
@@ -1877,7 +1877,10 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
     public void updateUIColors() {
         if (AndroidUtilities.isInMultiwindow || forseMultiwindowLayout) {
-            getBackground().setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_emojiPanelBackground), PorterDuff.Mode.MULTIPLY));
+            Drawable background = getBackground();
+            if (background != null) {
+                background.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chat_emojiPanelBackground), PorterDuff.Mode.MULTIPLY));
+            }
         } else {
             setBackgroundColor(Theme.getColor(Theme.key_chat_emojiPanelBackground));
             emojiTab.setBackgroundColor(Theme.getColor(Theme.key_chat_emojiPanelBackground));

@@ -49,56 +49,55 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DataQuery;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
+import org.telegram.messenger.R;
 import org.telegram.messenger.SecretChatHelper;
 import org.telegram.messenger.SendMessagesHelper;
+import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
-import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.browser.Browser;
+import org.telegram.messenger.Utilities;
 import org.telegram.messenger.support.widget.LinearLayoutManager;
 import org.telegram.messenger.support.widget.RecyclerView;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.messenger.ContactsController;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.R;
-import org.telegram.messenger.MessageObject;
-import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.Utilities;
+import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.AboutLinkCell;
 import org.telegram.ui.Cells.DividerCell;
 import org.telegram.ui.Cells.EmptyCell;
 import org.telegram.ui.Cells.HeaderCell;
+import org.telegram.ui.Cells.NotificationsCheckCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextDetailCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.UserCell;
-import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.ActionBarMenu;
-import org.telegram.ui.ActionBar.ActionBarMenuItem;
-import org.telegram.ui.Cells.NotificationsCheckCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
-import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.IdenticonDrawable;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.voip.VoIPHelper;
 
 import java.util.ArrayList;
@@ -219,15 +218,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private PhotoViewer.PhotoViewerProvider provider = new PhotoViewer.EmptyPhotoViewerProvider() {
 
         @Override
-        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index) {
+        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview) {
             if (fileLocation == null) {
                 return null;
             }
 
             TLRPC.FileLocation photoBig = null;
-
-            //CloudVeil start
             if (user_id != 0) {
+                //CloudVeil start
                 boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
                 if (user_id == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
                     allowPhoto = UserConfig.getInstance(currentAccount).getCurrentUser().id == user_id && !GlobalSecuritySettings.getLockDisableOwnPhoto();
@@ -237,9 +235,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && user.photo != null && user.photo.photo_big != null && allowPhoto) {
                     photoBig = user.photo.photo_big;
                 }
+                //CloudVeil end
             } else if (chat_id != 0) {
                 TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(chat_id);
-                if (chat != null && chat.photo != null && chat.photo.photo_big != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                if (chat != null && chat.photo != null && chat.photo.photo_big != null) {
                     photoBig = chat.photo.photo_big;
                 }
             }
@@ -455,7 +454,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (user == null) {
                         return;
                     }
-                    if (!isBot) {
+                    if (!isBot || MessagesController.isSupportUser(user)) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         if (!userBlocked) {
                             builder.setMessage(LocaleController.getString("AreYouSureBlockContact", R.string.AreYouSureBlockContact));
@@ -606,6 +605,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     final AlertDialog progressDialog[] = new AlertDialog[]{new AlertDialog(getParentActivity(), 3)};
                     TLRPC.TL_messages_getStatsURL req = new TLRPC.TL_messages_getStatsURL();
                     req.peer = MessagesController.getInstance(currentAccount).getInputPeer(did);
+                    req.params = "";
                     int requestId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                         try {
                             progressDialog[0].dismiss();
@@ -615,7 +615,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         progressDialog[0] = null;
                         if (response != null) {
                             TLRPC.TL_statsURL url = (TLRPC.TL_statsURL) response;
-                            Browser.openUrl(getParentActivity(), url.url);
+                            presentFragment(new WebviewActivity(url.url, -chat_id));
                         }
                     }));
                     if (progressDialog[0] == null) {
@@ -1053,6 +1053,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             nameTextView[a].setPivotX(0);
             nameTextView[a].setPivotY(0);
             nameTextView[a].setAlpha(a == 0 ? 0.0f : 1.0f);
+            if (a == 1) {
+                nameTextView[a].setScrollNonFitText(true);
+                nameTextView[a].setBackgroundColor(AvatarDrawable.getProfileBackColorForId(user_id != 0 || ChatObject.isChannel(chat_id, currentAccount) && !currentChat.megagroup ? 5 : chat_id));
+            }
             frameLayout.addView(nameTextView[a], LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 118, 0, a == 0 ? 48 : 0, 0));
 
             onlineTextView[a] = new SimpleTextView(context);
@@ -1109,13 +1113,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(new ChatActivity(args), true);
                 }
             });
-            //CloudVeil start
-        } else if (chat_id != 0) {
+        }//CloudVeil start
+        else if (chat_id != 0) {
             if (GlobalSecuritySettings.getLockDisableOthersPhoto() && writeButton != null) {
                 writeButton.setVisibility(View.GONE);
             }
         }
         //CloudVeil end
+
         needLayout();
 
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -2597,13 +2602,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(user_id);
             TLRPC.FileLocation photo = null;
             TLRPC.FileLocation photoBig = null;
-
             //CloudVeil start
             if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 photo = user.photo.photo_small;
                 photoBig = user.photo.photo_big;
             }
             //CloudVeil end
+
             avatarDrawable.setInfo(user);
             avatarImage.setImage(photo, "50_50", avatarDrawable, user);
 
@@ -2612,8 +2617,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (user.id == UserConfig.getInstance(currentAccount).getClientUserId()) {
                 newString2 = LocaleController.getString("ChatYourSelf", R.string.ChatYourSelf);
                 newString = LocaleController.getString("ChatYourSelfName", R.string.ChatYourSelfName);
-            } else if (user.id == 333000 || user.id == 777000) {
+            } else if (user.id == 333000 || user.id == 777000 || user.id == 42777) {
                 newString2 = LocaleController.getString("ServiceNotifications", R.string.ServiceNotifications);
+            } else if (MessagesController.isSupportUser(user)) {
+                newString2 = LocaleController.getString("SupportStatus", R.string.SupportStatus);
             } else if (isBot) {
                 newString2 = LocaleController.getString("Bot", R.string.Bot);
             } else {
@@ -2756,6 +2763,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 photoBig = chat.photo.photo_big;
             }
             //CloudVeil end
+
             avatarDrawable.setInfo(chat);
             avatarImage.setImage(photo, "50_50", avatarDrawable, chat);
             avatarImage.getImageReceiver().setVisible(!PhotoViewer.isShowingImage(photoBig), false);
@@ -2770,31 +2778,36 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         ActionBarMenuItem item = null;
         if (user_id != 0) {
             if (UserConfig.getInstance(currentAccount).getClientUserId() != user_id) {
+                TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(user_id);
+                if (user == null) {
+                    return;
+                }
                 if (userInfo != null && userInfo.phone_calls_available) {
                     callItem = menu.addItem(call_item, R.drawable.ic_call_white_24dp);
                 }
-                if (ContactsController.getInstance(currentAccount).contactsDict.get(user_id) == null) {
-                    TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(user_id);
-                    if (user == null) {
-                        return;
-                    }
+                if (isBot || ContactsController.getInstance(currentAccount).contactsDict.get(user_id) == null) {
                     item = menu.addItem(10, R.drawable.ic_ab_other);
-                    if (isBot) {
-                        if (!user.bot_nochats) {
-                            item.addSubItem(invite_to_group, LocaleController.getString("BotInvite", R.string.BotInvite));
+                    if (MessagesController.isSupportUser(user)) {
+                        if (userBlocked) {
+                            item.addSubItem(block_contact, LocaleController.getString("Unblock", R.string.Unblock));
                         }
-                        item.addSubItem(share, LocaleController.getString("BotShare", R.string.BotShare));
-                    }
-
-                    if (user.phone != null && user.phone.length() != 0) {
-                        item.addSubItem(add_contact, LocaleController.getString("AddContact", R.string.AddContact));
-                        item.addSubItem(share_contact, LocaleController.getString("ShareContact", R.string.ShareContact));
-                        item.addSubItem(block_contact, !userBlocked ? LocaleController.getString("BlockContact", R.string.BlockContact) : LocaleController.getString("Unblock", R.string.Unblock));
                     } else {
                         if (isBot) {
-                            item.addSubItem(block_contact, !userBlocked ? LocaleController.getString("BotStop", R.string.BotStop) : LocaleController.getString("BotRestart", R.string.BotRestart));
-                        } else {
+                            if (!user.bot_nochats) {
+                                item.addSubItem(invite_to_group, LocaleController.getString("BotInvite", R.string.BotInvite));
+                            }
+                            item.addSubItem(share, LocaleController.getString("BotShare", R.string.BotShare));
+                        }
+                        if (user.phone != null && user.phone.length() != 0) {
+                            item.addSubItem(add_contact, LocaleController.getString("AddContact", R.string.AddContact));
+                            item.addSubItem(share_contact, LocaleController.getString("ShareContact", R.string.ShareContact));
                             item.addSubItem(block_contact, !userBlocked ? LocaleController.getString("BlockContact", R.string.BlockContact) : LocaleController.getString("Unblock", R.string.Unblock));
+                        } else {
+                            if (isBot) {
+                                item.addSubItem(block_contact, !userBlocked ? LocaleController.getString("BotStop", R.string.BotStop) : LocaleController.getString("BotRestart", R.string.BotRestart));
+                            } else {
+                                item.addSubItem(block_contact, !userBlocked ? LocaleController.getString("BlockContact", R.string.BlockContact) : LocaleController.getString("Unblock", R.string.Unblock));
+                            }
                         }
                     }
                 } else {
@@ -2812,7 +2825,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (chat_id > 0) {
                 TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(chat_id);
                 if (ChatObject.isChannel(chat)) {
-                    if (ChatObject.hasAdminRights(chat)) {
+                    if (ChatObject.hasAdminRights(chat) || ChatObject.canChangeChatInfo(chat)) {
                         editItem = menu.addItem(edit_channel, R.drawable.group_edit_profile);
                     }
                     if (!chat.megagroup && chatInfo != null && chatInfo.can_view_stats) {
@@ -3278,6 +3291,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 new ThemeDescription(topView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_avatar_backgroundActionBarBlue),
                 new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_avatar_actionBarSelectorBlue),
                 new ThemeDescription(nameTextView[1], ThemeDescription.FLAG_TEXTCOLOR, null, null, null, null, Theme.key_profile_title),
+                new ThemeDescription(nameTextView[1], ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_avatar_backgroundActionBarBlue),
                 new ThemeDescription(onlineTextView[1], ThemeDescription.FLAG_TEXTCOLOR, null, null, null, null, Theme.key_avatar_subtitleInProfileBlue),
 
                 new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector),

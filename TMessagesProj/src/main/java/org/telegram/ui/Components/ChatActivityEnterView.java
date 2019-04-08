@@ -96,39 +96,22 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
 
     public interface ChatActivityEnterViewDelegate {
         void onMessageSend(CharSequence message);
-
         void needSendTyping();
-
         void onTextChanged(CharSequence text, boolean bigChange);
-
         void onTextSelectionChanged(int start, int end);
-
         void onTextSpansChanged(CharSequence text);
-
         void onAttachButtonHidden();
-
         void onAttachButtonShow();
-
         void onWindowSizeChanged(int size);
-
         void onStickersTab(boolean opened);
-
         void onMessageEditEnd(boolean loading);
-
         void didPressedAttachButton();
-
         void needStartRecordVideo(int state);
-
         void needChangeVideoPreviewState(int state, float seekProgress);
-
         void onSwitchRecordMode(boolean video);
-
         void onPreAudioVideoRecord();
-
         void needStartRecordAudio(int state);
-
         void needShowMediaBanHint();
-
         void onStickersExpandedChange();
     }
 
@@ -1592,6 +1575,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             sizeNotifierLayout.removeView(emojiView);
             emojiView = null;
         }
+
         //CloudVeil start
         if (!GlobalSecuritySettings.isLockDisableStickers()) {
             allowStickers = value;
@@ -1986,6 +1970,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (!SharedConfig.inappCamera) {
             hasRecordVideo = false;
         }
+
         //CloudVeil start
         if (GlobalSecuritySettings.getDisabledVideoInlineRecording()) {
             hasRecordVideo = false;
@@ -2868,7 +2853,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             return;
         }
         if (focus) {
-            if (!searchingStickers && !messageEditText.isFocused()) {
+             if (!searchingStickers && !messageEditText.isFocused()) {
                 messageEditText.postDelayed(() -> {
                     boolean allowFocus;
                     if (AndroidUtilities.isTablet()) {
@@ -3237,7 +3222,6 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                     }
                 }
                 //CloudVeil end
-
                 parentFragment.showDialog(new StickersAlert(parentActivity, parentFragment, inputStickerSet, null, ChatActivityEnterView.this));
             }
 

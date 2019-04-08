@@ -207,7 +207,6 @@ public class SearchAdapterHelper {
                                         if (!allowBots && user.bot || !allowSelf && user.self) {
                                             continue;
                                         }
-                                        //globalSearch.add(user);
                                         //CloudVeil Start
                                         if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(user);

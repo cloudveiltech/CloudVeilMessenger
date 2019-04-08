@@ -9,6 +9,7 @@
 package org.telegram.messenger;
 
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Build;
 import android.text.Layout;
 import android.text.Spannable;
@@ -80,6 +81,7 @@ public class MessageObject {
     public String monthKey;
     public boolean deleted;
     public float audioProgress;
+    public int audioProgressMs;
     public float bufferedProgress;
     public float gifState;
     public int audioProgressSec;
@@ -98,6 +100,8 @@ public class MessageObject {
     public String customReplyName;
     public boolean useCustomPhoto;
     public StringBuilder botButtonsLayout;
+
+    public boolean hadAnimationNotReadyLoading;
 
     public boolean cancelEditing;
 
@@ -421,6 +425,8 @@ public class MessageObject {
             float maxAspectRatio = maxSizeWidth / maxSizeHeight;
             averageAspectRatio = averageAspectRatio / count;
 
+            float minH = AndroidUtilities.dp(100) / maxSizeHeight;
+
             if (!forceCalc && (count == 2 || count == 3 || count == 4)) {
                 if (count == 2) {
                     GroupedMessagePosition position1 = posArray.get(0);
@@ -483,6 +489,9 @@ public class MessageObject {
 
                         int width = maxSizeWidth / 2;
                         float secondHeight = Math.min(maxSizeHeight - firstHeight, Math.round(Math.min(width / position2.aspectRatio, width / position3.aspectRatio))) / maxSizeHeight;
+                        if (secondHeight < minH) {
+                            secondHeight = minH;
+                        }
                         position2.set(0, 0, 1, 1, width, secondHeight, POSITION_FLAG_LEFT | POSITION_FLAG_BOTTOM);
                         position3.set(1, 1, 1, 1, width, secondHeight, POSITION_FLAG_RIGHT | POSITION_FLAG_BOTTOM);
                         maxX = 1;
@@ -508,6 +517,9 @@ public class MessageObject {
                         }
                         h = Math.min(maxSizeHeight - h0, h);
                         h /= maxSizeHeight;
+                        if (h < minH) {
+                            h = minH;
+                        }
                         position2.set(0, 0, 1, 1, w0, h, POSITION_FLAG_LEFT | POSITION_FLAG_BOTTOM);
                         position3.set(1, 1, 1, 1, w1, h, POSITION_FLAG_BOTTOM);
                         position4.set(2, 2, 1, 1, w2, h, POSITION_FLAG_RIGHT | POSITION_FLAG_BOTTOM);
@@ -654,7 +666,7 @@ public class MessageObject {
                                 posToFix = pos;
                             }
                         }
-                        pos.set(k, k, i, i, width, lineHeight / maxSizeHeight, flags);
+                        pos.set(k, k, i, i, width, Math.max(minH, lineHeight / maxSizeHeight), flags);
                         index++;
                     }
                     posToFix.pw += spanLeft;
@@ -2106,6 +2118,7 @@ public class MessageObject {
             message.media.document = getDocumentWithId(webPage, pageBlockVideo.video_id);
         }
         message.message = "";
+        message.realId = getId();
         message.id = Utilities.random.nextInt();
         message.date = messageOwner.date;
         message.to_id = messageOwner.to_id;
@@ -2314,6 +2327,10 @@ public class MessageObject {
         return false;
     }
 
+    public void resetLayout() {
+        layoutCreated = false;
+    }
+
     public String getMimeType() {
         if (messageOwner.media instanceof TLRPC.TL_messageMediaDocument) {
             return messageOwner.media.document.mime_type;
@@ -2376,7 +2393,7 @@ public class MessageObject {
     }
 
     public static boolean isRoundVideoDocument(TLRPC.Document document) {
-        if (document != null && document.mime_type != null && document.mime_type.equals("video/mp4")) {
+        if (document != null && "video/mp4".equals(document.mime_type)) {
             int width = 0;
             int height = 0;
             boolean round = false;
@@ -2396,7 +2413,7 @@ public class MessageObject {
     }
 
     public static boolean isNewGifDocument(WebFile document) {
-        if (document != null && document.mime_type != null && document.mime_type.equals("video/mp4")) {
+        if (document != null && "video/mp4".equals(document.mime_type)) {
             int width = 0;
             int height = 0;
             boolean animated = false;
@@ -2417,7 +2434,7 @@ public class MessageObject {
     }
 
     public static boolean isNewGifDocument(TLRPC.Document document) {
-        if (document != null && document.mime_type != null && document.mime_type.equals("video/mp4")) {
+        if (document != null && "video/mp4".equals(document.mime_type)) {
             int width = 0;
             int height = 0;
             boolean animated = false;
@@ -3098,14 +3115,32 @@ public class MessageObject {
     }
 
     public int getMaxMessageTextWidth() {
-        int maxWidth;
-        generatedWithMinSize = AndroidUtilities.isTablet() ? AndroidUtilities.getMinTabletSide() : AndroidUtilities.displaySize.x;
-        maxWidth = generatedWithMinSize - AndroidUtilities.dp(needDrawAvatarInternal() && !isOutOwner() ? 132 : 80);
-        if (needDrawShareButton() && !isOutOwner()) {
-            maxWidth -= AndroidUtilities.dp(10);
+        int maxWidth = 0;
+        if (AndroidUtilities.isTablet() && eventId != 0) {
+            generatedWithMinSize = AndroidUtilities.dp(530);
+        } else {
+            generatedWithMinSize = AndroidUtilities.isTablet() ? AndroidUtilities.getMinTabletSide() : AndroidUtilities.displaySize.x;
         }
-        if (messageOwner.media instanceof TLRPC.TL_messageMediaGame) {
-            maxWidth -= AndroidUtilities.dp(10);
+        if (messageOwner.media instanceof TLRPC.TL_messageMediaWebPage && messageOwner.media.webpage != null && "telegram_background".equals(messageOwner.media.webpage.type)) {
+            try {
+                Uri uri = Uri.parse(messageOwner.media.webpage.url);
+                if (uri.getQueryParameter("bg_color") != null) {
+                    maxWidth = AndroidUtilities.dp(220);
+                } else if (uri.getLastPathSegment().length() == 6) {
+                    maxWidth = AndroidUtilities.dp(200);
+                }
+            } catch (Exception ignore) {
+
+            }
+        }
+        if (maxWidth == 0) {
+            maxWidth = generatedWithMinSize - AndroidUtilities.dp(needDrawAvatarInternal() && !isOutOwner() ? 132 : 80);
+            if (needDrawShareButton() && !isOutOwner()) {
+                maxWidth -= AndroidUtilities.dp(10);
+            }
+            if (messageOwner.media instanceof TLRPC.TL_messageMediaGame) {
+                maxWidth -= AndroidUtilities.dp(10);
+            }
         }
         return maxWidth;
     }
@@ -3367,7 +3402,7 @@ public class MessageObject {
         }
         int selfUserId = UserConfig.getInstance(currentAccount).getClientUserId();
         if (getDialogId() == selfUserId) {
-            return messageOwner.fwd_from.from_id == selfUserId || messageOwner.fwd_from.saved_from_peer != null && messageOwner.fwd_from.saved_from_peer.user_id == selfUserId;
+            return messageOwner.fwd_from.from_id == selfUserId && (messageOwner.fwd_from.saved_from_peer == null || messageOwner.fwd_from.saved_from_peer.user_id == selfUserId) || messageOwner.fwd_from.saved_from_peer != null && messageOwner.fwd_from.saved_from_peer.user_id == selfUserId;
         }
         return messageOwner.fwd_from.saved_from_peer == null || messageOwner.fwd_from.saved_from_peer.user_id == selfUserId;
     }
@@ -3430,9 +3465,19 @@ public class MessageObject {
         return messageOwner.id;
     }
 
+    public int getRealId() {
+        return messageOwner.realId != 0 ? messageOwner.realId : messageOwner.id;
+    }
+
     public static int getMessageSize(TLRPC.Message message) {
-        if (message.media != null && message.media.document != null) {
-            return message.media.document.size;
+        TLRPC.Document document;
+        if (message.media instanceof TLRPC.TL_messageMediaWebPage) {
+            document = message.media.webpage.document;
+        } else {
+            document = message.media != null ? message.media.document : null;
+        }
+        if (document != null) {
+            return document.size;
         }
         return 0;
     }
@@ -3547,9 +3592,9 @@ public class MessageObject {
                 return attribute.supports_streaming;
             }
         }
-        /*if ("video/x-matroska".equals(document.mime_type)) {
+        if (SharedConfig.streamMkv && "video/x-matroska".equals(document.mime_type)) {
             return true;
-        }*/
+        }
         return false;
     }
 
@@ -3710,9 +3755,9 @@ public class MessageObject {
             if (isAnimated && (width > 1280 || height > 1280)) {
                 isAnimated = false;
             }
-            /*if (!isVideo && "video/x-matroska".equals(document.mime_type)) {
+            if (SharedConfig.streamMkv && !isVideo && "video/x-matroska".equals(document.mime_type)) {
                 isVideo = true;
-            }*/
+            }
             return isVideo && !isAnimated;
         }
         return false;
@@ -3721,6 +3766,8 @@ public class MessageObject {
     public TLRPC.Document getDocument() {
         if (messageOwner.media instanceof TLRPC.TL_messageMediaWebPage) {
             return messageOwner.media.webpage.document;
+        } else if (messageOwner.media instanceof TLRPC.TL_messageMediaGame) {
+            return messageOwner.media.game.document;
         }
         return messageOwner.media != null ? messageOwner.media.document : null;
     }
@@ -3757,7 +3804,7 @@ public class MessageObject {
 
     public static boolean isPhoto(TLRPC.Message message) {
         if (message.media instanceof TLRPC.TL_messageMediaWebPage) {
-            return message.media.webpage.photo instanceof TLRPC.TL_photo;
+            return message.media.webpage.photo instanceof TLRPC.TL_photo && !(message.media.webpage.document instanceof TLRPC.TL_document);
         }
         return message.media instanceof TLRPC.TL_messageMediaPhoto;
     }
@@ -4045,14 +4092,12 @@ public class MessageObject {
     }
 
     public int getDuration() {
-        TLRPC.Document document;
-        if (type == 0) {
-            document = messageOwner.media.webpage.document;
-        } else {
-            document = messageOwner.media.document;
-        }
+        TLRPC.Document document = getDocument();
         if (document == null) {
             return 0;
+        }
+        if (audioPlayerDuration > 0) {
+            return audioPlayerDuration;
         }
         for (int a = 0; a < document.attributes.size(); a++) {
             TLRPC.DocumentAttribute attribute = document.attributes.get(a);
@@ -4340,6 +4385,26 @@ public class MessageObject {
 
     public boolean isWallpaper() {
         return messageOwner.media instanceof TLRPC.TL_messageMediaWebPage && messageOwner.media.webpage != null && "telegram_background".equals(messageOwner.media.webpage.type);
+    }
+
+    public int getMediaExistanceFlags() {
+        int flags = 0;
+        if (attachPathExists) {
+            flags |= 1;
+        }
+        if (mediaExists) {
+            flags |= 2;
+        }
+        return flags;
+    }
+
+    public void applyMediaExistanceFlags(int flags) {
+        if (flags == -1) {
+            checkMediaExistance();
+        } else {
+            attachPathExists = (flags & 1) != 0;
+            mediaExists = (flags & 2) != 0;
+        }
     }
 
     public void checkMediaExistance() {
