@@ -22,6 +22,7 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.View;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.ImageReceiver;
@@ -107,6 +108,12 @@ public class GroupCreateSpan extends View {
         if (user != null && user.photo != null) {
             photo = user.photo.photo_small;
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            photo = null;
+        }
+        //CloudVeil end
         imageReceiver.setImage(photo, "50_50", avatarDrawable, null, null, 0, null, user, 1);
         updateColors();
     }

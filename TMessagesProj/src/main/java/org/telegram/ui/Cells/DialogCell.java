@@ -957,6 +957,13 @@ public class DialogCell extends BaseCell {
                     if (message != null) {
                         lastSendState = message.messageOwner.send_state;
                     }
+
+
+                    //CloudVeil start
+                    if(!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                        unreadCount = 0;
+                    }
+                    //CloudVeil end
                 }
             } else {
                 drawPin = false;
@@ -1008,6 +1015,12 @@ public class DialogCell extends BaseCell {
                             mentionCount = dialog.unread_mentions_count;
                             markUnread = dialog.unread_mark;
                             continueUpdate = true;
+
+                            //CloudVeil start
+                            if(!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                                unreadCount = 0;
+                            }
+                            //CloudVeil end
                         }
                     }
                 }

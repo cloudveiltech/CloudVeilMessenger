@@ -9659,6 +9659,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     //CloudVeil start
     public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        if(tlObject == null) {
+            return;
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))

@@ -788,6 +788,13 @@ public class AlertsCreator {
                 avatar = chat.photo.photo_small;
             }
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            avatar = null;
+        }
+        //CloudVeil end
+
         imageView.setImage(avatar, "50_50", avatarDrawable, user);
 
         if (clear) {

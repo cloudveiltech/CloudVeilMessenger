@@ -12,6 +12,7 @@ import android.content.Context;
 import android.view.Gravity;
 import android.widget.FrameLayout;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
@@ -104,6 +105,12 @@ public class GroupCreateUserCell extends FrameLayout {
         if (currentUser.photo != null) {
             photo = currentUser.photo.photo_small;
         }
+
+        //Cloudveil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            photo = null;
+        }
+        //Cloudveil end
 
         if (mask != 0) {
             boolean continueUpdate = false;

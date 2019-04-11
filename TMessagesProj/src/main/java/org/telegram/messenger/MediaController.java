@@ -530,6 +530,15 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         }
     }
 
+    //CloudVeil start
+    public boolean isAudioTrackPlaying() {
+        if (audioPlayer == null && videoPlayer == null || playingMessageObject == null) {
+            return false;
+        }
+        return !isPaused && !downloadingCurrentMessage;
+    }
+    //CloudVeil end
+
     private class GalleryObserverInternal extends ContentObserver {
         public GalleryObserverInternal() {
             super(null);
