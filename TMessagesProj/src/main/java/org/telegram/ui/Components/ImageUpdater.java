@@ -25,6 +25,7 @@ import android.support.v4.content.FileProvider;
 import android.util.TypedValue;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.ImageLoader;
@@ -91,6 +92,11 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
 
     public ImageUpdater() {
         imageReceiver = new ImageReceiver(null);
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+            setSearchAvailable(false);
+        }
+        //CloudVeil end
     }
 
     public void openMenu(boolean hasAvatar, Runnable onDeleteAvatar) {
@@ -153,6 +159,11 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
         if (parentFragment == null) {
             return;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+            return;
+        }
+        //CloudVeil end
         final HashMap<Object, Object> photos = new HashMap<>();
         final ArrayList<Object> order = new ArrayList<>();
         PhotoPickerActivity fragment = new PhotoPickerActivity(0, null, photos, order, new ArrayList<>(), 1, false, null);
