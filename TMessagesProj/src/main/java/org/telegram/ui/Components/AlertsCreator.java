@@ -666,6 +666,7 @@ public class AlertsCreator {
     private static void performAskAQuestion(BaseFragment fragment) {
         int currentAccount = fragment.getCurrentAccount();
         final SharedPreferences preferences = MessagesController.getMainSettings(currentAccount);
+
         int uid = preferences.getInt("support_id", 0);
         TLRPC.User supportUser = null;
         if (uid != 0) {

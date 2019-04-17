@@ -15,6 +15,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.support.v4.app.NotificationManagerCompat;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.LongSparseArray;
@@ -24,6 +25,7 @@ import android.util.SparseIntArray;
 import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.SparseLongArray;
 import org.telegram.messenger.voip.VoIPService;
@@ -48,8 +50,6 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-
-import android.support.v4.app.NotificationManagerCompat;
 
 public class MessagesController implements NotificationCenter.NotificationCenterDelegate {
     //CLoudVeil start
@@ -334,6 +334,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
 
     private int currentAccount;
     private static volatile MessagesController[] Instance = new MessagesController[UserConfig.MAX_ACCOUNT_COUNT];
+
     public static MessagesController getInstance(int num) {
         MessagesController localInstance = Instance[num];
         if (localInstance == null) {
@@ -1041,7 +1042,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                         oldUser.photo = user.photo;
                         oldUser.flags |= 32;
                     } else {
-                        oldUser.flags = oldUser.flags &~ 32;
+                        oldUser.flags = oldUser.flags & ~32;
                         oldUser.photo = null;
                     }
                 }
@@ -1075,7 +1076,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                     user.photo = oldUser.photo;
                     user.flags |= 32;
                 } else {
-                    user.flags = user.flags &~ 32;
+                    user.flags = user.flags & ~32;
                     user.photo = null;
                 }
                 users.put(user.id, user);
@@ -1139,7 +1140,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                         oldChat.username = chat.username;
                         oldChat.flags |= 64;
                     } else {
-                        oldChat.flags = oldChat.flags &~ 64;
+                        oldChat.flags = oldChat.flags & ~64;
                         oldChat.username = null;
                     }
                     if (chat.participants_count != 0) {
@@ -1166,19 +1167,19 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                     int newFlags2 = chat.default_banned_rights != null ? chat.default_banned_rights.flags : 0;
                     oldChat.default_banned_rights = chat.default_banned_rights;
                     if (oldChat.default_banned_rights == null) {
-                        oldChat.flags &=~ 262144;
+                        oldChat.flags &= ~262144;
                     } else {
                         oldChat.flags |= 262144;
                     }
                     oldChat.banned_rights = chat.banned_rights;
                     if (oldChat.banned_rights == null) {
-                        oldChat.flags &=~ 32768;
+                        oldChat.flags &= ~32768;
                     } else {
                         oldChat.flags |= 32768;
                     }
                     oldChat.admin_rights = chat.admin_rights;
                     if (oldChat.admin_rights == null) {
-                        oldChat.flags &=~ 16384;
+                        oldChat.flags &= ~16384;
                     } else {
                         oldChat.flags |= 16384;
                     }
@@ -1213,7 +1214,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
                     chat.username = oldChat.username;
                     chat.flags |= 64;
                 } else {
-                    chat.flags = chat.flags &~ 64;
+                    chat.flags = chat.flags & ~64;
                     chat.username = null;
                 }
                 if (oldChat.participants_count != 0 && chat.participants_count == 0) {
@@ -10074,6 +10075,50 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         return true;
     }
 
+    //CloudVeil start
+    private static ReopenDialogAfterCheckDelegate delegateInstance;
+    private static AlertDialog progressDialog;
+    private static class ReopenDialogAfterCheckDelegate implements NotificationCenter.NotificationCenterDelegate {
+        private final TLRPC.User user;
+        private final TLRPC.Chat chat;
+        private final BaseFragment fragment;
+        private final int type;
+        private final boolean closeLast;
+
+        ReopenDialogAfterCheckDelegate(TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
+            this.user = user;
+            this.chat = chat;
+            this.fragment = fragment;
+            this.type = type;
+            this.closeLast = closeLast;
+        }
+
+        @Override
+        public void didReceivedNotification(int id, int account, Object... args) {
+            MessagesController.openChatOrProfileWith(user, chat, fragment, type, closeLast);
+
+            NotificationCenter.getInstance(fragment.getCurrentAccount()).removeObserver(this, NotificationCenter.filterDialogsReady);
+            delegateInstance = null;
+            if(progressDialog != null) {
+                progressDialog.dismiss();
+            }
+            progressDialog = null;
+        }
+    }
+
+    private static void openUncheckedDialog(long dialogId, TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
+        delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
+        progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
+        NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
+        ChannelCheckingService.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
+        progressDialog.show();
+    }
+
+    //CloudVeil end
+
     public static void openChatOrProfileWith(TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
         if (user == null && chat == null || fragment == null) {
             return;
@@ -10090,18 +10135,29 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         }
 
         //CloudVeil start
-        if(chat != null) {
+        if (chat != null) {
             int dialogId = chat.id > 0 ? -chat.id : chat.id;
-            if(!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
+            if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
                 ChatActivity.showWarning(fragment, chat, null, null);
+                return;
+            } else if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
+                openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
                 return;
             }
         } else if (user != null) {
             if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
                 ChatActivity.showWarning(fragment, user, null, null);
                 return;
+            } else if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
+                openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);
+                return;
             }
         }
+        delegateInstance = null;
+        if(progressDialog != null) {
+            progressDialog.dismiss();
+        }
+        progressDialog = null;
         //CloudVeil end
 
         if (reason != null) {
@@ -10149,7 +10205,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
             if (fragment.getParentActivity() == null) {
                 return;
             }
-            final AlertDialog progressDialog[] = new AlertDialog[] {new AlertDialog(fragment.getParentActivity(), 3)};
+            final AlertDialog progressDialog[] = new AlertDialog[]{new AlertDialog(fragment.getParentActivity(), 3)};
 
             TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
             req.username = username;

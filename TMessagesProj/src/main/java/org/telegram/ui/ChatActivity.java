@@ -10592,7 +10592,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         //CloudVeil end
 
-
         AndroidUtilities.requestAdjustResize(getParentActivity(), classGuid);
         MediaController.getInstance().startRaiseToEarSensors(this);
         checkRaiseSensors();

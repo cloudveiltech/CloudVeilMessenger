@@ -129,7 +129,10 @@ public class LogoutActivity extends BaseFragment {
             } else if (position == phoneRow) {
                 presentFragment(new ChangePhoneHelpActivity());
             } else if (position == supportRow) {
-                showDialog(AlertsCreator.createSupportAlert(LogoutActivity.this));
+                //showDialog(AlertsCreator.createSupportAlert(LogoutActivity.this));
+                //CloudVeil start
+                MessagesController.getInstance(currentAccount).openByUserName("cloudveilbot", LogoutActivity.this, 0);
+                //CloudVeil end
             } else if (position == logoutRow) {
                 if (getParentActivity() == null) {
                     return;

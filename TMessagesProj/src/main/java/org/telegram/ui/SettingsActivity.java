@@ -388,7 +388,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                         Integer tag = (Integer) v2.getTag();
                         switch (tag) {
                             case 0: {
-                                showDialog(AlertsCreator.createSupportAlert(SettingsActivity.this));
+                                //CloudVeil start
+                               // showDialog(AlertsCreator.createSupportAlert(SettingsActivity.this));
+                                MessagesController.getInstance(currentAccount).openByUserName("cloudveilbot", SettingsActivity.this, 0);
+                                //CloudVeil end
                                 break;
                             }
                             case 1:

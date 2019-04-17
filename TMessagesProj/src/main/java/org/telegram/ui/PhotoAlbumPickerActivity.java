@@ -19,6 +19,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
@@ -464,7 +465,9 @@ public class PhotoAlbumPickerActivity extends BaseFragment implements Notificati
                 }
                 case 1:
                 default: {
-                    PhotoPickerSearchCell cell = new PhotoPickerSearchCell(mContext, allowGifs);
+                    //CloudVeil start
+                    PhotoPickerSearchCell cell = new PhotoPickerSearchCell(mContext, allowGifs && !GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH);
+                    //CloudVeil end
                     cell.setDelegate(index -> openPhotoPicker(null, index));
                     view = cell;
                     break;

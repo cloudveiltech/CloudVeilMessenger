@@ -20,6 +20,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
@@ -97,14 +98,18 @@ public class PhotoPickerSearchCell extends LinearLayout {
         layoutParams.height = AndroidUtilities.dp(48);
         layoutParams.width = 0;
         searchButton.setLayoutParams(layoutParams);
-        searchButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
+
+        //CloudVeil start
+        if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+            searchButton.setOnClickListener(v -> {
                 if (delegate != null) {
                     delegate.didPressedSearchButton(0);
                 }
-            }
-        });
+            });
+        } else {
+            searchButton.setAlpha(0.5f);
+        }
+        //CloudVeil end
 
         FrameLayout frameLayout = new FrameLayout(context);
         frameLayout.setBackgroundColor(0);
