@@ -24,6 +24,7 @@ import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -329,7 +330,8 @@ public class ChannelCheckingService extends Service {
             row.title = chat.title;
             row.userName = chat.username;
 
-            if (chat instanceof TLRPC.TL_channel) {
+            boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+            if (isChannel) {
                 request.addChannel(row);
             } else {
                 request.addGroup(row);
