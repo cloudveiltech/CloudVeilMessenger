@@ -9659,7 +9659,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     //CloudVeil start
     public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
-        if(tlObject == null) {
+        if (tlObject == null) {
             return;
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
@@ -9667,7 +9667,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))
                 .setPositiveButton(fragment.getParentActivity().getString(R.string.contact), (dialog, which) -> {
                     dialog.dismiss();
-                    if(onOkRunnable != null) {
+                    if (onOkRunnable != null) {
                         onOkRunnable.run();
                     }
 
@@ -9675,17 +9675,17 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 })
                 .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
                     dialog.dismiss();
-                    if(onDismissRunnable != null) {
+                    if (onDismissRunnable != null) {
                         onDismissRunnable.run();
                     }
                 })
                 .setOnDismissListener(dialog -> {
-                    if(onDismissRunnable != null) {
+                    if (onDismissRunnable != null) {
                         onDismissRunnable.run();
                     }
                 })
                 .setOnBackButtonListener((dialog, which) -> {
-                    if(onDismissRunnable != null) {
+                    if (onDismissRunnable != null) {
                         onDismissRunnable.run();
                     }
                 });
@@ -9701,6 +9701,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         String userName = "";
         String type = "";
         int id = 0;
+
 
         if (tlObject instanceof TLRPC.User) {
             type = "user";
@@ -9718,6 +9719,27 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (chat instanceof TLRPC.TL_channel) {
                 type = "channel";
             }
+            title = chat.title;
+            userName = chat.username;
+            id = chat.id;
+        } else if (tlObject instanceof TLRPC.TL_dialog) {
+            //megagroup
+            type = "megagroup";
+
+            TLRPC.TL_dialog dlg = (TLRPC.TL_dialog) tlObject;
+            int lower_id = (int) dlg.id;
+            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-lower_id);
+            if (chat != null && chat.migrated_to != null) {
+                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(chat.migrated_to.channel_id);
+                if (chat2 != null) {
+                    chat = chat2;
+                }
+            }
+            boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+            if(isChannel) {
+                type = "channel";
+            }
+
             title = chat.title;
             userName = chat.username;
             id = chat.id;

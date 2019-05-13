@@ -36,6 +36,7 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ListAdapter;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -60,6 +61,7 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
+import org.telegram.ui.Adapters.SearchAdapter;
 import org.telegram.ui.Cells.GraySectionCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
@@ -457,6 +459,8 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             }
         });
 
+
+        /*CloudVeil start remove background search
         if (currentType == TYPE_ALL) {
             ActionBarMenu menu = actionBar.createMenu();
             searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
@@ -488,6 +492,8 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             });
             searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
 
+
+
             final ActionBarMenu actionMode = actionBar.createActionMode(false);
             actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
             actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
@@ -505,6 +511,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
 
             selectedWallPapers.clear();
         }
+        CloudVeil end */
 
         fragmentView = new FrameLayout(context);
 
