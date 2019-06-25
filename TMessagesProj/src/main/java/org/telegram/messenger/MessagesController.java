@@ -10106,7 +10106,7 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         }
     }
 
-    private static void openUncheckedDialog(long dialogId, TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
+    public static void openUncheckedDialog(long dialogId, TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
         if (progressDialog != null) {
             progressDialog.dismiss();
         }
@@ -10116,7 +10116,6 @@ public class MessagesController implements NotificationCenter.NotificationCenter
         ChannelCheckingService.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
         progressDialog.show();
     }
-
     //CloudVeil end
 
     public static void openChatOrProfileWith(TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {

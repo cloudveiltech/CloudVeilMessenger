@@ -23,6 +23,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Parcelable;
 import android.os.StatFs;
 import android.provider.ContactsContract;
@@ -41,47 +42,47 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import com.crashlytics.android.Crashlytics;
-import io.fabric.sdk.android.Fabric;
-
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DataQuery;
 import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLoader;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
-import org.telegram.messenger.SendMessagesHelper;
-import org.telegram.messenger.SharedConfig;
-import org.telegram.messenger.UserObject;
-import org.telegram.messenger.Utilities;
-import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SendMessagesHelper;
+import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
+import org.telegram.messenger.Utilities;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.camera.CameraController;
 import org.telegram.messenger.support.widget.DefaultItemAnimator;
 import org.telegram.messenger.support.widget.LinearLayoutManager;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.messenger.UserConfig;
-import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.Adapters.DrawerLayoutAdapter;
 import org.telegram.ui.ActionBar.ActionBarLayout;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.DrawerLayoutContainer;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Adapters.DrawerLayoutAdapter;
 import org.telegram.ui.Cells.DrawerAddCell;
 import org.telegram.ui.Cells.DrawerUserCell;
 import org.telegram.ui.Cells.LanguageCell;
-import org.telegram.ui.Components.AudioPlayerAlert;
 import org.telegram.ui.Components.AlertsCreator;
+import org.telegram.ui.Components.AudioPlayerAlert;
 import org.telegram.ui.Components.BlockingUpdateView;
 import org.telegram.ui.Components.EmbedBottomSheet;
 import org.telegram.ui.Components.JoinGroupAlert;
@@ -91,7 +92,6 @@ import org.telegram.ui.Components.PipRoundVideoView;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SharingLocationsAlert;
 import org.telegram.ui.Components.StickersAlert;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.TermsOfServiceView;
 import org.telegram.ui.Components.ThemeEditorView;
 import org.telegram.ui.Components.UpdateAppAlertDialog;
@@ -1714,15 +1714,33 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                             if (messageId != null) {
                                 args.putInt("message_id", messageId);
                             }
-                            BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
-                            if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
-                                if (isBot && lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id) {
-                                    ((ChatActivity) lastFragment).setBotUser(botUser);
+
+                            //CloudVeil start check link pressed before opening dialog
+                            if (!MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+                                openUncheckedDialog(dialog_id, () -> runLinkRequest(intentAccount, username, group, sticker, botUser, botChat, message, hasUrl, messageId, game, auth, lang, unsupportedUrl, code, wallPaper, state));
+                            } else if (MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                                BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
+                                if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
+                                    if (isBot && lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id) {
+                                        ((ChatActivity) lastFragment).setBotUser(botUser);
+                                    } else {
+                                        ChatActivity fragment = new ChatActivity(args);
+                                        actionBarLayout.presentFragment(fragment);
+                                    }
+                                }
+                            } else {
+                                TLObject object = null;
+                                if (!res.chats.isEmpty()) {
+                                    object = res.chats.get(0);
                                 } else {
-                                    ChatActivity fragment = new ChatActivity(args);
-                                    actionBarLayout.presentFragment(fragment);
+                                    object = res.users.get(0);
+                                }
+                                if (!mainFragmentsStack.isEmpty()) {
+                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                    ChatActivity.showWarning(fragment, object, null, null);
                                 }
                             }
+                            //CloudVeil end
                         }
                     } else {
                         try {
@@ -2004,6 +2022,46 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
             }
         }
     }
+
+    //CloudVeil start
+    private static ReopenDialogAfterCheckDelegate delegateInstance;
+    private static AlertDialog progressDialog;
+
+    private static class ReopenDialogAfterCheckDelegate implements NotificationCenter.NotificationCenterDelegate {
+
+        private Handler h = new Handler();
+        private Runnable runnable;
+
+        ReopenDialogAfterCheckDelegate(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public void didReceivedNotification(int id, int account, Object... args) {
+            h.removeCallbacks(runnable);
+            h.postDelayed(runnable, 200);
+
+            NotificationCenter.getInstance(account).removeObserver(this, NotificationCenter.filterDialogsReady);
+            delegateInstance = null;
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+            progressDialog = null;
+        }
+    }
+
+
+    private void openUncheckedDialog(long dialogId, Runnable runnable) {
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
+        delegateInstance = new ReopenDialogAfterCheckDelegate(runnable);
+        progressDialog = new AlertDialog(this, 3);
+        NotificationCenter.getInstance(currentAccount).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
+        ChannelCheckingService.startDataChecking(currentAccount, dialogId, this);
+        progressDialog.show();
+    }
+    //CloudVeil end
 
     public void checkAppUpdate(boolean force) {
         if (!force && BuildVars.DEBUG_VERSION || !force && !BuildVars.CHECK_UPDATES) {
