@@ -840,6 +840,13 @@ public class AlertsCreator {
         if (fragment == null || fragment.getParentActivity() == null || chat == null && user == null) {
             return;
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+            return;
+        }
+        //CloudVeil end
+
         int account = fragment.getCurrentAccount();
 
         Context context = fragment.getParentActivity();

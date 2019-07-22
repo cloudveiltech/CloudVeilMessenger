@@ -1449,6 +1449,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             return super.onTouchEvent(event);
         }
 
+        //CloudVeil - hack for pause button not working
+        if(MediaController.getInstance().isAudioTrackPlaying()) {
+            if(event.getAction() == MotionEvent.ACTION_CANCEL) {
+                event.setAction(MotionEvent.ACTION_UP);
+            }
+        }
+
+
         disallowLongPress = false;
         lastTouchX = event.getX();
         lastTouchX = event.getY();

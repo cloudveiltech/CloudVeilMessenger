@@ -2293,7 +2293,7 @@
     <string name="ClearFewChatsTitle">Clear %1$s</string>
     <string name="ClearCacheFewChatsTitle">Empty cache for %1$s</string>
     <string name="AreYouSureDeleteFewChats">Are you sure you want to delete selected chats?</string>
-    <string name="AreYouSureClearHistoryFewChats">Are you sure you want to clear history in selected chats?</string>
+    <string name="AreYouSureClearHistoryFewChats">Are you sure you want to clear history in st chats?</string>
     <string name="AreYouSureClearHistoryCacheFewChats">Delete all cached text and media from selected chats?</string>
     <string name="AreYouSureDeleteAndExit">Are you sure you want to delete and leave the group?</string>
     <string name="AreYouSureDeleteAndExitName">Are you sure you want to delete and leave the group **%1$s**?</string>

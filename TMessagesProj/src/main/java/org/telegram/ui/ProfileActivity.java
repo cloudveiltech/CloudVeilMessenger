@@ -850,6 +850,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 AlertsCreator.showCustomNotificationsDialog(ProfileActivity.this, did, -1, null, currentAccount, param -> listAdapter.notifyItemChanged(notificationsRow));
             } else if (position == startSecretChatRow) {
+                //CloudVeil start
+                if(GlobalSecuritySettings.isDisabledSecretChat()) {
+                    return;
+                }
+                //CloudVeil end
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                 builder.setTitle(LocaleController.getString("AreYouSureSecretChatTitle", R.string.AreYouSureSecretChatTitle));
                 builder.setMessage(LocaleController.getString("AreYouSureSecretChat", R.string.AreYouSureSecretChat));
@@ -3263,12 +3268,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         textCell.setText(LocaleController.getString("Unblock", R.string.Unblock), false);
                         textCell.setColors(null, Theme.key_windowBackgroundWhiteRedText5);
                     } else if (position == startSecretChatRow) {
-                        //CloudVeil Start
-                        if (!GlobalSecuritySettings.isDisabledSecretChat()) {
-                            textCell.setText(LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat), false);
-                            textCell.setColors(null, Theme.key_windowBackgroundWhiteGreenText2);
-                        }
-                        //CloudVeil End
+                        textCell.setText(LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat), false);
+                        textCell.setColors(null, Theme.key_windowBackgroundWhiteGreenText2);
                     } else if (position == settingsKeyRow) {
                         IdenticonDrawable identiconDrawable = new IdenticonDrawable();
                         TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance(currentAccount).getEncryptedChat((int) (dialog_id >> 32));

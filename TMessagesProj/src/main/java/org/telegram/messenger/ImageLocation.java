@@ -136,7 +136,7 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil start
-        if(!GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
             return null;
         }
         //CloudVeil end

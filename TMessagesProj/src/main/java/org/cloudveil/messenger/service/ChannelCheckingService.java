@@ -158,7 +158,10 @@ public class ChannelCheckingService extends Service {
                     saveToCache(settingsResponse);
                     stopForeground(true);
                     stopSelf();
-                }, throwable -> freeSubscription());
+                }, throwable -> {
+                    throwable.printStackTrace();
+                    freeSubscription();
+                });
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {
