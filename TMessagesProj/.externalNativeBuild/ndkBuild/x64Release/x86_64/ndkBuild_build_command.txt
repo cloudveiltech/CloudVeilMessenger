@@ -1,4 +1,4 @@
-Executable : D:\android-ndk-r16b\ndk-build.cmd
+Executable : C:\Users\dgora\AppData\Local\Android\Sdk\ndk-bundle\ndk-build.cmd
 arguments : 
 NDK_PROJECT_PATH=null
 APP_BUILD_SCRIPT=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\jni\Android.mk
@@ -6,7 +6,7 @@ NDK_APPLICATION_MK=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\j
 APP_ABI=x86_64
 NDK_ALL_ABIS=x86_64
 NDK_DEBUG=0
-APP_PLATFORM=android-21
+APP_PLATFORM=android-16
 NDK_OUT=D:/work/CloudVeilMessenger/CloudVeilMessenger/TMessagesProj/build/intermediates/ndkBuild/x64/release/obj
 NDK_LIBS_OUT=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\build\intermediates\ndkBuild\x64\release\lib
 NDK_APPLICATION_MK:=jni/Application.mk

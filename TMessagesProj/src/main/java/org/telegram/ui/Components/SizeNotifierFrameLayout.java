@@ -112,10 +112,10 @@ public class SizeNotifierFrameLayout extends FrameLayout {
     }
 
     public void notifyHeightChanged() {
+        if (parallaxEffect != null) {
+            parallaxScale = parallaxEffect.getScale(getMeasuredWidth(), getMeasuredHeight());
+        }
         if (delegate != null) {
-            if (parallaxEffect != null) {
-                parallaxScale = parallaxEffect.getScale(getMeasuredWidth(), getMeasuredHeight());
-            }
             keyboardHeight = getKeyboardHeight();
             final boolean isWidthGreater = AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y;
             post(() -> {
@@ -164,6 +164,7 @@ public class SizeNotifierFrameLayout extends FrameLayout {
                     int y = (viewHeight - height + keyboardHeight) / 2 + actionBarHeight + (int) translationY;
                     canvas.save();
                     canvas.clipRect(0, actionBarHeight, width, getMeasuredHeight() - bottomClip);
+                    backgroundDrawable.setAlpha(255);
                     backgroundDrawable.setBounds(x, y, x + width, y + height);
                     backgroundDrawable.draw(canvas);
                     canvas.restore();

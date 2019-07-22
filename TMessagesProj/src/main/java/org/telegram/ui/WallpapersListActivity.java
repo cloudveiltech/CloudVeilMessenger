@@ -13,6 +13,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -36,7 +37,7 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ListAdapter;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -49,8 +50,6 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.support.widget.LinearLayoutManager;
-import org.telegram.messenger.support.widget.RecyclerView;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -61,7 +60,6 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
-import org.telegram.ui.Adapters.SearchAdapter;
 import org.telegram.ui.Cells.GraySectionCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
@@ -78,6 +76,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class WallpapersListActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -285,6 +286,10 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             for (int a = 0; a < defaultColors.length; a++) {
                 wallPapers.add(new ColorWallpaper(-(a + 3), defaultColors[a]));
             }
+            if (currentType == TYPE_COLOR && patterns.isEmpty()) {
+                NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.wallpapersDidLoad);
+                MessagesStorage.getInstance(currentAccount).getWallpapers();
+            }
         }
         return super.onFragmentCreate();
     }
@@ -296,12 +301,13 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.wallpapersDidLoad);
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetNewWallpapper);
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.wallpapersNeedReload);
+        } else if (currentType == TYPE_COLOR) {
+            NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.wallpapersDidLoad);
         }
         updater.cleanup();
         super.onFragmentDestroy();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public View createView(Context context) {
         colorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -354,7 +360,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                         progressDialog.show();
 
                         ArrayList<Integer> ids = new ArrayList<>();
-                        int deleteCount[] = new int[]{selectedWallPapers.size()};
+                        int[] deleteCount = new int[]{selectedWallPapers.size()};
                         for (int b = 0; b < selectedWallPapers.size(); b++) {
                             TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) selectedWallPapers.valueAt(b);
 
@@ -459,8 +465,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             }
         });
 
-
-        /*CloudVeil start remove background search
+       /*CloudVeil start remove background search
         if (currentType == TYPE_ALL) {
             ActionBarMenu menu = actionBar.createMenu();
             searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
@@ -492,8 +497,6 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             });
             searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
 
-
-
             final ActionBarMenu actionMode = actionBar.createActionMode(false);
             actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
             actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
@@ -506,8 +509,8 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             selectedMessagesCountTextView.setOnTouchListener((v, event) -> true);
             actionMode.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 65, 0, 0, 0));
 
-            actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.ic_ab_forward, AndroidUtilities.dp(54)));
-            actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.ic_ab_delete, AndroidUtilities.dp(54)));
+            actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.msg_forward, AndroidUtilities.dp(54)));
+            actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, AndroidUtilities.dp(54)));
 
             selectedWallPapers.clear();
         }
@@ -580,8 +583,8 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 presentFragment(activity);
             } else if (position == resetRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(LocaleController.getString("ResetChatBackgroundsAlertTitle", R.string.ResetChatBackgroundsAlertTitle));
                 builder.setMessage(LocaleController.getString("ResetChatBackgroundsAlert", R.string.ResetChatBackgroundsAlert));
-                builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
                 builder.setPositiveButton(LocaleController.getString("Reset", R.string.Reset), (dialogInterface, i) -> {
                     if (actionBar.isActionModeShowed()) {
                         selectedWallPapers.clear();
@@ -595,7 +598,12 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                     ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(this::loadWallpapers));
                 });
                 builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                showDialog(builder.create());
+                AlertDialog dialog = builder.create();
+                showDialog(dialog);
+                TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                if (button != null) {
+                    button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
+                }
             }
         });
 
@@ -766,18 +774,20 @@ public class WallpapersListActivity extends BaseFragment implements Notification
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.wallpapersDidLoad) {
             ArrayList<TLRPC.TL_wallPaper> arrayList = (ArrayList<TLRPC.TL_wallPaper>) args[0];
-            wallPapers.clear();
             patterns.clear();
-            allWallPapers.clear();
-            allWallPapersDict.clear();
-            allWallPapers.addAll(arrayList);
+            if (currentType != TYPE_COLOR) {
+                wallPapers.clear();
+                allWallPapers.clear();
+                allWallPapersDict.clear();
+                allWallPapers.addAll(arrayList);
+            }
             for (int a = 0, N = arrayList.size(); a < N; a++) {
                 TLRPC.TL_wallPaper wallPaper = arrayList.get(a);
-                allWallPapersDict.put(wallPaper.id, wallPaper);
                 if (wallPaper.pattern) {
                     patterns.add(wallPaper);
                 }
-                if (!wallPaper.pattern || wallPaper.settings != null) {
+                if (currentType != TYPE_COLOR && (!wallPaper.pattern || wallPaper.settings != null)) {
+                    allWallPapersDict.put(wallPaper.id, wallPaper);
                     wallPapers.add(wallPaper);
                 }
             }
@@ -814,18 +824,20 @@ public class WallpapersListActivity extends BaseFragment implements Notification
         int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             if (response instanceof TLRPC.TL_account_wallPapers) {
                 TLRPC.TL_account_wallPapers res = (TLRPC.TL_account_wallPapers) response;
-                wallPapers.clear();
                 patterns.clear();
-                allWallPapersDict.clear();
-                allWallPapers.clear();
-                allWallPapers.addAll(res.wallpapers);
+                if (currentType != TYPE_COLOR) {
+                    wallPapers.clear();
+                    allWallPapersDict.clear();
+                    allWallPapers.clear();
+                    allWallPapers.addAll(res.wallpapers);
+                }
                 for (int a = 0, N = res.wallpapers.size(); a < N; a++) {
                     TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) res.wallpapers.get(a);
                     allWallPapersDict.put(wallPaper.id, wallPaper);
                     if (wallPaper.pattern) {
                         patterns.add(wallPaper);
                     }
-                    if (!wallPaper.pattern || wallPaper.settings != null) {
+                    if (currentType != TYPE_COLOR && (!wallPaper.pattern || wallPaper.settings != null)) {
                         wallPapers.add(wallPaper);
                     }
                 }
@@ -876,7 +888,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 if (wallPaper1.dark && wallPaper2.dark || !wallPaper1.dark && !wallPaper2.dark) {
                     if (index1 > index2) {
                         return 1;
-                    } else if (index2 < index1) {
+                    } else if (index1 < index2) {
                         return -1;
                     } else {
                         return 0;

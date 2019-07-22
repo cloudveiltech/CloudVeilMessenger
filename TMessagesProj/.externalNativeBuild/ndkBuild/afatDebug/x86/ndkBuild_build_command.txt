@@ -1,4 +1,4 @@
-Executable : D:\android-ndk-r16b\ndk-build.cmd
+Executable : C:\Users\dgora\AppData\Local\Android\Sdk\ndk-bundle\ndk-build.cmd
 arguments : 
 NDK_PROJECT_PATH=null
 APP_BUILD_SCRIPT=D:\work\CloudVeilMessenger\CloudVeilMessenger\TMessagesProj\jni\Android.mk

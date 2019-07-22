@@ -19,7 +19,7 @@ public class CallReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(final Context context, Intent intent) {
-          /* CloudVeil start
+           /* CloudVeil start
         if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
             String phoneState = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
             if (TelephonyManager.EXTRA_STATE_RINGING.equals(phoneState)) {

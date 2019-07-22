@@ -8,10 +8,6 @@ buildscript {
     }
 }
 
-def keystorePropertiesFile = rootProject.file("../keystore.properties");
-def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
 apply plugin: 'com.android.application'
 apply plugin: 'io.fabric'
 
@@ -19,30 +15,36 @@ repositories {
     mavenCentral()
     google()
     jcenter()
-    maven { url 'https://maven.fabric.io/public' }
 }
+
+
+def keystorePropertiesFile = rootProject.file("../keystore.properties");
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 configurations {
     compile.exclude module: 'support-v4'
 }
 
+configurations.all {
+    exclude group: 'com.google.firebase', module: 'firebase-core'
+}
+
 dependencies {
+    implementation 'androidx.core:core:1.1.0-beta01'
+    implementation 'androidx.palette:palette:1.0.0'
+    implementation 'androidx.exifinterface:exifinterface:1.1.0-beta01'
+
     compileOnly 'org.checkerframework:checker-qual:2.5.2'
     compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
-    implementation 'com.google.firebase:firebase-core:16.0.7'
-    implementation 'com.google.firebase:firebase-messaging:17.3.4'
-    implementation 'com.google.firebase:firebase-config:16.1.3'
-    implementation 'com.google.android.gms:play-services-maps:16.0.0'
-    implementation 'com.google.android.gms:play-services-auth:16.0.1'
+    implementation 'com.google.firebase:firebase-messaging:19.0.1'
+    implementation 'com.google.firebase:firebase-config:18.0.0'
+    implementation 'com.google.android.gms:play-services-maps:17.0.0'
+    implementation 'com.google.android.gms:play-services-auth:17.0.0'
     implementation 'com.google.android.gms:play-services-vision:16.2.0'
-    implementation 'com.google.android.gms:play-services-wallet:16.0.1'
-    implementation 'com.google.android.gms:play-services-wearable:16.0.1'
-    implementation 'com.android.support:support-core-ui:28.0.0'
-    implementation 'com.android.support:support-compat:28.0.0'
-    implementation 'com.android.support:support-core-utils:28.0.0'
-    implementation 'com.android.support:support-v13:28.0.0'
-    implementation 'com.android.support:palette-v7:28.0.0'
-    implementation 'com.android.support:exifinterface:28.0.0'
+    implementation 'com.google.android.gms:play-services-wallet:17.0.0'
+    implementation 'com.google.android.gms:play-services-wearable:17.0.0'
+    implementation 'com.google.android.gms:play-services-location:17.0.0'
     implementation 'net.hockeyapp.android:HockeySDK:5.1.1'
     implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
     implementation 'com.stripe:stripe-android:2.0.2'
@@ -50,7 +52,7 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.4.0'
     implementation 'com.squareup.retrofit2:adapter-rxjava2:2.4.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
-    implementation 'com.crashlytics.sdk.android:crashlytics:2.9.9'
+    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
 }
 
 android {
@@ -81,7 +83,6 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-
     signingConfigs {
         debug {
             storeFile file(keystoreProperties['storeFileCloudVeil'])
@@ -98,27 +99,24 @@ android {
         }
     }
 
-
     buildTypes {
         debug {
             debuggable true
             jniDebuggable true
-            multiDexEnabled true
-            minifyEnabled false
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
         debugMultidex {
             initWith debug
             minifyEnabled false
-			multiDexEnabled true
-			dependencies{
+            multiDexEnabled true
+            dependencies {
                 implementation 'com.android.support:multidex:1.0.3'
             }
-            manifestPlaceholders = [applicationClassName:"MultiDexApplicationLoader"]
+            manifestPlaceholders = [applicationClassName: "MultiDexApplicationLoader"]
         }
 
         HA {
@@ -134,14 +132,11 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            multiDexEnabled true
+            minifyEnabled true
             shrinkResources false
-            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
-    defaultConfig.versionCode = 1523
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
@@ -149,7 +144,7 @@ android {
 
     sourceSets.debugMultidex {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
-		java.srcDirs = ['src/multidex/java']
+        java.srcDirs = ['src/multidex/java']
     }
 
     sourceSets.HA {
@@ -268,12 +263,24 @@ android {
         }
     }
 
+    defaultConfig.versionCode = 1648
+
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            output.processManifest.doLast {
+            output.getProcessManifestProvider().get().doLast {
                 def abiVersion = variant.productFlavors.get(0).abiVersionCode
-                String manifestPath = "$manifestOutputDirectory/AndroidManifest.xml"
+
+                def outputDir = manifestOutputDirectory
+                File directory
+                if (outputDir instanceof File) {
+                    directory = outputDir
+                } else {
+                    directory = outputDir.get().asFile
+                }
+
+                String manifestPath = directory.toString() + "/AndroidManifest.xml"
                 def manifestContent = file(manifestPath).getText()
+
                 manifestContent = manifestContent.replace(String.format('android:versionCode="%d"', defaultConfig.versionCode), String.format('android:versionCode="%s"', defaultConfig.versionCode * 10 + abiVersion))
                 file(manifestPath).write(manifestContent)
             }
@@ -282,7 +289,7 @@ android {
 
     variantFilter { variant ->
         def names = variant.flavors*.name
-        if(variant.buildType.name!="release" && !names.contains("afat")){
+        if (variant.buildType.name != "release" && !names.contains("afat")) {
             setIgnore(true)
         }
     }
@@ -290,10 +297,10 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 27
-        versionName "5.4.0"
+        versionName "5.9.0"
 
         buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapSdkKey}\""
-		vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
+        vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         externalNativeBuild {
             ndkBuild {
@@ -302,7 +309,7 @@ android {
             }
         }
 
-        manifestPlaceholders = [applicationClassName:"ApplicationLoader"]
+        manifestPlaceholders = [applicationClassName: "ApplicationLoader"]
     }
 }
 

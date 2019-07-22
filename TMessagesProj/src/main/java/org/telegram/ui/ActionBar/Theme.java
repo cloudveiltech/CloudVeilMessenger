@@ -60,6 +60,8 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.time.SunDate;
 import org.telegram.ui.Components.CombinedDrawable;
+import org.telegram.ui.Components.RLottieDrawable;
+import org.telegram.ui.Components.ScamDrawable;
 import org.telegram.ui.Components.ThemeEditorView;
 
 import java.io.File;
@@ -79,6 +81,11 @@ public class Theme {
         public String name;
         public String pathToFile;
         public String assetName;
+
+        public int previewBackgroundColor;
+        public int previewInColor;
+        public int previewOutColor;
+        public int sortIndex;
 
         public JSONObject getSaveJson() {
             try {
@@ -101,12 +108,20 @@ public class Theme {
                 return LocaleController.getString("ThemeDark", R.string.ThemeDark);
             } else if ("Dark Blue".equals(name)) {
                 return LocaleController.getString("ThemeDarkBlue", R.string.ThemeDarkBlue);
+            } else if ("Graphite".equals(name)) {
+                return LocaleController.getString("ThemeGraphite", R.string.ThemeGraphite);
+            } else if ("Arctic Blue".equals(name)) {
+                return LocaleController.getString("ThemeArcticBlue", R.string.ThemeArcticBlue);
             }
             return name;
         }
 
         public boolean isDark() {
-            return "Dark".equals(name) || "Dark Blue".equals(name);
+            return "Dark".equals(name) || "Dark Blue".equals(name) || "Graphite".equals(name);
+        }
+
+        public boolean isLight() {
+            return pathToFile == null && !isDark();
         }
 
         public static ThemeInfo createWithJson(JSONObject object) {
@@ -318,6 +333,7 @@ public class Theme {
     public static Drawable listSelector;
     public static Drawable avatar_broadcastDrawable;
     public static Drawable avatar_savedDrawable;
+    public static Drawable avatar_ghostDrawable;
 
     public static Drawable moveUpDrawable;
 
@@ -329,26 +345,39 @@ public class Theme {
     public static Paint dialogs_countGrayPaint;
     public static TextPaint dialogs_namePaint;
     public static TextPaint dialogs_nameEncryptedPaint;
+    public static TextPaint dialogs_searchNamePaint;
+    public static TextPaint dialogs_searchNameEncryptedPaint;
     public static TextPaint dialogs_messagePaint;
+    public static TextPaint dialogs_messageNamePaint;
     public static TextPaint dialogs_messagePrintingPaint;
     public static TextPaint dialogs_timePaint;
     public static TextPaint dialogs_countTextPaint;
+    public static TextPaint dialogs_archiveTextPaint;
     public static TextPaint dialogs_onlinePaint;
     public static TextPaint dialogs_offlinePaint;
     public static Drawable dialogs_checkDrawable;
     public static Drawable dialogs_halfCheckDrawable;
     public static Drawable dialogs_clockDrawable;
     public static Drawable dialogs_errorDrawable;
+    public static Drawable dialogs_reorderDrawable;
     public static Drawable dialogs_lockDrawable;
     public static Drawable dialogs_groupDrawable;
     public static Drawable dialogs_broadcastDrawable;
     public static Drawable dialogs_botDrawable;
     public static Drawable dialogs_muteDrawable;
     public static Drawable dialogs_verifiedDrawable;
+    public static ScamDrawable dialogs_scamDrawable;
     public static Drawable dialogs_verifiedCheckDrawable;
     public static Drawable dialogs_pinnedDrawable;
     public static Drawable dialogs_mentionDrawable;
     public static Drawable dialogs_holidayDrawable;
+    public static RLottieDrawable dialogs_archiveAvatarDrawable;
+    public static RLottieDrawable dialogs_archiveDrawable;
+    public static RLottieDrawable dialogs_unarchiveDrawable;
+    public static RLottieDrawable dialogs_pinArchiveDrawable;
+    public static RLottieDrawable dialogs_unpinArchiveDrawable;
+    public static boolean dialogs_archiveDrawableRecolored;
+    public static boolean dialogs_archiveAvatarDrawableRecolored;
     private static int dialogs_holidayDrawableOffsetX;
     private static int dialogs_holidayDrawableOffsetY;
     private static long lastHolidayCheckTime;
@@ -470,10 +499,11 @@ public class Theme {
     public static Drawable chat_msgInCallSelectedDrawable;
     public static Drawable chat_msgOutCallDrawable;
     public static Drawable chat_msgOutCallSelectedDrawable;
-    public static Drawable chat_msgCallUpRedDrawable;
+
     public static Drawable chat_msgCallUpGreenDrawable;
     public static Drawable chat_msgCallDownRedDrawable;
     public static Drawable chat_msgCallDownGreenDrawable;
+
     public static Drawable chat_msgAvatarLiveLocationDrawable;
     public static Drawable[] chat_attachButtonDrawables = new Drawable[10];
     public static Drawable[] chat_locationDrawable = new Drawable[2];
@@ -482,8 +512,12 @@ public class Theme {
     public static Drawable[] chat_cornerInner = new Drawable[4];
     public static Drawable[][] chat_fileStatesDrawable = new Drawable[10][2];
     public static CombinedDrawable[][] chat_fileMiniStatesDrawable = new CombinedDrawable[6][2];
-    public static Drawable[][] chat_ivStatesDrawable = new Drawable[4][2];
     public static Drawable[][] chat_photoStatesDrawables = new Drawable[13][2];
+
+    public static Drawable calllog_msgCallUpRedDrawable;
+    public static Drawable calllog_msgCallUpGreenDrawable;
+    public static Drawable calllog_msgCallDownRedDrawable;
+    public static Drawable calllog_msgCallDownGreenDrawable;
 
     public static Drawable chat_fileIcon;
     public static Drawable chat_flameIcon;
@@ -530,7 +564,14 @@ public class Theme {
     public static final String key_dialogCameraIcon = "dialogCameraIcon";
     public static final String key_dialog_inlineProgressBackground = "dialog_inlineProgressBackground";
     public static final String key_dialog_inlineProgress = "dialog_inlineProgress";
-
+    public static final String key_dialogSearchBackground = "dialogSearchBackground";
+    public static final String key_dialogSearchHint = "dialogSearchHint";
+    public static final String key_dialogSearchIcon = "dialogSearchIcon";
+    public static final String key_dialogSearchText = "dialogSearchText";
+    public static final String key_dialogFloatingButton = "dialogFloatingButton";
+    public static final String key_dialogFloatingButtonPressed = "dialogFloatingButtonPressed";
+    public static final String key_dialogFloatingIcon = "dialogFloatingIcon";
+    public static final String key_dialogShadowLine = "dialogShadowLine";
 
     public static final String key_windowBackgroundWhite = "windowBackgroundWhite";
     public static final String key_windowBackgroundUnchecked = "windowBackgroundUnchecked";
@@ -596,6 +637,7 @@ public class Theme {
     public static final String key_radioBackground = "radioBackground";
     public static final String key_radioBackgroundChecked = "radioBackgroundChecked";
     public static final String key_checkbox = "checkbox";
+    public static final String key_checkboxDisabled = "checkboxDisabled";
     public static final String key_checkboxCheck = "checkboxCheck";
     public static final String key_fastScrollActive = "fastScrollActive";
     public static final String key_fastScrollInactive = "fastScrollInactive";
@@ -621,6 +663,8 @@ public class Theme {
 
     public static final String key_avatar_text = "avatar_text";
     public static final String key_avatar_backgroundSaved = "avatar_backgroundSaved";
+    public static final String key_avatar_backgroundArchived = "avatar_backgroundArchived";
+    public static final String key_avatar_backgroundArchivedHidden = "avatar_backgroundArchivedHidden";
     public static final String key_avatar_backgroundRed = "avatar_backgroundRed";
     public static final String key_avatar_backgroundOrange = "avatar_backgroundOrange";
     public static final String key_avatar_backgroundViolet = "avatar_backgroundViolet";
@@ -660,19 +704,41 @@ public class Theme {
     public static final String key_actionBarDefaultSearch = "actionBarDefaultSearch";
     public static final String key_actionBarDefaultSearchPlaceholder = "actionBarDefaultSearchPlaceholder";
     public static final String key_actionBarDefaultSubmenuItem = "actionBarDefaultSubmenuItem";
+    public static final String key_actionBarDefaultSubmenuItemIcon = "actionBarDefaultSubmenuItemIcon";
     public static final String key_actionBarDefaultSubmenuBackground = "actionBarDefaultSubmenuBackground";
+    public static final String key_actionBarTabActiveText = "actionBarTabActiveText";
+    public static final String key_actionBarTabUnactiveText = "actionBarTabUnactiveText";
+    public static final String key_actionBarTabLine = "actionBarTabLine";
+    public static final String key_actionBarTabSelector = "actionBarTabSelector";
+    public static final String key_actionBarDefaultArchived = "actionBarDefaultArchived";
+    public static final String key_actionBarDefaultArchivedSelector = "actionBarDefaultArchivedSelector";
+    public static final String key_actionBarDefaultArchivedIcon = "actionBarDefaultArchivedIcon";
+    public static final String key_actionBarDefaultArchivedTitle = "actionBarDefaultArchivedTitle";
+    public static final String key_actionBarDefaultArchivedSearch = "actionBarDefaultArchivedSearch";
+    public static final String key_actionBarDefaultArchivedSearchPlaceholder = "actionBarDefaultSearchArchivedPlaceholder";
+
     public static final String key_chats_onlineCircle = "chats_onlineCircle";
     public static final String key_chats_unreadCounter = "chats_unreadCounter";
     public static final String key_chats_unreadCounterMuted = "chats_unreadCounterMuted";
     public static final String key_chats_unreadCounterText = "chats_unreadCounterText";
     public static final String key_chats_name = "chats_name";
+    public static final String key_chats_nameArchived = "chats_nameArchived";
     public static final String key_chats_secretName = "chats_secretName";
     public static final String key_chats_secretIcon = "chats_secretIcon";
     public static final String key_chats_nameIcon = "chats_nameIcon";
     public static final String key_chats_pinnedIcon = "chats_pinnedIcon";
+    public static final String key_chats_archiveBackground = "chats_archiveBackground";
+    public static final String key_chats_archivePinBackground = "chats_archivePinBackground";
+    public static final String key_chats_archiveIcon = "chats_archiveIcon";
+    public static final String key_chats_archiveText = "chats_archiveText";
     public static final String key_chats_message = "chats_message";
+    public static final String key_chats_messageArchived = "chats_messageArchived";
+    public static final String key_chats_message_threeLines = "chats_message_threeLines";
     public static final String key_chats_draft = "chats_draft";
     public static final String key_chats_nameMessage = "chats_nameMessage";
+    public static final String key_chats_nameMessageArchived = "chats_nameMessageArchived";
+    public static final String key_chats_nameMessage_threeLines = "chats_nameMessage_threeLines";
+    public static final String key_chats_nameMessageArchived_threeLines = "chats_nameMessageArchived_threeLines";
     public static final String key_chats_attachMessage = "chats_attachMessage";
     public static final String key_chats_actionMessage = "chats_actionMessage";
     public static final String key_chats_date = "chats_date";
@@ -687,6 +753,7 @@ public class Theme {
     public static final String key_chats_muteIcon = "chats_muteIcon";
     public static final String key_chats_mentionIcon = "chats_mentionIcon";
     public static final String key_chats_menuTopShadow = "chats_menuTopShadow";
+    public static final String key_chats_menuTopShadowCats = "chats_menuTopShadowCats";
     public static final String key_chats_menuBackground = "chats_menuBackground";
     public static final String key_chats_menuItemText = "chats_menuItemText";
     public static final String key_chats_menuItemCheck = "chats_menuItemCheck";
@@ -694,6 +761,8 @@ public class Theme {
     public static final String key_chats_menuName = "chats_menuName";
     public static final String key_chats_menuPhone = "chats_menuPhone";
     public static final String key_chats_menuPhoneCats = "chats_menuPhoneCats";
+    public static final String key_chats_menuTopBackgroundCats = "chats_menuTopBackgroundCats";
+    public static final String key_chats_menuTopBackground = "chats_menuTopBackground";
     public static final String key_chats_menuCloud = "chats_menuCloud";
     public static final String key_chats_menuCloudBackgroundCats = "chats_menuCloudBackgroundCats";
     public static final String key_chats_actionIcon = "chats_actionIcon";
@@ -709,6 +778,8 @@ public class Theme {
     public static final String key_chat_attachCameraIcon4 = "chat_attachCameraIcon4";
     public static final String key_chat_attachCameraIcon5 = "chat_attachCameraIcon5";
     public static final String key_chat_attachCameraIcon6 = "chat_attachCameraIcon6";
+    public static final String key_chat_attachMediaBanBackground = "chat_attachMediaBanBackground";
+    public static final String key_chat_attachMediaBanText = "chat_attachMediaBanText";
 
     public static final String key_chat_attachGalleryBackground = "chat_attachGalleryBackground";
     //public static final String key_chat_attachGalleryBackgroundPressed = "chat_attachGalleryBackgroundPressed";
@@ -738,6 +809,10 @@ public class Theme {
     //public static final String key_chat_attachPollBackgroundPressed = "chat_attachPollBackgroundPressed";
     public static final String key_chat_attachPollIcon = "chat_attachPollIcon";
 
+    public static final String key_chat_status = "chat_status";
+    public static final String key_chat_inRedCall = "chat_inUpCall";
+    public static final String key_chat_inGreenCall = "chat_inDownCall";
+    public static final String key_chat_outGreenCall = "chat_outUpCall";
     public static final String key_chat_inBubble = "chat_inBubble";
     public static final String key_chat_inBubbleSelected = "chat_inBubbleSelected";
     public static final String key_chat_inBubbleShadow = "chat_inBubbleShadow";
@@ -946,24 +1021,26 @@ public class Theme {
     public static final String key_chat_emojiPanelBadgeBackground = "chat_emojiPanelBadgeBackground";
     public static final String key_chat_emojiPanelBadgeText = "chat_emojiPanelBadgeText";
     public static final String key_chat_emojiSearchBackground = "chat_emojiSearchBackground";
+    public static final String key_chat_emojiSearchIcon = "chat_emojiSearchIcon";
     public static final String key_chat_emojiPanelShadowLine = "chat_emojiPanelShadowLine";
     public static final String key_chat_emojiPanelEmptyText = "chat_emojiPanelEmptyText";
     public static final String key_chat_emojiPanelIcon = "chat_emojiPanelIcon";
+    public static final String key_chat_emojiBottomPanelIcon = "chat_emojiBottomPanelIcon";
     public static final String key_chat_emojiPanelIconSelected = "chat_emojiPanelIconSelected";
     public static final String key_chat_emojiPanelStickerPackSelector = "chat_emojiPanelStickerPackSelector";
-    public static final String key_chat_emojiPanelIconSelector = "chat_emojiPanelIconSelector";
+    public static final String key_chat_emojiPanelStickerPackSelectorLine = "chat_emojiPanelStickerPackSelectorLine";
     public static final String key_chat_emojiPanelBackspace = "chat_emojiPanelBackspace";
     public static final String key_chat_emojiPanelMasksIcon = "chat_emojiPanelMasksIcon";
     public static final String key_chat_emojiPanelMasksIconSelected = "chat_emojiPanelMasksIconSelected";
     public static final String key_chat_emojiPanelTrendingTitle = "chat_emojiPanelTrendingTitle";
     public static final String key_chat_emojiPanelStickerSetName = "chat_emojiPanelStickerSetName";
+    public static final String key_chat_emojiPanelStickerSetNameHighlight = "chat_emojiPanelStickerSetNameHighlight";
     public static final String key_chat_emojiPanelStickerSetNameIcon = "chat_emojiPanelStickerSetNameIcon";
     public static final String key_chat_emojiPanelTrendingDescription = "chat_emojiPanelTrendingDescription";
     public static final String key_chat_botKeyboardButtonText = "chat_botKeyboardButtonText";
     public static final String key_chat_botKeyboardButtonBackground = "chat_botKeyboardButtonBackground";
     public static final String key_chat_botKeyboardButtonBackgroundPressed = "chat_botKeyboardButtonBackgroundPressed";
     public static final String key_chat_emojiPanelNewTrending = "chat_emojiPanelNewTrending";
-    public static final String key_chat_editDoneIcon = "chat_editDoneIcon";
     public static final String key_chat_messagePanelVoicePressed = "chat_messagePanelVoicePressed";
     public static final String key_chat_messagePanelVoiceBackground = "chat_messagePanelVoiceBackground";
     public static final String key_chat_messagePanelVoiceShadow = "chat_messagePanelVoiceShadow";
@@ -999,11 +1076,13 @@ public class Theme {
     public static final String key_profile_actionPressedBackground = "profile_actionPressedBackground";
     public static final String key_profile_verifiedBackground = "profile_verifiedBackground";
     public static final String key_profile_verifiedCheck = "profile_verifiedCheck";
+    public static final String key_profile_status = "profile_status";
 
     public static final String key_sharedMedia_startStopLoadIcon = "sharedMedia_startStopLoadIcon";
     public static final String key_sharedMedia_linkPlaceholder = "sharedMedia_linkPlaceholder";
     public static final String key_sharedMedia_linkPlaceholderText = "sharedMedia_linkPlaceholderText";
     public static final String key_sharedMedia_photoPlaceholder = "sharedMedia_photoPlaceholder";
+    public static final String key_sharedMedia_actionMode = "sharedMedia_actionMode";
 
     public static final String key_featuredStickers_addedIcon = "featuredStickers_addedIcon";
     public static final String key_featuredStickers_buttonProgress = "featuredStickers_buttonProgress";
@@ -1018,14 +1097,12 @@ public class Theme {
     public static final String key_stickers_menuSelector = "stickers_menuSelector";
 
     public static final String key_changephoneinfo_image = "changephoneinfo_image";
-    public static final String key_changephoneinfo_changeText = "key_changephoneinfo_changeText";
+    public static final String key_changephoneinfo_image2 = "changephoneinfo_image2";
 
     public static final String key_groupcreate_hintText = "groupcreate_hintText";
     public static final String key_groupcreate_cursor = "groupcreate_cursor";
     public static final String key_groupcreate_sectionShadow = "groupcreate_sectionShadow";
     public static final String key_groupcreate_sectionText = "groupcreate_sectionText";
-    public static final String key_groupcreate_checkbox = "groupcreate_checkbox";
-    public static final String key_groupcreate_checkboxCheck = "groupcreate_checkboxCheck";
     public static final String key_groupcreate_spanText = "groupcreate_spanText";
     public static final String key_groupcreate_spanBackground = "groupcreate_spanBackground";
     public static final String key_groupcreate_spanDelete = "groupcreate_spanDelete";
@@ -1046,7 +1123,6 @@ public class Theme {
     public static final String key_picker_badge = "picker_badge";
     public static final String key_picker_badgeText = "picker_badgeText";
 
-    public static final String key_location_markerX = "location_markerX";
     public static final String key_location_sendLocationBackground = "location_sendLocationBackground";
     public static final String key_location_sendLiveLocationBackground = "location_sendLiveLocationBackground";
     public static final String key_location_sendLocationIcon = "location_sendLocationIcon";
@@ -1067,6 +1143,9 @@ public class Theme {
     public static final String key_undo_background = "undo_background";
     public static final String key_undo_cancelColor = "undo_cancelColor";
     public static final String key_undo_infoColor = "undo_infoColor";
+
+    public static final String key_sheet_scrollUp = "key_sheet_scrollUp";
+    public static final String key_sheet_other = "key_sheet_other";
 
     //ununsed
     public static final String key_chat_outBroadcast = "chat_outBroadcast";
@@ -1091,6 +1170,7 @@ public class Theme {
     private static HashMap<String, Integer> defaultColors = new HashMap<>();
     private static HashMap<String, String> fallbackKeys = new HashMap<>();
     private static HashMap<String, Integer> currentColors;
+    private static HashMap<String, Integer> animatingColors;
 
     static {
         defaultColors.put(key_dialogBackground, 0xffffffff);
@@ -1109,7 +1189,7 @@ public class Theme {
         defaultColors.put(key_dialogTextGray3, 0xff999999);
         defaultColors.put(key_dialogTextGray4, 0xffb3b3b3);
         defaultColors.put(key_dialogTextHint, 0xff979797);
-        defaultColors.put(key_dialogIcon, 0xff8a8a8a);
+        defaultColors.put(key_dialogIcon, 0xff676b70);
         defaultColors.put(key_dialogRedIcon, 0xffe14d4d);
         defaultColors.put(key_dialogGrayLine, 0xffd2d2d2);
         defaultColors.put(key_dialogTopBackground, 0xff6fb2e5);
@@ -1127,13 +1207,21 @@ public class Theme {
         defaultColors.put(key_dialogButton, 0xff4991cc);
         defaultColors.put(key_dialogButtonSelector, 0x0f000000);
         defaultColors.put(key_dialogScrollGlow, 0xfff5f6f7);
-        defaultColors.put(key_dialogRoundCheckBox, 0xff3ec1f9);
+        defaultColors.put(key_dialogRoundCheckBox, 0xff4cb4f5);
         defaultColors.put(key_dialogRoundCheckBoxCheck, 0xffffffff);
         defaultColors.put(key_dialogBadgeBackground, 0xff3ec1f9);
         defaultColors.put(key_dialogBadgeText, 0xffffffff);
         defaultColors.put(key_dialogCameraIcon, 0xffffffff);
         defaultColors.put(key_dialog_inlineProgressBackground, 0xf6f0f2f5);
         defaultColors.put(key_dialog_inlineProgress, 0xff6b7378);
+        defaultColors.put(key_dialogSearchBackground, 0xfff2f4f5);
+        defaultColors.put(key_dialogSearchHint, 0xff98a0a7);
+        defaultColors.put(key_dialogSearchIcon, 0xffa1a8af);
+        defaultColors.put(key_dialogSearchText, 0xff222222);
+        defaultColors.put(key_dialogFloatingButton, 0xff4cb4f5);
+        defaultColors.put(key_dialogFloatingButtonPressed, 0xff4cb4f5);
+        defaultColors.put(key_dialogFloatingIcon, 0xffffffff);
+        defaultColors.put(key_dialogShadowLine, 0x12000000);
 
         defaultColors.put(key_windowBackgroundWhite, 0xffffffff);
         defaultColors.put(key_windowBackgroundUnchecked, 0xff9da7b1);
@@ -1213,6 +1301,8 @@ public class Theme {
         defaultColors.put(key_avatar_text, 0xffffffff);
 
         defaultColors.put(key_avatar_backgroundSaved, 0xff66bffa);
+        defaultColors.put(key_avatar_backgroundArchived, 0xffa9b6c1);
+        defaultColors.put(key_avatar_backgroundArchivedHidden, 0xffc6c9cc);
         defaultColors.put(key_avatar_backgroundRed, 0xffe56555);
         defaultColors.put(key_avatar_backgroundOrange, 0xfff28c48);
         defaultColors.put(key_avatar_backgroundViolet, 0xff8e85ee);
@@ -1232,15 +1322,15 @@ public class Theme {
         defaultColors.put(key_avatar_nameInMessageOrange, 0xffd87b29);
         defaultColors.put(key_avatar_nameInMessageViolet, 0xff4e92cc);
         defaultColors.put(key_avatar_nameInMessageGreen, 0xff50b232);
-        defaultColors.put(key_avatar_nameInMessageCyan, 0xff42b1a8);
+        defaultColors.put(key_avatar_nameInMessageCyan, 0xff379eb8);
         defaultColors.put(key_avatar_nameInMessageBlue, 0xff4e92cc);
         defaultColors.put(key_avatar_nameInMessagePink, 0xff4e92cc);
 
         defaultColors.put(key_actionBarDefault, 0xff527da3);
         defaultColors.put(key_actionBarDefaultIcon, 0xffffffff);
         defaultColors.put(key_actionBarActionModeDefault, 0xffffffff);
-        defaultColors.put(key_actionBarActionModeDefaultTop, 0x99000000);
-        defaultColors.put(key_actionBarActionModeDefaultIcon, 0xff737373);
+        defaultColors.put(key_actionBarActionModeDefaultTop, 0x10000000);
+        defaultColors.put(key_actionBarActionModeDefaultIcon, 0xff676a6f);
         defaultColors.put(key_actionBarDefaultTitle, 0xffffffff);
         defaultColors.put(key_actionBarDefaultSubtitle, 0xffd5e8f7);
         defaultColors.put(key_actionBarDefaultSelector, 0xff406d94);
@@ -1248,24 +1338,46 @@ public class Theme {
         defaultColors.put(key_actionBarDefaultSearch, 0xffffffff);
         defaultColors.put(key_actionBarDefaultSearchPlaceholder, 0x88ffffff);
         defaultColors.put(key_actionBarDefaultSubmenuItem, 0xff222222);
+        defaultColors.put(key_actionBarDefaultSubmenuItemIcon, 0xff676b70);
         defaultColors.put(key_actionBarDefaultSubmenuBackground, 0xffffffff);
         defaultColors.put(key_actionBarActionModeDefaultSelector, 0xfff0f0f0);
+        defaultColors.put(key_actionBarTabActiveText, 0xffffffff);
+        defaultColors.put(key_actionBarTabUnactiveText, 0xffd5e8f7);
+        defaultColors.put(key_actionBarTabLine, 0xffffffff);
+        defaultColors.put(key_actionBarTabSelector, 0xff406d94);
 
-        defaultColors.put(key_chats_onlineCircle, 0xff32a9e6);
+        defaultColors.put(key_actionBarDefaultArchived, 0xff6f7a87);
+        defaultColors.put(key_actionBarDefaultArchivedSelector, 0xff5e6772);
+        defaultColors.put(key_actionBarDefaultArchivedIcon, 0xffffffff);
+        defaultColors.put(key_actionBarDefaultArchivedTitle, 0xffffffff);
+        defaultColors.put(key_actionBarDefaultArchivedSearch, 0xffffffff);
+        defaultColors.put(key_actionBarDefaultArchivedSearchPlaceholder, 0x88ffffff);
+
+        defaultColors.put(key_chats_onlineCircle, 0xff4bcb1c);
         defaultColors.put(key_chats_unreadCounter, 0xff4ecc5e);
-        defaultColors.put(key_chats_unreadCounterMuted, 0xffc7c7c7);
+        defaultColors.put(key_chats_unreadCounterMuted, 0xffc6c9cc);
         defaultColors.put(key_chats_unreadCounterText, 0xffffffff);
+        defaultColors.put(key_chats_archiveBackground, 0xff66a9e0);
+        defaultColors.put(key_chats_archivePinBackground, 0xff9faab3);
+        defaultColors.put(key_chats_archiveIcon, 0xffffffff);
+        defaultColors.put(key_chats_archiveText, 0xffffffff);
         defaultColors.put(key_chats_name, 0xff222222);
+        defaultColors.put(key_chats_nameArchived, 0xff525252);
         defaultColors.put(key_chats_secretName, 0xff00a60e);
         defaultColors.put(key_chats_secretIcon, 0xff19b126);
         defaultColors.put(key_chats_nameIcon, 0xff242424);
         defaultColors.put(key_chats_pinnedIcon, 0xffa8a8a8);
-        defaultColors.put(key_chats_message, 0xff8f8f8f);
+        defaultColors.put(key_chats_message, 0xff8b8d8f);
+        defaultColors.put(key_chats_messageArchived, 0xff919191);
+        defaultColors.put(key_chats_message_threeLines, 0xff8e9091);
         defaultColors.put(key_chats_draft, 0xffdd4b39);
-        defaultColors.put(key_chats_nameMessage, 0xff4d83b3);
-        defaultColors.put(key_chats_attachMessage, 0xff4d83b3);
-        defaultColors.put(key_chats_actionMessage, 0xff4d83b3);
-        defaultColors.put(key_chats_date, 0xff999999);
+        defaultColors.put(key_chats_nameMessage, 0xff3c7eb0);
+        defaultColors.put(key_chats_nameMessageArchived, 0xff8b8d8f);
+        defaultColors.put(key_chats_nameMessage_threeLines, 0xff424449);
+        defaultColors.put(key_chats_nameMessageArchived_threeLines, 0xff5e5e5e);
+        defaultColors.put(key_chats_attachMessage, 0xff3c7eb0);
+        defaultColors.put(key_chats_actionMessage, 0xff3c7eb0);
+        defaultColors.put(key_chats_date, 0xff95999C);
         defaultColors.put(key_chats_pinnedOverlay, 0x08000000);
         defaultColors.put(key_chats_tabletSelectedOverlay, 0x0f000000);
         defaultColors.put(key_chats_sentCheck, 0xff46aa36);
@@ -1274,7 +1386,7 @@ public class Theme {
         defaultColors.put(key_chats_sentErrorIcon, 0xffffffff);
         defaultColors.put(key_chats_verifiedBackground, 0xff33a8e6);
         defaultColors.put(key_chats_verifiedCheck, 0xffffffff);
-        defaultColors.put(key_chats_muteIcon, 0xffa8a8a8);
+        defaultColors.put(key_chats_muteIcon, 0xffbdc1c4);
         defaultColors.put(key_chats_mentionIcon, 0xffffffff);
         defaultColors.put(key_chats_menuBackground, 0xffffffff);
         defaultColors.put(key_chats_menuItemText, 0xff444444);
@@ -1291,6 +1403,7 @@ public class Theme {
         defaultColors.put(key_chats_actionUnreadIcon, 0xff737373);
         defaultColors.put(key_chats_actionUnreadBackground, 0xffffffff);
         defaultColors.put(key_chats_actionUnreadPressedBackground, 0xfff2f2f2);
+        defaultColors.put(key_chats_menuTopBackgroundCats, 0xff598fba);
 
         defaultColors.put(key_chat_attachCameraIcon1, 0xffff7d30);
         defaultColors.put(key_chat_attachCameraIcon2, 0xffeb5850);
@@ -1298,6 +1411,8 @@ public class Theme {
         defaultColors.put(key_chat_attachCameraIcon4, 0xffb455e0);
         defaultColors.put(key_chat_attachCameraIcon5, 0xff61d061);
         defaultColors.put(key_chat_attachCameraIcon6, 0xfffec125);
+        defaultColors.put(key_chat_attachMediaBanBackground, 0xff464646);
+        defaultColors.put(key_chat_attachMediaBanText, 0xffffffff);
 
         defaultColors.put(key_chat_attachGalleryBackground, 0xffa47ad9);
         //defaultColors.put(key_chat_attachGalleryBackgroundPressed, 0xffa47ad9);
@@ -1326,21 +1441,26 @@ public class Theme {
         //defaultColors.put(key_chat_attachPollBackgroundPressed, 0xfff68751);
         defaultColors.put(key_chat_attachPollIcon, 0xffffffff);
 
+
+        defaultColors.put(key_chat_status, 0xffd5e8f7);
+        defaultColors.put(key_chat_inGreenCall, 0xff00c853);
+        defaultColors.put(key_chat_inRedCall, 0xffff4848);
+        defaultColors.put(key_chat_outGreenCall, 0xff00c853);
         defaultColors.put(key_chat_attachSendIcon, 0xffffffff);
         defaultColors.put(key_chat_shareBackground, 0x66728fa6);
         defaultColors.put(key_chat_shareBackgroundSelected, 0x99728fa6);
         defaultColors.put(key_chat_lockIcon, 0xffffffff);
         defaultColors.put(key_chat_muteIcon, 0xffb1cce3);
         defaultColors.put(key_chat_inBubble, 0xffffffff);
-        defaultColors.put(key_chat_inBubbleSelected, 0xffe2f8ff);
+        defaultColors.put(key_chat_inBubbleSelected, 0xffecf7fd);
         defaultColors.put(key_chat_inBubbleShadow, 0xff1d3753);
         defaultColors.put(key_chat_outBubble, 0xffefffde);
-        defaultColors.put(key_chat_outBubbleSelected, 0xffd4f5bc);
+        defaultColors.put(key_chat_outBubbleSelected, 0xffd9f7c5);
         defaultColors.put(key_chat_outBubbleShadow, 0xff1e750c);
         defaultColors.put(key_chat_inMediaIcon, 0xffffffff);
-        defaultColors.put(key_chat_inMediaIconSelected, 0xffe2f8ff);
+        defaultColors.put(key_chat_inMediaIconSelected, 0xffeff8fe);
         defaultColors.put(key_chat_outMediaIcon, 0xffefffde);
-        defaultColors.put(key_chat_outMediaIconSelected, 0xffd4f5bc);
+        defaultColors.put(key_chat_outMediaIconSelected, 0xffe1f8cf);
         defaultColors.put(key_chat_messageTextIn, 0xff000000);
         defaultColors.put(key_chat_messageTextOut, 0xff000000);
         defaultColors.put(key_chat_messageLinkIn, 0xff2678b6);
@@ -1373,7 +1493,7 @@ public class Theme {
         defaultColors.put(key_chat_inInstantSelected, 0xff3079b5);
         defaultColors.put(key_chat_sentError, 0xffdb3535);
         defaultColors.put(key_chat_sentErrorIcon, 0xffffffff);
-        defaultColors.put(key_chat_selectedBackground, 0x6633b5e5);
+        defaultColors.put(key_chat_selectedBackground, 0x280a90f0);
         defaultColors.put(key_chat_previewDurationText, 0xffffffff);
         defaultColors.put(key_chat_previewGameText, 0xffffffff);
         defaultColors.put(key_chat_inPreviewInstantText, 0xff3a8ccf);
@@ -1415,8 +1535,8 @@ public class Theme {
         defaultColors.put(key_chat_mediaProgress, 0xffffffff);
         defaultColors.put(key_chat_inAudioProgress, 0xffffffff);
         defaultColors.put(key_chat_outAudioProgress, 0xffefffde);
-        defaultColors.put(key_chat_inAudioSelectedProgress, 0xffe2f8ff);
-        defaultColors.put(key_chat_outAudioSelectedProgress, 0xffd4f5bc);
+        defaultColors.put(key_chat_inAudioSelectedProgress, 0xffeff8fe);
+        defaultColors.put(key_chat_outAudioSelectedProgress, 0xffe1f8cf);
         defaultColors.put(key_chat_mediaTimeText, 0xffffffff);
         defaultColors.put(key_chat_inTimeText, 0xffa1aab3);
         defaultColors.put(key_chat_outTimeText, 0xff70b15c);
@@ -1469,21 +1589,24 @@ public class Theme {
         defaultColors.put(key_chat_mediaInfoText, 0xffffffff);
         defaultColors.put(key_chat_linkSelectBackground, 0x3362a9e3);
         defaultColors.put(key_chat_textSelectBackground, 0x6662a9e3);
-        defaultColors.put(key_chat_emojiPanelBackground, 0xfff5f6f7);
+        defaultColors.put(key_chat_emojiPanelBackground, 0xfff0f2f5);
         defaultColors.put(key_chat_emojiPanelBadgeBackground, 0xff4da6ea);
         defaultColors.put(key_chat_emojiPanelBadgeText, 0xffffffff);
-        defaultColors.put(key_chat_emojiSearchBackground, 0xffe7ebed);
-        defaultColors.put(key_chat_emojiPanelShadowLine, 0xffe2e5e7);
-        defaultColors.put(key_chat_emojiPanelEmptyText, 0xffa8a8a8);
-        defaultColors.put(key_chat_emojiPanelIcon, 0xffa8a8a8);
-        defaultColors.put(key_chat_emojiPanelIconSelected, 0xff2b96e2);
+        defaultColors.put(key_chat_emojiSearchBackground, 0xffe5e9ee);
+        defaultColors.put(key_chat_emojiSearchIcon, 0xff94a1af);
+        defaultColors.put(key_chat_emojiPanelShadowLine, 0x12000000);
+        defaultColors.put(key_chat_emojiPanelEmptyText, 0xff949ba1);
+        defaultColors.put(key_chat_emojiPanelIcon, 0xff9da4ab);
+        defaultColors.put(key_chat_emojiBottomPanelIcon, 0xff8c9197);
+        defaultColors.put(key_chat_emojiPanelIconSelected, 0xff2b97e2);
         defaultColors.put(key_chat_emojiPanelStickerPackSelector, 0xffe2e5e7);
-        defaultColors.put(key_chat_emojiPanelIconSelector, 0xff2b96e2);
-        defaultColors.put(key_chat_emojiPanelBackspace, 0xffa8a8a8);
+        defaultColors.put(key_chat_emojiPanelStickerPackSelectorLine, 0xff56abf0);
+        defaultColors.put(key_chat_emojiPanelBackspace, 0xff8c9197);
         defaultColors.put(key_chat_emojiPanelMasksIcon, 0xffffffff);
         defaultColors.put(key_chat_emojiPanelMasksIconSelected, 0xff62bfe8);
         defaultColors.put(key_chat_emojiPanelTrendingTitle, 0xff222222);
-        defaultColors.put(key_chat_emojiPanelStickerSetName, 0xff838c96);
+        defaultColors.put(key_chat_emojiPanelStickerSetName, 0xff828b94);
+        defaultColors.put(key_chat_emojiPanelStickerSetNameHighlight, 0xff278ddb);
         defaultColors.put(key_chat_emojiPanelStickerSetNameIcon, 0xffb1b6bc);
         defaultColors.put(key_chat_emojiPanelTrendingDescription, 0xff8a8a8a);
         defaultColors.put(key_chat_botKeyboardButtonText, 0xff36474f);
@@ -1492,7 +1615,6 @@ public class Theme {
         defaultColors.put(key_chat_unreadMessagesStartArrowIcon, 0xffa2b5c7);
         defaultColors.put(key_chat_unreadMessagesStartText, 0xff5695cc);
         defaultColors.put(key_chat_unreadMessagesStartBackground, 0xffffffff);
-        defaultColors.put(key_chat_editDoneIcon, 0xff51bdf3);
         defaultColors.put(key_chat_inFileIcon, 0xffa2b5c7);
         defaultColors.put(key_chat_inFileSelectedIcon, 0xff87b6c5);
         defaultColors.put(key_chat_outFileIcon, 0xff85bf78);
@@ -1507,21 +1629,21 @@ public class Theme {
         defaultColors.put(key_chat_outContactIcon, 0xffefffde);
         defaultColors.put(key_chat_outBroadcast, 0xff46aa36);
         defaultColors.put(key_chat_mediaBroadcast, 0xffffffff);
-        defaultColors.put(key_chat_searchPanelIcons, 0xff5da5dc);
-        defaultColors.put(key_chat_searchPanelText, 0xff4e9ad4);
+        defaultColors.put(key_chat_searchPanelIcons, 0xff676a6f);
+        defaultColors.put(key_chat_searchPanelText, 0xff676a6f);
         defaultColors.put(key_chat_secretChatStatusText, 0xff7f7f7f);
         defaultColors.put(key_chat_fieldOverlayText, 0xff3a8ccf);
         defaultColors.put(key_chat_stickersHintPanel, 0xffffffff);
         defaultColors.put(key_chat_replyPanelIcons, 0xff57a8e6);
-        defaultColors.put(key_chat_replyPanelClose, 0xffa8a8a8);
+        defaultColors.put(key_chat_replyPanelClose, 0xff8e959b);
         defaultColors.put(key_chat_replyPanelName, 0xff3a8ccf);
         defaultColors.put(key_chat_replyPanelMessage, 0xff222222);
         defaultColors.put(key_chat_replyPanelLine, 0xffe8e8e8);
         defaultColors.put(key_chat_messagePanelBackground, 0xffffffff);
         defaultColors.put(key_chat_messagePanelText, 0xff000000);
-        defaultColors.put(key_chat_messagePanelHint, 0xffb2b2b2);
+        defaultColors.put(key_chat_messagePanelHint, 0xffa4acb3);
         defaultColors.put(key_chat_messagePanelShadow, 0xff000000);
-        defaultColors.put(key_chat_messagePanelIcons, 0xffa8a8a8);
+        defaultColors.put(key_chat_messagePanelIcons, 0xff8e959b);
         defaultColors.put(key_chat_recordedVoicePlayPause, 0xffffffff);
         defaultColors.put(key_chat_recordedVoicePlayPausePressed, 0xffd9eafb);
         defaultColors.put(key_chat_recordedVoiceDot, 0xffda564d);
@@ -1539,7 +1661,7 @@ public class Theme {
         defaultColors.put(key_chat_gifSaveHintBackground, 0xcc111111);
         defaultColors.put(key_chat_goDownButton, 0xffffffff);
         defaultColors.put(key_chat_goDownButtonShadow, 0xff000000);
-        defaultColors.put(key_chat_goDownButtonIcon, 0xffa8a8a8);
+        defaultColors.put(key_chat_goDownButtonIcon, 0xff8e959b);
         defaultColors.put(key_chat_goDownButtonCounter, 0xffffffff);
         defaultColors.put(key_chat_goDownButtonCounterBackground, 0xff4da2e8);
         defaultColors.put(key_chat_messagePanelCancelInlineBot, 0xffadadad);
@@ -1550,7 +1672,7 @@ public class Theme {
         defaultColors.put(key_chat_messagePanelVoiceDuration, 0xffffffff);
         defaultColors.put(key_chat_inlineResultIcon, 0xff5795cc);
         defaultColors.put(key_chat_topPanelBackground, 0xffffffff);
-        defaultColors.put(key_chat_topPanelClose, 0xffa8a8a8);
+        defaultColors.put(key_chat_topPanelClose, 0xff8c959a);
         defaultColors.put(key_chat_topPanelLine, 0xff6c9fd2);
         defaultColors.put(key_chat_topPanelTitle, 0xff3a8ccf);
         defaultColors.put(key_chat_topPanelMessage, 0xff999999);
@@ -1582,9 +1704,10 @@ public class Theme {
         defaultColors.put(key_profile_verifiedBackground, 0xffb2d6f8);
         defaultColors.put(key_profile_verifiedCheck, 0xff4983b8);
         defaultColors.put(key_profile_title, 0xffffffff);
+        defaultColors.put(key_profile_status, 0xffd7eafa);
 
         defaultColors.put(key_player_actionBar, 0xffffffff);
-        defaultColors.put(key_player_actionBarSelector, 0x2f000000);
+        defaultColors.put(key_player_actionBarSelector, 0x0f000000);
         defaultColors.put(key_player_actionBarTitle, 0xff2f3438);
         defaultColors.put(key_player_actionBarTop, 0x99000000);
         defaultColors.put(key_player_actionBarSubtitle, 0xff8a8a8a);
@@ -1599,6 +1722,9 @@ public class Theme {
         defaultColors.put(key_player_button, 0xff333333);
         defaultColors.put(key_player_buttonActive, 0xff4ca8ea);
 
+        defaultColors.put(key_sheet_scrollUp, 0xffe1e4e8);
+        defaultColors.put(key_sheet_other, 0xffc9cdd3);
+
         defaultColors.put(key_files_folderIcon, 0xff999999);
         defaultColors.put(key_files_folderIconBackground, 0xfff0f0f0);
         defaultColors.put(key_files_iconText, 0xffffffff);
@@ -1609,7 +1735,6 @@ public class Theme {
         defaultColors.put(key_passport_authorizeBackgroundSelected, 0xff409ddb);
         defaultColors.put(key_passport_authorizeText, 0xffffffff);
 
-        defaultColors.put(key_location_markerX, 0xff808080);
         defaultColors.put(key_location_sendLocationBackground, 0xff6da0d4);
         defaultColors.put(key_location_sendLiveLocationBackground, 0xffff6464);
         defaultColors.put(key_location_sendLocationIcon, 0xffffffff);
@@ -1642,23 +1767,23 @@ public class Theme {
         defaultColors.put(key_sharedMedia_startStopLoadIcon, 0xff36a2ee);
         defaultColors.put(key_sharedMedia_linkPlaceholder, 0xfff0f3f5);
         defaultColors.put(key_sharedMedia_linkPlaceholderText, 0xffb7bec3);
-        defaultColors.put(key_sharedMedia_photoPlaceholder, 0xfff5f5f5);
+        defaultColors.put(key_sharedMedia_photoPlaceholder, 0xffedf3f7);
+        defaultColors.put(key_sharedMedia_actionMode, 0xff4687b3);
 
         defaultColors.put(key_checkbox, 0xff5ec245);
         defaultColors.put(key_checkboxCheck, 0xffffffff);
+        defaultColors.put(key_checkboxDisabled, 0xffb0b9c2);
 
         defaultColors.put(key_stickers_menu, 0xffb6bdc5);
-        defaultColors.put(key_stickers_menuSelector, 0x2f000000);
+        defaultColors.put(key_stickers_menuSelector, 0x0f000000);
 
-        defaultColors.put(key_changephoneinfo_image, 0xffa8a8a8);
-        defaultColors.put(key_changephoneinfo_changeText, 0xff4d83b3);
+        defaultColors.put(key_changephoneinfo_image, 0xffb8bfc5);
+        defaultColors.put(key_changephoneinfo_image2, 0xff50a7ea);
 
         defaultColors.put(key_groupcreate_hintText, 0xffa1aab3);
         defaultColors.put(key_groupcreate_cursor, 0xff52a3db);
         defaultColors.put(key_groupcreate_sectionShadow, 0xff000000);
         defaultColors.put(key_groupcreate_sectionText, 0xff7c8288);
-        defaultColors.put(key_groupcreate_checkbox, 0xff5ec245);
-        defaultColors.put(key_groupcreate_checkboxCheck, 0xffffffff);
         defaultColors.put(key_groupcreate_spanText, 0xff222222);
         defaultColors.put(key_groupcreate_spanBackground, 0xfff2f2f2);
         defaultColors.put(key_groupcreate_spanDelete, 0xffffffff);
@@ -1691,7 +1816,7 @@ public class Theme {
         fallbackKeys.put(key_chat_outAudioCacheSeekbar, key_chat_outAudioSeekbar);
         fallbackKeys.put(key_chat_emojiSearchBackground, key_chat_emojiPanelStickerPackSelector);
         fallbackKeys.put(key_location_sendLiveLocationIcon, key_location_sendLocationIcon);
-        fallbackKeys.put(key_changephoneinfo_changeText, key_windowBackgroundWhiteBlueText4);
+        fallbackKeys.put(key_changephoneinfo_image2, key_featuredStickers_addButton);
         fallbackKeys.put(key_graySectionText, key_windowBackgroundWhiteGrayText2);
         fallbackKeys.put(key_chat_inMediaIcon, key_chat_inBubble);
         fallbackKeys.put(key_chat_outMediaIcon, key_chat_outBubble);
@@ -1723,6 +1848,51 @@ public class Theme {
         fallbackKeys.put(key_contextProgressOuter4, key_contextProgressOuter1);
         fallbackKeys.put(key_switchTrackBlueSelector, key_listSelector);
         fallbackKeys.put(key_switchTrackBlueSelectorChecked, key_listSelector);
+        fallbackKeys.put(key_chat_emojiBottomPanelIcon, key_chat_emojiPanelIcon);
+        fallbackKeys.put(key_chat_emojiSearchIcon, key_chat_emojiPanelIcon);
+        fallbackKeys.put(key_chat_emojiPanelStickerSetNameHighlight, key_windowBackgroundWhiteBlueText4);
+        fallbackKeys.put(key_chat_emojiPanelStickerPackSelectorLine, key_chat_emojiPanelIconSelected);
+        fallbackKeys.put(key_sharedMedia_actionMode, key_actionBarDefault);
+        fallbackKeys.put(key_sheet_scrollUp, key_chat_emojiPanelStickerPackSelector);
+        fallbackKeys.put(key_sheet_other, key_player_actionBarItems);
+        fallbackKeys.put(key_dialogSearchBackground, key_chat_emojiPanelStickerPackSelector);
+        fallbackKeys.put(key_dialogSearchHint, key_chat_emojiPanelIcon);
+        fallbackKeys.put(key_dialogSearchIcon, key_chat_emojiPanelIcon);
+        fallbackKeys.put(key_dialogSearchText, key_windowBackgroundWhiteBlackText);
+        fallbackKeys.put(key_dialogFloatingButton, key_dialogRoundCheckBox);
+        fallbackKeys.put(key_dialogFloatingButtonPressed, key_dialogRoundCheckBox);
+        fallbackKeys.put(key_dialogFloatingIcon, key_dialogRoundCheckBoxCheck);
+        fallbackKeys.put(key_dialogShadowLine, key_chat_emojiPanelShadowLine);
+        fallbackKeys.put(key_actionBarDefaultArchived, key_actionBarDefault);
+        fallbackKeys.put(key_actionBarDefaultArchivedSelector, key_actionBarDefaultSelector);
+        fallbackKeys.put(key_actionBarDefaultArchivedIcon, key_actionBarDefaultIcon);
+        fallbackKeys.put(key_actionBarDefaultArchivedTitle, key_actionBarDefaultTitle);
+        fallbackKeys.put(key_actionBarDefaultArchivedSearch, key_actionBarDefaultSearch);
+        fallbackKeys.put(key_actionBarDefaultArchivedSearchPlaceholder, key_actionBarDefaultSearchPlaceholder);
+        fallbackKeys.put(key_chats_message_threeLines, key_chats_message);
+        fallbackKeys.put(key_chats_nameMessage_threeLines, key_chats_nameMessage);
+        fallbackKeys.put(key_chats_nameArchived, key_chats_name);
+        fallbackKeys.put(key_chats_nameMessageArchived, key_chats_nameMessage);
+        fallbackKeys.put(key_chats_nameMessageArchived_threeLines, key_chats_nameMessage);
+        fallbackKeys.put(key_chats_messageArchived, key_chats_message);
+        fallbackKeys.put(key_avatar_backgroundArchived, key_chats_unreadCounterMuted);
+        fallbackKeys.put(key_avatar_backgroundArchivedHidden, key_chats_unreadCounterMuted);
+        fallbackKeys.put(key_chats_archiveBackground, key_chats_actionBackground);
+        fallbackKeys.put(key_chats_archivePinBackground, key_chats_unreadCounterMuted);
+        fallbackKeys.put(key_chats_archiveIcon, key_chats_actionIcon);
+        fallbackKeys.put(key_chats_archiveText, key_chats_actionIcon);
+        fallbackKeys.put(key_actionBarDefaultSubmenuItemIcon, key_dialogIcon);
+        fallbackKeys.put(key_checkboxDisabled, key_chats_unreadCounterMuted);
+        fallbackKeys.put(key_chat_status, key_actionBarDefaultSubtitle);
+        fallbackKeys.put(key_chat_inGreenCall, key_calls_callReceivedGreenIcon);
+        fallbackKeys.put(key_chat_inRedCall, key_calls_callReceivedRedIcon);
+        fallbackKeys.put(key_chat_outGreenCall, key_calls_callReceivedGreenIcon);
+        fallbackKeys.put(key_actionBarTabActiveText, key_actionBarDefaultTitle);
+        fallbackKeys.put(key_actionBarTabUnactiveText, key_actionBarDefaultSubtitle);
+        fallbackKeys.put(key_actionBarTabLine, key_actionBarDefaultTitle);
+        fallbackKeys.put(key_actionBarTabSelector, key_actionBarDefaultSelector);
+        fallbackKeys.put(key_profile_status, key_avatar_subtitleInProfileBlue);
+        fallbackKeys.put(key_chats_menuTopBackgroundCats, key_avatar_backgroundActionBarBlue);
 
         themes = new ArrayList<>();
         otherThemes = new ArrayList<>();
@@ -1731,26 +1901,64 @@ public class Theme {
 
         ThemeInfo themeInfo = new ThemeInfo();
         themeInfo.name = "Default";
+        themeInfo.previewBackgroundColor = 0xffcfd9e3;
+        themeInfo.previewInColor = 0xffffffff;
+        themeInfo.previewOutColor = 0xfff0fee0;
+        themeInfo.sortIndex = 0;
         themes.add(currentDayTheme = currentTheme = defaultTheme = themeInfo);
         themesDict.put("Default", defaultTheme);
 
         themeInfo = new ThemeInfo();
         themeInfo.name = "Dark";
         themeInfo.assetName = "dark.attheme";
-        themes.add(currentNightTheme = themeInfo);
+        themeInfo.previewBackgroundColor = 0xff5a5d61;
+        themeInfo.previewInColor = 0xff747a84;
+        themeInfo.previewOutColor = 0xff82a8e3;
+        themeInfo.sortIndex = 3;
+        themes.add(themeInfo);
         themesDict.put("Dark", themeInfo);
 
         themeInfo = new ThemeInfo();
         themeInfo.name = "Blue";
         themeInfo.assetName = "bluebubbles.attheme";
+        themeInfo.previewBackgroundColor = 0xff95beec;
+        themeInfo.previewInColor = 0xffffffff;
+        themeInfo.previewOutColor = 0xffd0e6ff;
+        themeInfo.sortIndex = 1;
         themes.add(themeInfo);
         themesDict.put("Blue", themeInfo);
 
         themeInfo = new ThemeInfo();
         themeInfo.name = "Dark Blue";
         themeInfo.assetName = "darkblue.attheme";
+        themeInfo.previewBackgroundColor = 0xff5f6e82;
+        themeInfo.previewInColor = 0xff76869c;
+        themeInfo.previewOutColor = 0xff82a8e3;
+        themeInfo.sortIndex = 2;
         themes.add(themeInfo);
-        themesDict.put("Dark Blue", themeInfo);
+        themesDict.put("Dark Blue", currentNightTheme = themeInfo);
+
+        if (BuildVars.DEBUG_VERSION) {
+            themeInfo = new ThemeInfo();
+            themeInfo.name = "Graphite";
+            themeInfo.assetName = "graphite.attheme";
+            themeInfo.previewBackgroundColor = 0xff7a7e89;
+            themeInfo.previewInColor = 0xff989ba3;
+            themeInfo.previewOutColor = 0xffa4bff9;
+            themeInfo.sortIndex = 4;
+            themes.add(themeInfo);
+            themesDict.put("Graphite", themeInfo);
+        }
+
+        themeInfo = new ThemeInfo();
+        themeInfo.name = "Arctic Blue";
+        themeInfo.assetName = "arctic.attheme";
+        themeInfo.previewBackgroundColor = 0xffffffff;
+        themeInfo.previewInColor = 0xffebeef4;
+        themeInfo.previewOutColor = 0xff7cb2fe;
+        themeInfo.sortIndex = 5;
+        themes.add(themeInfo);
+        themesDict.put("Arctic Blue", themeInfo);
 
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("themeconfig", Activity.MODE_PRIVATE);
         String themesString = preferences.getString("themes2", null);
@@ -2139,18 +2347,18 @@ public class Theme {
         return stateListDrawable;
     }
 
-    public static Drawable getRoundRectSelectorDrawable() {
+    public static Drawable getRoundRectSelectorDrawable(int color) {
         if (Build.VERSION.SDK_INT >= 21) {
             Drawable maskDrawable = createRoundRectDrawable(AndroidUtilities.dp(3), 0xffffffff);
             ColorStateList colorStateList = new ColorStateList(
                     new int[][]{StateSet.WILD_CARD},
-                    new int[]{getColor(key_dialogButtonSelector)}
+                    new int[]{(color & 0x00ffffff) | 0x19000000}
             );
             return new RippleDrawable(colorStateList, null, maskDrawable);
         } else {
             StateListDrawable stateListDrawable = new StateListDrawable();
-            stateListDrawable.addState(new int[]{android.R.attr.state_pressed}, createRoundRectDrawable(AndroidUtilities.dp(3), getColor(key_dialogButtonSelector)));
-            stateListDrawable.addState(new int[]{android.R.attr.state_selected}, createRoundRectDrawable(AndroidUtilities.dp(3), getColor(key_dialogButtonSelector)));
+            stateListDrawable.addState(new int[]{android.R.attr.state_pressed}, createRoundRectDrawable(AndroidUtilities.dp(3), (color & 0x00ffffff) | 0x19000000));
+            stateListDrawable.addState(new int[]{android.R.attr.state_selected}, createRoundRectDrawable(AndroidUtilities.dp(3), (color & 0x00ffffff) | 0x19000000));
             stateListDrawable.addState(StateSet.WILD_CARD, new ColorDrawable(0x00000000));
             return stateListDrawable;
         }
@@ -2174,16 +2382,19 @@ public class Theme {
     }
 
     public static Drawable getSelectorDrawable(boolean whiteBackground) {
+        return getSelectorDrawable(getColor(key_listSelector), whiteBackground);
+    }
+
+    public static Drawable getSelectorDrawable(int color, boolean whiteBackground) {
         if (whiteBackground) {
             if (Build.VERSION.SDK_INT >= 21) {
                 Drawable maskDrawable = new ColorDrawable(0xffffffff);
                 ColorStateList colorStateList = new ColorStateList(
                         new int[][]{StateSet.WILD_CARD},
-                        new int[]{getColor(key_listSelector)}
+                        new int[]{color}
                 );
                 return new RippleDrawable(colorStateList, new ColorDrawable(getColor(key_windowBackgroundWhite)), maskDrawable);
             } else {
-                int color = getColor(key_listSelector);
                 StateListDrawable stateListDrawable = new StateListDrawable();
                 stateListDrawable.addState(new int[]{android.R.attr.state_pressed}, new ColorDrawable(color));
                 stateListDrawable.addState(new int[]{android.R.attr.state_selected}, new ColorDrawable(color));
@@ -2191,7 +2402,7 @@ public class Theme {
                 return stateListDrawable;
             }
         } else {
-            return createSelectorDrawable(getColor(key_listSelector), 2);
+            return createSelectorDrawable(color, 2);
         }
     }
 
@@ -2203,13 +2414,23 @@ public class Theme {
         Drawable drawable;
         if (Build.VERSION.SDK_INT >= 21) {
             Drawable maskDrawable = null;
-            if (maskType == 1) {
+            if ((maskType == 1 || maskType == 5) && Build.VERSION.SDK_INT >= 23) {
+                maskDrawable = null;
+            } else if (maskType == 1 || maskType == 3 || maskType == 4 || maskType == 5) {
                 maskPaint.setColor(0xffffffff);
                 maskDrawable = new Drawable() {
                     @Override
                     public void draw(Canvas canvas) {
                         android.graphics.Rect bounds = getBounds();
-                        canvas.drawCircle(bounds.centerX(), bounds.centerY(), AndroidUtilities.dp(18), maskPaint);
+                        int rad;
+                        if (maskType == 1) {
+                            rad = AndroidUtilities.dp(20);
+                        } else if (maskType == 3) {
+                            rad = (Math.max(bounds.width(), bounds.height()) / 2);
+                        } else {
+                            rad = (int) Math.ceil(Math.sqrt((bounds.left - bounds.centerX()) * (bounds.left - bounds.centerX()) + (bounds.top - bounds.centerY()) * (bounds.top - bounds.centerY())));
+                        }
+                        canvas.drawCircle(bounds.centerX(), bounds.centerY(), rad, maskPaint);
                     }
 
                     @Override
@@ -2234,7 +2455,15 @@ public class Theme {
                     new int[][]{StateSet.WILD_CARD},
                     new int[]{color}
             );
-            return new RippleDrawable(colorStateList, null, maskDrawable);
+            RippleDrawable rippleDrawable = new RippleDrawable(colorStateList, null, maskDrawable);
+            if (Build.VERSION.SDK_INT >= 23) {
+                if (maskType == 1) {
+                    rippleDrawable.setRadius(AndroidUtilities.dp(20));
+                } else if (maskType == 5) {
+                    rippleDrawable.setRadius(RippleDrawable.RADIUS_AUTO);
+                }
+            }
+            return rippleDrawable;
         } else {
             StateListDrawable stateListDrawable = new StateListDrawable();
             stateListDrawable.addState(new int[]{android.R.attr.state_pressed}, new ColorDrawable(color));
@@ -2266,7 +2495,7 @@ public class Theme {
 
     public static ThemeInfo applyThemeFile(File file, String themeName, boolean temporary) {
         try {
-            if (themeName.equals("Default") || themeName.equals("Dark") || themeName.equals("Blue") || themeName.equals("Dark Blue")) {
+            if (themeName.equals("Default") || themeName.equals("Dark") || themeName.equals("Blue") || themeName.equals("Dark Blue") || themeName.equals("Graphite") || themeName.equals("Arctic Blue")) {
                 return null;
             }
             File finalFile = new File(ApplicationLoader.getFilesDirFixed(), themeName);
@@ -2525,7 +2754,7 @@ public class Theme {
             if (autoNightScheduleByLocation) {
                 int day = calendar.get(Calendar.DAY_OF_MONTH);
                 if (autoNightLastSunCheckDay != day && autoNightLocationLatitude != 10000 && autoNightLocationLongitude != 10000) {
-                    int t[] = SunDate.calculateSunriseSunset(Theme.autoNightLocationLatitude, Theme.autoNightLocationLongitude);
+                    int[] t = SunDate.calculateSunriseSunset(Theme.autoNightLocationLatitude, Theme.autoNightLocationLongitude);
                     autoNightSunriseTime = t[0];
                     autoNightSunsetTime = t[1];
                     autoNightLastSunCheckDay = day;
@@ -2710,7 +2939,7 @@ public class Theme {
                 for (int a = 0; a < read; a++) {
                     if (bytes[a] == '\n') {
                         int len = a - start + 1;
-                        String line = new String(bytes, start, len - 1, "UTF-8");
+                        String line = new String(bytes, start, len - 1);
                         if (line.startsWith("WPS")) {
                             themedWallpaperFileOffset = currentPosition + len;
                             finished = true;
@@ -2778,8 +3007,31 @@ public class Theme {
             Resources resources = context.getResources();
 
             avatar_broadcastDrawable = resources.getDrawable(R.drawable.broadcast_w);
-            avatar_savedDrawable = resources.getDrawable(R.drawable.bookmark_large);
+            avatar_savedDrawable = resources.getDrawable(R.drawable.chats_saved);
+            avatar_ghostDrawable = resources.getDrawable(R.drawable.ghost);
 
+            if (dialogs_archiveAvatarDrawable != null) {
+                dialogs_archiveAvatarDrawable.setCallback(null);
+                dialogs_archiveAvatarDrawable.recycle();
+            }
+            if (dialogs_archiveDrawable != null) {
+                dialogs_archiveDrawable.recycle();
+            }
+            if (dialogs_unarchiveDrawable != null) {
+                dialogs_unarchiveDrawable.recycle();
+            }
+            if (dialogs_pinArchiveDrawable != null) {
+                dialogs_pinArchiveDrawable.recycle();
+            }
+            if (dialogs_unpinArchiveDrawable != null) {
+                dialogs_unpinArchiveDrawable.recycle();
+            }
+            dialogs_archiveAvatarDrawable = new RLottieDrawable(R.raw.chats_archiveavatar, "chats_archiveavatar", AndroidUtilities.dp(36), AndroidUtilities.dp(36), false);
+            dialogs_archiveDrawable = new RLottieDrawable(R.raw.chats_archive, "chats_archive", AndroidUtilities.dp(36), AndroidUtilities.dp(36));
+            dialogs_unarchiveDrawable = new RLottieDrawable(R.raw.chats_unarchive, "chats_unarchive", AndroidUtilities.dp(AndroidUtilities.dp(36)), AndroidUtilities.dp(36));
+            dialogs_pinArchiveDrawable = new RLottieDrawable(R.raw.chats_hide, "chats_hide", AndroidUtilities.dp(36), AndroidUtilities.dp(36));
+            dialogs_unpinArchiveDrawable = new RLottieDrawable(R.raw.chats_unhide, "chats_unhide", AndroidUtilities.dp(36), AndroidUtilities.dp(36));
+            
             applyCommonTheme();
         }
     }
@@ -2793,6 +3045,29 @@ public class Theme {
 
         setDrawableColorByKey(avatar_broadcastDrawable, key_avatar_text);
         setDrawableColorByKey(avatar_savedDrawable, key_avatar_text);
+
+        dialogs_archiveAvatarDrawable.setLayerColor("Arrow1.**", getColor(key_avatar_backgroundArchived));
+        dialogs_archiveAvatarDrawable.setLayerColor("Arrow2.**", getColor(key_avatar_backgroundArchived));
+        dialogs_archiveAvatarDrawable.setLayerColor("Box2.**", getColor(key_avatar_text));
+        dialogs_archiveAvatarDrawable.setLayerColor("Box1.**", getColor(key_avatar_text));
+        dialogs_archiveAvatarDrawableRecolored = false;
+        dialogs_archiveAvatarDrawable.setAllowDecodeSingleFrame(true);
+        
+        dialogs_pinArchiveDrawable.setLayerColor("Arrow.**", getColor(key_chats_archiveIcon));
+        dialogs_pinArchiveDrawable.setLayerColor("Line.**", getColor(key_chats_archiveIcon));
+        
+        dialogs_unpinArchiveDrawable.setLayerColor("Arrow.**", getColor(key_chats_archiveIcon));
+        dialogs_unpinArchiveDrawable.setLayerColor("Line.**", getColor(key_chats_archiveIcon));
+
+        dialogs_archiveDrawable.setLayerColor("Arrow.**", getColor(key_chats_archiveBackground));
+        dialogs_archiveDrawable.setLayerColor("Box2.**", getColor(key_chats_archiveIcon));
+        dialogs_archiveDrawable.setLayerColor("Box1.**", getColor(key_chats_archiveIcon));
+        dialogs_archiveDrawableRecolored = false;
+
+        dialogs_unarchiveDrawable.setLayerColor("Arrow1.**", getColor(key_chats_archiveIcon));
+        dialogs_unarchiveDrawable.setLayerColor("Arrow2.**", getColor(key_chats_archivePinBackground));
+        dialogs_unarchiveDrawable.setLayerColor("Box2.**", getColor(key_chats_archiveIcon));
+        dialogs_unarchiveDrawable.setLayerColor("Box1.**", getColor(key_chats_archiveIcon));
     }
 
     public static void createDialogsResources(Context context) {
@@ -2804,16 +3079,24 @@ public class Theme {
             dialogs_namePaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             dialogs_nameEncryptedPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             dialogs_nameEncryptedPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            dialogs_searchNamePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            dialogs_searchNamePaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            dialogs_searchNameEncryptedPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            dialogs_searchNameEncryptedPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             dialogs_messagePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            dialogs_messageNamePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            dialogs_messageNamePaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             dialogs_messagePrintingPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             dialogs_timePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             dialogs_countTextPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             dialogs_countTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            dialogs_archiveTextPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            dialogs_archiveTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             dialogs_onlinePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             dialogs_offlinePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
 
             dialogs_tabletSeletedPaint = new Paint();
-            dialogs_pinnedPaint = new Paint();
+            dialogs_pinnedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             dialogs_onlineCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             dialogs_countPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             dialogs_countGrayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -2824,10 +3107,12 @@ public class Theme {
             dialogs_halfCheckDrawable = resources.getDrawable(R.drawable.list_halfcheck);
             dialogs_clockDrawable = resources.getDrawable(R.drawable.msg_clock).mutate();
             dialogs_errorDrawable = resources.getDrawable(R.drawable.list_warning_sign);
+            dialogs_reorderDrawable = resources.getDrawable(R.drawable.list_reorder);
             dialogs_groupDrawable = resources.getDrawable(R.drawable.list_group);
             dialogs_broadcastDrawable = resources.getDrawable(R.drawable.list_broadcast);
             dialogs_muteDrawable = resources.getDrawable(R.drawable.list_mute).mutate();
             dialogs_verifiedDrawable = resources.getDrawable(R.drawable.verified_area);
+            dialogs_scamDrawable = new ScamDrawable(11);
             dialogs_verifiedCheckDrawable = resources.getDrawable(R.drawable.verified_check);
             dialogs_mentionDrawable = resources.getDrawable(R.drawable.mentionchatslist);
             dialogs_botDrawable = resources.getDrawable(R.drawable.list_bot);
@@ -2837,14 +3122,14 @@ public class Theme {
             applyDialogsTheme();
         }
 
-        dialogs_namePaint.setTextSize(AndroidUtilities.dp(17));
-        dialogs_nameEncryptedPaint.setTextSize(AndroidUtilities.dp(17));
-        dialogs_messagePaint.setTextSize(AndroidUtilities.dp(16));
-        dialogs_messagePrintingPaint.setTextSize(AndroidUtilities.dp(16));
+        dialogs_messageNamePaint.setTextSize(AndroidUtilities.dp(14));
         dialogs_timePaint.setTextSize(AndroidUtilities.dp(13));
         dialogs_countTextPaint.setTextSize(AndroidUtilities.dp(13));
-        dialogs_onlinePaint.setTextSize(AndroidUtilities.dp(16));
-        dialogs_offlinePaint.setTextSize(AndroidUtilities.dp(16));
+        dialogs_archiveTextPaint.setTextSize(AndroidUtilities.dp(13));
+        dialogs_onlinePaint.setTextSize(AndroidUtilities.dp(15));
+        dialogs_offlinePaint.setTextSize(AndroidUtilities.dp(15));
+        dialogs_searchNamePaint.setTextSize(AndroidUtilities.dp(16));
+        dialogs_searchNameEncryptedPaint.setTextSize(AndroidUtilities.dp(16));
     }
 
     public static void applyDialogsTheme() {
@@ -2853,11 +3138,15 @@ public class Theme {
         }
         dialogs_namePaint.setColor(getColor(key_chats_name));
         dialogs_nameEncryptedPaint.setColor(getColor(key_chats_secretName));
+        dialogs_searchNamePaint.setColor(getColor(key_chats_name));
+        dialogs_searchNameEncryptedPaint.setColor(getColor(key_chats_secretName));
         dialogs_messagePaint.setColor(dialogs_messagePaint.linkColor = getColor(key_chats_message));
+        dialogs_messageNamePaint.setColor(dialogs_messageNamePaint.linkColor = getColor(key_chats_nameMessage_threeLines));
         dialogs_tabletSeletedPaint.setColor(getColor(key_chats_tabletSelectedOverlay));
         dialogs_pinnedPaint.setColor(getColor(key_chats_pinnedOverlay));
         dialogs_timePaint.setColor(getColor(key_chats_date));
         dialogs_countTextPaint.setColor(getColor(key_chats_unreadCounterText));
+        dialogs_archiveTextPaint.setColor(getColor(key_chats_archiveText));
         dialogs_messagePrintingPaint.setColor(getColor(key_chats_actionMessage));
         dialogs_countPaint.setColor(getColor(key_chats_unreadCounter));
         dialogs_countGrayPaint.setColor(getColor(key_chats_unreadCounterMuted));
@@ -2874,11 +3163,13 @@ public class Theme {
         setDrawableColorByKey(dialogs_broadcastDrawable, key_chats_nameIcon);
         setDrawableColorByKey(dialogs_botDrawable, key_chats_nameIcon);
         setDrawableColorByKey(dialogs_pinnedDrawable, key_chats_pinnedIcon);
+        setDrawableColorByKey(dialogs_reorderDrawable, key_chats_pinnedIcon);
         setDrawableColorByKey(dialogs_muteDrawable, key_chats_muteIcon);
         setDrawableColorByKey(dialogs_mentionDrawable, key_chats_mentionIcon);
         setDrawableColorByKey(dialogs_verifiedDrawable, key_chats_verifiedBackground);
         setDrawableColorByKey(dialogs_verifiedCheckDrawable, key_chats_verifiedCheck);
         setDrawableColorByKey(dialogs_holidayDrawable, key_actionBarDefaultTitle);
+        setDrawableColorByKey(dialogs_scamDrawable, key_chats_draft);
     }
 
     public static void destroyResources() {
@@ -2886,6 +3177,24 @@ public class Theme {
             if (chat_attachButtonDrawables[a] != null) {
                 chat_attachButtonDrawables[a].setCallback(null);
             }
+        }
+    }
+
+    public static void reloadAllResources(Context context) {
+        destroyResources();
+        if (chat_msgInDrawable != null) {
+            chat_msgInDrawable = null;
+            currentColor = 0;
+            currentSelectedColor = 0;
+            createChatResources(context, false);
+        }
+        if (dialogs_namePaint != null) {
+            dialogs_namePaint = null;
+            createDialogsResources(context);
+        }
+        if (profile_verifiedDrawable != null) {
+            profile_verifiedDrawable = null;
+            createProfileResources(context);
         }
     }
 
@@ -2950,7 +3259,7 @@ public class Theme {
             chat_instantViewPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             chat_instantViewRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             chat_instantViewRectPaint.setStyle(Paint.Style.STROKE);
-            chat_replyLinePaint = new Paint();
+            chat_replyLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             chat_msgErrorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             chat_statusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             chat_statusRecordPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -3012,14 +3321,18 @@ public class Theme {
             chat_lockIconDrawable = resources.getDrawable(R.drawable.ic_lock_header);
             chat_msgBroadcastDrawable = resources.getDrawable(R.drawable.broadcast3).mutate();
             chat_msgBroadcastMediaDrawable = resources.getDrawable(R.drawable.broadcast3).mutate();
-            chat_msgInCallDrawable = resources.getDrawable(R.drawable.ic_call_white_24dp).mutate();
-            chat_msgInCallSelectedDrawable = resources.getDrawable(R.drawable.ic_call_white_24dp).mutate();
-            chat_msgOutCallDrawable = resources.getDrawable(R.drawable.ic_call_white_24dp).mutate();
-            chat_msgOutCallSelectedDrawable = resources.getDrawable(R.drawable.ic_call_white_24dp).mutate();
-            chat_msgCallUpRedDrawable = resources.getDrawable(R.drawable.ic_call_made_green_18dp).mutate();
+            chat_msgInCallDrawable = resources.getDrawable(R.drawable.ic_call).mutate();
+            chat_msgInCallSelectedDrawable = resources.getDrawable(R.drawable.ic_call).mutate();
+            chat_msgOutCallDrawable = resources.getDrawable(R.drawable.ic_call).mutate();
+            chat_msgOutCallSelectedDrawable = resources.getDrawable(R.drawable.ic_call).mutate();
             chat_msgCallUpGreenDrawable = resources.getDrawable(R.drawable.ic_call_made_green_18dp).mutate();
             chat_msgCallDownRedDrawable = resources.getDrawable(R.drawable.ic_call_received_green_18dp).mutate();
             chat_msgCallDownGreenDrawable = resources.getDrawable(R.drawable.ic_call_received_green_18dp).mutate();
+
+            calllog_msgCallUpRedDrawable = resources.getDrawable(R.drawable.ic_call_made_green_18dp).mutate();
+            calllog_msgCallUpGreenDrawable = resources.getDrawable(R.drawable.ic_call_made_green_18dp).mutate();
+            calllog_msgCallDownRedDrawable = resources.getDrawable(R.drawable.ic_call_received_green_18dp).mutate();
+            calllog_msgCallDownGreenDrawable = resources.getDrawable(R.drawable.ic_call_received_green_18dp).mutate();
             chat_msgAvatarLiveLocationDrawable = resources.getDrawable(R.drawable.livepin).mutate();
 
             chat_inlineResultFile = resources.getDrawable(R.drawable.bot_file);
@@ -3064,15 +3377,6 @@ public class Theme {
             chat_shareIconDrawable = resources.getDrawable(R.drawable.share_arrow);
             chat_replyIconDrawable = resources.getDrawable(R.drawable.fast_reply);
             chat_goIconDrawable = resources.getDrawable(R.drawable.message_arrow);
-
-            chat_ivStatesDrawable[0][0] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_play_m, 1);
-            chat_ivStatesDrawable[0][1] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_play_m, 1);
-            chat_ivStatesDrawable[1][0] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_pause_m, 1);
-            chat_ivStatesDrawable[1][1] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_pause_m, 1);
-            chat_ivStatesDrawable[2][0] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_load_m, 1);
-            chat_ivStatesDrawable[2][1] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_load_m, 1);
-            chat_ivStatesDrawable[3][0] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_cancel_m, 2);
-            chat_ivStatesDrawable[3][1] = createCircleDrawableWithIcon(AndroidUtilities.dp(40), R.drawable.msg_round_cancel_m, 2);
 
             chat_fileMiniStatesDrawable[0][0] = createCircleDrawableWithIcon(AndroidUtilities.dp(22), R.drawable.audio_mini_arrow);
             chat_fileMiniStatesDrawable[0][1] = createCircleDrawableWithIcon(AndroidUtilities.dp(22), R.drawable.audio_mini_arrow);
@@ -3227,8 +3531,8 @@ public class Theme {
             chat_deleteProgressPaint.setColor(getColor(key_chat_secretTimeText));
             chat_textSearchSelectionPaint.setColor(getColor(key_chat_textSelectBackground));
             chat_msgErrorPaint.setColor(getColor(key_chat_sentError));
-            chat_statusPaint.setColor(getColor(key_actionBarDefaultSubtitle));
-            chat_statusRecordPaint.setColor(getColor(key_actionBarDefaultSubtitle));
+            chat_statusPaint.setColor(getColor(key_chat_status));
+            chat_statusRecordPaint.setColor(getColor(key_chat_status));
             chat_actionTextPaint.setColor(getColor(key_chat_serviceText));
             chat_actionTextPaint.linkColor = getColor(key_chat_serviceLink);
             chat_contextResult_titleTextPaint.setColor(getColor(key_windowBackgroundWhiteBlackText));
@@ -3292,10 +3596,15 @@ public class Theme {
             setDrawableColorByKey(chat_msgInCallSelectedDrawable, key_chat_inInstantSelected);
             setDrawableColorByKey(chat_msgOutCallDrawable, key_chat_outInstant);
             setDrawableColorByKey(chat_msgOutCallSelectedDrawable, key_chat_outInstantSelected);
-            setDrawableColorByKey(chat_msgCallUpRedDrawable, key_calls_callReceivedRedIcon);
-            setDrawableColorByKey(chat_msgCallUpGreenDrawable, key_calls_callReceivedGreenIcon);
-            setDrawableColorByKey(chat_msgCallDownRedDrawable, key_calls_callReceivedRedIcon);
-            setDrawableColorByKey(chat_msgCallDownGreenDrawable, key_calls_callReceivedGreenIcon);
+
+            setDrawableColorByKey(chat_msgCallUpGreenDrawable, key_chat_outGreenCall);
+            setDrawableColorByKey(chat_msgCallDownRedDrawable, key_chat_inRedCall);
+            setDrawableColorByKey(chat_msgCallDownGreenDrawable, key_chat_inGreenCall);
+
+            setDrawableColorByKey(calllog_msgCallUpRedDrawable, key_calls_callReceivedRedIcon);
+            setDrawableColorByKey(calllog_msgCallUpGreenDrawable, key_calls_callReceivedGreenIcon);
+            setDrawableColorByKey(calllog_msgCallDownRedDrawable, key_calls_callReceivedRedIcon);
+            setDrawableColorByKey(calllog_msgCallDownGreenDrawable, key_calls_callReceivedGreenIcon);
 
             for (int a = 0; a < 2; a++) {
                 setCombinedDrawableColor(chat_fileMiniStatesDrawable[a][0], getColor(key_chat_outLoader), false);
@@ -3514,7 +3823,7 @@ public class Theme {
     public static int getDefaultColor(String key) {
         Integer value = defaultColors.get(key);
         if (value == null) {
-            if (key.equals(key_chats_menuTopShadow)) {
+            if (key.equals(key_chats_menuTopShadow) || key.equals(key_chats_menuTopBackground)) {
                 return 0;
             }
             return 0xffff0000;
@@ -3540,11 +3849,32 @@ public class Theme {
         return color;
     }
 
+    public static void setAnimatingColor(boolean animating) {
+        animatingColors = animating ? new HashMap<>() : null;
+    }
+
+    public static boolean isAnimatingColor() {
+        return animatingColors != null;
+    }
+
+    public static void setAnimatedColor(String key, int value) {
+        if (animatingColors == null) {
+            return;
+        }
+        animatingColors.put(key, value);
+    }
+
     public static int getColor(String key) {
         return getColor(key, null);
     }
 
     public static int getColor(String key, boolean[] isDefault) {
+        if (animatingColors != null) {
+            Integer color = animatingColors.get(key);
+            if (color != null) {
+                return color;
+            }
+        }
         if (isCurrentThemeDefault()) {
             if (key.equals(key_chat_serviceBackground)) {
                 return serviceMessageColor;
@@ -3615,6 +3945,8 @@ public class Theme {
         }
         if (drawable instanceof ShapeDrawable) {
             ((ShapeDrawable) drawable).getPaint().setColor(color);
+        } else if (drawable instanceof ScamDrawable) {
+            ((ScamDrawable) drawable).setColor(color);
         } else {
             drawable.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY));
         }
@@ -3718,7 +4050,7 @@ public class Theme {
 
     private static void calcBackgroundColor(Drawable drawable, int save) {
         if (save != 2) {
-            int result[] = AndroidUtilities.calcDrawableColor(drawable);
+            int[] result = AndroidUtilities.calcDrawableColor(drawable);
             serviceMessageColor = serviceMessageColorBackup = result[0];
             serviceSelectedMessageColor = serviceSelectedMessageColorBackup = result[1];
             serviceMessage2Color = result[2];

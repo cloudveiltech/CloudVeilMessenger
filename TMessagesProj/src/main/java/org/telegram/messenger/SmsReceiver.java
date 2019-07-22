@@ -28,8 +28,7 @@ import java.util.regex.Pattern;
 public class SmsReceiver extends BroadcastReceiver {
 
     @Override
-    public void onReceive(Context context, Intent intent) {
-             /*
+    public void onReceive(Context context, Intent intent) { /*
         CloudVeil start
         if (intent == null) {
             return;

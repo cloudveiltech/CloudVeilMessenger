@@ -23,8 +23,6 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.PowerManager;
-import android.support.multidex.MultiDex;
-import android.support.multidex.MultiDexApplication;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
@@ -37,12 +35,10 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.ForegroundDetector;
 
+import io.fabric.sdk.android.Fabric;
 import java.io.File;
 
-import io.fabric.sdk.android.Fabric;
-
-//CloudVeil - multidex enabled
-public class ApplicationLoader extends MultiDexApplication {
+public class ApplicationLoader extends Application {
 
     @SuppressLint("StaticFieldLeak")
     public static volatile Context applicationContext;
@@ -76,14 +72,6 @@ public class ApplicationLoader extends MultiDexApplication {
         }
         return new File("/data/data/org.telegram.messenger/files");
     }
-
-    @Override
-    //CloudVeil - multidex enabled
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(base);
-        MultiDex.install(this);
-    }
-
 
     public static void postInitApplication() {
         if (applicationInited) {
@@ -146,7 +134,11 @@ public class ApplicationLoader extends MultiDexApplication {
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             UserConfig.getInstance(a).loadConfig();
             MessagesController.getInstance(a);
-            ConnectionsManager.getInstance(a);
+            if (a == 0) {
+                SharedConfig.pushStringStatus = "__FIREBASE_GENERATING_SINCE_" + ConnectionsManager.getInstance(a).getCurrentTime() + "__";
+            } else {
+                ConnectionsManager.getInstance(a);
+            }
             TLRPC.User user = UserConfig.getInstance(a).getCurrentUser();
             if (user != null) {
                 MessagesController.getInstance(a).putUser(user, true);
@@ -236,7 +228,7 @@ public class ApplicationLoader extends MultiDexApplication {
             if (checkPlayServices()) {
                 final String currentPushString = SharedConfig.pushString;
                 if (!TextUtils.isEmpty(currentPushString)) {
-                    if (BuildVars.LOGS_ENABLED) {
+                    if (BuildVars.DEBUG_PRIVATE_VERSION && BuildVars.LOGS_ENABLED) {
                         FileLog.d("GCM regId = " + currentPushString);
                     }
                 } else {
@@ -251,6 +243,12 @@ public class ApplicationLoader extends MultiDexApplication {
                             if (!TextUtils.isEmpty(token)) {
                                 GcmPushListenerService.sendRegistrationToServer(token);
                             }
+                        }).addOnFailureListener(e -> {
+                            if (BuildVars.LOGS_ENABLED) {
+                                FileLog.d("Failed to get regid");
+                            }
+                            SharedConfig.pushStringStatus = "__FIREBASE_FAILED__";
+                            GcmPushListenerService.sendRegistrationToServer(null);
                         });
                     } catch (Throwable e) {
                         FileLog.e(e);
@@ -260,6 +258,8 @@ public class ApplicationLoader extends MultiDexApplication {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("No valid Google Play Services APK found.");
                 }
+                SharedConfig.pushStringStatus = "__NO_GOOGLE_PLAY_SERVICES__";
+                GcmPushListenerService.sendRegistrationToServer(null);
             }
         }, 1000);
     }

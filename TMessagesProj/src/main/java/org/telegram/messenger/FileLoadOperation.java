@@ -16,6 +16,7 @@ import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
+import java.io.FileInputStream;
 import java.io.RandomAccessFile;
 import java.io.File;
 import java.nio.channels.FileChannel;
@@ -23,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipException;
 
 public class FileLoadOperation {
 
@@ -102,7 +105,7 @@ public class FileLoadOperation {
     private boolean started;
     private int datacenterId;
     private int initialDatacenterId;
-    private TLRPC.InputFileLocation location;
+    protected TLRPC.InputFileLocation location;
     private TLRPC.InputWebFileLocation webLocation;
     private WebFile webFile;
     private volatile int state = stateIdle;
@@ -144,6 +147,7 @@ public class FileLoadOperation {
     private ArrayList<RequestInfo> delayedRequestInfos;
 
     private File cacheFileTemp;
+    private File cacheFileGzipTemp;
     private File cacheFileFinal;
     private File cacheIvTemp;
     private File cacheFileParts;
@@ -157,6 +161,8 @@ public class FileLoadOperation {
     private boolean isForceRequest;
     private int priority;
 
+    private boolean ungzip;
+
     private int currentType;
 
     public interface FileLoadOperationDelegate {
@@ -165,30 +171,64 @@ public class FileLoadOperation {
         void didChangedLoadProgress(FileLoadOperation operation, float progress);
     }
 
-    public FileLoadOperation(TLRPC.FileLocation photoLocation, Object parent, String extension, int size) {
+    public FileLoadOperation(ImageLocation imageLocation, Object parent, String extension, int size) {
         parentObject = parent;
-        if (photoLocation instanceof TLRPC.TL_fileEncryptedLocation) {
+        if (imageLocation.isEncrypted()) {
             location = new TLRPC.TL_inputEncryptedFileLocation();
-            location.id = photoLocation.volume_id;
-            location.volume_id = photoLocation.volume_id;
-            location.access_hash = photoLocation.secret;
-            location.local_id = photoLocation.local_id;
+            location.id = imageLocation.location.volume_id;
+            location.volume_id = imageLocation.location.volume_id;
+            location.local_id = imageLocation.location.local_id;
+            location.access_hash = imageLocation.access_hash;
             iv = new byte[32];
-            System.arraycopy(photoLocation.iv, 0, iv, 0, iv.length);
-            key = photoLocation.key;
-            initialDatacenterId = datacenterId = photoLocation.dc_id;
-        } else if (photoLocation instanceof TLRPC.TL_fileLocation) {
-            location = new TLRPC.TL_inputFileLocation();
-            location.volume_id = photoLocation.volume_id;
-            location.secret = photoLocation.secret;
-            location.local_id = photoLocation.local_id;
-            location.file_reference = photoLocation.file_reference;
+            System.arraycopy(imageLocation.iv, 0, iv, 0, iv.length);
+            key = imageLocation.key;
+        } else if (imageLocation.photoPeer != null) {
+            location = new TLRPC.TL_inputPeerPhotoFileLocation();
+            location.id = imageLocation.location.volume_id;
+            location.volume_id = imageLocation.location.volume_id;
+            location.local_id = imageLocation.location.local_id;
+            location.big = imageLocation.photoPeerBig;
+            location.peer = imageLocation.photoPeer;
+        } else if (imageLocation.stickerSet != null) {
+            location = new TLRPC.TL_inputStickerSetThumb();
+            location.id = imageLocation.location.volume_id;
+            location.volume_id = imageLocation.location.volume_id;
+            location.local_id = imageLocation.location.local_id;
+            location.stickerset = imageLocation.stickerSet;
+        } else if (imageLocation.thumbSize != null) {
+            if (imageLocation.photoId != 0) {
+                location = new TLRPC.TL_inputPhotoFileLocation();
+                location.id = imageLocation.photoId;
+                location.volume_id = imageLocation.location.volume_id;
+                location.local_id = imageLocation.location.local_id;
+                location.access_hash = imageLocation.access_hash;
+                location.file_reference = imageLocation.file_reference;
+                location.thumb_size = imageLocation.thumbSize;
+            } else {
+                location = new TLRPC.TL_inputDocumentFileLocation();
+                location.id = imageLocation.documentId;
+                location.volume_id = imageLocation.location.volume_id;
+                location.local_id = imageLocation.location.local_id;
+                location.access_hash = imageLocation.access_hash;
+                location.file_reference = imageLocation.file_reference;
+                location.thumb_size = imageLocation.thumbSize;
+            }
             if (location.file_reference == null) {
                 location.file_reference = new byte[0];
             }
-            initialDatacenterId = datacenterId = photoLocation.dc_id;
+        } else {
+            location = new TLRPC.TL_inputFileLocation();
+            location.volume_id = imageLocation.location.volume_id;
+            location.local_id = imageLocation.location.local_id;
+            location.secret = imageLocation.access_hash;
+            location.file_reference = imageLocation.file_reference;
+            if (location.file_reference == null) {
+                location.file_reference = new byte[0];
+            }
             allowDisordererFileSave = true;
         }
+        ungzip = imageLocation.lottieAnimation;
+        initialDatacenterId = datacenterId = imageLocation.dc_id;
         currentType = ConnectionsManager.FileTypePhoto;
         totalBytesCount = size;
         ext = extension != null ? extension : "jpg";
@@ -241,6 +281,7 @@ public class FileLoadOperation {
                 location.id = documentLocation.id;
                 location.access_hash = documentLocation.access_hash;
                 location.file_reference = documentLocation.file_reference;
+                location.thumb_size = "";
                 if (location.file_reference == null) {
                     location.file_reference = new byte[0];
                 }
@@ -253,6 +294,7 @@ public class FileLoadOperation {
                     }
                 }
             }
+            ungzip = "application/x-tgsticker".equals(documentLocation.mime_type);
             totalBytesCount = documentLocation.size;
             if (key != null) {
                 int toAdd = 0;
@@ -412,7 +454,7 @@ public class FileLoadOperation {
 
     protected File getCurrentFile() {
         final CountDownLatch countDownLatch = new CountDownLatch(1);
-        final File result[] = new File[1];
+        final File[] result = new File[1];
         Utilities.stageQueue.postRunnable(() -> {
             if (state == stateFinished) {
                 result[0] = cacheFileFinal;
@@ -470,7 +512,7 @@ public class FileLoadOperation {
 
     protected int getDownloadedLengthFromOffset(final int offset, final int length) {
         final CountDownLatch countDownLatch = new CountDownLatch(1);
-        final int result[] = new int[1];
+        final int[] result = new int[1];
         Utilities.stageQueue.postRunnable(() -> {
             result[0] = getDownloadedLengthFromOffsetInternal(notLoadedBytesRanges, offset, length);
             countDownLatch.countDown();
@@ -643,6 +685,9 @@ public class FileLoadOperation {
 
         if (!finalFileExist) {
             cacheFileTemp = new File(tempPath, fileNameTemp);
+            if (ungzip) {
+                cacheFileGzipTemp = new File(tempPath, fileNameTemp + ".gz");
+            }
             boolean newKeyGenerated = false;
 
             if (encryptFile) {
@@ -1024,24 +1069,46 @@ public class FileLoadOperation {
                 cacheFilePreload = null;
             }
             if (cacheFileTemp != null) {
-                boolean renameResult = cacheFileTemp.renameTo(cacheFileFinal);
-                if (!renameResult) {
-                    if (BuildVars.LOGS_ENABLED) {
-                        FileLog.e("unable to rename temp = " + cacheFileTemp + " to final = " + cacheFileFinal + " retry = " + renameRetryCount);
+                if (ungzip) {
+                    try {
+                        GZIPInputStream gzipInputStream = new GZIPInputStream(new FileInputStream(cacheFileTemp));
+                        FileLoader.copyFile(gzipInputStream, cacheFileGzipTemp, 1024 * 1024 * 2);
+                        gzipInputStream.close();
+                        cacheFileTemp.delete();
+                        cacheFileTemp = cacheFileGzipTemp;
+                        ungzip = false;
+                    } catch (ZipException zipException) {
+                        ungzip = false;
+                    } catch (Throwable e) {
+                        FileLog.e(e);
+                        if (BuildVars.LOGS_ENABLED) {
+                            FileLog.e("unable to ungzip temp = " + cacheFileTemp + " to final = " + cacheFileFinal);
+                        }
                     }
-                    renameRetryCount++;
-                    if (renameRetryCount < 3) {
-                        state = stateDownloading;
-                        Utilities.stageQueue.postRunnable(() -> {
-                            try {
-                                onFinishLoadingFile(increment);
-                            } catch (Exception e) {
-                                onFail(false, 0);
-                            }
-                        }, 200);
-                        return;
+                }
+                if (!ungzip) {
+                    boolean renameResult = cacheFileTemp.renameTo(cacheFileFinal);
+                    if (!renameResult) {
+                        if (BuildVars.LOGS_ENABLED) {
+                            FileLog.e("unable to rename temp = " + cacheFileTemp + " to final = " + cacheFileFinal + " retry = " + renameRetryCount);
+                        }
+                        renameRetryCount++;
+                        if (renameRetryCount < 3) {
+                            state = stateDownloading;
+                            Utilities.stageQueue.postRunnable(() -> {
+                                try {
+                                    onFinishLoadingFile(increment);
+                                } catch (Exception e) {
+                                    onFail(false, 0);
+                                }
+                            }, 200);
+                            return;
+                        }
+                        cacheFileFinal = cacheFileTemp;
                     }
-                    cacheFileFinal = cacheFileTemp;
+                } else {
+                    onFail(false, 0);
+                    return;
                 }
             }
             if (BuildVars.LOGS_ENABLED) {

@@ -98,7 +98,6 @@ public class PhotoPickerSearchCell extends LinearLayout {
         layoutParams.height = AndroidUtilities.dp(48);
         layoutParams.width = 0;
         searchButton.setLayoutParams(layoutParams);
-
         //CloudVeil start
         if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
             searchButton.setOnClickListener(v -> {

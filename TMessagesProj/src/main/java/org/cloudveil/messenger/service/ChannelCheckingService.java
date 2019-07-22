@@ -11,11 +11,12 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.gson.Gson;
 
@@ -25,7 +26,7 @@ import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
-import org.telegram.messenger.DataQuery;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
@@ -175,13 +176,13 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addStickersToRequest(SettingsRequest request) {
-        for (int i = 0; i < DataQuery.getInstance(accountNumber).getStickersSetTypesCount(); i++) {
-            addStickerSetToRequest(DataQuery.getInstance(accountNumber).getStickerSets(i), request);
+        for (int i = 0; i < MediaDataController.getInstance(accountNumber).getStickersSetTypesCount(); i++) {
+            addStickerSetToRequest(MediaDataController.getInstance(accountNumber).getStickerSets(i), request);
         }
 
-        addStickerSetToRequest(DataQuery.getInstance(accountNumber).newStickerSets, request);
+        addStickerSetToRequest(MediaDataController.getInstance(accountNumber).newStickerSets, request);
 
-        ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = DataQuery.getInstance(accountNumber).getFeaturedStickerSetsUnfiltered();
+        ArrayList<TLRPC.StickerSetCovered> featuredStickerSets = MediaDataController.getInstance(accountNumber).getFeaturedStickerSetsUnfiltered();
         for (TLRPC.StickerSetCovered stickerSetCovered : featuredStickerSets) {
             addStickerSetToRequest(stickerSetCovered.set, request);
         }
@@ -221,8 +222,8 @@ public class ChannelCheckingService extends Service {
         }
 
         if (settingsResponse.access.stickers != null) {
-            DataQuery.getInstance(accountNumber).allowedStickerSets.clear();
-            appendAllowedDialogs(DataQuery.getInstance(accountNumber).allowedStickerSets, settingsResponse.access.stickers);
+            MediaDataController.getInstance(accountNumber).allowedStickerSets.clear();
+            appendAllowedDialogs(MediaDataController.getInstance(accountNumber).allowedStickerSets, settingsResponse.access.stickers);
         }
 
         GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
@@ -277,7 +278,7 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addDialogsToRequest(@NonNull SettingsRequest request) {
-        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogs);
+        addDialogsToRequest(request, MessagesController.getInstance(accountNumber).allDialogs);
         addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsForward);
         addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsGroupsOnly);
         addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsServerOnly);
@@ -288,8 +289,8 @@ public class ChannelCheckingService extends Service {
         }
     }
 
-    private void addDialogsToRequest(@NonNull SettingsRequest request, ArrayList<TLRPC.TL_dialog> dialogs) {
-        for (TLRPC.TL_dialog dlg : dialogs) {
+    private void addDialogsToRequest(@NonNull SettingsRequest request, ArrayList<TLRPC.Dialog> dialogs) {
+        for (TLRPC.Dialog dlg : dialogs) {
             long currentDialogId = dlg.id;
             addDialogToRequest(currentDialogId, request);
         }

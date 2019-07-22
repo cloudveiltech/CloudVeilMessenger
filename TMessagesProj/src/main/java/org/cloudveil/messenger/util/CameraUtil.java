@@ -7,8 +7,9 @@ import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 
 /**
  * Created by Dmitriy on 03.03.2018.
