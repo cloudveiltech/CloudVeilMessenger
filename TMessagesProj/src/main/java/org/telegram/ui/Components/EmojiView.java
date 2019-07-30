@@ -57,6 +57,7 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MediaDataController;
@@ -4188,6 +4189,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         @Override
         public int getItemCount() {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return 0;
+            }
+            //CloudVeil end
             return recentGifs.size() + 1;
         }
 
@@ -4198,6 +4204,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         @Override
         public int getItemViewType(int position) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return 0;
+            }
+            //CloudVeil end
             if (position == 0) {
                 return 1;
             }
@@ -4346,6 +4357,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         public void search(String text) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return;
+            }
+            //CloudVel end
             if (reqId != 0) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
                 reqId = 0;
@@ -4373,6 +4389,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         private void searchBotUser() {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return;
+            }
+            //CloudVel end
             if (searchingUser) {
                 return;
             }
@@ -4395,6 +4416,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         private void search(final String query, final String offset, boolean searchUser) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return;
+            }
+            //CloudVel end
             if (reqId != 0) {
                 ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
                 reqId = 0;

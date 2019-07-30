@@ -1725,11 +1725,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
             allowStickers = false;
         }
 
-        if (!GlobalSecuritySettings.isLockDisableGifs()) {
-            allowGifs = value2;
-        } else {
-            allowGifs = false;
-        }
+        allowGifs = value2;
         //CloudVeil end
 
         setEmojiButtonImage(false, !isPaused);
@@ -3282,9 +3278,6 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (emojiView != null) {
             return;
         }
-        //CloudVeil start
-        emojiView = new EmojiView(allowStickers && !GlobalSecuritySettings.isLockDisableStickers(), allowGifs && !GlobalSecuritySettings.isLockDisableGifs(), parentActivity, true, info);
-        //CloudVeil end
 
         emojiView = new EmojiView(allowStickers, allowGifs, parentActivity, true, info);
         emojiView.setVisibility(GONE);
