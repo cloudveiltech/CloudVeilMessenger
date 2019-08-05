@@ -302,10 +302,10 @@ android {
 
     defaultConfig {
         minSdkVersion 16
-        targetSdkVersion 27
+        targetSdkVersion 29
         versionName "5.9.0"
 
-        buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapSdkKey}\""
+        buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapScreenshotKey}\""
         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         externalNativeBuild {
@@ -315,7 +315,7 @@ android {
             }
         }
 
-        manifestPlaceholders = [applicationClassName: "ApplicationLoader"]
+        manifestPlaceholders = [applicationClassName: "ApplicationLoader", mapSdkKey:  "\"${keystoreProperties.mapSdkKey}\""]
     }
 }
 
