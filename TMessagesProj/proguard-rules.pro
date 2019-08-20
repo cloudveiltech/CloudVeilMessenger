@@ -3,6 +3,8 @@
 -keepclassmembernames class * {
     @com.google.android.gms.common.annotation.KeepName *;
 }
+
+-keep class org.cloudveil.messenger.** { *; }
 -keep class org.telegram.** { *; }
 -keep class com.google.android.exoplayer2.ext.** { *; }
 -keep class com.google.android.exoplayer2.util.** { *; }

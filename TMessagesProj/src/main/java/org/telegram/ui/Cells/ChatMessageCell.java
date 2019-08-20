@@ -2339,6 +2339,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 hasGamePreview = messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaGame && messageObject.messageOwner.media.game instanceof TLRPC.TL_game;
                 hasInvoicePreview = messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaInvoice;
                 hasLinkPreview = messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaWebPage && messageObject.messageOwner.media.webpage instanceof TLRPC.TL_webPage;
+                //CloudVeil start
+                hasLinkPreview = hasLinkPreview && !GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+                //CloudVeil end
+
                 drawInstantView = hasLinkPreview && messageObject.messageOwner.media.webpage.cached_page != null;
                 hasEmbed = hasLinkPreview && !TextUtils.isEmpty(messageObject.messageOwner.media.webpage.embed_url) && !messageObject.isGif();
                 boolean slideshow = false;

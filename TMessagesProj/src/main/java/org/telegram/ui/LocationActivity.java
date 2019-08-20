@@ -572,6 +572,7 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
                 return super.onInterceptTouchEvent(ev);
             }
         };
+
         final MapView map = mapView;
         new Thread(() -> {
             try {

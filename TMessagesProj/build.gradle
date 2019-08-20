@@ -31,17 +31,17 @@ configurations.all {
 }
 
 dependencies {
-    implementation 'androidx.core:core:1.1.0-beta01'
+    implementation 'androidx.core:core:1.2.0-alpha03'
     implementation 'androidx.palette:palette:1.0.0'
     implementation 'androidx.exifinterface:exifinterface:1.1.0-beta01'
 
     compileOnly 'org.checkerframework:checker-qual:2.5.2'
     compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
-    implementation 'com.google.firebase:firebase-messaging:19.0.1'
-    implementation 'com.google.firebase:firebase-config:18.0.0'
+    implementation 'com.google.firebase:firebase-messaging:20.0.0'
+    implementation 'com.google.firebase:firebase-config:19.0.0'
     implementation 'com.google.android.gms:play-services-maps:17.0.0'
     implementation 'com.google.android.gms:play-services-auth:17.0.0'
-    implementation 'com.google.android.gms:play-services-vision:16.2.0'
+    implementation 'com.google.android.gms:play-services-vision:18.0.0'
     implementation 'com.google.android.gms:play-services-wallet:17.0.0'
     implementation 'com.google.android.gms:play-services-wearable:17.0.0'
     implementation 'com.google.android.gms:play-services-location:17.0.0'
@@ -56,8 +56,8 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.2'
 
     defaultConfig.applicationId = "org.cloudveil.messenger"
 
@@ -105,13 +105,13 @@ android {
             jniDebuggable true
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
         debugMultidex {
             initWith debug
-            minifyEnabled false
+            minifyEnabled true
             multiDexEnabled true
             dependencies {
                 implementation 'com.android.support:multidex:1.0.3'
@@ -132,8 +132,8 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             multiDexEnabled true
             dependencies {
@@ -269,7 +269,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 1650
+    defaultConfig.versionCode = 1652
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -296,7 +296,7 @@ android {
     variantFilter { variant ->
         def names = variant.flavors*.name
         if (variant.buildType.name != "release" && !names.contains("afat")) {
-            setIgnore(true)
+        //    setIgnore(true)
         }
     }
 
