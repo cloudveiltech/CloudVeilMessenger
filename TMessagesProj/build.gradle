@@ -56,8 +56,8 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion '29.0.2'
+    compileSdkVersion 28
+    buildToolsVersion '28.0.3'
 
     defaultConfig.applicationId = "org.cloudveil.messenger"
 
@@ -269,7 +269,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 1652
+    defaultConfig.versionCode = 1654
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -302,7 +302,7 @@ android {
 
     defaultConfig {
         minSdkVersion 16
-        targetSdkVersion 29
+        targetSdkVersion 28
         versionName "5.9.0"
 
         buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapScreenshotKey}\""
