@@ -2925,4 +2925,5 @@
     <string name="contact">Contact</string>
     <string name="cancel">Cancel</string>
     <string name="open_settings">Open Settings</string>
+    <string name="fetching_data">Fetching data</string>
 </resources>

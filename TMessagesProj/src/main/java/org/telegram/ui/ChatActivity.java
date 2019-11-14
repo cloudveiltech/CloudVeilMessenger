@@ -8109,7 +8109,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             MessagesController messagesController = MessagesController.getInstance(currentAccount);
             boolean isDialogAllowed = messagesController.isDialogIdAllowed(dialog_id);
             if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
-                chatAdapter.notifyDataSetChanged();
+                if(chatAdapter != null) {
+                    chatAdapter.notifyDataSetChanged();
+                }
             } else if (!isDialogAllowed) {
                 showWarning(this, messagesController.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
                 return;
@@ -10587,14 +10589,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     chat = chat2;
                 }
             }
-            boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
-            if(isChannel) {
-                type = "channel";
-            }
+            if (chat != null) {
+                boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+                if (isChannel) {
+                    type = "channel";
+                }
 
-            title = chat.title;
-            userName = chat.username;
-            id = chat.id;
+                title = chat.title;
+                userName = chat.username;
+                id = chat.id;
+            }
         } else {
             type = "encrypted chat";
             title = "Encrypted Chat";
@@ -10614,7 +10618,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 "\n\nSent from CloudVeil Messenger for Android");
 
         // if no email client, we avoid crash
-        ApplicationLoader.applicationContext.startActivity(Intent.createChooser(intent, "Send Email Using: "));
+        Intent chooser = Intent.createChooser(intent, "Send Email Using: ");
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        ApplicationLoader.applicationContext.startActivity(chooser);
     }
     //CloudVeil end
 

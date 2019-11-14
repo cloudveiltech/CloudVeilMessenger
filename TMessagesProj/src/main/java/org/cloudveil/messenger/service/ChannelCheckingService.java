@@ -29,6 +29,7 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
 
@@ -65,14 +66,20 @@ public class ChannelCheckingService extends Service {
         return null;
     }
 
-    public static void startDataChecking(int accountNum, @NonNull Context context) {
+    public static void startDataChecking(int accountNum, @Nullable Context context) {
+        if(context == null) {
+            return;
+        }
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
         intent.putExtra(EXTRA_ACCOUNT_NUMBER, accountNum);
         intent.setClass(context, ChannelCheckingService.class);
         ContextCompat.startForegroundService(context, intent);
     }
 
-    public static void startDataChecking(int accountNum, long dialogId, @NonNull Context context) {
+    public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
+        if(context == null) {
+            return;
+        }
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
         intent.setClass(context, ChannelCheckingService.class);
         intent.putExtra(EXTRA_ADDITION_DIALOG_ID, dialogId);
@@ -92,14 +99,12 @@ public class ChannelCheckingService extends Service {
             accountNumber = intent.getIntExtra(EXTRA_ACCOUNT_NUMBER, 0);
 
             handler.postDelayed(checkDataRunnable, DEBOUNCE_TIME_MS);
+            showForegroundNotification();
         }
-
         return super.onStartCommand(intent, flags, startId);
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
+    private void showForegroundNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String CHANNEL_ID = "CVM channel 1";
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
@@ -110,31 +115,40 @@ public class ChannelCheckingService extends Service {
 
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle("")
-                    .setContentText("").build();
+                    .setContentText(getString(R.string.fetching_data)).build();
 
             startForeground(NOTIFICATION_ID, notification);
         }
     }
 
-    Runnable checkDataRunnable = new Runnable() {
-        @Override
-        public void run() {
-            sendDataCheckRequest();
-        }
-    };
+    Runnable checkDataRunnable = () -> sendDataCheckRequest();
 
     private void sendDataCheckRequest() {
+        UserConfig userConfig = UserConfig.getInstance(accountNumber);
+        if(userConfig == null) {
+            stopForeground(true);
+            stopSelf();
+            return;
+        }
+        if(userConfig.getCurrentUser() == null) {
+            stopForeground(true);
+            stopSelf();
+            return;
+        }
+
         final SettingsRequest request = new SettingsRequest();
         addDialogsToRequest(request);
         addInlineBotsToRequest(request);
         addStickersToRequest(request);
 
-        request.userPhone = UserConfig.getInstance(accountNumber).getCurrentUser().phone;
-        request.userId = UserConfig.getInstance(accountNumber).getCurrentUser().id;
-        request.userName = UserConfig.getInstance(accountNumber).getCurrentUser().username;
+        request.userPhone = userConfig.getCurrentUser().phone;
+        request.userId = userConfig.getCurrentUser().id;
+        request.userName = userConfig.getCurrentUser().username;
 
         if (request.isEmpty()) {
             NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
+            stopForeground(true);
+            stopSelf();
             return;
         }
 
@@ -144,6 +158,8 @@ public class ChannelCheckingService extends Service {
             firstCall = false;
         }
         if (!ApplicationLoader.isNetworkOnline()) {
+            stopForeground(true);
+            stopSelf();
             return;
         }
 

@@ -10860,6 +10860,9 @@ public class MessagesController extends BaseController implements NotificationCe
         if (progressDialog != null) {
             progressDialog.dismiss();
         }
+        if(fragment.getParentActivity() == null) {
+            return;
+        }
         delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
         progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
         NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);

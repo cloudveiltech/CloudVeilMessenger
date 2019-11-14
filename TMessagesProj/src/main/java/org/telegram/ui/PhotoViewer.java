@@ -7065,8 +7065,18 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 }
                 animatingImageView.setLayoutParams(layoutParams);
 
-                float scaleX = (float) windowView.getMeasuredWidth() / layoutParams.width;
-                float scaleY = (float) (AndroidUtilities.displaySize.y + (Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0)) / layoutParams.height;
+                //CloudVeil start crashFix
+                float scaleX = 1;
+                if(layoutParams.width > 0) {
+                    scaleX = (float) windowView.getMeasuredWidth() / layoutParams.width;;
+                }
+
+                float scaleY = 1;
+                if(layoutParams.height > 0) {
+                    scaleY = (float) (AndroidUtilities.displaySize.y + (Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0)) / layoutParams.height;
+                }
+                //CloudVeil end
+
                 float scale2 = scaleX > scaleY ? scaleY : scaleX;
                 float width = layoutParams.width * scale * scale2;
                 float height = layoutParams.height * scale * scale2;

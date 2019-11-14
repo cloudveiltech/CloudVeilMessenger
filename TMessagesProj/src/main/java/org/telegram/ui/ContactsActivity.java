@@ -318,6 +318,10 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
         } catch (Throwable e) {
             hasGps = false;
         }
+        //CloudVeil start
+        hasGps = false;
+        //CloudVeil end
+
         listViewAdapter = new ContactsAdapter(context, onlyUsers ? 1 : 0, needPhonebook, ignoreUsers, inviteViaLink, hasGps) {
             @Override
             public void notifyDataSetChanged() {
@@ -452,7 +456,8 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
                                 presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_NEARBY_LOCATION_ENABLED));
                                 return;
                             }
-                            presentFragment(new PeopleNearbyActivity());
+                           //CloudVeil blocked
+                            // presentFragment(new PeopleNearbyActivity());
                         }
                     } else if (inviteViaLink != 0) {
                         if (row == 0) {
