@@ -38,6 +38,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LetterDrawable;
 import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.WebPlayerView;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -428,7 +429,9 @@ public class SharedLinkCell extends FrameLayout {
                             } else if (linkPreviewPressed) {
                                 try {
                                     TLRPC.WebPage webPage = pressedLink == 0 && message.messageOwner.media != null ? message.messageOwner.media.webpage : null;
-                                    if (webPage != null && webPage.embed_url != null && webPage.embed_url.length() != 0) {
+                                    //CloudVeil start
+                                    if (webPage != null && webPage.embed_url != null && webPage.embed_url.length() != 0 && !WebPlayerView.isYoutubeUrl(webPage.embed_url)) {
+                                    //CloudVeil end
                                         delegate.needOpenWebView(webPage);
                                     } else {
                                         Browser.openUrl(getContext(), links.get(pressedLink));

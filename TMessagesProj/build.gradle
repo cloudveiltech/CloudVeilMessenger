@@ -104,7 +104,7 @@ android {
             debuggable true
             jniDebuggable true
             signingConfig signingConfigs.debug
-            applicationIdSuffix ".beta"
+         //   applicationIdSuffix ".beta"
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -269,7 +269,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 1655
+    defaultConfig.versionCode = 1657
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->

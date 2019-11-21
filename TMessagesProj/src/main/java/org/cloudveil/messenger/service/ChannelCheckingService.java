@@ -67,7 +67,7 @@ public class ChannelCheckingService extends Service {
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
-        if(context == null) {
+        if (context == null) {
             return;
         }
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
@@ -77,7 +77,7 @@ public class ChannelCheckingService extends Service {
     }
 
     public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
-        if(context == null) {
+        if (context == null) {
             return;
         }
         Intent intent = new Intent(ACTION_CHECK_CHANNELS);
@@ -125,12 +125,12 @@ public class ChannelCheckingService extends Service {
 
     private void sendDataCheckRequest() {
         UserConfig userConfig = UserConfig.getInstance(accountNumber);
-        if(userConfig == null) {
+        if (userConfig == null) {
             stopForeground(true);
             stopSelf();
             return;
         }
-        if(userConfig.getCurrentUser() == null) {
+        if (userConfig.getCurrentUser() == null) {
             stopForeground(true);
             stopSelf();
             return;
@@ -360,11 +360,11 @@ public class ChannelCheckingService extends Service {
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";
-                if(user.first_name != null) {
+                if (user.first_name != null) {
                     row.title = user.first_name;
                 }
-                if(user.last_name != null) {
-                    if(!TextUtils.isEmpty(row.title)) {
+                if (user.last_name != null) {
+                    if (!TextUtils.isEmpty(row.title)) {
                         row.title += " ";
                     }
                     row.title += user.last_name;

@@ -88,6 +88,7 @@ import org.telegram.ui.Components.FragmentContextView;
 import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ScrollSlidingTextTabStrip;
+import org.telegram.ui.Components.WebPlayerView;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -2059,7 +2060,13 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             ArticleViewer.getInstance().open(message);
                             return;
                         } else if (webPage.embed_url != null && webPage.embed_url.length() != 0) {
-                            openWebView(webPage);
+                            //CloudVeil start
+                            if(WebPlayerView.isYoutubeUrl(webPage.embed_url)) {
+                                Browser.openUrl(ApplicationLoader.applicationContext, webPage.embed_url);
+                            } else {
+                                openWebView(webPage);
+                            }
+                            //CloudVeil end
                             return;
                         } else {
                             link = webPage.url;

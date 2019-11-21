@@ -212,6 +212,16 @@
                   android:excludeFromRecents="true"
                 android:theme="@style/Theme.TMessages.TransparentWithAlerts"/>
 
+        <activity
+            android:name="org.telegram.messenger.GoogleVoiceClientActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.voicesearch.SEND_MESSAGE_TO_CONTACTS" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".AutoMessageHeardReceiver"
             android:exported="false">
@@ -268,6 +278,10 @@
                 <action android:name="android.service.chooser.ChooserTargetService" />
             </intent-filter>
         </service>
+
+
+        <service
+            android:name="org.telegram.messenger.GoogleVoiceClientService" />
 
         <service android:name=".KeepAliveJob"
                  android:exported="false"

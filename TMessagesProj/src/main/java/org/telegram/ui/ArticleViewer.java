@@ -2686,6 +2686,10 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
     }
 
     private void openWebpageUrl(String url, String anchor) {
+        //CloudVeil start
+        Browser.openUrl(ApplicationLoader.applicationContext, Uri.parse(url));
+        return;
+        /*
         if (openUrlReqId != 0) {
             ConnectionsManager.getInstance(currentAccount).cancelRequest(openUrlReqId, false);
             openUrlReqId = 0;
@@ -2709,7 +2713,8 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
                     Browser.openUrl(parentActivity, req.url);
                 }
             }
-        }));
+        }));*/
+        //CloudVeil end
     }
 
     private TLRPC.Photo getPhotoWithId(long id) {
