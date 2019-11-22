@@ -430,12 +430,8 @@ public class SharedLinkCell extends FrameLayout {
                                 try {
                                     TLRPC.WebPage webPage = pressedLink == 0 && message.messageOwner.media != null ? message.messageOwner.media.webpage : null;
                                     //CloudVeil start
-                                    if (webPage != null && webPage.embed_url != null && webPage.embed_url.length() != 0 && !WebPlayerView.isYoutubeUrl(webPage.embed_url)) {
+                                    Browser.openUrl(getContext(), links.get(pressedLink));
                                     //CloudVeil end
-                                        delegate.needOpenWebView(webPage);
-                                    } else {
-                                        Browser.openUrl(getContext(), links.get(pressedLink));
-                                    }
                                 } catch (Exception e) {
                                     FileLog.e(e);
                                 }

@@ -2061,11 +2061,7 @@ public class MediaActivity extends BaseFragment implements NotificationCenter.No
                             return;
                         } else if (webPage.embed_url != null && webPage.embed_url.length() != 0) {
                             //CloudVeil start
-                            if(WebPlayerView.isYoutubeUrl(webPage.embed_url)) {
-                                Browser.openUrl(ApplicationLoader.applicationContext, webPage.embed_url);
-                            } else {
-                                openWebView(webPage);
-                            }
+                            Browser.openUrl(ApplicationLoader.applicationContext, webPage.embed_url);
                             //CloudVeil end
                             return;
                         } else {
