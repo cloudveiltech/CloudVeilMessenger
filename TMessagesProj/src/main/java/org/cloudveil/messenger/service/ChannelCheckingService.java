@@ -1,6 +1,7 @@
 package org.cloudveil.messenger.service;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,6 +13,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -89,6 +91,10 @@ public class ChannelCheckingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+
+        showForegroundNotification();
+
         if (intent != null && intent.getAction() != null && intent.getAction().equals(ACTION_CHECK_CHANNELS)) {
             handler.removeCallbacks(checkDataRunnable);
             long additionalId = intent.getLongExtra(EXTRA_ADDITION_DIALOG_ID, 0);
@@ -99,16 +105,17 @@ public class ChannelCheckingService extends Service {
             accountNumber = intent.getIntExtra(EXTRA_ACCOUNT_NUMBER, 0);
 
             handler.postDelayed(checkDataRunnable, DEBOUNCE_TIME_MS);
-            showForegroundNotification();
+        } else {
+            stopForeground(true);
         }
-        return super.onStartCommand(intent, flags, startId);
+        return START_STICKY;
     }
 
     private void showForegroundNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String CHANNEL_ID = "CVM channel 1";
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    "CVM channel",
+                    CHANNEL_ID,
                     NotificationManager.IMPORTANCE_NONE);
 
             ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
@@ -116,10 +123,12 @@ public class ChannelCheckingService extends Service {
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle("")
                     .setContentText(getString(R.string.fetching_data)).build();
-
+            Log.d("ChannelCheckingService", "Starting foreground");
             startForeground(NOTIFICATION_ID, notification);
         }
     }
+
+
 
     Runnable checkDataRunnable = () -> sendDataCheckRequest();
 
