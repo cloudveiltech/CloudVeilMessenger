@@ -34,4 +34,5 @@ public class SettingsResponse {
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
     public String disableStickersImage;
+    public int profilePhotoLimit;
 }

@@ -19,6 +19,7 @@ public class GlobalSecuritySettings {
 
     private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
     private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
+    private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
     private static final boolean DEFAULT_MANAGE_USERS = false;
@@ -131,5 +132,19 @@ public class GlobalSecuritySettings {
     public static String getBlockedImageUrl() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         return preferences.getString("blockedImageUrl", "");
+    }
+
+    public static void setProfilePhotoLimit(int profilePhotoLimit) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putInt("profilePhotoLimit", profilePhotoLimit).apply();
+    }
+    
+    public static int getProfilePhotoLimit() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        int limit = preferences.getInt("profilePhotoLimit", GlobalSecuritySettings.PROFILE_PHOTO_NO_LIMIT);
+        if (limit == PROFILE_PHOTO_NO_LIMIT) {
+            return Integer.MAX_VALUE;
+        }
+        return limit;
     }
 }

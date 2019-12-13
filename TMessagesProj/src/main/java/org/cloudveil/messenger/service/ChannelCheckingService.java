@@ -265,6 +265,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
         GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
         GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
+        GlobalSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
 
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
     }
