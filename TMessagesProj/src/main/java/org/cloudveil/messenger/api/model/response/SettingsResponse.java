@@ -21,6 +21,13 @@ public class SettingsResponse {
                     channels != null;
         }
     }
+
+    public class GoogleMapsKeys {
+        public String ios;
+        public String android;
+        public String desktop;
+    }
+
     public AccessList access;
 
     public boolean secretChat;
@@ -35,4 +42,5 @@ public class SettingsResponse {
     public boolean inputToggleVoiceVideo;
     public String disableStickersImage;
     public int profilePhotoLimit;
+    public GoogleMapsKeys googleMapsKeys;
 }

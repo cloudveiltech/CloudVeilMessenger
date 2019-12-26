@@ -266,6 +266,9 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
         GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
         GlobalSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
+        if(settingsResponse.googleMapsKeys != null) {
+            GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
+        }
 
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
     }

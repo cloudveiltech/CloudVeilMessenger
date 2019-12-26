@@ -2,8 +2,10 @@ package org.cloudveil.messenger;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildConfig;
 
 /**
  * Created by darren on 2017-03-25.
@@ -146,5 +148,19 @@ public class GlobalSecuritySettings {
             return Integer.MAX_VALUE;
         }
         return limit;
+    }
+
+    public static void setGoogleMapsKey(String key) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putString("googleMapsKey", key).apply();
+    }
+
+    public static String getGoogleMapsKey() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String v = preferences.getString("googleMapsKey", "");
+        if(TextUtils.isEmpty(v)) {
+            return BuildConfig.MAP_SDK_KEY;
+        }
+        return v;
     }
 }
