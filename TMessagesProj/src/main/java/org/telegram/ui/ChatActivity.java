@@ -41,7 +41,9 @@ import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.os.SystemClock;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -49,6 +51,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSmoothScrollerMiddle;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.provider.Settings;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -10512,6 +10515,37 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     //CloudVeil start
+    public static boolean isBatteryOptimized(final Context context) {
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        String name = context.getPackageName();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return !powerManager.isIgnoringBatteryOptimizations(name);
+        }
+        return false;
+    }
+
+    public static void showBatteryWarning(BaseFragment fragment, final Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
+            return;
+        }
+        if (!isBatteryOptimized(context)) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(context.getString(R.string.cloudveil_battery_warning))
+                .setPositiveButton(context.getString(R.string.resolve), (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + context.getPackageName()));
+                    context.startActivity(intent);
+
+                    dialog.dismiss();
+                    fragment.finishFragment();
+                })
+                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> fragment.finishFragment());
+        fragment.showDialog(builder.create());
+    }
+
     public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
         if (tlObject == null) {
             return;
@@ -11628,6 +11662,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         //CloudVeil start
         if (!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             showWarning(this, MessagesController.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+        } else {
+            showBatteryWarning(this, getParentActivity());
         }
         //CloudVeil end
 

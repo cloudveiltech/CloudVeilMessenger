@@ -748,7 +748,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private void showPopup(final Context context) {
         SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         if (defaultSharedPreferences.getBoolean("popupShown", false)) {
-            showBatteryWarning(context);
             return;
         }
 
@@ -767,43 +766,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private void setPopupShown() {
         SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(ApplicationLoader.applicationContext);
         defaultSharedPreferences.edit().putBoolean("popupShown", true).apply();
-    }
-
-    private boolean isBatteryOptimized(final Context context) {
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        String name = context.getPackageName();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return !powerManager.isIgnoringBatteryOptimizations(name);
-        }
-        return false;
-    }
-
-    private void showBatteryWarning(final Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
-            return;
-        }
-        if (!isBatteryOptimized(context)) {
-            return;
-        }
-
-        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        long now = System.currentTimeMillis();
-        long lastTime = defaultSharedPreferences.getLong("batteryWarningTime", 0);
-        if (now - lastTime < 24 * 60 * 60 * 1000) {//one day
-            return;
-        }
-        defaultSharedPreferences.edit().putLong("batteryWarningTime", now).apply();
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(context.getString(R.string.warning))
-                .setMessage(context.getString(R.string.cloudveil_battery_warning))
-                .setPositiveButton(context.getString(R.string.open_settings), (dialog, which) -> {
-                    dialog.dismiss();
-                    Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                    context.startActivity(intent);
-                })
-                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> dialog.dismiss());
-        showDialog(builder.create(), dialog -> setPopupShown());
     }
     //CloudVeil end
 
