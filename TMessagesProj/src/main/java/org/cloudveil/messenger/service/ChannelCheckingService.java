@@ -18,6 +18,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.gson.Gson;
@@ -357,19 +358,28 @@ public class ChannelCheckingService extends Service {
             }
         }
 
-        SettingsRequest.Row row = new SettingsRequest.Row();
-        row.id = currentDialogId;
         if (chat != null) {
+            boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+            SettingsRequest.GroupChannelRow row = null;
+            if(isChannel) {
+                row = new SettingsRequest.GroupChannelRow();
+            } else {
+                row = new SettingsRequest.GroupRow();
+            }
             row.title = chat.title;
             row.userName = chat.username;
+            row.id = currentDialogId;
 
-            boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+            row.isPublic = (chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
             if (isChannel) {
                 request.addChannel(row);
             } else {
-                request.addGroup(row);
+                SettingsRequest.GroupRow groupRow = (SettingsRequest.GroupRow)row;
+                groupRow.isMegagroup = chat.megagroup;
+                request.addGroup(groupRow);
             }
         } else if (user != null) {
+            SettingsRequest.Row row = new SettingsRequest.Row();
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";

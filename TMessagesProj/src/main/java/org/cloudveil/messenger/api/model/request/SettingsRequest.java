@@ -11,8 +11,8 @@ public class SettingsRequest {
     public String userPhone;
     public String userName;
 
-    public ArrayList<Row> groups = new ArrayList<>();
-    public ArrayList<Row> channels = new ArrayList<>();
+    public ArrayList<GroupRow> groups = new ArrayList<>();
+    public ArrayList<GroupChannelRow> channels = new ArrayList<>();
     public ArrayList<Row> bots = new ArrayList<>();
     public ArrayList<Row> stickers = new ArrayList<>();
     public ArrayList<Row> users = new ArrayList<>();
@@ -27,11 +27,19 @@ public class SettingsRequest {
         public String userName;
     }
 
-    public void addChannel(Row channel) {
+    public static class GroupChannelRow extends Row {
+        public boolean isPublic;
+    }
+
+    public static class GroupRow extends GroupChannelRow {
+        public boolean isMegagroup;
+    }
+
+    public void addChannel(GroupChannelRow channel) {
         addRow(channels, channel);
     }
 
-    public void addGroup(Row group) {
+    public void addGroup(GroupRow group) {
         addRow(groups, group);
     }
 
@@ -47,7 +55,7 @@ public class SettingsRequest {
         addRow(stickers, sticker);
     }
 
-    private void addRow(ArrayList<Row> rows, Row data) {
+    private<T extends Row> void addRow(ArrayList<T> rows, T data) {
         for(Row row : rows) {
             if(row.id == data.id) {
                 return;
