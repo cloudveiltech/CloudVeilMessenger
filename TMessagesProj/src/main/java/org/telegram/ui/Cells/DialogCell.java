@@ -28,6 +28,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.Interpolator;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MediaDataController;
@@ -1456,7 +1457,7 @@ public class DialogCell extends BaseCell {
                         }
 
                         //CloudVeil start
-                        if(!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                        if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
                             unreadCount = 0;
                         }
                         //CloudVeil end
@@ -1524,7 +1525,7 @@ public class DialogCell extends BaseCell {
                             continueUpdate = true;
 
                             //CloudVeil start
-                            if(!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                            if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
                                 unreadCount = 0;
                             }
                             //CloudVeil end

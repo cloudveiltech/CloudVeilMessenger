@@ -46,6 +46,7 @@ import com.google.android.gms.common.api.Status;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
@@ -1778,7 +1779,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
 
 
                             //CloudVeil start check link pressed before opening dialog
-                            if (!MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                                 openUncheckedDialog(dialog_id, () -> runLinkRequest(intentAccount,
                                 username,
                                 group,
@@ -1796,7 +1797,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                 code,
                                 wallPaper,
                                 state));
-                            } else if (MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                            } else if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                                 BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
                                 if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
                                     if (isBot && lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id) {

@@ -51,6 +51,7 @@ import android.util.SparseArray;
 import android.util.SparseIntArray;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -685,7 +686,7 @@ public class NotificationsController extends BaseController {
                         popup = addToPopupMessages(popupArrayAdd, messageObject, lower_id, dialog_id, isChannel, preferences);
                     }
                     //CloudVeil start
-                    if(MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                    if(CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                         delayedPushMessages.add(messageObject);
                         pushMessages.add(0, messageObject);
                         if (mid != 0) {

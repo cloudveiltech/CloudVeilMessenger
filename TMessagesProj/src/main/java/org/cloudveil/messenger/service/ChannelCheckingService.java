@@ -27,6 +27,7 @@ import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MediaDataController;
@@ -173,6 +174,8 @@ public class ChannelCheckingService extends Service {
             return;
         }
 
+        CloudVeilDialogHelper.getInstance(accountNumber).loadNotificationChannelDialog(request);
+
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
@@ -237,7 +240,7 @@ public class ChannelCheckingService extends Service {
             return;
         }
 
-        ConcurrentHashMap<Long, Boolean> allowedDialogs = MessagesController.getInstance(accountNumber).allowedDialogs;
+        ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
         allowedDialogs.clear();
 
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.channels);
@@ -245,7 +248,7 @@ public class ChannelCheckingService extends Service {
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
         if (settingsResponse.access.bots != null) {
-            ConcurrentHashMap<Long, Boolean> allowedBots = MessagesController.getInstance(accountNumber).allowedBots;
+            ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(accountNumber).allowedBots;
             allowedBots.clear();
             appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
         }

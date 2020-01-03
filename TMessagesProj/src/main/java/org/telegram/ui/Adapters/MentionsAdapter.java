@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
@@ -292,7 +293,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         }
 
         //CloudVeil start
-        if (!MessagesController.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
         }
         //CloudVeil end
@@ -312,7 +313,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             return;
         }
         //CloudVeil start
-        if (!MessagesController.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
             return;
         }
@@ -709,7 +710,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                         continue;
                     }
                     //CloudVeil start
-                    if (!MessagesController.getInstance(currentAccount).isUserAllowed(user)) {
+                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
                         continue;
                     }
                     //CloudVeil end

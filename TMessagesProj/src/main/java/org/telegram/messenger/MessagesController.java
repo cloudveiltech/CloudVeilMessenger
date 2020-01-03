@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.SparseLongArray;
 import org.telegram.messenger.voip.VoIPService;
@@ -53,11 +54,9 @@ import java.util.concurrent.CountDownLatch;
 
 import androidx.core.app.NotificationManagerCompat;
 
+import com.google.android.exoplayer2.util.Log;
+
 public class MessagesController extends BaseController implements NotificationCenter.NotificationCenterDelegate {
-    //CLoudVeil start
-    public ConcurrentHashMap<Long, Boolean> allowedDialogs = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<Long, Boolean> allowedBots = new ConcurrentHashMap<>();
-    //CLoudVeil end
 
     private ConcurrentHashMap<Integer, TLRPC.Chat> chats = new ConcurrentHashMap<>(100, 1.0f, 2);
     private ConcurrentHashMap<Integer, TLRPC.EncryptedChat> encryptedChats = new ConcurrentHashMap<>(10, 1.0f, 2);
@@ -1315,7 +1314,8 @@ public class MessagesController extends BaseController implements NotificationCe
         loadedFullChats.clear();
     }
 
-    private void reloadDialogsReadValue(ArrayList<TLRPC.Dialog> dialogs, long did) {
+    //Cloudveil set to public
+    public void reloadDialogsReadValue(ArrayList<TLRPC.Dialog> dialogs, long did) {
         if (did == 0 && (dialogs == null || dialogs.isEmpty())) {
             return;
         }
@@ -6406,12 +6406,18 @@ public class MessagesController extends BaseController implements NotificationCe
                     AndroidUtilities.runOnUIThread(() -> joiningToChannels.remove((Integer) chat_id));
                 }
                 if (error != null) {
-                    AndroidUtilities.runOnUIThread(() -> {
-                        AlertsCreator.processError(currentAccount, error, fragment, request, isChannel && !isMegagroup);
-                        if (isChannel && inputUser instanceof TLRPC.TL_inputUserSelf) {
-                            getNotificationCenter().postNotificationName(NotificationCenter.updateInterfaces, UPDATE_MASK_CHAT);
-                        }
-                    });
+                    //CloudVeil start
+                    if(fragment != null) {
+                        AndroidUtilities.runOnUIThread(() -> {
+                            AlertsCreator.processError(currentAccount, error, fragment, request, isChannel && !isMegagroup);
+                            if (isChannel && inputUser instanceof TLRPC.TL_inputUserSelf) {
+                                getNotificationCenter().postNotificationName(NotificationCenter.updateInterfaces, UPDATE_MASK_CHAT);
+                            }
+                        });
+                    } else {
+                        Log.d("ERROR", "Error adding user to chat " + error.text);
+                    }
+                    //CloudVeil end
                     return;
                 }
                 boolean hasJoinMessage = false;
@@ -10825,52 +10831,6 @@ public class MessagesController extends BaseController implements NotificationCe
         return true;
     }
 
-    //CloudVeil start
-    private static ReopenDialogAfterCheckDelegate delegateInstance;
-    private static AlertDialog progressDialog;
-    private static class ReopenDialogAfterCheckDelegate implements NotificationCenter.NotificationCenterDelegate {
-        private final TLRPC.User user;
-        private final TLRPC.Chat chat;
-        private final BaseFragment fragment;
-        private final int type;
-        private final boolean closeLast;
-
-        ReopenDialogAfterCheckDelegate(TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
-            this.user = user;
-            this.chat = chat;
-            this.fragment = fragment;
-            this.type = type;
-            this.closeLast = closeLast;
-        }
-
-        @Override
-        public void didReceivedNotification(int id, int account, Object... args) {
-            MessagesController.openChatOrProfileWith(user, chat, fragment, type, closeLast);
-
-            NotificationCenter.getInstance(fragment.getCurrentAccount()).removeObserver(this, NotificationCenter.filterDialogsReady);
-            delegateInstance = null;
-            if(progressDialog != null) {
-                progressDialog.dismiss();
-            }
-            progressDialog = null;
-        }
-    }
-
-    public static void openUncheckedDialog(long dialogId, TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
-        if (progressDialog != null) {
-            progressDialog.dismiss();
-        }
-        if(fragment.getParentActivity() == null) {
-            return;
-        }
-        delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
-        progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
-        NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
-        ChannelCheckingService.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
-        progressDialog.show();
-    }
-    //CloudVeil end
-
     public static void openChatOrProfileWith(TLRPC.User user, TLRPC.Chat chat, BaseFragment fragment, int type, boolean closeLast) {
         if (user == null && chat == null || fragment == null) {
             return;
@@ -10889,27 +10849,23 @@ public class MessagesController extends BaseController implements NotificationCe
         //CloudVeil start
         if (chat != null) {
             int dialogId = chat.id > 0 ? -chat.id : chat.id;
-            if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
                 ChatActivity.showWarning(fragment, chat, null, null);
                 return;
-            } else if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
-                openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
+                CloudVeilDialogHelper.openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
                 return;
             }
         } else if (user != null) {
-            if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
                 ChatActivity.showWarning(fragment, user, null, null);
                 return;
-            } else if (!MessagesController.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
-                openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
+                CloudVeilDialogHelper.openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);
                 return;
             }
         }
-        delegateInstance = null;
-        if(progressDialog != null) {
-            progressDialog.dismiss();
-        }
-        progressDialog = null;
+        CloudVeilDialogHelper.dismissProgress();
         //CloudVeil end
 
         if (reason != null) {
@@ -10999,177 +10955,4 @@ public class MessagesController extends BaseController implements NotificationCe
         }
     }
 
-     //CLoudVeil start
-    public boolean isUserAllowed(TLRPC.User user) {
-        if (user == null) {
-            return true;
-        }
-        if (user.bot) {
-            if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
-                return false;
-            }
-            long id = (long) user.id;
-            return !allowedBots.containsKey(id) || allowedBots.get(id);
-        } else if (GlobalSecuritySettings.getManageUsers()) {
-            long id = (long) user.id;
-            return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
-        }
-        return true;
-    }
-
-    public TLObject getObjectByDialogId(long currentDialogId) {
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
-        TLRPC.Chat chat = null;
-        TLRPC.User user = null;
-        TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = getUser(lower_id);
-                }
-            }
-        } else {
-            encryptedChat = getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = getUser(encryptedChat.user_id);
-            }
-        }
-
-        if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
-            return encryptedChat;
-        } else if (chat != null) {
-            return chat;
-        } else if (user != null) {
-            return user;
-        }
-        return null;
-    }
-
-    public boolean isDialogIdAllowed(long currentDialogId) {
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
-        TLRPC.Chat chat = null;
-        TLRPC.User user = null;
-        TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = getUser(lower_id);
-                }
-            }
-        } else {
-            encryptedChat = getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = getUser(encryptedChat.user_id);
-            }
-        }
-
-        if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
-            return false;
-        } else if (chat != null) {
-            return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
-        } else if (user != null) {
-            return isUserAllowed(user);
-        }
-        return false;
-    }
-
-    public boolean isDialogCheckedOnServer(long currentDialogId) {
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
-        TLRPC.Chat chat = null;
-        TLRPC.User user = null;
-        TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = getUser(lower_id);
-                }
-            }
-        } else {
-            encryptedChat = getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = getUser(encryptedChat.user_id);
-            }
-        }
-
-        if (chat != null) {
-            return allowedDialogs.containsKey(currentDialogId);
-        } else if (user != null) {
-            if (user.bot) {
-                long id = (long) user.id;
-                return allowedBots.containsKey(id);
-            } else if (GlobalSecuritySettings.getManageUsers()) {
-                return allowedDialogs.containsKey(currentDialogId);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    public boolean isMessageAllowed(MessageObject messageObject) {
-        if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
-                && !MediaDataController.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)) {
-            if (TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
-                return false;
-            }
-        }
-
-        if (messageObject.messageOwner.via_bot_id <= 0) {
-            return true;
-        }
-
-        TLRPC.User botUser = getUser(messageObject.messageOwner.via_bot_id);
-        if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
-            return isUserAllowed(botUser);
-        }
-        return false;
-    }
-
-
-    public ArrayList<MessageObject> filterMessages(ArrayList<MessageObject> messages) {
-        ArrayList<MessageObject> filtered = new ArrayList<>();
-        if (messages == null) {
-            return filtered;
-        }
-
-        for (MessageObject messageObject : messages) {
-            if (isMessageAllowed(messageObject)) {
-                filtered.add(messageObject);
-            }
-        }
-        return filtered;
-    }
-    //CloudVeil end
 }

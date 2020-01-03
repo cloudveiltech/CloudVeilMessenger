@@ -99,6 +99,7 @@ import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.BuildConfig;
@@ -2155,7 +2156,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
 
                 //CloudVeil start
-                if (!MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                     emptyView.setText(LocaleController.getString("cloudveil_hidden_for_protection", R.string.cloudveil_hidden_for_protection));
                 }
                 //CloudVeil end
@@ -8112,14 +8113,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     public void didReceivedNotification(int id, int account, final Object... args) {
         //CloudVeil start
         if (id == NotificationCenter.filterDialogsReady) {
-            MessagesController messagesController = MessagesController.getInstance(currentAccount);
-            boolean isDialogAllowed = messagesController.isDialogIdAllowed(dialog_id);
-            if (messagesController.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
+            CloudVeilDialogHelper cloudVeilDialogHelper = CloudVeilDialogHelper.getInstance(currentAccount);
+            boolean isDialogAllowed = cloudVeilDialogHelper.isDialogIdAllowed(dialog_id);
+            if (cloudVeilDialogHelper.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
                 if(chatAdapter != null) {
                     chatAdapter.notifyDataSetChanged();
                 }
             } else if (!isDialogAllowed) {
-                showWarning(this, messagesController.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+                showWarning(this, cloudVeilDialogHelper.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
                 return;
             }
             //ClloudVeil end
@@ -10506,8 +10507,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
 
         //CloudVeil start
-        if (MessagesController.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
-            messages = MessagesController.getInstance(currentAccount).filterMessages(messages);
+        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+            messages = CloudVeilDialogHelper.getInstance(currentAccount).filterMessages(messages);
         } else {
             ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
         }
@@ -11663,8 +11664,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         super.onResume();
 
         //CloudVeil start
-        if (!MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-            showWarning(this, MessagesController.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+            showWarning(this, CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
         } else {
             showBatteryWarning(this, getParentActivity());
         }

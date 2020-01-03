@@ -60,6 +60,7 @@ import android.widget.TextView;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -1363,7 +1364,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 } else {
                     if (getMessagesController().checkCanOpenChat(args, DialogsActivity.this)) {
                         //CloudVeil start
-                        if (MessagesController.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                             presentFragment(new ChatActivity(args));
                         } else {
                             TLObject object = null;
