@@ -17,7 +17,6 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,7 +33,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.voip.VoIPController;
+import org.telegram.messenger.voip.TgVoip;
 import org.telegram.messenger.voip.VoIPService;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
@@ -45,13 +44,17 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.CheckBoxCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Components.BetterRatingView;
+import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.VoIPActivity;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Set;
 
 public class VoIPHelper {
@@ -79,12 +82,7 @@ public class VoIPHelper {
 			if (isAirplaneMode) {
 				final Intent settingsIntent = new Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS);
 				if (settingsIntent.resolveActivity(activity.getPackageManager()) != null) {
-					bldr.setNeutralButton(LocaleController.getString("VoipOfflineOpenSettings", R.string.VoipOfflineOpenSettings), new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							activity.startActivity(settingsIntent);
-						}
-					});
+					bldr.setNeutralButton(LocaleController.getString("VoipOfflineOpenSettings", R.string.VoipOfflineOpenSettings), (dialog, which) -> activity.startActivity(settingsIntent));
 				}
 			}
 			bldr.show();
@@ -109,19 +107,11 @@ public class VoIPHelper {
 						.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("VoipOngoingAlert", R.string.VoipOngoingAlert,
 								ContactsController.formatName(callUser.first_name, callUser.last_name),
 								ContactsController.formatName(user.first_name, user.last_name))))
-						.setPositiveButton(LocaleController.getString("OK", R.string.OK), new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								if (VoIPService.getSharedInstance() != null) {
-									VoIPService.getSharedInstance().hangUp(new Runnable() {
-										@Override
-										public void run() {
-											doInitiateCall(user, activity);
-										}
-									});
-								} else {
-									doInitiateCall(user, activity);
-								}
+						.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialog, which) -> {
+							if (VoIPService.getSharedInstance() != null) {
+								VoIPService.getSharedInstance().hangUp(() -> doInitiateCall(user, activity));
+							} else {
+								doInitiateCall(user, activity);
 							}
 						})
 						.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null)
@@ -160,22 +150,16 @@ public class VoIPHelper {
 					.setTitle(LocaleController.getString("AppName", R.string.AppName))
 					.setMessage(LocaleController.getString("VoipNeedMicPermission", R.string.VoipNeedMicPermission))
 					.setPositiveButton(LocaleController.getString("OK", R.string.OK), null)
-					.setNegativeButton(LocaleController.getString("Settings", R.string.Settings), new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-							Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
-							intent.setData(uri);
-							activity.startActivity(intent);
-						}
+					.setNegativeButton(LocaleController.getString("Settings", R.string.Settings), (dialog, which) -> {
+						Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+						Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
+						intent.setData(uri);
+						activity.startActivity(intent);
 					})
 					.show();
-			dlg.setOnDismissListener(new DialogInterface.OnDismissListener() {
-				@Override
-				public void onDismiss(DialogInterface dialog) {
-					if (onFinish != null)
-						onFinish.run();
-				}
+			dlg.setOnDismissListener(dialog -> {
+				if (onFinish != null)
+					onFinish.run();
 			});
 		}
 	}
@@ -215,7 +199,7 @@ public class VoIPHelper {
 				try {
 					long accessHash = Long.parseLong(d[1]);
 					showRateAlert(context, null, call.call_id, accessHash, UserConfig.selectedAccount, true);
-				} catch (Exception x) {
+				} catch (Exception ignore) {
 				}
 				return;
 			}
@@ -289,7 +273,7 @@ public class VoIPHelper {
 		alertView.addView(problemsWrap, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, -8, 0, -8, 0));
 		problemsWrap.setVisibility(View.GONE);
 
-		final EditText commentBox = new EditText(context);
+		final EditTextBoldCursor commentBox = new EditTextBoldCursor(context);
 		commentBox.setHint(LocaleController.getString("VoipFeedbackCommentHint", R.string.VoipFeedbackCommentHint));
 		commentBox.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
 		commentBox.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
@@ -410,7 +394,7 @@ public class VoIPHelper {
 							}
 							if (includeLogs[0] && log.exists() && req.rating < 4) {
 								AccountInstance accountInstance = AccountInstance.getInstance(UserConfig.selectedAccount);
-								SendMessagesHelper.prepareSendingDocument(accountInstance, log.getAbsolutePath(), log.getAbsolutePath(), null, TextUtils.join(" ", problemTags), "text/plain", VOIP_SUPPORT_ID, null, null, null);
+								SendMessagesHelper.prepareSendingDocument(accountInstance, log.getAbsolutePath(), log.getAbsolutePath(), null, TextUtils.join(" ", problemTags), "text/plain", VOIP_SUPPORT_ID, null, null, null, true, 0);
 								Toast.makeText(context, LocaleController.getString("CallReportSent", R.string.CallReportSent), Toast.LENGTH_LONG).show();
 							}
 						}
@@ -517,16 +501,46 @@ public class VoIPHelper {
 				medium = DownloadController.getInstance(0).mediumPreset.lessCallData,
 				high = DownloadController.getInstance(0).highPreset.lessCallData;
 		if (!low && !medium && !high) {
-			return VoIPController.DATA_SAVING_NEVER;
+			return TgVoip.DATA_SAVING_NEVER;
 		} else if (low && !medium && !high) {
-			return VoIPController.DATA_SAVING_ROAMING;
+			return TgVoip.DATA_SAVING_ROAMING;
 		} else if (low && medium && !high) {
-			return VoIPController.DATA_SAVING_MOBILE;
+			return TgVoip.DATA_SAVING_MOBILE;
 		} else if (low && medium && high) {
-			return VoIPController.DATA_SAVING_ALWAYS;
+			return TgVoip.DATA_SAVING_ALWAYS;
 		}
 		if (BuildVars.LOGS_ENABLED)
 			FileLog.w("Invalid call data saving preset configuration: " + low + "/" + medium + "/" + high);
-		return VoIPController.DATA_SAVING_NEVER;
+		return TgVoip.DATA_SAVING_NEVER;
+	}
+
+
+	public static String getLogFilePath(String name) {
+		final Calendar c = Calendar.getInstance();
+		final File externalFilesDir = ApplicationLoader.applicationContext.getExternalFilesDir(null);
+		return new File(externalFilesDir, String.format(Locale.US, "logs/%02d_%02d_%04d_%02d_%02d_%02d_%s.txt",
+				c.get(Calendar.DATE), c.get(Calendar.MONTH) + 1, c.get(Calendar.YEAR), c.get(Calendar.HOUR_OF_DAY),
+				c.get(Calendar.MINUTE), c.get(Calendar.SECOND), name)).getAbsolutePath();
+	}
+
+	public static String getLogFilePath(long callId) {
+		final File logsDir = getLogsDir();
+		if (!BuildVars.DEBUG_VERSION) {
+			final File[] _logs = logsDir.listFiles();
+			if (_logs != null) {
+				final ArrayList<File> logs = new ArrayList<>(Arrays.asList(_logs));
+				while (logs.size() > 20) {
+					File oldest = logs.get(0);
+					for (File file : logs) {
+						if (file.getName().endsWith(".log") && file.lastModified() < oldest.lastModified()) {
+							oldest = file;
+						}
+					}
+					oldest.delete();
+					logs.remove(oldest);
+				}
+			}
+		}
+		return new File(logsDir, callId + ".log").getAbsolutePath();
 	}
 }

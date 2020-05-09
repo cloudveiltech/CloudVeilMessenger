@@ -95,6 +95,11 @@ public class RadialProgress2 {
         invalidateParent();
     }
 
+    public void setBackgroundDrawable(Theme.MessageDrawable drawable) {
+        mediaActionDrawable.setBackgroundDrawable(drawable);
+        miniMediaActionDrawable.setBackgroundDrawable(drawable);
+    }
+
     public void setImageOverlay(TLRPC.PhotoSize image, TLRPC.Document document, Object parentObject) {
         overlayImageView.setImage(ImageLocation.getForDocument(image, document), String.format(Locale.US, "%d_%d", circleRadius * 2, circleRadius * 2), null, null, parentObject, 1);
     }
@@ -232,6 +237,10 @@ public class RadialProgress2 {
         overrideAlpha = alpha;
     }
 
+    public float getOverrideAlpha() {
+        return overrideAlpha;
+    }
+
     public void draw(Canvas canvas) {
         if (mediaActionDrawable.getCurrentIcon() == MediaActionDrawable.ICON_NONE && mediaActionDrawable.getTransitionProgress() >= 1.0f) {
             return;
@@ -283,8 +292,10 @@ public class RadialProgress2 {
         if (isPressed) {
             if (iconPressedColorKey != null) {
                 mediaActionDrawable.setColor(color = Theme.getColor(iconPressedColorKey));
+                mediaActionDrawable.setBackColor(Theme.getColor(circlePressedColorKey));
             } else {
                 mediaActionDrawable.setColor(color = iconPressedColor);
+                mediaActionDrawable.setBackColor(circlePressedColor);
             }
             if (circlePressedColorKey != null) {
                 circlePaint.setColor(Theme.getColor(circlePressedColorKey));
@@ -294,8 +305,10 @@ public class RadialProgress2 {
         } else {
             if (iconColorKey != null) {
                 mediaActionDrawable.setColor(color = Theme.getColor(iconColorKey));
+                mediaActionDrawable.setBackColor(Theme.getColor(circleColorKey));
             } else {
                 mediaActionDrawable.setColor(color = iconColor);
+                mediaActionDrawable.setBackColor(circleColor);
             }
             if (circleColorKey != null) {
                 circlePaint.setColor(Theme.getColor(circleColorKey));
@@ -316,8 +329,8 @@ public class RadialProgress2 {
         int centerX;
         int centerY;
         if (drawMiniIcon && miniDrawCanvas != null) {
-            centerX = (int) (progressRect.width() / 2);
-            centerY = (int) (progressRect.height() / 2);
+            centerX = (int) Math.ceil(progressRect.width() / 2);
+            centerY = (int) Math.ceil(progressRect.height() / 2);
         } else {
             centerX = (int) progressRect.centerX();
             centerY = (int) progressRect.centerY();
@@ -372,6 +385,7 @@ public class RadialProgress2 {
             }
         }
         mediaActionDrawable.setBounds(centerX - circleRadius, centerY - circleRadius, centerX + circleRadius, centerY + circleRadius);
+        mediaActionDrawable.setHasOverlayImage(overlayImageView.hasBitmapImage());
         if (drawMiniIcon) {
             if (miniDrawCanvas != null) {
                 mediaActionDrawable.draw(miniDrawCanvas);

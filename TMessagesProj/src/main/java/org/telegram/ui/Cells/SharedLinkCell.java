@@ -38,7 +38,6 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LetterDrawable;
 import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Components.WebPlayerView;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -158,10 +157,9 @@ public class SharedLinkCell extends FrameLayout {
         linkImageView.setRoundRadius(AndroidUtilities.dp(4));
         letterDrawable = new LetterDrawable();
 
-        checkBox = new CheckBox2(context);
+        checkBox = new CheckBox2(context, 21);
         checkBox.setVisibility(INVISIBLE);
         checkBox.setColor(null, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
-        checkBox.setSize(21);
         checkBox.setDrawUnchecked(false);
         checkBox.setDrawBackgroundAsArc(2);
         addView(checkBox, LayoutHelper.createFrame(24, 24, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 44, 44, LocaleController.isRTL ? 44 : 0, 0));
@@ -252,7 +250,7 @@ public class SharedLinkCell extends FrameLayout {
                         }
                     }
                     if (link != null) {
-                        if (link.toLowerCase().indexOf("http") != 0 && link.toLowerCase().indexOf("mailto") != 0) {
+                        if (!link.contains("://") && link.toLowerCase().indexOf("http") != 0 && link.toLowerCase().indexOf("mailto") != 0) {
                             links.add("http://" + link);
                         } else {
                             links.add(link);
@@ -428,7 +426,7 @@ public class SharedLinkCell extends FrameLayout {
                                 result = true;
                             } else if (linkPreviewPressed) {
                                 try {
-                                    TLRPC.WebPage webPage = pressedLink == 0 && message.messageOwner.media != null ? message.messageOwner.media.webpage : null;
+                                   // TLRPC.WebPage webPage = pressedLink == 0 && message.messageOwner.media != null ? message.messageOwner.media.webpage : null;
                                     //CloudVeil start
                                     Browser.openUrl(getContext(), links.get(pressedLink));
                                     //CloudVeil end

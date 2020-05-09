@@ -18,12 +18,11 @@
 
 #define USE_DEBUG_SESSION false
 #define READ_BUFFER_SIZE 1024 * 128
-//#define DEBUG_VERSION
 #define USE_OLD_KEYS
-#define PFS_ENABLED 0
+#define PFS_ENABLED 1
 #define DEFAULT_DATACENTER_ID INT_MAX
 #define DC_UPDATE_TIME 60 * 60
-#define TEMP_AUTH_KEY_EXPIRE_TIME 32 * 60 * 60
+#define TEMP_AUTH_KEY_EXPIRE_TIME 24 * 60 * 60
 #define PROXY_CONNECTIONS_COUNT 4
 #define DOWNLOAD_CONNECTIONS_COUNT 2
 #define UPLOAD_CONNECTIONS_COUNT 4
@@ -177,6 +176,17 @@ inline std::string to_string_uint64(uint64_t value) {
     char buf[30];
     int len = sprintf(buf, "%" PRIu64, value);
     return std::string(buf, (uint32_t) len);
+}
+
+inline int32_t char2int(char input) {
+    if (input >= '0' && input <= '9') {
+        return input - '0';
+    } else if (input >= 'A' && input <= 'F') {
+        return (char) (input - 'A' + 10);
+    } else if (input >= 'a' && input <= 'f') {
+        return (char) (input - 'a' + 10);
+    }
+    return 0;
 }
 
 #endif

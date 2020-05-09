@@ -50,6 +50,8 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
 
     private MessageObject currentMessageObject;
 
+    private boolean checkForButtonPress;
+
     private int currentAccount = UserConfig.selectedAccount;
     private int TAG;
     private int buttonState;
@@ -66,10 +68,9 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
         TAG = DownloadController.getInstance(currentAccount).generateObserverTag();
         setWillNotDraw(false);
 
-        checkBox = new CheckBox2(context);
+        checkBox = new CheckBox2(context, 21);
         checkBox.setVisibility(INVISIBLE);
         checkBox.setColor(null, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
-        checkBox.setSize(21);
         checkBox.setDrawUnchecked(false);
         checkBox.setDrawBackgroundAsArc(3);
         addView(checkBox, LayoutHelper.createFrame(24, 24, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 38, 32, LocaleController.isRTL ? 39 : 0, 0));
@@ -116,7 +117,7 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
         currentMessageObject = messageObject;
         TLRPC.Document document = messageObject.getDocument();
 
-        TLRPC.PhotoSize thumb = document != null ? FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 90) : null;
+        TLRPC.PhotoSize thumb = document != null ? FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 240) : null;
         if (thumb instanceof TLRPC.TL_photoSize) {
             radialProgress.setImageOverlay(thumb, document, messageObject);
         } else {
@@ -136,6 +137,10 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
             checkBox.setVisibility(VISIBLE);
         }
         checkBox.setChecked(checked, animated);
+    }
+
+    public void setCheckForButtonPress(boolean value) {
+        checkForButtonPress = value;
     }
 
     @Override
@@ -176,24 +181,35 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
                 radialProgress.setPressed(miniButtonPressed, true);
                 invalidate();
                 result = true;
+            } else if (checkForButtonPress && radialProgress.getProgressRect().contains(x, y)) {
+                buttonPressed = true;
+                radialProgress.setPressed(buttonPressed, false);
+                invalidate();
+                result = true;
             }
-        } else if (miniButtonPressed) {
-            if (event.getAction() == MotionEvent.ACTION_UP) {
+        } else if (event.getAction() == MotionEvent.ACTION_UP) {
+            if (miniButtonPressed) {
                 miniButtonPressed = false;
                 playSoundEffect(SoundEffectConstants.CLICK);
                 didPressedMiniButton(true);
                 invalidate();
-            } else if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+            } else if (buttonPressed) {
+                buttonPressed = false;
+                playSoundEffect(SoundEffectConstants.CLICK);
+                didPressedButton();
+                invalidate();
+            }
+        } else if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+            miniButtonPressed = false;
+            buttonPressed = false;
+            invalidate();
+        } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+            if (!area && miniButtonPressed) {
                 miniButtonPressed = false;
                 invalidate();
-            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                if (!area) {
-                    miniButtonPressed = false;
-                    invalidate();
-                }
             }
-            radialProgress.setPressed(miniButtonPressed, true);
         }
+        radialProgress.setPressed(miniButtonPressed, true);
         return result;
     }
 
@@ -401,7 +417,8 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
     }
 
     @Override
-    public void onProgressDownload(String fileName, float progress) {
+    public void onProgressDownload(String fileName, long downloadSize, long totalSize) {
+        float progress = Math.min(1f, downloadSize / (float) totalSize);
         radialProgress.setProgress(progress, true);
         if (hasMiniProgress != 0) {
             if (miniButtonState != 1) {
@@ -415,7 +432,7 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
     }
 
     @Override
-    public void onProgressUpload(String fileName, float progress, boolean isEncrypted) {
+    public void onProgressUpload(String fileName, long uploadedSize, long totalSize, boolean isEncrypted) {
 
     }
 
@@ -433,7 +450,7 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
         super.onInitializeAccessibilityNodeInfo(info);
         if (currentMessageObject.isMusic()) {
             info.setText(LocaleController.formatString("AccDescrMusicInfo", R.string.AccDescrMusicInfo, currentMessageObject.getMusicAuthor(), currentMessageObject.getMusicTitle()));
-        } else { // voice message
+        } else if (titleLayout != null && descriptionLayout != null) {
             info.setText(titleLayout.getText() + ", " + descriptionLayout.getText());
         }
         if (checkBox.isChecked()) {

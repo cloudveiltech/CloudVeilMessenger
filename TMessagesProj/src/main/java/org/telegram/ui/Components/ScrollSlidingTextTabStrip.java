@@ -15,6 +15,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.SystemClock;
 import androidx.annotation.Keep;
+
 import android.text.Layout;
 import android.util.SparseIntArray;
 import android.util.TypedValue;
@@ -32,6 +33,9 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
     public interface ScrollSlidingTabStripDelegate {
         void onPageSelected(int page, boolean forward);
         void onPageScrolled(float progress);
+        default void onSamePageSelected() {
+
+        }
     }
 
     private LinearLayout tabsContainer;
@@ -56,7 +60,14 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
     private boolean animatingIndicator;
     private float animationIdicatorProgress;
 
+    private int scrollingToChild = -1;
+
     private GradientDrawable selectorDrawable;
+
+    private String tabLineColorKey = Theme.key_actionBarTabLine;
+    private String activeTextColorKey = Theme.key_actionBarTabActiveText;
+    private String unactiveTextColorKey = Theme.key_actionBarTabUnactiveText;
+    private String selectorColorKey = Theme.key_actionBarTabSelector;
 
     private CubicBezierInterpolator interpolator = CubicBezierInterpolator.EASE_OUT_QUINT;
 
@@ -102,14 +113,21 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
         selectorDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, null);
         float rad = AndroidUtilities.dpf2(3);
         selectorDrawable.setCornerRadii(new float[]{rad, rad, rad, rad, 0, 0, 0, 0});
-        selectorDrawable.setColor(Theme.getColor(Theme.key_actionBarTabLine));
+        selectorDrawable.setColor(Theme.getColor(tabLineColorKey));
 
         setFillViewport(true);
         setWillNotDraw(false);
 
         setHorizontalScrollBarEnabled(false);
-        tabsContainer = new LinearLayout(context);
+        tabsContainer = new LinearLayout(context) {
+            @Override
+            public void setAlpha(float alpha) {
+                super.setAlpha(alpha);
+                ScrollSlidingTextTabStrip.this.invalidate();
+            }
+        };
         tabsContainer.setOrientation(LinearLayout.HORIZONTAL);
+        tabsContainer.setPadding(AndroidUtilities.dp(7), 0, AndroidUtilities.dp(7), 0);
         tabsContainer.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         addView(tabsContainer);
     }
@@ -123,8 +141,11 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
     }
 
     private void setAnimationProgressInernal(TextView newTab, TextView prevTab, float value) {
-        int newColor = Theme.getColor(Theme.key_actionBarTabActiveText);
-        int prevColor = Theme.getColor(Theme.key_actionBarTabUnactiveText);
+        if (newTab == null || prevTab == null) {
+            return;
+        }
+        int newColor = Theme.getColor(activeTextColorKey);
+        int prevColor = Theme.getColor(unactiveTextColorKey);
 
         int r1 = Color.red(newColor);
         int g1 = Color.green(newColor);
@@ -149,7 +170,15 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
 
         TextView newTab = (TextView) tabsContainer.getChildAt(currentPosition);
         TextView prevTab = (TextView) tabsContainer.getChildAt(previousPosition);
+        if (prevTab == null || newTab == null) {
+            return;
+        }
         setAnimationProgressInernal(newTab, prevTab, value);
+
+        if (value >= 1f) {
+            prevTab.setTag(unactiveTextColorKey);
+            newTab.setTag(activeTextColorKey);
+        }
 
         if (delegate != null) {
             delegate.onPageScrolled(value);
@@ -168,6 +197,7 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
         return tabsContainer;
     }
 
+    @Keep
     public float getAnimationIdicatorProgress() {
         return animationIdicatorProgress;
     }
@@ -205,19 +235,25 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
             prevLayoutWidth = 0;
         }
         TextView tab = new TextView(getContext());
+        tab.setWillNotDraw(false);
         tab.setGravity(Gravity.CENTER);
         tab.setText(text);
-        tab.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_actionBarTabSelector), 3));
-        tab.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        tab.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(selectorColorKey), 3));
+        tab.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         tab.setSingleLine(true);
         tab.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        tab.setPadding(AndroidUtilities.dp(8), 0, AndroidUtilities.dp(8), 0);
+        tab.setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(16), 0);
         tab.setOnClickListener(v -> {
             int position1 = tabsContainer.indexOfChild(v);
-            if (position1 < 0 || position1 == currentPosition) {
+            if (position1 < 0) {
+                return;
+            }
+            if (position1 == currentPosition && delegate != null) {
+                delegate.onSamePageSelected();
                 return;
             }
             boolean scrollingForward = currentPosition < position1;
+            scrollingToChild = -1;
             previousPosition = currentPosition;
             currentPosition = position1;
             selectedTabId = id;
@@ -244,7 +280,7 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
             }
             scrollToChild(position1);
         });
-        int tabWidth = (int) Math.ceil(tab.getPaint().measureText(text, 0, text.length())) + AndroidUtilities.dp(16);
+        int tabWidth = (int) Math.ceil(tab.getPaint().measureText(text, 0, text.length())) + tab.getPaddingLeft() + tab.getPaddingRight();
         allTextWidth += tabWidth;
         positionToWidth.put(position, tabWidth);
         tabsContainer.addView(tab, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT));
@@ -254,9 +290,20 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
         int count = tabsContainer.getChildCount();
         for (int a = 0; a < count; a++) {
             TextView tab = (TextView) tabsContainer.getChildAt(a);
-            tab.setTag(currentPosition == a ? Theme.key_actionBarTabActiveText : Theme.key_actionBarTabUnactiveText);
-            tab.setTextColor(Theme.getColor(currentPosition == a ? Theme.key_actionBarTabActiveText : Theme.key_actionBarTabUnactiveText));
+            tab.setTag(currentPosition == a ? activeTextColorKey : unactiveTextColorKey);
+            tab.setTextColor(Theme.getColor(currentPosition == a ? activeTextColorKey : unactiveTextColorKey));
+            if (a == 0) {
+                tab.getLayoutParams().width = count == 1 ? LayoutHelper.WRAP_CONTENT : 0;
+            }
         }
+    }
+
+    public void setColors(String line, String active, String unactive, String selector) {
+        tabLineColorKey = line;
+        activeTextColorKey = active;
+        unactiveTextColorKey = unactive;
+        selectorColorKey = selector;
+        selectorDrawable.setColor(Theme.getColor(tabLineColorKey));
     }
 
     public int getCurrentTabId() {
@@ -265,6 +312,18 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
 
     public void setInitialTabId(int id) {
         selectedTabId = id;
+        int pos = idToPosition.get(id);
+        TextView child = (TextView) tabsContainer.getChildAt(pos);
+        if (child != null) {
+            currentPosition = pos;
+            prevLayoutWidth = 0;
+            finishAddingTabs();
+            requestLayout();
+        }
+    }
+
+    public void resetTab() {
+        selectedTabId = -1;
     }
 
     public int getFirstTabId() {
@@ -276,6 +335,7 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
         boolean result = super.drawChild(canvas, child, drawingTime);
         if (child == tabsContainer) {
             final int height = getMeasuredHeight();
+            selectorDrawable.setAlpha((int) (255 * tabsContainer.getAlpha()));
             selectorDrawable.setBounds(indicatorX, height - AndroidUtilities.dpr(4), indicatorX + indicatorWidth, height);
             selectorDrawable.draw(canvas);
         }
@@ -284,7 +344,7 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int width = MeasureSpec.getSize(widthMeasureSpec) - AndroidUtilities.dp(22);
         int count = tabsContainer.getChildCount();
         for (int a = 0; a < count; a++) {
             View child = tabsContainer.getChildAt(a);
@@ -296,11 +356,16 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
                 layoutParams.weight = 1.0f / count;
                 layoutParams.width = 0;
             } else {
-                layoutParams.weight = 1.0f / allTextWidth * positionToWidth.get(a);
-                layoutParams.width = 0;
+                if (a == 0 && count == 1) {
+                    layoutParams.weight = 0.0f;
+                    layoutParams.width = LayoutHelper.WRAP_CONTENT;
+                } else {
+                    layoutParams.weight = 1.0f / allTextWidth * positionToWidth.get(a);
+                    layoutParams.width = 0;
+                }
             }
         }
-        if (allTextWidth > width) {
+        if (count == 1 || allTextWidth > width) {
             tabsContainer.setWeightSum(0.0f);
         } else {
             tabsContainer.setWeightSum(1.0f);
@@ -310,9 +375,10 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
     }
 
     private void scrollToChild(int position) {
-        if (tabCount == 0) {
+        if (tabCount == 0 || scrollingToChild == position) {
             return;
         }
+        scrollingToChild = position;
         TextView child = (TextView) tabsContainer.getChildAt(position);
         if (child == null) {
             return;
@@ -333,6 +399,7 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
 
         if (prevLayoutWidth != r - l) {
             prevLayoutWidth = r - l;
+            scrollingToChild = -1;
             if (animatingIndicator) {
                 AndroidUtilities.cancelRunOnUIThread(animationRunnable);
                 animatingIndicator = false;
@@ -381,6 +448,11 @@ public class ScrollSlidingTextTabStrip extends HorizontalScrollView {
             animateIndicatorToWidth = getChildWidth(nextChild);
             animateIndicatorToX = nextChild.getLeft() + (nextChild.getMeasuredWidth() - animateIndicatorToWidth) / 2;
             setAnimationProgressInernal(nextChild, child, progress);
+            if (progress >= 1f) {
+                child.setTag(unactiveTextColorKey);
+                nextChild.setTag(activeTextColorKey);
+            }
+            scrollToChild(tabsContainer.indexOfChild(nextChild));
         }
         if (progress >= 1.0f) {
             currentPosition = position;

@@ -29,21 +29,30 @@ public class AvatarDrawable extends Drawable {
 
     private TextPaint namePaint;
     private int color;
+    private boolean needApplyColorAccent;
     private StaticLayout textLayout;
     private float textWidth;
     private float textHeight;
     private float textLeft;
     private boolean isProfile;
-    private boolean drawBrodcast;
     private boolean drawDeleted;
     private int avatarType;
     private float archivedAvatarProgress;
+    private boolean smallSize;
     private StringBuilder stringBuilder = new StringBuilder(5);
 
     public static final int AVATAR_TYPE_NORMAL = 0;
     public static final int AVATAR_TYPE_SAVED = 1;
-    public static final int AVATAR_TYPE_SAVED_SMALL = 2;
-    public static final int AVATAR_TYPE_ARCHIVED = 3;
+    public static final int AVATAR_TYPE_ARCHIVED = 2;
+
+    public static final int AVATAR_TYPE_FILTER_CONTACTS = 4;
+    public static final int AVATAR_TYPE_FILTER_NON_CONTACTS = 5;
+    public static final int AVATAR_TYPE_FILTER_GROUPS = 6;
+    public static final int AVATAR_TYPE_FILTER_CHANNELS = 7;
+    public static final int AVATAR_TYPE_FILTER_BOTS = 8;
+    public static final int AVATAR_TYPE_FILTER_MUTED = 9;
+    public static final int AVATAR_TYPE_FILTER_READ = 10;
+    public static final int AVATAR_TYPE_FILTER_ARCHIVED = 11;
 
     public AvatarDrawable() {
         super();
@@ -65,7 +74,7 @@ public class AvatarDrawable extends Drawable {
         this();
         isProfile = profile;
         if (user != null) {
-            setInfo(user.id, user.first_name, user.last_name, false, null);
+            setInfo(user.id, user.first_name, user.last_name, null);
             drawDeleted = UserObject.isDeleted(user);
         }
     }
@@ -74,7 +83,7 @@ public class AvatarDrawable extends Drawable {
         this();
         isProfile = profile;
         if (chat != null) {
-            setInfo(chat.id, chat.title, null, chat.id < 0, null);
+            setInfo(chat.id, chat.title, null, null);
         }
     }
 
@@ -82,7 +91,7 @@ public class AvatarDrawable extends Drawable {
         isProfile = value;
     }
 
-    public static int getColorIndex(int id) {
+    private static int getColorIndex(int id) {
         if (id >= 0 && id < 7) {
             return id;
         }
@@ -119,18 +128,41 @@ public class AvatarDrawable extends Drawable {
 
     public void setInfo(TLRPC.User user) {
         if (user != null) {
-            setInfo(user.id, user.first_name, user.last_name, false, null);
+            setInfo(user.id, user.first_name, user.last_name, null);
             drawDeleted = UserObject.isDeleted(user);
         }
+    }
+
+    public void setSmallSize(boolean value) {
+        smallSize = value;
     }
 
     public void setAvatarType(int value) {
         avatarType = value;
         if (avatarType == AVATAR_TYPE_ARCHIVED) {
             color = Theme.getColor(Theme.key_avatar_backgroundArchivedHidden);
-        } else {
+        } else if (avatarType == AVATAR_TYPE_SAVED) {
             color = Theme.getColor(Theme.key_avatar_backgroundSaved);
+        } else {
+            if (avatarType == AVATAR_TYPE_FILTER_CONTACTS) {
+                color = getColorForId(5);
+            } else if (avatarType == AVATAR_TYPE_FILTER_NON_CONTACTS) {
+                color = getColorForId(4);
+            } else if (avatarType == AVATAR_TYPE_FILTER_GROUPS) {
+                color = getColorForId(3);
+            } else if (avatarType == AVATAR_TYPE_FILTER_CHANNELS) {
+                color = getColorForId(1);
+            } else if (avatarType == AVATAR_TYPE_FILTER_BOTS) {
+                color = getColorForId(0);
+            } else if (avatarType == AVATAR_TYPE_FILTER_MUTED) {
+                color = getColorForId(6);
+            } else if (avatarType == AVATAR_TYPE_FILTER_READ) {
+                color = getColorForId(5);
+            } else {
+                color = getColorForId(4);
+            }
         }
+        needApplyColorAccent = avatarType != AVATAR_TYPE_ARCHIVED && avatarType != AVATAR_TYPE_SAVED;
     }
 
     public void setArchivedAvatarHiddenProgress(float progress) {
@@ -143,34 +175,35 @@ public class AvatarDrawable extends Drawable {
 
     public void setInfo(TLRPC.Chat chat) {
         if (chat != null) {
-            setInfo(chat.id, chat.title, null, chat.id < 0, null);
+            setInfo(chat.id, chat.title, null, null);
         }
     }
 
     public void setColor(int value) {
         color = value;
+        needApplyColorAccent = false;
     }
 
     public void setTextSize(int size) {
         namePaint.setTextSize(size);
     }
 
-    public void setInfo(int id, String firstName, String lastName, boolean isBroadcast) {
-        setInfo(id, firstName, lastName, isBroadcast, null);
+    public void setInfo(int id, String firstName, String lastName) {
+        setInfo(id, firstName, lastName, null);
     }
 
     public int getColor() {
-        return color;
+        return needApplyColorAccent ? Theme.changeColorAccent(color) : color;
     }
 
-    public void setInfo(int id, String firstName, String lastName, boolean isBroadcast, String custom) {
+    public void setInfo(int id, String firstName, String lastName, String custom) {
         if (isProfile) {
             color = getProfileColorForId(id);
         } else {
             color = getColorForId(id);
         }
+        needApplyColorAccent = id == 5; // Tinting manually set blue color
 
-        drawBrodcast = isBroadcast;
         avatarType = AVATAR_TYPE_NORMAL;
         drawDeleted = false;
 
@@ -238,7 +271,7 @@ public class AvatarDrawable extends Drawable {
         }
         int size = bounds.width();
         namePaint.setColor(Theme.getColor(Theme.key_avatar_text));
-        Theme.avatar_backgroundPaint.setColor(color);
+        Theme.avatar_backgroundPaint.setColor(getColor());
         canvas.save();
         canvas.translate(bounds.left, bounds.top);
         canvas.drawCircle(size / 2.0f, size / 2.0f, size / 2.0f, Theme.avatar_backgroundPaint);
@@ -249,16 +282,16 @@ public class AvatarDrawable extends Drawable {
                 canvas.drawCircle(size / 2.0f, size / 2.0f, size / 2.0f * archivedAvatarProgress, Theme.avatar_backgroundPaint);
                 if (Theme.dialogs_archiveAvatarDrawableRecolored) {
                     Theme.dialogs_archiveAvatarDrawable.beginApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1.**", Theme.getColor(Theme.key_avatar_backgroundArchived));
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2.**", Theme.getColor(Theme.key_avatar_backgroundArchived));
+                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1.**", Theme.getNonAnimatedColor(Theme.key_avatar_backgroundArchived));
+                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2.**", Theme.getNonAnimatedColor(Theme.key_avatar_backgroundArchived));
                     Theme.dialogs_archiveAvatarDrawable.commitApplyLayerColors();
                     Theme.dialogs_archiveAvatarDrawableRecolored = false;
                 }
             } else {
                 if (!Theme.dialogs_archiveAvatarDrawableRecolored) {
                     Theme.dialogs_archiveAvatarDrawable.beginApplyLayerColors();
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1.**", Theme.getColor(Theme.key_avatar_backgroundArchivedHidden));
-                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2.**", Theme.getColor(Theme.key_avatar_backgroundArchivedHidden));
+                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow1.**", color);
+                    Theme.dialogs_archiveAvatarDrawable.setLayerColor("Arrow2.**", color);
                     Theme.dialogs_archiveAvatarDrawable.commitApplyLayerColors();
                     Theme.dialogs_archiveAvatarDrawableRecolored = true;
                 }
@@ -271,27 +304,45 @@ public class AvatarDrawable extends Drawable {
             Theme.dialogs_archiveAvatarDrawable.setBounds(x, y, x + w, y + h);
             Theme.dialogs_archiveAvatarDrawable.draw(canvas);
             canvas.restore();
-        } else if (avatarType != 0 && Theme.avatar_savedDrawable != null) {
-            int w = Theme.avatar_savedDrawable.getIntrinsicWidth();
-            int h = Theme.avatar_savedDrawable.getIntrinsicHeight();
-            if (avatarType == AVATAR_TYPE_SAVED_SMALL) {
-                w *= 0.8f;
-                h *= 0.8f;
+        } else if (avatarType != 0) {
+            Drawable drawable;
+
+            if (avatarType == AVATAR_TYPE_SAVED) {
+                drawable = Theme.avatarDrawables[0];
+            } else if (avatarType == AVATAR_TYPE_FILTER_CONTACTS) {
+                drawable = Theme.avatarDrawables[2];
+            } else if (avatarType == AVATAR_TYPE_FILTER_NON_CONTACTS) {
+                drawable = Theme.avatarDrawables[3];
+            } else if (avatarType == AVATAR_TYPE_FILTER_GROUPS) {
+                drawable = Theme.avatarDrawables[4];
+            } else if (avatarType == AVATAR_TYPE_FILTER_CHANNELS) {
+                drawable = Theme.avatarDrawables[5];
+            } else if (avatarType == AVATAR_TYPE_FILTER_BOTS) {
+                drawable = Theme.avatarDrawables[6];
+            } else if (avatarType == AVATAR_TYPE_FILTER_MUTED) {
+                drawable = Theme.avatarDrawables[7];
+            } else if (avatarType == AVATAR_TYPE_FILTER_READ) {
+                drawable = Theme.avatarDrawables[8];
+            } else {
+                drawable = Theme.avatarDrawables[9];
             }
-            int x = (size - w) / 2;
-            int y = (size - h) / 2;
-            Theme.avatar_savedDrawable.setBounds(x, y, x + w, y + h);
-            Theme.avatar_savedDrawable.draw(canvas);
-        } else if (drawBrodcast && Theme.avatar_broadcastDrawable != null) {
-            int x = (size - Theme.avatar_broadcastDrawable.getIntrinsicWidth()) / 2;
-            int y = (size - Theme.avatar_broadcastDrawable.getIntrinsicHeight()) / 2;
-            Theme.avatar_broadcastDrawable.setBounds(x, y, x + Theme.avatar_broadcastDrawable.getIntrinsicWidth(), y + Theme.avatar_broadcastDrawable.getIntrinsicHeight());
-            Theme.avatar_broadcastDrawable.draw(canvas);
-        } else if (drawDeleted && Theme.avatar_ghostDrawable != null) {
-            int x = (size - Theme.avatar_ghostDrawable.getIntrinsicWidth()) / 2;
-            int y = (size - Theme.avatar_ghostDrawable.getIntrinsicHeight()) / 2;
-            Theme.avatar_ghostDrawable.setBounds(x, y, x + Theme.avatar_ghostDrawable.getIntrinsicWidth(), y + Theme.avatar_ghostDrawable.getIntrinsicHeight());
-            Theme.avatar_ghostDrawable.draw(canvas);
+            if (drawable != null) {
+                int w = drawable.getIntrinsicWidth();
+                int h = drawable.getIntrinsicHeight();
+                if (smallSize) {
+                    w *= 0.8f;
+                    h *= 0.8f;
+                }
+                int x = (size - w) / 2;
+                int y = (size - h) / 2;
+                drawable.setBounds(x, y, x + w, y + h);
+                drawable.draw(canvas);
+            }
+        } else if (drawDeleted && Theme.avatarDrawables[1] != null) {
+            int x = (size - Theme.avatarDrawables[1].getIntrinsicWidth()) / 2;
+            int y = (size - Theme.avatarDrawables[1].getIntrinsicHeight()) / 2;
+            Theme.avatarDrawables[1].setBounds(x, y, x + Theme.avatarDrawables[1].getIntrinsicWidth(), y + Theme.avatarDrawables[1].getIntrinsicHeight());
+            Theme.avatarDrawables[1].draw(canvas);
         } else {
             if (textLayout != null) {
                 canvas.translate((size - textWidth) / 2 - textLeft, (size - textHeight) / 2);

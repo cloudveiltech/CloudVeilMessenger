@@ -224,9 +224,9 @@ public class UserCell2 extends FrameLayout {
         } else if (currentChat != null) {
             avatarDrawable.setInfo(currentChat);
         } else if (currentName != null) {
-            avatarDrawable.setInfo(currentId, currentName.toString(), null, false);
+            avatarDrawable.setInfo(currentId, currentName.toString(), null);
         } else {
-            avatarDrawable.setInfo(currentId, "#", null, false);
+            avatarDrawable.setInfo(currentId, "#", null);
         }
 
         if (currentName != null) {
@@ -283,6 +283,8 @@ public class UserCell2 extends FrameLayout {
                 }
             }
             avatarImageView.setImage(ImageLocation.getForChat(currentChat, false), "50_50", avatarDrawable, currentObject);
+        } else {
+            avatarImageView.setImageDrawable(avatarDrawable);
         }
 
         if (imageView.getVisibility() == VISIBLE && currentDrawable == 0 || imageView.getVisibility() == GONE && currentDrawable != 0) {

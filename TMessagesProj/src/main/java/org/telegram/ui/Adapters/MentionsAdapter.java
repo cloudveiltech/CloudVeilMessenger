@@ -140,7 +140,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
         searchAdapterHelper = new SearchAdapterHelper(true);
         searchAdapterHelper.setDelegate(new SearchAdapterHelper.SearchAdapterHelperDelegate() {
             @Override
-            public void onDataSetChanged() {
+            public void onDataSetChanged(int searchId) {
                 notifyDataSetChanged();
             }
 
@@ -318,7 +318,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             return;
         }
         //CloudVeil end
-
         searchResultBotContext = null;
         searchResultBotContextSwitch = null;
         notifyDataSetChanged();
@@ -636,7 +635,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
                     continue;
                 }
                 char ch = text.charAt(a);
-                if (a == 0 || text.charAt(a - 1) == ' ' || text.charAt(a - 1) == '\n') {
+                if (a == 0 || text.charAt(a - 1) == ' ' || text.charAt(a - 1) == '\n' || ch == ':') {
                     if (ch == '@') {
                         if (needUsernames || needBotContext && a == 0) {
                             if (info == null && a != 0) {

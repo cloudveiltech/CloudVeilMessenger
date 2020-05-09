@@ -30,31 +30,33 @@ public class TextCell extends FrameLayout {
     private ImageView valueImageView;
     private int leftPadding;
     private boolean needDivider;
+    private int offsetFromImage = 71;
+    private int imageLeft = 21;
 
     public TextCell(Context context) {
-        this(context, 23);
+        this(context, 23, false);
     }
 
-    public TextCell(Context context, int left) {
+    public TextCell(Context context, int left, boolean dialog) {
         super(context);
 
         leftPadding = left;
 
         textView = new SimpleTextView(context);
-        textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        textView.setTextColor(Theme.getColor(dialog ? Theme.key_dialogTextBlack : Theme.key_windowBackgroundWhiteBlackText));
         textView.setTextSize(16);
         textView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
         addView(textView);
 
         valueTextView = new SimpleTextView(context);
-        valueTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+        valueTextView.setTextColor(Theme.getColor(dialog ? Theme.key_dialogTextBlue2 : Theme.key_windowBackgroundWhiteValueText));
         valueTextView.setTextSize(16);
         valueTextView.setGravity(LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT);
         addView(valueTextView);
 
         imageView = new ImageView(context);
         imageView.setScaleType(ImageView.ScaleType.CENTER);
-        imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayIcon), PorterDuff.Mode.MULTIPLY));
+        imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(dialog ? Theme.key_dialogIcon : Theme.key_windowBackgroundWhiteGrayIcon), PorterDuff.Mode.MULTIPLY));
         addView(imageView);
 
         valueImageView = new ImageView(context);
@@ -103,15 +105,15 @@ public class TextCell extends FrameLayout {
 
         viewTop = (height - textView.getTextHeight()) / 2;
         if (LocaleController.isRTL) {
-            viewLeft = getMeasuredWidth() - textView.getMeasuredWidth() - AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? 71 : leftPadding);
+            viewLeft = getMeasuredWidth() - textView.getMeasuredWidth() - AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? offsetFromImage : leftPadding);
         } else {
-            viewLeft = AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? 71 : leftPadding);
+            viewLeft = AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? offsetFromImage : leftPadding);
         }
         textView.layout(viewLeft, viewTop, viewLeft + textView.getMeasuredWidth(), viewTop + textView.getMeasuredHeight());
 
         if (imageView.getVisibility() == VISIBLE) {
             viewTop = AndroidUtilities.dp(5);
-            viewLeft = !LocaleController.isRTL ? AndroidUtilities.dp(21) : width - imageView.getMeasuredWidth() - AndroidUtilities.dp(21);
+            viewLeft = !LocaleController.isRTL ? AndroidUtilities.dp(imageLeft) : width - imageView.getMeasuredWidth() - AndroidUtilities.dp(imageLeft);
             imageView.layout(viewLeft, viewTop, viewLeft + imageView.getMeasuredWidth(), viewTop + imageView.getMeasuredHeight());
         }
 
@@ -155,6 +157,25 @@ public class TextCell extends FrameLayout {
         imageView.setPadding(0, AndroidUtilities.dp(7), 0, 0);
         needDivider = divider;
         setWillNotDraw(!needDivider);
+    }
+
+    public void setTextAndIcon(String text, Drawable drawable, boolean divider) {
+        offsetFromImage = 68;
+        imageLeft = 18;
+        textView.setText(text);
+        valueTextView.setText(null);
+        imageView.setColorFilter(null);
+        imageView.setImageDrawable(drawable);
+        imageView.setVisibility(VISIBLE);
+        valueTextView.setVisibility(GONE);
+        valueImageView.setVisibility(GONE);
+        imageView.setPadding(0, AndroidUtilities.dp(6), 0, 0);
+        needDivider = divider;
+        setWillNotDraw(!needDivider);
+    }
+
+    public void setOffsetFromImage(int value) {
+        offsetFromImage = value;
     }
 
     public void setTextAndValue(String text, String value, boolean divider) {

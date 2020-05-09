@@ -1,26 +1,17 @@
-buildscript {
-    repositories {
-        maven { url 'https://maven.fabric.io/public' }
-    }
+import java.security.MessageDigest
 
-    dependencies {
-        classpath 'io.fabric.tools:gradle:1.+'
-    }
-}
+def keystorePropertiesFile = rootProject.file("../keystore.properties");
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 apply plugin: 'com.android.application'
-apply plugin: 'io.fabric'
+apply plugin: 'com.google.firebase.crashlytics'
 
 repositories {
     mavenCentral()
     google()
     jcenter()
 }
-
-
-def keystorePropertiesFile = rootProject.file("../keystore.properties");
-def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 configurations {
     compile.exclude module: 'support-v4'
@@ -31,33 +22,38 @@ configurations.all {
 }
 
 dependencies {
-    implementation 'androidx.core:core:1.2.0-alpha03'
+    implementation 'androidx.core:core:1.1.0-beta01'
     implementation 'androidx.palette:palette:1.0.0'
-    implementation 'androidx.exifinterface:exifinterface:1.1.0-beta01'
+    implementation 'androidx.exifinterface:exifinterface:1.2.0'
+    implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
+    implementation 'com.android.support:multidex:1.0.3'
 
     compileOnly 'org.checkerframework:checker-qual:2.5.2'
     compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
-    implementation 'com.google.firebase:firebase-messaging:20.0.0'
-    implementation 'com.google.firebase:firebase-config:19.0.0'
+    implementation 'com.google.firebase:firebase-messaging:20.1.6'
+    implementation 'com.google.firebase:firebase-config:19.1.4'
     implementation 'com.google.android.gms:play-services-maps:17.0.0'
     implementation 'com.google.android.gms:play-services-auth:17.0.0'
-    implementation 'com.google.android.gms:play-services-vision:18.0.0'
-    implementation 'com.google.android.gms:play-services-wallet:17.0.0'
+    implementation 'com.google.android.gms:play-services-vision:16.2.0'
     implementation 'com.google.android.gms:play-services-wearable:17.0.0'
     implementation 'com.google.android.gms:play-services-location:17.0.0'
-    implementation 'net.hockeyapp.android:HockeySDK:5.1.1'
+    implementation "com.microsoft.appcenter:appcenter-distribute:3.1.0"
+    implementation "com.microsoft.appcenter:appcenter-crashes:3.1.0"
     implementation 'com.googlecode.mp4parser:isoparser:1.0.6'
     implementation 'com.stripe:stripe-android:2.0.2'
     implementation 'com.squareup.retrofit2:retrofit:2.4.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.4.0'
     implementation 'com.squareup.retrofit2:adapter-rxjava2:2.4.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
-    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
+    implementation files('libs/libgsaverification-client.aar')
+    implementation 'com.google.firebase:firebase-analytics:17.4.0'
+    implementation 'com.google.firebase:firebase-crashlytics:17.0.0'
 }
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.3'
+    ndkVersion "20.0.5594570"
 
     defaultConfig.applicationId = "org.cloudveil.messenger"
 
@@ -72,6 +68,7 @@ android {
     lintOptions {
         disable 'MissingTranslation'
         disable 'ExtraTranslation'
+        disable 'BlockedPrivateApi'
     }
 
     dexOptions {
@@ -104,19 +101,44 @@ android {
             debuggable true
             jniDebuggable true
             signingConfig signingConfigs.debug
-         //   applicationIdSuffix ".beta"
+            applicationIdSuffix ".beta"
             minifyEnabled true
+            multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
+        /*debugAsan {
+            debuggable true
+            jniDebuggable true
+            signingConfig signingConfigs.debug
+            applicationIdSuffix ".beta"
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            packagingOptions {
+                doNotStrip "**.so"
+            }
+
+            sourceSets {
+                main {
+                    jniLibs {
+                        srcDir {
+                            'jniLibs'
+                        }
+                    }
+                    resources {
+                        srcDir {
+                            'jniRes'
+                        }
+                    }
+                }
+            }
+        }*/
+
         debugMultidex {
             initWith debug
-            minifyEnabled true
+            minifyEnabled false
             multiDexEnabled true
-            dependencies {
-                implementation 'com.android.support:multidex:1.0.3'
-            }
-            manifestPlaceholders = [applicationClassName: "MultiDexApplicationLoader"]
         }
 
         HA {
@@ -124,7 +146,8 @@ android {
             jniDebuggable false
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled false
+            minifyEnabled true
+            multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
 
@@ -133,19 +156,19 @@ android {
             jniDebuggable false
             signingConfig signingConfigs.release
             minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            shrinkResources false
             multiDexEnabled true
-            dependencies {
-                implementation 'com.android.support:multidex:1.0.3'
-            }
-            manifestPlaceholders = [applicationClassName: "MultiDexApplicationLoader"]
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
     }
+
+    /*sourceSets.debugAsan {
+        manifest.srcFile 'config/debug/AndroidManifest.xml'
+    }*/
 
     sourceSets.debugMultidex {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
@@ -182,7 +205,7 @@ android {
         }
         armv7_SDK23 {
             ndk {
-                abiFilters "armeabi-v7a"
+                abiFilters "armeabi-v7a", "arm64-v8a"
             }
             sourceSets.debug {
                 manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
@@ -233,6 +256,9 @@ android {
             sourceSets.debug {
                 manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
             }
+            /*sourceSets.debugAsan {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }*/
             sourceSets.release {
                 manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
             }
@@ -260,19 +286,28 @@ android {
             sourceSets.debug {
                 manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
             }
+            /*sourceSets.debugAsan {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }*/
             sourceSets.release {
                 manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
             }
             ext {
-                abiVersionCode = 0
+                abiVersionCode = 9
             }
         }
     }
 
-    defaultConfig.versionCode = 1660
+    defaultConfig.versionCode = 1947
+
+    def tgVoipDexFileName = "libtgvoip.dex"
+    def tgVoipDexClasses = ["AudioRecordJNI", "AudioTrackJNI", "NativeTgVoipDelegate", "NativeTgVoipInstance", "TgVoipNativeLoader", "Resampler", "VLog"]
+    def tgVoipDexClassesPath = "org/telegram/messenger/voip"
+    def dxUtilPath = "${sdkDirectory.path}/build-tools/${buildToolsVersion}/dx.bat"
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
+            outputFileName = "app.apk"
             output.getProcessManifestProvider().get().doLast {
                 def abiVersion = variant.productFlavors.get(0).abiVersionCode
 
@@ -291,31 +326,111 @@ android {
                 file(manifestPath).write(manifestContent)
             }
         }
+
+        def assembleTgVoipDexTaskName = "assemble${variant.name.capitalize()}TgVoipDex"
+
+        task "${assembleTgVoipDexTaskName}" {
+            doLast {
+                def sourceDir = (File) android.sourceSets.main.java.srcDirs[0]
+                def classesDir = "${buildDir}/intermediates/javac/${variant.name}/classes"
+                def javaDir = "${buildDir}/intermediates/java_tgvoip/${variant.name}/java"
+                def tgVoipDir = new File(classesDir, tgVoipDexClassesPath)
+                def javaVoipDirFile = new File(javaDir, tgVoipDexClassesPath)
+                def tgVoipDexJavaFile = new File(javaVoipDirFile, "TgVoipDex.java")
+                if (!javaVoipDirFile.exists()) {
+                    javaVoipDirFile.mkdirs()
+                }
+                def assetsDirFile = new File(buildDir, "intermediates/merged_assets/${variant.name}/out")
+                if (!assetsDirFile.exists()) {
+                    assetsDirFile.mkdirs()
+                }
+                def tgVoipDexFile = new File(assetsDirFile, tgVoipDexFileName)
+
+                def classes = tgVoipDir.list(new FilenameFilter() {
+                    @Override
+                    boolean accept(File dir, String name) {
+                        // handle inner and anonymous classes
+                        return tgVoipDexClasses.any { name == "${it}.class" || name.startsWith("${it}\$") && name.endsWith(".class") }
+                    }
+                }).collect { "${tgVoipDexClassesPath}/${it}" }
+
+                // 1. create libtgvoip.dex
+                exec {
+                    workingDir classesDir
+                    commandLine([dxUtilPath, "--dex", "--output=${tgVoipDexFile}"] + classes)
+                }
+
+                // 2. remove classes from the main dex
+                project.delete classes.collect { "${classesDir}/${it}" }
+
+                // 3. insert checksum of libtgvoip.dex into TgVoipDex.java
+                def digest = MessageDigest.getInstance("SHA1")
+                def fileInputStream = tgVoipDexFile.newInputStream()
+                def buffer = new byte[4096]
+                def len
+                while ((len = fileInputStream.read(buffer)) > 0) {
+                    digest.update(buffer, 0, len)
+                }
+                def dexChecksum = new String(Base64.getEncoder().encode(digest.digest())).trim()
+                tgVoipDexJavaFile.write(new String(new File(sourceDir, "${tgVoipDexClassesPath}/TgVoipDex.java").readBytes()).replace("\$CHECKSUM\$", dexChecksum))
+                exec {
+                    commandLine([findJavac(), "-d", classesDir, tgVoipDexJavaFile.absolutePath])
+                }
+            }
+        }
+
+        tasks.findByName("compile${variant.name.capitalize()}JavaWithJavac").finalizedBy(assembleTgVoipDexTaskName)
+        tasks.findByName("${assembleTgVoipDexTaskName}").mustRunAfter tasks.findByName("merge${variant.name.capitalize()}Assets")
     }
 
     variantFilter { variant ->
         def names = variant.flavors*.name
         if (variant.buildType.name != "release" && !names.contains("afat")) {
-            //    setIgnore(true)
+            setIgnore(true)
         }
     }
 
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 28
-        versionName "5.9.0"
+        versionName "6.1.1"
 
         buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapScreenshotKey}\""
         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
         externalNativeBuild {
             ndkBuild {
-                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-16", "-j8", "LOCAL_SHORT_COMMANDS=true", "APP_SHORT_COMMANDS=true"
+                arguments "NDK_APPLICATION_MK:=jni/Application.mk", "APP_PLATFORM:=android-16", "--jobs=1", "LOCAL_SHORT_COMMANDS=true", "APP_SHORT_COMMANDS=true"
                 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             }
         }
+    }
+}
 
-        manifestPlaceholders = [applicationClassName: "ApplicationLoader", mapSdkKey: "\"${keystoreProperties.mapSdkKey}\""]
+private static File findJavaHome() {
+    String javaPath = System.getProperty("java.home")
+    if (javaPath != null) {
+        File javaBase = new File(javaPath)
+        if (javaBase.exists()) {
+            if (javaBase.getName().equalsIgnoreCase("jre") && new File(javaBase.getParentFile(), "bin/java").exists()) {
+                return javaBase.getParentFile()
+            } else {
+                return javaBase.getParentFile()
+            }
+        } else {
+            return null
+        }
+    } else {
+        return null
+    }
+}
+
+private static File findJavac() {
+    File javaHome = findJavaHome()
+    if (javaHome != null) {
+        return new File(javaHome, "bin/javac")
+    } else {
+        return null
     }
 }
 

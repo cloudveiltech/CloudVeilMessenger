@@ -22,6 +22,7 @@
 #include <future>
 #include <vector>
 #include <memory>
+#include <map>
 
 #ifdef _WIN32
 #ifdef LOT_BUILD
@@ -257,7 +258,7 @@ public:
      *  @internal
      */
     static std::unique_ptr<Animation>
-    loadFromFile(const std::string &path);
+    loadFromFile(const std::string &path, std::map<int32_t, int32_t> *colorReplacement);
 
     /**
      *  @brief Constructs an animation object from JSON string data.
@@ -272,7 +273,7 @@ public:
      *  @internal
      */
     static std::unique_ptr<Animation>
-    loadFromData(std::string jsonData, const std::string &key, const std::string &resourcePath="");
+    loadFromData(std::string jsonData, const std::string &key, std::map<int32_t, int32_t> *colorReplacement, const std::string &resourcePath="");
 
     /**
      *  @brief Returns default framerate of the Lottie resource.
@@ -344,7 +345,7 @@ public:
      *
      *  @internal
      */
-    void              renderSync(size_t frameNo, Surface surface);
+    void              renderSync(size_t frameNo, Surface &surface);
 
     /**
      *  @brief Returns root layer of the composition updated with
@@ -401,6 +402,8 @@ public:
      */
     ~Animation();
 
+    std::map<int32_t, int32_t> *colorMap{nullptr};
+    void resetCurrentFrame();
 private:
     void setValue(Color_Type, Property, const std::string &, Color);
     void setValue(Float_Type, Property, const std::string &, float);

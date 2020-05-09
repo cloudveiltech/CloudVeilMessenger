@@ -20,6 +20,8 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,15 +58,17 @@ public class Utilities {
     public native static boolean loadWebpImage(Bitmap bitmap, ByteBuffer buffer, int len, BitmapFactory.Options options, boolean unpin);
     public native static int convertVideoFrame(ByteBuffer src, ByteBuffer dest, int destFormat, int width, int height, int padding, int swap);
     private native static void aesIgeEncryption(ByteBuffer buffer, byte[] key, byte[] iv, boolean encrypt, int offset, int length);
+    private native static void aesIgeEncryptionByteArray(byte[] buffer, byte[] key, byte[] iv, boolean encrypt, int offset, int length);
     public native static void aesCtrDecryption(ByteBuffer buffer, byte[] key, byte[] iv, int offset, int length);
     public native static void aesCtrDecryptionByteArray(byte[] buffer, byte[] key, byte[] iv, int offset, int length, int n);
     private native static void aesCbcEncryptionByteArray(byte[] buffer, byte[] key, byte[] iv, int offset, int length, int n, int encrypt);
     public native static void aesCbcEncryption(ByteBuffer buffer, byte[] key, byte[] iv, int offset, int length, int encrypt);
     public native static String readlink(String path);
-    public native static long getDirSize(String path, int docType);
-    public native static void clearDir(String path, int docType, long time);
+    public native static long getDirSize(String path, int docType, boolean subdirs);
+    public native static void clearDir(String path, int docType, long time, boolean subdirs);
     private native static int pbkdf2(byte[] password, byte[] salt, byte[] dst, int iterations);
     public static native void stackBlurBitmap(Bitmap bitmap, int radius);
+    public static native void drawDitheredGradient(Bitmap bitmap, int[] colors, int startX, int startY, int endX, int endY);
 
     public static Bitmap blurWallpaper(Bitmap src) {
         if (src == null) {
@@ -87,23 +91,27 @@ public class Utilities {
         aesIgeEncryption(buffer, key, changeIv ? iv : iv.clone(), encrypt, offset, length);
     }
 
+    public static void aesIgeEncryptionByteArray(byte[] buffer, byte[] key, byte[] iv, boolean encrypt, boolean changeIv, int offset, int length) {
+        aesIgeEncryptionByteArray(buffer, key, changeIv ? iv : iv.clone(), encrypt, offset, length);
+    }
+
     public static void aesCbcEncryptionByteArraySafe(byte[] buffer, byte[] key, byte[] iv, int offset, int length, int n, int encrypt) {
         aesCbcEncryptionByteArray(buffer, key, iv.clone(), offset, length, n, encrypt);
     }
 
-    public static Integer parseInt(String value) {
+    public static Integer parseInt(CharSequence value) {
         if (value == null) {
             return 0;
         }
-        Integer val = 0;
+        int val = 0;
         try {
             Matcher matcher = pattern.matcher(value);
             if (matcher.find()) {
                 String num = matcher.group(0);
                 val = Integer.parseInt(num);
             }
-        } catch (Exception e) {
-            FileLog.e(e);
+        } catch (Exception ignore) {
+
         }
         return val;
     }
@@ -112,15 +120,15 @@ public class Utilities {
         if (value == null) {
             return 0L;
         }
-        Long val = 0L;
+        long val = 0L;
         try {
             Matcher matcher = pattern.matcher(value);
             if (matcher.find()) {
                 String num = matcher.group(0);
                 val = Long.parseLong(num);
             }
-        } catch (Exception e) {
-            FileLog.e(e);
+        } catch (Exception ignore) {
+
         }
         return val;
     }

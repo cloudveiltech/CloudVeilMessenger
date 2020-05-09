@@ -575,7 +575,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
 
     private int topGlowOffset = 0;
     private int bottomGlowOffset = 0;
-    private int glowColor = 0;
+    private Integer glowColor = null;
 
     public void setTopGlowOffset(int offset) {
         topGlowOffset = offset;
@@ -620,7 +620,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
     }
 
     void applyEdgeEffectColor(EdgeEffect edgeEffect) {
-        if (edgeEffect != null && Build.VERSION.SDK_INT >= 21 && glowColor != 0) {
+        if (edgeEffect != null && Build.VERSION.SDK_INT >= 21 && glowColor != null) {
             edgeEffect.setColor(glowColor);
         }
     }
@@ -2841,7 +2841,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
      * @param focused The descendant view that actually has the focus if child is focusable, null
      *                otherwise.
      */
-    private void requestChildOnScreen(@NonNull View child, @Nullable View focused) {
+    protected void requestChildOnScreen(@NonNull View child, @Nullable View focused) {
         View rectView = (focused != null) ? focused : child;
         mTempRect.set(0, 0, rectView.getWidth(), rectView.getHeight());
 
@@ -4362,42 +4362,44 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         // TODO If padding is not 0 and clipChildrenToPadding is false, to draw glows properly, we
         // need find children closest to edges. Not sure if it is worth the effort.
         boolean needsInvalidate = false;
-        if (mLeftGlow != null && !mLeftGlow.isFinished()) {
-            final int restore = c.save();
-            final int padding = mClipToPadding ? getPaddingBottom() : 0;
-            c.rotate(270);
-            c.translate(-getHeight() + padding, 0);
-            needsInvalidate = mLeftGlow != null && mLeftGlow.draw(c);
-            c.restoreToCount(restore);
-        }
-        if (mTopGlow != null && !mTopGlow.isFinished()) {
-            final int restore = c.save();
-            if (mClipToPadding) {
-                c.translate(getPaddingLeft(), getPaddingTop());
+        if (glowColor == null || glowColor != 0) {
+            if (mLeftGlow != null && !mLeftGlow.isFinished()) {
+                final int restore = c.save();
+                final int padding = mClipToPadding ? getPaddingBottom() : 0;
+                c.rotate(270);
+                c.translate(-getHeight() + padding, 0);
+                needsInvalidate = mLeftGlow != null && mLeftGlow.draw(c);
+                c.restoreToCount(restore);
             }
-            c.translate(0, topGlowOffset);
-            needsInvalidate |= mTopGlow != null && mTopGlow.draw(c);
-            c.restoreToCount(restore);
-        }
-        if (mRightGlow != null && !mRightGlow.isFinished()) {
-            final int restore = c.save();
-            final int width = getWidth();
-            final int padding = mClipToPadding ? getPaddingTop() : 0;
-            c.rotate(90);
-            c.translate(-padding, -width);
-            needsInvalidate |= mRightGlow != null && mRightGlow.draw(c);
-            c.restoreToCount(restore);
-        }
-        if (mBottomGlow != null && !mBottomGlow.isFinished()) {
-            final int restore = c.save();
-            c.rotate(180);
-            if (mClipToPadding) {
-                c.translate(-getWidth() + getPaddingRight(), -getHeight() + getPaddingBottom());
-            } else {
-                c.translate(-getWidth(), -getHeight() + bottomGlowOffset);
+            if (mTopGlow != null && !mTopGlow.isFinished()) {
+                final int restore = c.save();
+                if (mClipToPadding) {
+                    c.translate(getPaddingLeft(), getPaddingTop());
+                }
+                c.translate(0, topGlowOffset);
+                needsInvalidate |= mTopGlow != null && mTopGlow.draw(c);
+                c.restoreToCount(restore);
             }
-            needsInvalidate |= mBottomGlow != null && mBottomGlow.draw(c);
-            c.restoreToCount(restore);
+            if (mRightGlow != null && !mRightGlow.isFinished()) {
+                final int restore = c.save();
+                final int width = getWidth();
+                final int padding = mClipToPadding ? getPaddingTop() : 0;
+                c.rotate(90);
+                c.translate(-padding, -width);
+                needsInvalidate |= mRightGlow != null && mRightGlow.draw(c);
+                c.restoreToCount(restore);
+            }
+            if (mBottomGlow != null && !mBottomGlow.isFinished()) {
+                final int restore = c.save();
+                c.rotate(180);
+                if (mClipToPadding) {
+                    c.translate(-getWidth() + getPaddingRight(), -getHeight() + getPaddingBottom());
+                } else {
+                    c.translate(-getWidth(), -getHeight() + bottomGlowOffset);
+                }
+                needsInvalidate |= mBottomGlow != null && mBottomGlow.draw(c);
+                c.restoreToCount(restore);
+            }
         }
 
         // If some views are animating, ItemDecorators are likely to move/change with them.
@@ -9729,7 +9731,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
          * @return The array containing the scroll amount in x and y directions that brings the
          * given rect into RV's padded area.
          */
-        private int[] getChildRectangleOnScreenScrollAmount(View child, Rect rect) {
+        protected int[] getChildRectangleOnScreenScrollAmount(View child, Rect rect) {
             int[] out = new int[2];
             final int parentLeft = getPaddingLeft();
             final int parentTop = getPaddingTop();

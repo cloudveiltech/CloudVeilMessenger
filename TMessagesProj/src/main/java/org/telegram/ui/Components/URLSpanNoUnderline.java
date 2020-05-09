@@ -24,7 +24,7 @@ public class URLSpanNoUnderline extends URLSpan {
     }
 
     public URLSpanNoUnderline(String url, TextStyleSpan.TextStyleRun run) {
-        super(url);
+        super(url != null ? url.replace('\u202E', ' ') : url);
         style = run;
     }
 
@@ -41,11 +41,12 @@ public class URLSpanNoUnderline extends URLSpan {
 
     @Override
     public void updateDrawState(TextPaint p) {
+        int l = p.linkColor;
+        int c = p.getColor();
         super.updateDrawState(p);
         if (style != null) {
             style.applyStyle(p);
-        } else {
-            p.setUnderlineText(false);
         }
+        p.setUnderlineText(l == c);
     }
 }

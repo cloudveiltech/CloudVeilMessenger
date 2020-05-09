@@ -11,7 +11,10 @@ package org.telegram.ui.Cells;
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.text.SpannableString;
+import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
+import android.text.style.AbsoluteSizeSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -28,8 +31,11 @@ public class TextInfoPrivacyCell extends FrameLayout {
 
     private TextView textView;
     private String linkTextColorKey = Theme.key_windowBackgroundWhiteLinkText;
+    private int topPadding = 10;
     private int bottomPadding = 17;
     private int fixedSize;
+
+    private CharSequence text;
 
     public TextInfoPrivacyCell(Context context) {
         this(context, 21);
@@ -61,6 +67,10 @@ public class TextInfoPrivacyCell extends FrameLayout {
         }
     }
 
+    public void setTopPadding(int topPadding) {
+        this.topPadding = topPadding;
+    }
+
     public void setBottomPadding(int value) {
         bottomPadding = value;
     }
@@ -70,12 +80,26 @@ public class TextInfoPrivacyCell extends FrameLayout {
     }
 
     public void setText(CharSequence text) {
-        if (text == null) {
-            textView.setPadding(0, AndroidUtilities.dp(2), 0, 0);
-        } else {
-            textView.setPadding(0, AndroidUtilities.dp(10), 0, AndroidUtilities.dp(bottomPadding));
+        if (!TextUtils.equals(text, this.text)) {
+            this.text = text;
+            if (text == null) {
+                textView.setPadding(0, AndroidUtilities.dp(2), 0, 0);
+            } else {
+                textView.setPadding(0, AndroidUtilities.dp(topPadding), 0, AndroidUtilities.dp(bottomPadding));
+            }
+            SpannableString spannableString = null;
+            if (text != null) {
+                for (int i = 0, len = text.length(); i < len - 1; i++) {
+                    if (text.charAt(i) == '\n' && text.charAt(i + 1) == '\n') {
+                        if (spannableString == null) {
+                            spannableString = new SpannableString(text);
+                        }
+                        spannableString.setSpan(new AbsoluteSizeSpan(10, true), i + 1, i + 2, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
+                }
+            }
+            textView.setText(spannableString != null ? spannableString : text);
         }
-        textView.setText(text);
     }
 
     public void setTextColor(int color) {

@@ -15,6 +15,7 @@ import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLitePreparedStatement;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessagesController;
@@ -39,7 +40,7 @@ public class SearchAdapterHelper {
     }
 
     public interface SearchAdapterHelperDelegate {
-        void onDataSetChanged();
+        void onDataSetChanged(int searchId);
 
         default void onSetHashtags(ArrayList<HashtagObject> arrayList, HashMap<String, HashtagObject> hashMap) {
 
@@ -47,6 +48,10 @@ public class SearchAdapterHelper {
 
         default SparseArray<TLRPC.User> getExcludeUsers() {
             return null;
+        }
+
+        default boolean canApplySearchResults(int searchId) {
+            return true;
         }
     }
 
@@ -71,6 +76,7 @@ public class SearchAdapterHelper {
     private String lastFoundChannel;
 
     private boolean allResultsAreGlobal;
+    private boolean allowGlobalResults = true;
 
     private ArrayList<HashtagObject> hashtags;
     private HashMap<String, HashtagObject> hashtagsByText;
@@ -82,15 +88,19 @@ public class SearchAdapterHelper {
         public CharSequence name;
     }
 
-    public SearchAdapterHelper(boolean global) {
-        allResultsAreGlobal = global;
+    public SearchAdapterHelper(boolean allAsGlobal) {
+        allResultsAreGlobal = allAsGlobal;
+    }
+
+    public void setAllowGlobalResults(boolean value) {
+        allowGlobalResults = value;
     }
 
     public boolean isSearchInProgress() {
         return reqId != 0 || channelReqId != 0;
     }
 
-    public void queryServerSearch(final String query, final boolean allowUsername, final boolean allowChats, final boolean allowBots, final boolean allowSelf, final int channelId, final boolean phoneNumbers, final int type) {
+    public void queryServerSearch(String query, boolean allowUsername, boolean allowChats, boolean allowBots, boolean allowSelf, boolean canAddGroupsOnly, int channelId, boolean phoneNumbers, int type, int searchId) {
         if (reqId != 0) {
             ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
             reqId = 0;
@@ -109,7 +119,7 @@ public class SearchAdapterHelper {
             phoneSearchMap.clear();
             lastReqId = 0;
             channelLastReqId = 0;
-            delegate.onDataSetChanged();
+            delegate.onDataSetChanged(searchId);
             return;
         }
         if (query.length() > 0) {
@@ -150,7 +160,7 @@ public class SearchAdapterHelper {
                             if (localSearchResults != null) {
                                 mergeResults(localSearchResults);
                             }
-                            delegate.onDataSetChanged();
+                            delegate.onDataSetChanged(searchId);
                         }
                     }
                     channelReqId = 0;
@@ -162,7 +172,7 @@ public class SearchAdapterHelper {
             groupSearch.clear();
             groupSearchMap.clear();
             channelLastReqId = 0;
-            delegate.onDataSetChanged();
+            delegate.onDataSetChanged(searchId);
         }
         if (allowUsername) {
             if (query.length() > 0) {
@@ -171,7 +181,7 @@ public class SearchAdapterHelper {
                 req.limit = 50;
                 final int currentReqId = ++lastReqId;
                 reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
-                    if (currentReqId == lastReqId) {
+                    if (currentReqId == lastReqId && delegate.canApplySearchResults(searchId)) {
                         reqId = 0;
                         if (error == null) {
                             TLRPC.TL_contacts_found res = (TLRPC.TL_contacts_found) response;
@@ -213,9 +223,10 @@ public class SearchAdapterHelper {
                                         chat = chatsMap.get(peer.channel_id);
                                     }
                                     if (chat != null) {
-                                        if (!allowChats) {
+                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || !allowGlobalResults && ChatObject.isNotInChat(chat)) {
                                             continue;
                                         }
+
                                         //CloudVeil Start
                                         if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(chat);
@@ -223,7 +234,7 @@ public class SearchAdapterHelper {
                                         //CloudVeil End
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
-                                        if (!allowBots && user.bot || !allowSelf && user.self) {
+                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || !allowGlobalResults && b == 1 && !user.contact) {
                                             continue;
                                         }
                                         //CloudVeil Start
@@ -231,7 +242,6 @@ public class SearchAdapterHelper {
                                             globalSearch.add(user);
                                         }
                                         //CloudVeil End
-
                                         globalSearchMap.put(user.id, user);
                                     }
                                 }
@@ -249,12 +259,15 @@ public class SearchAdapterHelper {
                                         chat = chatsMap.get(peer.channel_id);
                                     }
                                     if (chat != null) {
-                                        if (!allowChats) {
+                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat)) {
                                             continue;
                                         }
                                         localServerSearch.add(chat);
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
+                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self) {
+                                            continue;
+                                        }
                                         localServerSearch.add(user);
                                         globalSearchMap.put(user.id, user);
                                     }
@@ -265,7 +278,7 @@ public class SearchAdapterHelper {
                                 mergeResults(localSearchResults);
                             }
                             mergeExcludeResults();
-                            delegate.onDataSetChanged();
+                            delegate.onDataSetChanged(searchId);
                         }
                     }
                 }), ConnectionsManager.RequestFlagFailOnServerErrors);
@@ -274,10 +287,10 @@ public class SearchAdapterHelper {
                 globalSearchMap.clear();
                 localServerSearch.clear();
                 lastReqId = 0;
-                delegate.onDataSetChanged();
+                delegate.onDataSetChanged(searchId);
             }
         }
-        if (phoneNumbers && query.startsWith("+") && query.length() > 3) {
+        if (!canAddGroupsOnly && phoneNumbers && query.startsWith("+") && query.length() > 3) {
             phonesSearch.clear();
             phoneSearchMap.clear();
             String phone = PhoneFormat.stripExceptNumbers(query);
@@ -301,8 +314,14 @@ public class SearchAdapterHelper {
                 phonesSearch.add("section");
                 phonesSearch.add(phone);
             }
-            delegate.onDataSetChanged();
+            delegate.onDataSetChanged(searchId);
         }
+    }
+
+    public void clear() {
+        globalSearch.clear();
+        globalSearchMap.clear();
+        localServerSearch.clear();
     }
 
     public void unloadRecentHashtags() {
@@ -408,7 +427,7 @@ public class SearchAdapterHelper {
             return;
         }
         boolean changed = false;
-        Pattern pattern = Pattern.compile("(^|\\s)#[\\w@.]+");
+        Pattern pattern = Pattern.compile("(^|\\s)#[^0-9][\\w@.]+");
         Matcher matcher = pattern.matcher(message);
         while (matcher.find()) {
             int start = matcher.start();
@@ -466,6 +485,17 @@ public class SearchAdapterHelper {
                 FileLog.e(e);
             }
         });
+    }
+
+    public void removeUserId(int userId) {
+        Object object = globalSearchMap.get(userId);
+        if (object != null) {
+            globalSearch.remove(object);
+        }
+        object = groupSearchMap.get(userId);
+        if (object != null) {
+            groupSearch.remove(object);
+        }
     }
 
     public ArrayList<TLObject> getGlobalSearch() {

@@ -25,6 +25,7 @@ import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class CameraSession {
 
@@ -38,23 +39,23 @@ public class CameraSession {
     private final Size previewSize;
     private final int pictureFormat;
     private boolean initied;
+    private int maxZoom;
     private boolean meteringAreaSupported;
     private int currentOrientation;
     private int diffOrientation;
     private int jpegOrientation;
     private boolean sameTakePictureOrientation;
     private boolean flipFront = true;
+    private float currentZoom;
+    private boolean optimizeForBarcode;
 
     public static final int ORIENTATION_HYSTERESIS = 5;
 
-    private Camera.AutoFocusCallback autoFocusCallback = new Camera.AutoFocusCallback() {
-        @Override
-        public void onAutoFocus(boolean success, Camera camera) {
-            if (success) {
+    private Camera.AutoFocusCallback autoFocusCallback = (success, camera) -> {
+        if (success) {
 
-            } else {
+        } else {
 
-            }
         }
     };
 
@@ -109,6 +110,11 @@ public class CameraSession {
         return orientationHistory;
     }
 
+    public void setOptimizeForBarcode(boolean value) {
+        optimizeForBarcode = value;
+        configurePhotoCamera();
+    }
+
     public void checkFlashMode(String mode) {
         ArrayList<String> modes = CameraController.getInstance().availableFlashModes;
         if (modes.contains(currentFlashMode)) {
@@ -125,6 +131,15 @@ public class CameraSession {
         configurePhotoCamera();
         SharedPreferences sharedPreferences = ApplicationLoader.applicationContext.getSharedPreferences("camera", Activity.MODE_PRIVATE);
         sharedPreferences.edit().putString(cameraInfo.frontCamera != 0 ? "flashMode_front" : "flashMode", mode).commit();
+    }
+
+    public void setTorchEnabled(boolean enabled) {
+        try {
+            currentFlashMode = enabled ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF;
+            configurePhotoCamera();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
     }
 
     public String getCurrentFlashMode() {
@@ -335,10 +350,25 @@ public class CameraSession {
                     params.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
                     params.setPictureSize(pictureSize.getWidth(), pictureSize.getHeight());
                     params.setPictureFormat(pictureFormat);
+                    params.setJpegQuality(100);
+                    params.setJpegThumbnailQuality(100);
+                    maxZoom = params.getMaxZoom();
+                    params.setZoom((int) (currentZoom * maxZoom));
 
-                    String desiredMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE;
-                    if (params.getSupportedFocusModes().contains(desiredMode)) {
-                        params.setFocusMode(desiredMode);
+                    if (optimizeForBarcode) {
+                        List<String> modes = params.getSupportedSceneModes();
+                        if (modes != null && modes.contains(Camera.Parameters.SCENE_MODE_BARCODE)) {
+                            params.setSceneMode(Camera.Parameters.SCENE_MODE_BARCODE);
+                        }
+                        String desiredMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO;
+                        if (params.getSupportedFocusModes().contains(desiredMode)) {
+                            params.setFocusMode(desiredMode);
+                        }
+                    } else {
+                        String desiredMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE;
+                        if (params.getSupportedFocusModes().contains(desiredMode)) {
+                            params.setFocusMode(desiredMode);
+                        }
                     }
 
                     int outputOrientation = 0;
@@ -380,7 +410,6 @@ public class CameraSession {
         try {
             Camera camera = cameraInfo.camera;
             if (camera != null) {
-
                 camera.cancelAutoFocus();
                 Camera.Parameters parameters = null;
                 try {
@@ -412,6 +441,15 @@ public class CameraSession {
         } catch (Exception e) {
             FileLog.e(e);
         }
+    }
+
+    protected int getMaxZoom() {
+        return maxZoom;
+    }
+
+    protected void setZoom(float value) {
+        currentZoom = value;
+        configurePhotoCamera();
     }
 
     protected void configureRecorder(int quality, MediaRecorder recorder) {
@@ -509,9 +547,14 @@ public class CameraSession {
         cameraInfo.camera.setPreviewCallback(callback);
     }
 
-    public void setOneShotPreviewCallback(Camera.PreviewCallback callback){
-        if(cameraInfo!=null && cameraInfo.camera!=null)
-			cameraInfo.camera.setOneShotPreviewCallback(callback);
+    public void setOneShotPreviewCallback(Camera.PreviewCallback callback) {
+        if (cameraInfo != null && cameraInfo.camera != null) {
+            try {
+                cameraInfo.camera.setOneShotPreviewCallback(callback);
+            } catch (Exception ignore) {
+
+            }
+        }
     }
 
     public void destroy() {

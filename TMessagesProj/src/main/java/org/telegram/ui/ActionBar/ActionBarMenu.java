@@ -120,23 +120,28 @@ public class ActionBarMenu extends LinearLayout {
     }
 
     protected void setPopupItemsColor(int color, boolean icon) {
-        int count = getChildCount();
-        for (int a = 0; a < count; a++) {
-            View view = getChildAt(a);
+        for (int a = 0, count = getChildCount(); a < count; a++) {
+            final View view = getChildAt(a);
             if (view instanceof ActionBarMenuItem) {
-                ActionBarMenuItem item = (ActionBarMenuItem) view;
-                item.setPopupItemsColor(color, icon);
+                ((ActionBarMenuItem) view).setPopupItemsColor(color, icon);
+            }
+        }
+    }
+
+    protected void setPopupItemsSelectorColor(int color) {
+        for (int a = 0, count = getChildCount(); a < count; a++) {
+            final View view = getChildAt(a);
+            if (view instanceof ActionBarMenuItem) {
+                ((ActionBarMenuItem) view).setPopupItemsSelectorColor(color);
             }
         }
     }
 
     protected void redrawPopup(int color) {
-        int count = getChildCount();
-        for (int a = 0; a < count; a++) {
-            View view = getChildAt(a);
+        for (int a = 0, count = getChildCount(); a < count; a++) {
+            final View view = getChildAt(a);
             if (view instanceof ActionBarMenuItem) {
-                ActionBarMenuItem item = (ActionBarMenuItem) view;
-                item.redrawPopup(color);
+                ((ActionBarMenuItem) view).redrawPopup(color);
             }
         }
     }
@@ -177,9 +182,11 @@ public class ActionBarMenu extends LinearLayout {
             View view = getChildAt(a);
             if (view instanceof ActionBarMenuItem) {
                 ActionBarMenuItem item = (ActionBarMenuItem) view;
-                if (item.isSearchField()) {
-                    parentActionBar.onSearchFieldVisibilityChanged(false);
-                    item.toggleSearch(closeKeyboard);
+                if (item.isSearchField() && item.isSearchFieldVisible()) {
+                    if (item.listener == null || item.listener.canCollapseSearch()) {
+                        parentActionBar.onSearchFieldVisibilityChanged(false);
+                        item.toggleSearch(closeKeyboard);
+                    }
                     break;
                 }
             }
@@ -213,7 +220,19 @@ public class ActionBarMenu extends LinearLayout {
                 if (item.isSearchField()) {
                     item.setSearchFieldText(text, false);
                     item.getSearchField().setSelection(text.length());
-                    break;
+                }
+            }
+        }
+    }
+
+    public void onSearchPressed() {
+        int count = getChildCount();
+        for (int a = 0; a < count; a++) {
+            View view = getChildAt(a);
+            if (view instanceof ActionBarMenuItem) {
+                ActionBarMenuItem item = (ActionBarMenuItem) view;
+                if (item.isSearchField()) {
+                    item.onSearchPressed();
                 }
             }
         }

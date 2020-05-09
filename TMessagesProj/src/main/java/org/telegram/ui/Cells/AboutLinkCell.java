@@ -34,6 +34,7 @@ import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.StaticLayoutEx;
 import org.telegram.ui.Components.URLSpanNoUnderline;
 
 public class AboutLinkCell extends FrameLayout {
@@ -79,13 +80,13 @@ public class AboutLinkCell extends FrameLayout {
     }
 
     public void setTextAndValue(String text, String value, boolean parseLinks) {
-        if (TextUtils.isEmpty(text) || text != null && oldText != null && text.equals(oldText)) {
+        if (TextUtils.isEmpty(text) || text != null && text.equals(oldText)) {
             return;
         }
         oldText = text;
         stringBuilder = new SpannableStringBuilder(oldText);
         if (parseLinks) {
-            MessageObject.addLinks(false, stringBuilder, false);
+            MessageObject.addLinks(false, stringBuilder, false, false);
         }
         Emoji.replaceEmoji(stringBuilder, Theme.profile_aboutTextPaint.getFontMetricsInt(), AndroidUtilities.dp(20), false);
         if (TextUtils.isEmpty(value)) {
@@ -174,7 +175,7 @@ public class AboutLinkCell extends FrameLayout {
                 textLayout = StaticLayout.Builder.obtain(stringBuilder, 0, stringBuilder.length(), Theme.profile_aboutTextPaint, maxWidth)
                         .setBreakStrategy(StaticLayout.BREAK_STRATEGY_HIGH_QUALITY)
                         .setHyphenationFrequency(StaticLayout.HYPHENATION_FREQUENCY_NONE)
-                        .setAlignment(LocaleController.isRTL ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL)
+                        .setAlignment(LocaleController.isRTL ? StaticLayoutEx.ALIGN_RIGHT() : StaticLayoutEx.ALIGN_LEFT())
                         .build();
             } else {
                 textLayout = new StaticLayout(stringBuilder, Theme.profile_aboutTextPaint, maxWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);

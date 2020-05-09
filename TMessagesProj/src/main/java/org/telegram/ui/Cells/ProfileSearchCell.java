@@ -204,6 +204,14 @@ public class ProfileSearchCell extends BaseCell {
         }
     }
 
+    public TLRPC.User getUser() {
+        return user;
+    }
+
+    public TLRPC.Chat getChat() {
+        return chat;
+    }
+
     public void setSublabelOffset(int x, int y) {
         sublabelOffsetX = x;
         sublabelOffsetY = y;
@@ -229,25 +237,17 @@ public class ProfileSearchCell extends BaseCell {
                 nameLockLeft = getMeasuredWidth() - AndroidUtilities.dp(AndroidUtilities.leftBaseline + 2) - Theme.dialogs_lockDrawable.getIntrinsicWidth();
                 nameLeft = AndroidUtilities.dp(11);
             }
-            nameLockTop = AndroidUtilities.dp(20.5f);
+            nameLockTop = AndroidUtilities.dp(22.0f);
         } else {
             if (chat != null) {
-                if (chat.id < 0) {
-                    dialog_id = AndroidUtilities.makeBroadcastId(chat.id);
-                    if (SharedConfig.drawDialogIcons) {
+                dialog_id = -chat.id;
+                if (SharedConfig.drawDialogIcons) {
+                    if (ChatObject.isChannel(chat) && !chat.megagroup) {
                         drawNameBroadcast = true;
-                    }
-                    nameLockTop = AndroidUtilities.dp(22.5f);
-                } else {
-                    dialog_id = -chat.id;
-                    if (SharedConfig.drawDialogIcons) {
-                        if (ChatObject.isChannel(chat) && !chat.megagroup) {
-                            drawNameBroadcast = true;
-                            nameLockTop = AndroidUtilities.dp(22.5f);
-                        } else {
-                            drawNameGroup = true;
-                            nameLockTop = AndroidUtilities.dp(24);
-                        }
+                        nameLockTop = AndroidUtilities.dp(22.5f);
+                    } else {
+                        drawNameGroup = true;
+                        nameLockTop = AndroidUtilities.dp(24);
                     }
                 }
                 drawCheck = chat.verified;
@@ -388,23 +388,31 @@ public class ProfileSearchCell extends BaseCell {
             }
             if (savedMessages) {
                 statusString = null;
-                nameTop = AndroidUtilities.dp(19);
+                nameTop = AndroidUtilities.dp(20);
             }
         } else {
             if (chat != null) {
                 if (ChatObject.isChannel(chat) && !chat.megagroup) {
-                    if (TextUtils.isEmpty(chat.username)) {
-                        statusString = LocaleController.getString("ChannelPrivate", R.string.ChannelPrivate).toLowerCase();
+                    if (chat.participants_count != 0) {
+                        statusString = LocaleController.formatPluralString("Subscribers", chat.participants_count);
                     } else {
-                        statusString = LocaleController.getString("ChannelPublic", R.string.ChannelPublic).toLowerCase();
+                        if (TextUtils.isEmpty(chat.username)) {
+                            statusString = LocaleController.getString("ChannelPrivate", R.string.ChannelPrivate).toLowerCase();
+                        } else {
+                            statusString = LocaleController.getString("ChannelPublic", R.string.ChannelPublic).toLowerCase();
+                        }
                     }
                 } else {
-                    if (chat.has_geo) {
-                        statusString = LocaleController.getString("MegaLocation", R.string.MegaLocation);
-                    } else if (TextUtils.isEmpty(chat.username)) {
-                        statusString = LocaleController.getString("MegaPrivate", R.string.MegaPrivate).toLowerCase();
+                    if (chat.participants_count != 0) {
+                        statusString = LocaleController.formatPluralString("Members", chat.participants_count);
                     } else {
-                        statusString = LocaleController.getString("MegaPublic", R.string.MegaPublic).toLowerCase();
+                        if (chat.has_geo) {
+                            statusString = LocaleController.getString("MegaLocation", R.string.MegaLocation);
+                        } else if (TextUtils.isEmpty(chat.username)) {
+                            statusString = LocaleController.getString("MegaPrivate", R.string.MegaPrivate).toLowerCase();
+                        } else {
+                            statusString = LocaleController.getString("MegaPublic", R.string.MegaPublic).toLowerCase();
+                        }
                     }
                 }
             }
@@ -496,7 +504,7 @@ public class ProfileSearchCell extends BaseCell {
             avatarDrawable.setInfo(chat);
             avatarImage.setImage(ImageLocation.getForChat(chat, false), "50_50", avatarDrawable, null, chat, 0);
         } else {
-            avatarDrawable.setInfo(0, null, null, false);
+            avatarDrawable.setInfo(0, null, null);
             avatarImage.setImage(null, null, avatarDrawable, null, null, 0);
         }
 

@@ -104,7 +104,7 @@ public class UpdateAppAlertDialog extends AlertDialog implements NotificationCen
                 showProgress(false);
                 BlockingUpdateView.openApkInstall(parentActivity, appUpdate.document);
             }
-        } else if (id == NotificationCenter.fileDidFailedLoad) {
+        } else if (id == NotificationCenter.fileDidFailToLoad) {
             String location = (String) args[0];
             if (fileName != null && fileName.equals(location)) {
                 showProgress(false);
@@ -112,7 +112,9 @@ public class UpdateAppAlertDialog extends AlertDialog implements NotificationCen
         } else if (id == NotificationCenter.FileLoadProgressChanged) {
             String location = (String) args[0];
             if (fileName != null && fileName.equals(location)) {
-                Float loadProgress = (Float) args[1];
+                Long loadedSize = (Long) args[1];
+                Long totalSize = (Long) args[2];
+                float loadProgress = Math.min(1f, loadedSize / (float) totalSize);
                 radialProgress.setProgress(loadProgress, true);
             }
         }
@@ -122,7 +124,7 @@ public class UpdateAppAlertDialog extends AlertDialog implements NotificationCen
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         NotificationCenter.getInstance(accountNum).addObserver(this, NotificationCenter.fileDidLoad);
-        NotificationCenter.getInstance(accountNum).addObserver(this, NotificationCenter.fileDidFailedLoad);
+        NotificationCenter.getInstance(accountNum).addObserver(this, NotificationCenter.fileDidFailToLoad);
         NotificationCenter.getInstance(accountNum).addObserver(this, NotificationCenter.FileLoadProgressChanged);
         buttonsLayout.addView(radialProgressView, LayoutHelper.createFrame(36, 36));
     }
@@ -131,7 +133,7 @@ public class UpdateAppAlertDialog extends AlertDialog implements NotificationCen
     public void dismiss() {
         super.dismiss();
         NotificationCenter.getInstance(accountNum).removeObserver(this, NotificationCenter.fileDidLoad);
-        NotificationCenter.getInstance(accountNum).removeObserver(this, NotificationCenter.fileDidFailedLoad);
+        NotificationCenter.getInstance(accountNum).removeObserver(this, NotificationCenter.fileDidFailToLoad);
         NotificationCenter.getInstance(accountNum).removeObserver(this, NotificationCenter.FileLoadProgressChanged);
     }
 

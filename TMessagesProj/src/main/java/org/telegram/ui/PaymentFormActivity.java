@@ -14,11 +14,9 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.Dialog;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -45,7 +43,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.WindowManager;
-import android.view.animation.DecelerateInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -60,31 +57,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.wallet.Cart;
-import com.google.android.gms.wallet.FullWallet;
-import com.google.android.gms.wallet.FullWalletRequest;
-import com.google.android.gms.wallet.LineItem;
-import com.google.android.gms.wallet.MaskedWallet;
-import com.google.android.gms.wallet.MaskedWalletRequest;
-import com.google.android.gms.wallet.PaymentMethodTokenizationParameters;
-import com.google.android.gms.wallet.PaymentMethodTokenizationType;
-import com.google.android.gms.wallet.Wallet;
-import com.google.android.gms.wallet.WalletConstants;
-import com.google.android.gms.wallet.fragment.WalletFragment;
-import com.google.android.gms.wallet.fragment.WalletFragmentInitParams;
-import com.google.android.gms.wallet.fragment.WalletFragmentMode;
-import com.google.android.gms.wallet.fragment.WalletFragmentOptions;
-import com.google.android.gms.wallet.fragment.WalletFragmentStyle;
 import com.stripe.android.Stripe;
 import com.stripe.android.TokenCallback;
 import com.stripe.android.exception.APIConnectionException;
 import com.stripe.android.exception.APIException;
 import com.stripe.android.model.Card;
 import com.stripe.android.model.Token;
-import com.stripe.android.net.StripeApiHandler;
-import com.stripe.android.net.TokenParser;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
@@ -183,6 +162,8 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
     private String webViewUrl;
     private boolean shouldNavigateBack;
     private ScrollView scrollView;
+
+    private boolean swipeBackEnabled = true;
 
     private TextView textView;
     private HeaderCell[] headerCell = new HeaderCell[3];
@@ -1957,10 +1938,15 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
                     text += "\n\n" + LocaleController.getString("TurnPasswordOffPassport", R.string.TurnPasswordOffPassport);
                 }
                 builder.setMessage(text);
-                builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
-                builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> sendSavePassword(true));
+                builder.setTitle(LocaleController.getString("TurnPasswordOffQuestionTitle", R.string.TurnPasswordOffQuestionTitle));
+                builder.setPositiveButton(LocaleController.getString("Disable", R.string.Disable), (dialogInterface, i) -> sendSavePassword(true));
                 builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                showDialog(builder.create());
+                AlertDialog alertDialog = builder.create();
+                showDialog(alertDialog);
+                TextView button = (TextView) alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                if (button != null) {
+                    button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
+                }
             });
 
             inputFields = new EditTextBoldCursor[FIELDS_COUNT_PASSWORD];
@@ -2315,7 +2301,7 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
     }
 
     private void showAndroidPay() {
-        if (getParentActivity() == null || androidPayContainer == null) {
+        /*if (getParentActivity() == null || androidPayContainer == null) {
             return;
         }
 
@@ -2382,12 +2368,12 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
         animatorSet.playTogether(ObjectAnimator.ofFloat(androidPayContainer, "alpha", 0.0f, 1.0f));
         animatorSet.setInterpolator(new DecelerateInterpolator());
         animatorSet.setDuration(180);
-        animatorSet.start();
+        animatorSet.start();*/
     }
 
     @Override
     public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
-        if (requestCode == LOAD_MASKED_WALLET_REQUEST_CODE) {
+        /*if (requestCode == LOAD_MASKED_WALLET_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK) {
                 showEditDoneProgress(true, true);
                 setDonePressed(true);
@@ -2454,7 +2440,7 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
                 showEditDoneProgress(true, false);
                 setDonePressed(false);
             }
-        }
+        }*/
     }
 
     private void goToNextStep() {
@@ -3033,17 +3019,23 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
                 if (response instanceof TLRPC.TL_payments_paymentResult) {
                     MessagesController.getInstance(currentAccount).processUpdates(((TLRPC.TL_payments_paymentResult) response).updates, false);
                     AndroidUtilities.runOnUIThread(this::goToNextStep);
-                } else if (response instanceof TLRPC.TL_payments_paymentVerficationNeeded) {
+                } else if (response instanceof TLRPC.TL_payments_paymentVerificationNeeded) {
                     AndroidUtilities.runOnUIThread(() -> {
                         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.paymentFinished);
                         setDonePressed(false);
-                        webView.setVisibility(View.VISIBLE);
                         webviewLoading = true;
                         showEditDoneProgress(true, true);
-                        progressView.setVisibility(View.VISIBLE);
-                        doneItem.setEnabled(false);
-                        doneItem.getContentView().setVisibility(View.INVISIBLE);
-                        webView.loadUrl(webViewUrl = ((TLRPC.TL_payments_paymentVerficationNeeded) response).url);
+                        if (progressView != null) {
+                            progressView.setVisibility(View.VISIBLE);
+                        }
+                        if (doneItem != null) {
+                            doneItem.setEnabled(false);
+                            doneItem.getContentView().setVisibility(View.INVISIBLE);
+                        }
+                        if (webView != null) {
+                            webView.setVisibility(View.VISIBLE);
+                            webView.loadUrl(webViewUrl = ((TLRPC.TL_payments_paymentVerificationNeeded) response).url);
+                        }
                     });
                 }
             } else {
@@ -3071,10 +3063,17 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
     private void setDonePressed(boolean value) {
         donePressed = value;
         swipeBackEnabled = !value;
-        actionBar.getBackButton().setEnabled(!donePressed);
+        if (actionBar != null) {
+            actionBar.getBackButton().setEnabled(!donePressed);
+        }
         if (detailSettingsCell[0] != null) {
             detailSettingsCell[0].setEnabled(!donePressed);
         }
+    }
+
+    @Override
+    public boolean isSwipeBackEnabled(MotionEvent event) {
+        return swipeBackEnabled;
     }
 
     private void checkPassword() {
@@ -3287,8 +3286,9 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
     }
 
     @Override
-    public ThemeDescription[] getThemeDescriptions() {
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
         ArrayList<ThemeDescription> arrayList = new ArrayList<>();
+
         arrayList.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
         arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
         arrayList.add(new ThemeDescription(scrollView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_actionBarDefault));
@@ -3385,6 +3385,6 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
         arrayList.add(new ThemeDescription(bottomLayout, ThemeDescription.FLAG_SELECTORWHITE, null, null, null, null, Theme.key_windowBackgroundWhite));
         arrayList.add(new ThemeDescription(bottomLayout, ThemeDescription.FLAG_SELECTORWHITE, null, null, null, null, Theme.key_listSelector));
 
-        return arrayList.toArray(new ThemeDescription[0]);
+        return arrayList;
     }
 }

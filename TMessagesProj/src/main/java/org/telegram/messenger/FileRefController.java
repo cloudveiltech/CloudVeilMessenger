@@ -5,20 +5,21 @@ import android.os.SystemClock;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class FileRefController extends BaseController {
 
-    private class Requester {
+    private static class Requester {
         private TLRPC.InputFileLocation location;
         private Object[] args;
         private String locationKey;
         private boolean completed;
     }
 
-    private class CachedResult {
+    private static class CachedResult {
         private TLObject response;
         private long lastQueryTime;
         private long firstQueryTime;
@@ -29,7 +30,7 @@ public class FileRefController extends BaseController {
     private HashMap<String, CachedResult> responseCache = new HashMap<>();
     private HashMap<TLRPC.TL_messages_sendMultiMedia, Object[]> multiMediaCache = new HashMap<>();
 
-    private long lastCleanupTime = SystemClock.uptimeMillis();
+    private long lastCleanupTime = SystemClock.elapsedRealtime();
 
     private static volatile FileRefController[] Instance = new FileRefController[UserConfig.MAX_ACCOUNT_COUNT];
 
@@ -54,7 +55,7 @@ public class FileRefController extends BaseController {
         if (parentObject instanceof MessageObject) {
             MessageObject messageObject = (MessageObject) parentObject;
             int channelId = messageObject.getChannelId();
-            return "message" + messageObject.getRealId() + "_" + channelId;
+            return "message" + messageObject.getRealId() + "_" + channelId + "_" + messageObject.scheduled;
         } else if (parentObject instanceof TLRPC.Message) {
             TLRPC.Message message = (TLRPC.Message) parentObject;
             int channelId = message.to_id != null ? message.to_id.channel_id : 0;
@@ -83,6 +84,9 @@ public class FileRefController extends BaseController {
         } else if (parentObject instanceof TLRPC.TL_wallPaper) {
             TLRPC.TL_wallPaper wallPaper = (TLRPC.TL_wallPaper) parentObject;
             return "wallpaper" + wallPaper.id;
+        } else if (parentObject instanceof TLRPC.TL_theme) {
+            TLRPC.TL_theme theme = (TLRPC.TL_theme) parentObject;
+            return "theme" + theme.id;
         }
         return parentObject != null ? "" + parentObject : null;
     }
@@ -263,7 +267,12 @@ public class FileRefController extends BaseController {
         if (parentObject instanceof MessageObject) {
             MessageObject messageObject = (MessageObject) parentObject;
             int channelId = messageObject.getChannelId();
-            if (channelId != 0) {
+            if (messageObject.scheduled) {
+                TLRPC.TL_messages_getScheduledMessages req = new TLRPC.TL_messages_getScheduledMessages();
+                req.peer = getMessagesController().getInputPeer((int) messageObject.getDialogId());
+                req.id.add(messageObject.getRealId());
+                getConnectionsManager().sendRequest(req, (response, error) -> onRequestComplete(locationKey, parentKey, response, true));
+            } else if (channelId != 0) {
                 TLRPC.TL_channels_getMessages req = new TLRPC.TL_channels_getMessages();
                 req.channel = getMessagesController().getInputChannel(channelId);
                 req.id.add(messageObject.getRealId());
@@ -280,6 +289,15 @@ public class FileRefController extends BaseController {
             inputWallPaper.id = wallPaper.id;
             inputWallPaper.access_hash = wallPaper.access_hash;
             req.wallpaper = inputWallPaper;
+            getConnectionsManager().sendRequest(req, (response, error) -> onRequestComplete(locationKey, parentKey, response, true));
+        } else if (parentObject instanceof TLRPC.TL_theme) {
+            TLRPC.TL_theme theme = (TLRPC.TL_theme) parentObject;
+            TLRPC.TL_account_getTheme req = new TLRPC.TL_account_getTheme();
+            TLRPC.TL_inputTheme inputTheme = new TLRPC.TL_inputTheme();
+            inputTheme.id = theme.id;
+            inputTheme.access_hash = theme.access_hash;
+            req.theme = inputTheme;
+            req.format = "android";
             getConnectionsManager().sendRequest(req, (response, error) -> onRequestComplete(locationKey, parentKey, response, true));
         } else if (parentObject instanceof TLRPC.WebPage) {
             TLRPC.WebPage webPage = (TLRPC.WebPage) parentObject;
@@ -376,12 +394,6 @@ public class FileRefController extends BaseController {
         } else {
             sendErrorToObject(args, 0);
         }
-
-        //TODO "sticker_search_" + emoji
-        //TODO MediaController.SearchImage
-        //TODO TLRPC.RecentMeUrl
-        //TODO TLRPC.ChatInvite
-        //TODO TLRPC.BotInlineResult
     }
 
     @SuppressWarnings("unchecked")
@@ -420,7 +432,7 @@ public class FileRefController extends BaseController {
             }
             if (done) {
                 multiMediaCache.remove(multiMedia);
-                getSendMessagesHelper().performSendMessageRequestMulti(multiMedia, (ArrayList<MessageObject>) objects[1], (ArrayList<String>) objects[2], null, (SendMessagesHelper.DelayedMessage) objects[4]);
+                AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().performSendMessageRequestMulti(multiMedia, (ArrayList<MessageObject>) objects[1], (ArrayList<String>) objects[2], null, (SendMessagesHelper.DelayedMessage) objects[4], (Boolean) objects[5]));
             }
         } else if (requester.args[0] instanceof TLRPC.TL_messages_sendMedia) {
             TLRPC.TL_messages_sendMedia req = (TLRPC.TL_messages_sendMedia) requester.args[0];
@@ -431,7 +443,7 @@ public class FileRefController extends BaseController {
                 TLRPC.TL_inputMediaPhoto mediaPhoto = (TLRPC.TL_inputMediaPhoto) req.media;
                 mediaPhoto.id.file_reference = file_reference;
             }
-            getSendMessagesHelper().performSendMessageRequest((TLObject) requester.args[0], (MessageObject) requester.args[1], (String) requester.args[2], (SendMessagesHelper.DelayedMessage) requester.args[3], (Boolean) requester.args[4], (SendMessagesHelper.DelayedMessage) requester.args[5], null);
+            AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().performSendMessageRequest((TLObject) requester.args[0], (MessageObject) requester.args[1], (String) requester.args[2], (SendMessagesHelper.DelayedMessage) requester.args[3], (Boolean) requester.args[4], (SendMessagesHelper.DelayedMessage) requester.args[5], null, (Boolean) requester.args[6]));
         } else if (requester.args[0] instanceof TLRPC.TL_messages_editMessage) {
             TLRPC.TL_messages_editMessage req = (TLRPC.TL_messages_editMessage) requester.args[0];
             if (req.media instanceof TLRPC.TL_inputMediaDocument) {
@@ -441,7 +453,7 @@ public class FileRefController extends BaseController {
                 TLRPC.TL_inputMediaPhoto mediaPhoto = (TLRPC.TL_inputMediaPhoto) req.media;
                 mediaPhoto.id.file_reference = file_reference;
             }
-            getSendMessagesHelper().performSendMessageRequest((TLObject) requester.args[0], (MessageObject) requester.args[1], (String) requester.args[2], (SendMessagesHelper.DelayedMessage) requester.args[3], (Boolean) requester.args[4], (SendMessagesHelper.DelayedMessage) requester.args[5], null);
+            AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().performSendMessageRequest((TLObject) requester.args[0], (MessageObject) requester.args[1], (String) requester.args[2], (SendMessagesHelper.DelayedMessage) requester.args[3], (Boolean) requester.args[4], (SendMessagesHelper.DelayedMessage) requester.args[5], null, (Boolean) requester.args[6]));
         } else if (requester.args[0] instanceof TLRPC.TL_messages_saveGif) {
             TLRPC.TL_messages_saveGif req = (TLRPC.TL_messages_saveGif) requester.args[0];
             req.id.file_reference = file_reference;
@@ -489,10 +501,10 @@ public class FileRefController extends BaseController {
             Object[] objects = multiMediaCache.get(req);
             if (objects != null) {
                 multiMediaCache.remove(req);
-                getSendMessagesHelper().performSendMessageRequestMulti(req, (ArrayList<MessageObject>) objects[1], (ArrayList<String>) objects[2], null, (SendMessagesHelper.DelayedMessage) objects[4]);
+                AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().performSendMessageRequestMulti(req, (ArrayList<MessageObject>) objects[1], (ArrayList<String>) objects[2], null, (SendMessagesHelper.DelayedMessage) objects[4], (Boolean) objects[5]));
             }
         } else if (args[0] instanceof TLRPC.TL_messages_sendMedia || args[0] instanceof TLRPC.TL_messages_editMessage) {
-            getSendMessagesHelper().performSendMessageRequest((TLObject) args[0], (MessageObject) args[1], (String) args[2], (SendMessagesHelper.DelayedMessage) args[3], (Boolean) args[4], (SendMessagesHelper.DelayedMessage) args[5], null);
+            AndroidUtilities.runOnUIThread(() -> getSendMessagesHelper().performSendMessageRequest((TLObject) args[0], (MessageObject) args[1], (String) args[2], (SendMessagesHelper.DelayedMessage) args[3], (Boolean) args[4], (SendMessagesHelper.DelayedMessage) args[5], null, (Boolean) args[6]));
         } else if (args[0] instanceof TLRPC.TL_messages_saveGif) {
             TLRPC.TL_messages_saveGif req = (TLRPC.TL_messages_saveGif) args[0];
             //do nothing
@@ -629,6 +641,12 @@ public class FileRefController extends BaseController {
                     wallpapers.add(wallPaper);
                     getMessagesStorage().putWallpapers(wallpapers, 0);
                 }
+            } else if (response instanceof TLRPC.TL_theme) {
+                TLRPC.TL_theme theme = (TLRPC.TL_theme) response;
+                result = getFileReference(theme.document, requester.location, needReplacement, locationReplacement);
+                if (result != null && cache) {
+                    AndroidUtilities.runOnUIThread(() -> Theme.setThemeFileReference(theme));
+                }
             } else if (response instanceof TLRPC.Vector) {
                 TLRPC.Vector vector = (TLRPC.Vector) response;
                 if (!vector.objects.isEmpty()) {
@@ -745,15 +763,15 @@ public class FileRefController extends BaseController {
     }
 
     private void cleanupCache() {
-        if (Math.abs(SystemClock.uptimeMillis() - lastCleanupTime) < 60 * 10 * 1000) {
+        if (Math.abs(SystemClock.elapsedRealtime() - lastCleanupTime) < 60 * 10 * 1000) {
             return;
         }
-        lastCleanupTime = SystemClock.uptimeMillis();
+        lastCleanupTime = SystemClock.elapsedRealtime();
 
         ArrayList<String> keysToDelete = null;
         for (HashMap.Entry<String, CachedResult> entry : responseCache.entrySet()) {
             CachedResult cachedResult = entry.getValue();
-            if (Math.abs(SystemClock.uptimeMillis() - cachedResult.firstQueryTime) >= 60 * 10 * 1000) {
+            if (Math.abs(SystemClock.elapsedRealtime() - cachedResult.firstQueryTime) >= 60 * 10 * 1000) {
                 if (keysToDelete == null) {
                     keysToDelete = new ArrayList<>();
                 }
@@ -769,7 +787,7 @@ public class FileRefController extends BaseController {
 
     private CachedResult getCachedResponse(String key) {
         CachedResult cachedResult = responseCache.get(key);
-        if (cachedResult != null && Math.abs(SystemClock.uptimeMillis() - cachedResult.firstQueryTime) >= 60 * 10 * 1000) {
+        if (cachedResult != null && Math.abs(SystemClock.elapsedRealtime() - cachedResult.firstQueryTime) >= 60 * 10 * 1000) {
             responseCache.remove(key);
             cachedResult = null;
         }
@@ -939,7 +957,18 @@ public class FileRefController extends BaseController {
         if (result != null) {
             return result;
         }
-        if (result == null && webpage.cached_page != null) {
+        if (!webpage.attributes.isEmpty()) {
+            for (int a = 0, size1 = webpage.attributes.size(); a < size1; a++) {
+                TLRPC.TL_webPageAttributeTheme attribute = webpage.attributes.get(a);
+                for (int b = 0, size2 = attribute.documents.size(); b < size2; b++) {
+                    result = getFileReference(attribute.documents.get(b), location, needReplacement, replacement);
+                    if (result != null) {
+                        return result;
+                    }
+                }
+            }
+        }
+        if (webpage.cached_page != null) {
             for (int b = 0, size2 = webpage.cached_page.documents.size(); b < size2; b++) {
                 result = getFileReference(webpage.cached_page.documents.get(b), location, needReplacement, replacement);
                 if (result != null) {

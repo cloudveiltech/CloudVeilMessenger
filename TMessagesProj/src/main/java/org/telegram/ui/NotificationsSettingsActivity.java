@@ -10,6 +10,7 @@ package org.telegram.ui;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.Ringtone;
@@ -22,6 +23,7 @@ import android.util.LongSparseArray;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -118,6 +120,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
     private int resetSection2Row;
     private int resetSectionRow;
     private int resetNotificationsRow;
+    private int resetNotificationsSectionRow;
     private int rowCount = 0;
 
     @Override
@@ -177,6 +180,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
         resetSection2Row = rowCount++;
         resetSectionRow = rowCount++;
         resetNotificationsRow = rowCount++;
+        resetNotificationsSectionRow = rowCount++;
 
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.notificationsSettingsUpdated);
 
@@ -384,11 +388,14 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     type = NotificationsController.TYPE_CHANNEL;
                     exceptions = exceptionChannels;
                 }
+                if (exceptions == null) {
+                    return;
+                }
 
                 NotificationsCheckCell checkCell = (NotificationsCheckCell) view;
-                enabled = NotificationsController.getInstance(currentAccount).isGlobalNotificationsEnabled(type);
+                enabled = getNotificationsController().isGlobalNotificationsEnabled(type);
                 if (LocaleController.isRTL && x <= AndroidUtilities.dp(76) || !LocaleController.isRTL && x >= view.getMeasuredWidth() - AndroidUtilities.dp(76)) {
-                    NotificationsController.getInstance(currentAccount).setGlobalNotificationsEnabled(type, !enabled ? 0 : Integer.MAX_VALUE);
+                    getNotificationsController().setGlobalNotificationsEnabled(type, !enabled ? 0 : Integer.MAX_VALUE);
                     showExceptionsAlert(position);
                     checkCell.setChecked(!enabled, 0);
                     adapter.notifyItemChanged(position);
@@ -425,8 +432,8 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 }
             } else if (position == resetNotificationsRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(LocaleController.getString("ResetNotificationsAlertTitle", R.string.ResetNotificationsAlertTitle));
                 builder.setMessage(LocaleController.getString("ResetNotificationsAlert", R.string.ResetNotificationsAlert));
-                builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
                 builder.setPositiveButton(LocaleController.getString("Reset", R.string.Reset), (dialogInterface, i) -> {
                     if (reseting) {
                         return;
@@ -434,7 +441,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     reseting = true;
                     TLRPC.TL_account_resetNotifySettings req = new TLRPC.TL_account_resetNotifySettings();
                     ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
-                        MessagesController.getInstance(currentAccount).enableJoined = true;
+                        getMessagesController().enableJoined = true;
                         reseting = false;
                         SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                         SharedPreferences.Editor editor = preferences.edit();
@@ -447,10 +454,16 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                             Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("ResetNotificationsText", R.string.ResetNotificationsText), Toast.LENGTH_SHORT);
                             toast.show();
                         }
+                        getMessagesStorage().updateMutedDialogsFiltersCounters();
                     }));
                 });
                 builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                showDialog(builder.create());
+                AlertDialog alertDialog = builder.create();
+                showDialog(alertDialog);
+                TextView button = (TextView) alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                if (button != null) {
+                    button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
+                }
             } else if (position == inappSoundRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 SharedPreferences.Editor editor = preferences.edit();
@@ -475,7 +488,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 enabled = preferences.getBoolean("EnableInChatSound", true);
                 editor.putBoolean("EnableInChatSound", !enabled);
                 editor.commit();
-                NotificationsController.getInstance(currentAccount).setInChatSoundEnabled(!enabled);
+                getNotificationsController().setInChatSoundEnabled(!enabled);
             } else if (position == inappPriorityRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 SharedPreferences.Editor editor = preferences.edit();
@@ -509,30 +522,31 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
             } else if (position == badgeNumberShowRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 SharedPreferences.Editor editor = preferences.edit();
-                enabled = NotificationsController.getInstance(currentAccount).showBadgeNumber;
-                NotificationsController.getInstance(currentAccount).showBadgeNumber = !enabled;
-                editor.putBoolean("badgeNumber", NotificationsController.getInstance(currentAccount).showBadgeNumber);
+                enabled = getNotificationsController().showBadgeNumber;
+                getNotificationsController().showBadgeNumber = !enabled;
+                editor.putBoolean("badgeNumber", getNotificationsController().showBadgeNumber);
                 editor.commit();
-                NotificationsController.getInstance(currentAccount).updateBadge();
+                getNotificationsController().updateBadge();
             } else if (position == badgeNumberMutedRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 SharedPreferences.Editor editor = preferences.edit();
-                enabled = NotificationsController.getInstance(currentAccount).showBadgeMuted;
-                NotificationsController.getInstance(currentAccount).showBadgeMuted = !enabled;
-                editor.putBoolean("badgeNumberMuted", NotificationsController.getInstance(currentAccount).showBadgeMuted);
+                enabled = getNotificationsController().showBadgeMuted;
+                getNotificationsController().showBadgeMuted = !enabled;
+                editor.putBoolean("badgeNumberMuted", getNotificationsController().showBadgeMuted);
                 editor.commit();
-                NotificationsController.getInstance(currentAccount).updateBadge();
+                getNotificationsController().updateBadge();
+                getMessagesStorage().updateMutedDialogsFiltersCounters();
             } else if (position == badgeNumberMessagesRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 SharedPreferences.Editor editor = preferences.edit();
-                enabled = NotificationsController.getInstance(currentAccount).showBadgeMessages;
-                NotificationsController.getInstance(currentAccount).showBadgeMessages = !enabled;
-                editor.putBoolean("badgeNumberMessages", NotificationsController.getInstance(currentAccount).showBadgeMessages);
+                enabled = getNotificationsController().showBadgeMessages;
+                getNotificationsController().showBadgeMessages = !enabled;
+                editor.putBoolean("badgeNumberMessages", getNotificationsController().showBadgeMessages);
                 editor.commit();
-                NotificationsController.getInstance(currentAccount).updateBadge();
+                getNotificationsController().updateBadge();
             } else if (position == notificationsServiceConnectionRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
-                enabled = preferences.getBoolean("pushConnection", true);
+                enabled = preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
                 SharedPreferences.Editor editor = preferences.edit();
                 editor.putBoolean("pushConnection", !enabled);
                 editor.commit();
@@ -561,15 +575,11 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 }
             } else if (position == notificationsServiceRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
-                enabled = preferences.getBoolean("pushService", true);
+                enabled = preferences.getBoolean("pushService", getMessagesController().keepAliveService);
                 SharedPreferences.Editor editor = preferences.edit();
                 editor.putBoolean("pushService", !enabled);
                 editor.commit();
-                if (!enabled) {
-                    ApplicationLoader.startPushService();
-                } else {
-                    ApplicationLoader.stopPushService();
-                }
+                ApplicationLoader.startPushService();
             } else if (position == callsVibrateRow) {
                 if (getParentActivity() == null) {
                     return;
@@ -727,7 +737,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     position == eventsSectionRow || position == otherSectionRow || position == resetSectionRow ||
                     position == badgeNumberSection || position == otherSection2Row || position == resetSection2Row ||
                     position == callsSection2Row || position == callsSectionRow || position == badgeNumberSection2Row ||
-                    position == accountsSectionRow || position == accountsInfoRow);
+                    position == accountsSectionRow || position == accountsInfoRow || position == resetNotificationsSectionRow);
         }
 
         @Override
@@ -813,15 +823,15 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     } else if (position == androidAutoAlertRow) {
                         checkCell.setTextAndCheck("Android Auto", preferences.getBoolean("EnableAutoNotifications", false), true);
                     } else if (position == notificationsServiceRow) {
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsService", R.string.NotificationsService), LocaleController.getString("NotificationsServiceInfo", R.string.NotificationsServiceInfo), preferences.getBoolean("pushService", true), true, true);
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsService", R.string.NotificationsService), LocaleController.getString("NotificationsServiceInfo", R.string.NotificationsServiceInfo), preferences.getBoolean("pushService", getMessagesController().keepAliveService), true, true);
                     } else if (position == notificationsServiceConnectionRow) {
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), preferences.getBoolean("pushConnection", true), true, true);
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection), true, true);
                     } else if (position == badgeNumberShowRow) {
-                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), NotificationsController.getInstance(currentAccount).showBadgeNumber, true);
+                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
                     } else if (position == badgeNumberMutedRow) {
-                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberMutedChats", R.string.BadgeNumberMutedChats), NotificationsController.getInstance(currentAccount).showBadgeMuted, true);
+                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberMutedChats", R.string.BadgeNumberMutedChats), getNotificationsController().showBadgeMuted, true);
                     } else if (position == badgeNumberMessagesRow) {
-                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberUnread", R.string.BadgeNumberUnread), NotificationsController.getInstance(currentAccount).showBadgeMessages, false);
+                        checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberUnread", R.string.BadgeNumberUnread), getNotificationsController().showBadgeMessages, false);
                     } else if (position == inchatSoundRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("InChatSound", R.string.InChatSound), preferences.getBoolean("EnableInChatSound", true), true);
                     } else if (position == callsVibrateRow) {
@@ -886,6 +896,14 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                         builder.append(LocaleController.getString("TapToChange", R.string.TapToChange));
                     }
                     checkCell.setTextAndValueAndCheck(text, builder, enabled, iconType, position != channelsRow);
+                    break;
+                }
+                case 4: {
+                    if (position == resetNotificationsSectionRow) {
+                        holder.itemView.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
+                    } else {
+                        holder.itemView.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
+                    }
                     break;
                 }
                 case 5: {
@@ -954,7 +972,8 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
             } else if (position == privateRow || position == groupRow || position == channelsRow) {
                 return 3;
             } else if (position == eventsSection2Row || position == notificationsSection2Row || position == otherSection2Row ||
-                    position == resetSection2Row || position == callsSection2Row || position == badgeNumberSection2Row) {
+                    position == resetSection2Row || position == callsSection2Row || position == badgeNumberSection2Row ||
+                    position == resetNotificationsSectionRow) {
                 return 4;
             } else if (position == accountsInfoRow) {
                 return 6;
@@ -965,44 +984,46 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
     }
 
     @Override
-    public ThemeDescription[] getThemeDescriptions() {
-        return new ThemeDescription[]{
-                new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, TextCheckCell.class, TextDetailSettingsCell.class, TextSettingsCell.class, NotificationsCheckCell.class}, null, null, null, Theme.key_windowBackgroundWhite),
-                new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray),
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
+        ArrayList<ThemeDescription> themeDescriptions = new ArrayList<>();
 
-                new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault),
-                new ThemeDescription(listView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_actionBarDefault),
-                new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon),
-                new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle),
-                new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_actionBarDefaultSelector),
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, TextCheckCell.class, TextDetailSettingsCell.class, TextSettingsCell.class, NotificationsCheckCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
 
-                new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector),
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_actionBarDefault));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
+        themeDescriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_SELECTORCOLOR, null, null, null, null, Theme.key_actionBarDefaultSelector));
 
-                new ThemeDescription(listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider),
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
 
-                new ThemeDescription(listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader),
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider));
 
-                new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText),
-                new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2),
-                new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrack),
-                new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackChecked),
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
 
-                new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText),
-                new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2),
-                new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrack),
-                new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackChecked),
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrack));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{NotificationsCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackChecked));
 
-                new ThemeDescription(listView, 0, new Class[]{TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText),
-                new ThemeDescription(listView, 0, new Class[]{TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText),
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrack));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackChecked));
 
-                new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{ShadowSectionCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow),
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
 
-                new ThemeDescription(listView, 0, new Class[]{TextDetailSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText),
-                new ThemeDescription(listView, 0, new Class[]{TextDetailSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2),
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{ShadowSectionCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow));
 
-                new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{TextInfoPrivacyCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow),
-                new ThemeDescription(listView, 0, new Class[]{TextInfoPrivacyCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText4),
-                new ThemeDescription(listView, ThemeDescription.FLAG_LINKCOLOR, new Class[]{TextInfoPrivacyCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteLinkText),
-        };
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextDetailSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextDetailSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2));
+
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{TextInfoPrivacyCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextInfoPrivacyCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText4));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_LINKCOLOR, new Class[]{TextInfoPrivacyCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteLinkText));
+
+        return themeDescriptions;
     }
 }

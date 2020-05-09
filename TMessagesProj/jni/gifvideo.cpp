@@ -251,7 +251,7 @@ int64_t seekCallback(void *opaque, int64_t offset, int whence) {
 }
 
 enum PARAM_NUM {
-    PARAM_NUM_IS_AVC = 0,
+    PARAM_NUM_SUPPORTED_VIDEO_CODEC = 0,
     PARAM_NUM_WIDTH = 1,
     PARAM_NUM_HEIGHT = 2,
     PARAM_NUM_BITRATE = 3,
@@ -260,10 +260,12 @@ enum PARAM_NUM {
     PARAM_NUM_VIDEO_FRAME_SIZE = 6,
     PARAM_NUM_FRAMERATE = 7,
     PARAM_NUM_ROTATION = 8,
-    PARAM_NUM_COUNT = 9
+    PARAM_NUM_SUPPORTED_AUDIO_CODEC = 9,
+    PARAM_NUM_HAS_AUDIO = 10,
+    PARAM_NUM_COUNT = 11,
 };
 
-void Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoInfo(JNIEnv *env, jclass clazz, jstring src, jintArray data) {
+void Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoInfo(JNIEnv *env, jclass clazz,jint sdkVersion, jstring src, jintArray data) {
     VideoInfo *info = new VideoInfo();
 
     char const *srcString = env->GetStringUTFChars(src, 0);
@@ -304,8 +306,16 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoInfo(JNIEnv *e
 
     jint *dataArr = env->GetIntArrayElements(data, 0);
     if (dataArr != nullptr) {
-        dataArr[PARAM_NUM_IS_AVC] = info->video_stream->codecpar->codec_id == AV_CODEC_ID_H264;
-        if (strstr(info->fmt_ctx->iformat->name, "mov") != 0 && dataArr[PARAM_NUM_IS_AVC]) {
+        //https://developer.android.com/guide/topics/media/media-formats
+        dataArr[PARAM_NUM_SUPPORTED_VIDEO_CODEC] =
+                info->video_stream->codecpar->codec_id == AV_CODEC_ID_H264 ||
+                info->video_stream->codecpar->codec_id == AV_CODEC_ID_H263 ||
+                info->video_stream->codecpar->codec_id == AV_CODEC_ID_MPEG4 ||
+                info->video_stream->codecpar->codec_id == AV_CODEC_ID_VP8 ||
+                info->video_stream->codecpar->codec_id == AV_CODEC_ID_VP9 ||
+                (sdkVersion > 21 && info->video_stream->codecpar->codec_id == AV_CODEC_ID_HEVC);
+
+        if (strstr(info->fmt_ctx->iformat->name, "mov") != 0 && dataArr[PARAM_NUM_SUPPORTED_VIDEO_CODEC]) {
             MOVStreamContext *mov = (MOVStreamContext *) info->video_stream->priv_data;
             dataArr[PARAM_NUM_VIDEO_FRAME_SIZE] = (jint) mov->data_size;
 
@@ -314,6 +324,25 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoInfo(JNIEnv *e
                 dataArr[PARAM_NUM_AUDIO_FRAME_SIZE] = (jint) mov->data_size;
             }
         }
+
+        if (info->audio_stream != nullptr) {
+            //https://developer.android.com/guide/topics/media/media-formats
+            dataArr[PARAM_NUM_SUPPORTED_AUDIO_CODEC] =
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_AAC ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_AAC_LATM ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_VORBIS ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_AMR_NB ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_AMR_WB ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_FLAC ||
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_MP3 ||
+                    // not supported codec, skip audio in this case
+                    info->audio_stream->codecpar->codec_id == AV_CODEC_ID_ADPCM_IMA_WAV ||
+                    (sdkVersion > 21 && info->audio_stream->codecpar->codec_id == AV_CODEC_ID_OPUS);
+            dataArr[PARAM_NUM_HAS_AUDIO] = 1;
+        } else {
+            dataArr[PARAM_NUM_HAS_AUDIO] = 0;
+        }
+
         dataArr[PARAM_NUM_BITRATE] = (jint) info->video_stream->codecpar->bit_rate;
         dataArr[PARAM_NUM_WIDTH] = info->video_stream->codecpar->width;
         dataArr[PARAM_NUM_HEIGHT] = info->video_stream->codecpar->height;
@@ -338,7 +367,7 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoInfo(JNIEnv *e
     }
 }
 
-jlong Java_org_telegram_ui_Components_AnimatedFileDrawable_createDecoder(JNIEnv *env, jclass clazz, jstring src, jintArray data, jint account, jlong streamFileSize, jobject stream) {
+jlong Java_org_telegram_ui_Components_AnimatedFileDrawable_createDecoder(JNIEnv *env, jclass clazz, jstring src, jintArray data, jint account, jlong streamFileSize, jobject stream, jboolean preview) {
     VideoInfo *info = new VideoInfo();
     
     char const *srcString = env->GetStringUTFChars(src, 0);
@@ -377,6 +406,9 @@ jlong Java_org_telegram_ui_Components_AnimatedFileDrawable_createDecoder(JNIEnv 
             return 0;
         }
         info->fmt_ctx->flags |= AVFMT_FLAG_FAST_SEEK;
+        if (preview) {
+            info->fmt_ctx->flags |= AVFMT_FLAG_NOBUFFER;
+        }
     } else {
         if ((ret = avformat_open_input(&info->fmt_ctx, info->src, NULL, NULL)) < 0) {
             LOGE("can't open source file %s, %s", info->src, av_err2str(ret));
@@ -478,7 +510,7 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_prepareToSeek(JNIEnv *
     info->seeking = true;
 }
 
-void Java_org_telegram_ui_Components_AnimatedFileDrawable_seekToMs(JNIEnv *env, jclass clazz, jlong ptr, jlong ms) {
+void Java_org_telegram_ui_Components_AnimatedFileDrawable_seekToMs(JNIEnv *env, jclass clazz, jlong ptr, jlong ms, jboolean precise) {
     if (ptr == NULL) {
         return;
     }
@@ -491,6 +523,9 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_seekToMs(JNIEnv *env, 
         return;
     } else {
         avcodec_flush_buffers(info->video_dec_ctx);
+        if (!precise) {
+            return;
+        }
         int got_frame = 0;
         int32_t tries = 1000;
         while (tries > 0) {
@@ -544,7 +579,7 @@ void Java_org_telegram_ui_Components_AnimatedFileDrawable_seekToMs(JNIEnv *env, 
     }
 }
     
-jint Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoFrame(JNIEnv *env, jclass clazz, jlong ptr, jobject bitmap, jintArray data, jint stride) {
+jint Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoFrame(JNIEnv *env, jclass clazz, jlong ptr, jobject bitmap, jintArray data, jint stride, jboolean preview) {
     if (ptr == NULL || bitmap == nullptr) {
         return 0;
     }
@@ -552,7 +587,8 @@ jint Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoFrame(JNIEnv *
     VideoInfo *info = (VideoInfo *) (intptr_t) ptr;
     int ret = 0;
     int got_frame = 0;
-    int32_t triesCount = 6;
+    int32_t triesCount = preview ? 50 : 6;
+    //info->has_decoded_frames = false;
     while (!info->stopped && triesCount != 0) {
         if (info->pkt.size == 0) {
             ret = av_read_frame(info->fmt_ctx, &info->pkt);
@@ -586,7 +622,7 @@ jint Java_org_telegram_ui_Components_AnimatedFileDrawable_getVideoFrame(JNIEnv *
                 LOGE("can't decode packet flushed %s", info->src);
                 return 0;
             }
-            if (got_frame == 0) {
+            if (!preview && got_frame == 0) {
                 if (info->has_decoded_frames) {
                     if ((ret = av_seek_frame(info->fmt_ctx, info->video_stream_idx, 0, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME)) < 0) {
                         LOGE("can't seek to begin of file %s, %s", info->src, av_err2str(ret));

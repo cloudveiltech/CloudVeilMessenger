@@ -15,7 +15,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.util.AttributeSet;
 import android.view.View;
 
 import org.telegram.messenger.ImageLocation;
@@ -24,26 +23,12 @@ import org.telegram.messenger.SecureDocument;
 
 public class BackupImageView extends View {
 
-    private ImageReceiver imageReceiver;
-    private int width = -1;
-    private int height = -1;
+    protected ImageReceiver imageReceiver;
+    protected int width = -1;
+    protected int height = -1;
 
     public BackupImageView(Context context) {
         super(context);
-        init();
-    }
-
-    public BackupImageView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
-    }
-
-    public BackupImageView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
-    }
-
-    private void init() {
         imageReceiver = new ImageReceiver(this);
     }
 
@@ -71,8 +56,12 @@ public class BackupImageView extends View {
         setImage(imageLocation, imageFilter, null, null, thumb, null, null, size, parentObject);
     }
 
-    public void setImage(ImageLocation imageLocation, String imageFilter, Bitmap thumb, int size, Object parentObject) {
-        setImage(imageLocation, imageFilter, null, null, null, thumb, null, size, parentObject);
+    public void setImage(ImageLocation imageLocation, String imageFilter, Bitmap thumbBitmap, int size, int cacheType, Object parentObject) {
+        Drawable thumb = null;
+        if (thumbBitmap != null) {
+            thumb = new BitmapDrawable(null, thumbBitmap);
+        }
+        imageReceiver.setImage(imageLocation, imageFilter, null, null, thumb, size, null, parentObject, cacheType);
     }
 
     public void setImage(ImageLocation imageLocation, String imageFilter, ImageLocation thumbLocation, String thumbFilter, int size, Object parentObject) {
@@ -130,7 +119,7 @@ public class BackupImageView extends View {
         invalidate();
     }
 
-    public int getRoundRadius() {
+    public int[] getRoundRadius() {
         return imageReceiver.getRoundRadius();
     }
 

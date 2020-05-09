@@ -93,6 +93,13 @@ public class CameraController implements MediaRecorder.OnInfoListener {
     }
 
     public void initCamera(final Runnable onInitRunnable) {
+        initCamera(onInitRunnable, false);
+    }
+
+    private void initCamera(final Runnable onInitRunnable, boolean withDelay) {
+        if (cameraInitied) {
+            return;
+        }
         if (onInitRunnable != null && !onFinishCameraInitRunnables.contains(onInitRunnable)) {
             onFinishCameraInitRunnables.add(onInitRunnable);
         }
@@ -149,7 +156,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             CameraInfo cameraInfo = new CameraInfo(cameraId, info.facing);
 
                             if (ApplicationLoader.mainInterfacePaused && ApplicationLoader.externalInterfacePaused) {
-                                throw new RuntimeException("app paused");
+                                throw new RuntimeException("APP_PAUSED");
                             }
                             Camera camera = Camera.open(cameraInfo.getCameraId());
                             Camera.Parameters params = camera.getParameters();
@@ -234,7 +241,11 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     onFinishCameraInitRunnables.clear();
                     loadingCameras = false;
                     cameraInitied = false;
+                    if (!withDelay && "APP_PAUSED".equals(e.getMessage())) {
+                        AndroidUtilities.runOnUIThread(() -> initCamera(onInitRunnable, true), 1000);
+                    }
                 });
+
             }
         });
     }
@@ -243,27 +254,30 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         return cameraInitied && cameraInfos != null && !cameraInfos.isEmpty();
     }
 
+    public void runOnThreadPool(Runnable runnable) {
+        threadPool.execute(runnable);
+    }
+
     public void close(final CameraSession session, final CountDownLatch countDownLatch, final Runnable beforeDestroyRunnable) {
         session.destroy();
         threadPool.execute(() -> {
             if (beforeDestroyRunnable != null) {
                 beforeDestroyRunnable.run();
             }
-            if (session.cameraInfo.camera == null) {
-                return;
+            if (session.cameraInfo.camera != null) {
+                try {
+                    session.cameraInfo.camera.stopPreview();
+                    session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    session.cameraInfo.camera.release();
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                session.cameraInfo.camera = null;
             }
-            try {
-                session.cameraInfo.camera.stopPreview();
-                session.cameraInfo.camera.setPreviewCallbackWithBuffer(null);
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-            try {
-                session.cameraInfo.camera.release();
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-            session.cameraInfo.camera = null;
             if (countDownLatch != null) {
                 countDownLatch.countDown();
             }
@@ -620,7 +634,13 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                         Size pictureSize;
                         pictureSize = new Size(16, 9);
                         pictureSize = CameraController.chooseOptimalSize(info.getPictureSizes(), 720, 480, pictureSize);
-                        recorder.setVideoEncodingBitRate(900000 * 2);
+                        int bitrate;
+                        if (Math.min(pictureSize.mHeight,pictureSize.mWidth) >= 720) {
+                            bitrate = 3500000;
+                        } else {
+                            bitrate = 1800000;
+                        }
+                        recorder.setVideoEncodingBitRate(bitrate);
                         recorder.setVideoSize(pictureSize.getWidth(), pictureSize.getHeight());
                         recorder.setOnInfoListener(CameraController.this);
                         recorder.prepare();

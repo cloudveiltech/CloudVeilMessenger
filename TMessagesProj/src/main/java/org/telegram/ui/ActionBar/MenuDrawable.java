@@ -13,6 +13,7 @@ import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.view.animation.DecelerateInterpolator;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -48,11 +49,11 @@ public class MenuDrawable extends Drawable {
         lastFrameTime = 0;
         if (animated) {
             if (currentRotation < rotation) {
-                currentAnimationTime = (int) (currentRotation * 300);
+                currentAnimationTime = (int) (currentRotation * 200);
             } else {
-                currentAnimationTime = (int) ((1.0f - currentRotation) * 300);
+                currentAnimationTime = (int) ((1.0f - currentRotation) * 200);
             }
-            lastFrameTime = System.currentTimeMillis();
+            lastFrameTime = SystemClock.elapsedRealtime();
             finalRotation = rotation;
         } else {
             finalRotation = currentRotation = rotation;
@@ -63,21 +64,22 @@ public class MenuDrawable extends Drawable {
     @Override
     public void draw(Canvas canvas) {
         if (currentRotation != finalRotation) {
+            long newTime = SystemClock.elapsedRealtime();
             if (lastFrameTime != 0) {
-                long dt = System.currentTimeMillis() - lastFrameTime;
+                long dt = newTime - lastFrameTime;
 
                 currentAnimationTime += dt;
-                if (currentAnimationTime >= 300) {
+                if (currentAnimationTime >= 200) {
                     currentRotation = finalRotation;
                 } else {
                     if (currentRotation < finalRotation) {
-                        currentRotation = interpolator.getInterpolation(currentAnimationTime / 300.0f) * finalRotation;
+                        currentRotation = interpolator.getInterpolation(currentAnimationTime / 200.0f) * finalRotation;
                     } else {
-                        currentRotation = 1.0f - interpolator.getInterpolation(currentAnimationTime / 300.0f);
+                        currentRotation = 1.0f - interpolator.getInterpolation(currentAnimationTime / 200.0f);
                     }
                 }
             }
-            lastFrameTime = System.currentTimeMillis();
+            lastFrameTime = newTime;
             invalidateSelf();
         }
 

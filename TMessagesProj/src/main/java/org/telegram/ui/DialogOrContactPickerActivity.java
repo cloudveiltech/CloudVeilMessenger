@@ -39,17 +39,20 @@ import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ScrollSlidingTextTabStrip;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 public class DialogOrContactPickerActivity extends BaseFragment {
 
-    private class ViewPage extends FrameLayout {
+    private static class ViewPage extends FrameLayout {
         private BaseFragment parentFragment;
         private FrameLayout fragmentView;
         private ActionBar actionBar;
         private RecyclerListView listView;
+        private RecyclerListView listView2;
+        private View emptyView;
         private int selectedType;
 
         public ViewPage(Context context) {
@@ -75,6 +78,8 @@ public class DialogOrContactPickerActivity extends BaseFragment {
         --t;
         return t * t * t * t * t + 1.0F;
     };
+
+    private boolean swipeBackEnabled = true;
 
     public DialogOrContactPickerActivity() {
         super();
@@ -106,6 +111,7 @@ public class DialogOrContactPickerActivity extends BaseFragment {
         args.putBoolean("disableSections", true);
         args.putBoolean("needFinishFragment", false);
         args.putBoolean("resetDelegate", false);
+        args.putBoolean("allowSelf", false);
         contactsActivity = new ContactsActivity(args);
         contactsActivity.setDelegate((user, param, activity) -> showBlockAlert(user));
         contactsActivity.onFragmentCreate();
@@ -251,6 +257,12 @@ public class DialogOrContactPickerActivity extends BaseFragment {
                     if (viewPages[a].listView != null) {
                         viewPages[a].listView.setPadding(0, actionBarHeight, 0, 0);
                     }
+                    if (viewPages[a].listView2 != null) {
+                        viewPages[a].listView2.setPadding(0, actionBarHeight, 0, 0);
+                    }
+                    if (viewPages[a].emptyView != null) {
+                        viewPages[a].emptyView.setPadding(0, actionBarHeight, 0, 0);
+                    }
                 }
                 globalIgnoreLayout = false;
 
@@ -313,67 +325,71 @@ public class DialogOrContactPickerActivity extends BaseFragment {
 
             @Override
             protected void onDraw(Canvas canvas) {
-                backgroundPaint.setColor(Theme.getColor(Theme.key_windowBackgroundGray));
+                backgroundPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                 canvas.drawRect(0, actionBar.getMeasuredHeight() + actionBar.getTranslationY(), getMeasuredWidth(), getMeasuredHeight(), backgroundPaint);
             }
 
             @Override
             public boolean onTouchEvent(MotionEvent ev) {
                 if (!parentLayout.checkTransitionAnimation() && !checkTabsAnimationInProgress()) {
+                    if (ev != null) {
+                        if (velocityTracker == null) {
+                            velocityTracker = VelocityTracker.obtain();
+                        }
+                        velocityTracker.addMovement(ev);
+                    }
                     if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN && !startedTracking && !maybeStartTracking) {
                         startedTrackingPointerId = ev.getPointerId(0);
                         maybeStartTracking = true;
                         startedTrackingX = (int) ev.getX();
                         startedTrackingY = (int) ev.getY();
-                        if (velocityTracker != null) {
-                            velocityTracker.clear();
-                        }
+                        velocityTracker.clear();
                     } else if (ev != null && ev.getAction() == MotionEvent.ACTION_MOVE && ev.getPointerId(0) == startedTrackingPointerId) {
-                        if (velocityTracker == null) {
-                            velocityTracker = VelocityTracker.obtain();
-                        }
                         int dx = (int) (ev.getX() - startedTrackingX);
                         int dy = Math.abs((int) ev.getY() - startedTrackingY);
-                        velocityTracker.addMovement(ev);
                         if (startedTracking && (animatingForward && dx > 0 || !animatingForward && dx < 0)) {
                             if (!prepareForMoving(ev, dx < 0)) {
                                 maybeStartTracking = true;
                                 startedTracking = false;
+                                viewPages[0].setTranslationX(0);
+                                viewPages[1].setTranslationX(animatingForward ? viewPages[0].getMeasuredWidth() : -viewPages[0].getMeasuredWidth());
+                                scrollSlidingTextTabStrip.selectTabWithId(viewPages[1].selectedType, 0);
                             }
                         }
                         if (maybeStartTracking && !startedTracking) {
                             float touchSlop = AndroidUtilities.getPixelsInCM(0.3f, true);
-                            if (Math.abs(dx) >= touchSlop && Math.abs(dx) / 3 > dy) {
+                            if (Math.abs(dx) >= touchSlop && Math.abs(dx) > dy) {
                                 prepareForMoving(ev, dx < 0);
                             }
                         } else if (startedTracking) {
+                            viewPages[0].setTranslationX(dx);
                             if (animatingForward) {
-                                viewPages[0].setTranslationX(dx);
                                 viewPages[1].setTranslationX(viewPages[0].getMeasuredWidth() + dx);
                             } else {
-                                viewPages[0].setTranslationX(dx);
                                 viewPages[1].setTranslationX(dx - viewPages[0].getMeasuredWidth());
                             }
                             float scrollProgress = Math.abs(dx) / (float) viewPages[0].getMeasuredWidth();
                             scrollSlidingTextTabStrip.selectTabWithId(viewPages[1].selectedType, scrollProgress);
                         }
-                    } else if (ev != null && ev.getPointerId(0) == startedTrackingPointerId && (ev.getAction() == MotionEvent.ACTION_CANCEL || ev.getAction() == MotionEvent.ACTION_UP || ev.getAction() == MotionEvent.ACTION_POINTER_UP)) {
-                        if (velocityTracker == null) {
-                            velocityTracker = VelocityTracker.obtain();
-                        }
+                    } else if (ev == null || ev.getPointerId(0) == startedTrackingPointerId && (ev.getAction() == MotionEvent.ACTION_CANCEL || ev.getAction() == MotionEvent.ACTION_UP || ev.getAction() == MotionEvent.ACTION_POINTER_UP)) {
                         velocityTracker.computeCurrentVelocity(1000, maximumVelocity);
-                        if (!startedTracking) {
-                            float velX = velocityTracker.getXVelocity();
-                            float velY = velocityTracker.getYVelocity();
-                            if (Math.abs(velX) >= 3000 && Math.abs(velX) > Math.abs(velY)) {
-                                prepareForMoving(ev, velX < 0);
+                        float velX;
+                        float velY;
+                        if (ev != null && ev.getAction() != MotionEvent.ACTION_CANCEL) {
+                            velX = velocityTracker.getXVelocity();
+                            velY = velocityTracker.getYVelocity();
+                            if (!startedTracking) {
+                                if (Math.abs(velX) >= 3000 && Math.abs(velX) > Math.abs(velY)) {
+                                    prepareForMoving(ev, velX < 0);
+                                }
                             }
+                        } else {
+                            velX = 0;
+                            velY = 0;
                         }
                         if (startedTracking) {
                             float x = viewPages[0].getX();
                             tabsAnimation = new AnimatorSet();
-                            float velX = velocityTracker.getXVelocity();
-                            float velY = velocityTracker.getYVelocity();
                             backAnimation = Math.abs(x) < viewPages[0].getMeasuredWidth() / 3.0f && (Math.abs(velX) < 3500 || Math.abs(velX) < Math.abs(velY));
                             float distToMove;
                             float dx;
@@ -444,9 +460,9 @@ public class DialogOrContactPickerActivity extends BaseFragment {
                             });
                             tabsAnimation.start();
                             tabsAnimationInProgress = true;
+                            startedTracking = false;
                         } else {
                             maybeStartTracking = false;
-                            startedTracking = false;
                             actionBar.setEnabled(true);
                             scrollSlidingTextTabStrip.setEnabled(true);
                         }
@@ -483,53 +499,68 @@ public class DialogOrContactPickerActivity extends BaseFragment {
             if (a == 0) {
                 viewPages[a].parentFragment = dialogsActivity;
                 viewPages[a].listView = dialogsActivity.getListView();
+                viewPages[a].listView2 = dialogsActivity.getSearchListView();
+                viewPages[a].emptyView = dialogsActivity.getEmptyView();
             } else if (a == 1) {
                 viewPages[a].parentFragment = contactsActivity;
                 viewPages[a].listView = contactsActivity.getListView();
                 viewPages[a].setVisibility(View.GONE);
             }
+            viewPages[a].listView.setScrollingTouchSlop(RecyclerView.TOUCH_SLOP_PAGING);
             viewPages[a].fragmentView = (FrameLayout) viewPages[a].parentFragment.getFragmentView();
-            viewPages[a].listView.setClipToPadding(false);
             viewPages[a].actionBar = viewPages[a].parentFragment.getActionBar();
             viewPages[a].addView(viewPages[a].fragmentView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             viewPages[a].addView(viewPages[a].actionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
             viewPages[a].actionBar.setVisibility(View.GONE);
 
-            RecyclerView.OnScrollListener onScrollListener = viewPages[a].listView.getOnScrollListener();
-            viewPages[a].listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
-                @Override
-                public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                    onScrollListener.onScrollStateChanged(recyclerView, newState);
-                    if (newState != RecyclerView.SCROLL_STATE_DRAGGING) {
-                        int scrollY = (int) -actionBar.getTranslationY();
-                        int actionBarHeight = ActionBar.getCurrentActionBarHeight();
-                        if (scrollY != 0 && scrollY != actionBarHeight) {
-                            if (scrollY < actionBarHeight / 2) {
-                                viewPages[0].listView.smoothScrollBy(0, -scrollY);
-                            } else {
-                                viewPages[0].listView.smoothScrollBy(0, actionBarHeight - scrollY);
+            for (int i = 0; i < 2; i++) {
+                RecyclerListView listView = i == 0 ? viewPages[a].listView : viewPages[a].listView2;
+                if (listView == null) {
+                    continue;
+                }
+                listView.setClipToPadding(false);
+                RecyclerView.OnScrollListener onScrollListener = listView.getOnScrollListener();
+                listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
+                    @Override
+                    public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                        onScrollListener.onScrollStateChanged(recyclerView, newState);
+                        if (newState != RecyclerView.SCROLL_STATE_DRAGGING) {
+                            int scrollY = (int) -actionBar.getTranslationY();
+                            int actionBarHeight = ActionBar.getCurrentActionBarHeight();
+                            if (scrollY != 0 && scrollY != actionBarHeight) {
+                                if (scrollY < actionBarHeight / 2) {
+                                    viewPages[0].listView.smoothScrollBy(0, -scrollY);
+                                    if (viewPages[0].listView2 != null) {
+                                        viewPages[0].listView2.smoothScrollBy(0, -scrollY);
+                                    }
+                                } else {
+                                    viewPages[0].listView.smoothScrollBy(0, actionBarHeight - scrollY);
+                                    if (viewPages[0].listView2 != null) {
+                                        viewPages[0].listView2.smoothScrollBy(0, actionBarHeight - scrollY);
+                                    }
+                                }
                             }
                         }
                     }
-                }
 
-                @Override
-                public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                    onScrollListener.onScrolled(recyclerView, dx, dy);
-                    if (recyclerView == viewPages[0].listView) {
-                        float currentTranslation = actionBar.getTranslationY();
-                        float newTranslation = currentTranslation - dy;
-                        if (newTranslation < -ActionBar.getCurrentActionBarHeight()) {
-                            newTranslation = -ActionBar.getCurrentActionBarHeight();
-                        } else if (newTranslation > 0) {
-                            newTranslation = 0;
-                        }
-                        if (newTranslation != currentTranslation) {
-                            setScrollY(newTranslation);
+                    @Override
+                    public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                        onScrollListener.onScrolled(recyclerView, dx, dy);
+                        if (recyclerView == viewPages[0].listView || recyclerView == viewPages[0].listView2) {
+                            float currentTranslation = actionBar.getTranslationY();
+                            float newTranslation = currentTranslation - dy;
+                            if (newTranslation < -ActionBar.getCurrentActionBarHeight()) {
+                                newTranslation = -ActionBar.getCurrentActionBarHeight();
+                            } else if (newTranslation > 0) {
+                                newTranslation = 0;
+                            }
+                            if (newTranslation != currentTranslation) {
+                                setScrollY(newTranslation);
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         frameLayout.addView(actionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
@@ -564,6 +595,11 @@ public class DialogOrContactPickerActivity extends BaseFragment {
     }
 
     @Override
+    public boolean isSwipeBackEnabled(MotionEvent event) {
+        return swipeBackEnabled;
+    }
+
+    @Override
     public void onFragmentDestroy() {
         if (dialogsActivity != null) {
             dialogsActivity.onFragmentDestroy();
@@ -578,6 +614,9 @@ public class DialogOrContactPickerActivity extends BaseFragment {
         actionBar.setTranslationY(value);
         for (int a = 0; a < viewPages.length; a++) {
             viewPages[a].listView.setPinnedSectionOffsetY((int) value);
+            if (viewPages[a].listView2 != null) {
+                viewPages[a].listView2.setPinnedSectionOffsetY((int) value);
+            }
         }
         fragmentView.invalidate();
     }
@@ -625,21 +664,30 @@ public class DialogOrContactPickerActivity extends BaseFragment {
     private void switchToCurrentSelectedMode(boolean animated) {
         for (int a = 0; a < viewPages.length; a++) {
             viewPages[a].listView.stopScroll();
+            if (viewPages[a].listView2 != null) {
+                viewPages[a].listView2.stopScroll();
+            }
         }
         int a = animated ? 1 : 0;
-        RecyclerView.Adapter currentAdapter = viewPages[a].listView.getAdapter();
-        viewPages[a].listView.setPinnedHeaderShadowDrawable(null);
-        if (actionBar.getTranslationY() != 0) {
-            LinearLayoutManager layoutManager = (LinearLayoutManager) viewPages[a].listView.getLayoutManager();
-            layoutManager.scrollToPositionWithOffset(0, (int) actionBar.getTranslationY());
+        for (int i = 0; i < 2; i++) {
+            RecyclerListView listView = i == 0 ? viewPages[a].listView : viewPages[a].listView2;
+            if (listView == null) {
+                continue;
+            }
+            RecyclerView.Adapter currentAdapter = listView.getAdapter();
+            listView.setPinnedHeaderShadowDrawable(null);
+            if (actionBar.getTranslationY() != 0) {
+                LinearLayoutManager layoutManager = (LinearLayoutManager) listView.getLayoutManager();
+                layoutManager.scrollToPositionWithOffset(0, (int) actionBar.getTranslationY());
+            }
         }
     }
 
     @Override
-    public ThemeDescription[] getThemeDescriptions() {
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
         ArrayList<ThemeDescription> arrayList = new ArrayList<>();
 
-        arrayList.add(new ThemeDescription(fragmentView, 0, null, null, null, null, Theme.key_windowBackgroundGray));
+        arrayList.add(new ThemeDescription(fragmentView, 0, null, null, null, null, Theme.key_windowBackgroundWhite));
         arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
         arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon));
         arrayList.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_TITLECOLOR, null, null, null, null, Theme.key_actionBarDefaultTitle));
@@ -650,25 +698,9 @@ public class DialogOrContactPickerActivity extends BaseFragment {
         arrayList.add(new ThemeDescription(scrollSlidingTextTabStrip.getTabsContainer(), ThemeDescription.FLAG_BACKGROUNDFILTER | ThemeDescription.FLAG_DRAWABLESELECTEDSTATE, new Class[]{TextView.class}, null, null, null, Theme.key_actionBarTabLine));
         arrayList.add(new ThemeDescription(null, 0, null, null, new Drawable[]{scrollSlidingTextTabStrip.getSelectorDrawable()}, null, Theme.key_actionBarTabSelector));
 
-        /*for (int a = 0; a < viewPages.length; a++) { TODO
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{TextSettingsCell.class, HeaderCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_LISTGLOWCOLOR, null, null, null, null, Theme.key_actionBarDefault));
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_SELECTOR, null, null, null, null, Theme.key_listSelector));
+        arrayList.addAll(dialogsActivity.getThemeDescriptions());
+        arrayList.addAll(contactsActivity.getThemeDescriptions());
 
-            arrayList.add(new ThemeDescription(viewPages[a].listView, 0, new Class[]{View.class}, Theme.dividerPaint, null, null, Theme.key_divider));
-
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{ShadowSectionCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow));
-
-            arrayList.add(new ThemeDescription(viewPages[a].listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
-
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{TextInfoPrivacyCell.class}, null, null, null, Theme.key_windowBackgroundGrayShadow));
-            arrayList.add(new ThemeDescription(viewPages[a].listView, 0, new Class[]{TextInfoPrivacyCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText4));
-
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_CHECKTAG, new Class[]{TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
-            arrayList.add(new ThemeDescription(viewPages[a].listView, 0, new Class[]{TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
-            arrayList.add(new ThemeDescription(viewPages[a].listView, ThemeDescription.FLAG_CHECKTAG, new Class[]{TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteRedText2));
-        }*/
-
-        return arrayList.toArray(new ThemeDescription[0]);
+        return arrayList;
     }
 }

@@ -34,14 +34,14 @@ public class HeaderCell extends FrameLayout {
     private int height = 40;
 
     public HeaderCell(Context context) {
-        this(context, false, 21, 15, false);
+        this(context, Theme.key_windowBackgroundWhiteBlueHeader, 21, 15, false);
     }
 
     public HeaderCell(Context context, int padding) {
-        this(context, false, padding, 15, false);
+        this(context, Theme.key_windowBackgroundWhiteBlueHeader, padding, 15, false);
     }
 
-    public HeaderCell(Context context, boolean dialog, int padding, int topMargin, boolean text2) {
+    public HeaderCell(Context context, String textColorKey, int padding, int topMargin, boolean text2) {
         super(context);
 
         textView = new TextView(getContext());
@@ -50,11 +50,8 @@ public class HeaderCell extends FrameLayout {
         textView.setEllipsize(TextUtils.TruncateAt.END);
         textView.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
         textView.setMinHeight(AndroidUtilities.dp(height - topMargin));
-        if (dialog) {
-            textView.setTextColor(Theme.getColor(Theme.key_dialogTextBlue2));
-        } else {
-            textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueHeader));
-        }
+        textView.setTextColor(Theme.getColor(textColorKey));
+        textView.setTag(textColorKey);
         addView(textView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, padding, topMargin, padding, 0));
 
         if (text2) {
@@ -66,7 +63,7 @@ public class HeaderCell extends FrameLayout {
     }
 
     public void setHeight(int value) {
-        textView.setMinHeight(AndroidUtilities.dp(height) - ((LayoutParams) textView.getLayoutParams()).topMargin);
+        textView.setMinHeight(AndroidUtilities.dp(height = value) - ((LayoutParams) textView.getLayoutParams()).topMargin);
     }
 
     public void setEnabled(boolean value, ArrayList<Animator> animators) {
@@ -82,15 +79,19 @@ public class HeaderCell extends FrameLayout {
         super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
     }
 
-    public void setText(String text) {
+    public void setText(CharSequence text) {
         textView.setText(text);
     }
 
-    public void setText2(String text) {
+    public void setText2(CharSequence text) {
         if (textView2 == null) {
             return;
         }
         textView2.setText(text);
+    }
+
+    public TextView getTextView() {
+        return textView;
     }
 
     public SimpleTextView getTextView2() {
