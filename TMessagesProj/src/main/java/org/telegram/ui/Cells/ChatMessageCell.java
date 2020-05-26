@@ -4349,7 +4349,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     currentPhotoObjectThumb = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 40);
                     photoParentObject = messageObject.photoThumbsObject;
                     //CloudVeil start
-                    if ((!MediaDataController.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document))
+                    if (messageObject!= null &&
+                            messageObject.messageOwner != null &&
+                            messageObject.messageOwner.media != null &&
+                            messageObject.messageOwner.media.document != null
+                            && !MediaDataController.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)
                             && !TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
                         photoImage.setImage(ImageLocation.getForPath(GlobalSecuritySettings.getBlockedImageUrl()),
                                 String.format(Locale.US, "%d_%d", photoWidth, photoHeight),

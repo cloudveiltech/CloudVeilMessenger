@@ -12244,11 +12244,11 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         static final int STEP_ANIMATIONS = 1 << 2;
 
         void assertLayoutStep(int accepted) {
-            if ((accepted & mLayoutStep) == 0) {
+         /*   if ((accepted & mLayoutStep) == 0) {
                 throw new IllegalStateException("Layout state should be one of "
                         + Integer.toBinaryString(accepted) + " but it is "
                         + Integer.toBinaryString(mLayoutStep));
-            }
+            }*/
         }
 
 

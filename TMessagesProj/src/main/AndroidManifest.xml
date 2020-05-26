@@ -401,7 +401,7 @@
         <meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="face,barcode" />
 
         <meta-data android:name="android.max_aspect" android:value="2.5" />
-
+         <meta-data android:name="io.sentry.dsn" android:value="https://2ead39436a3f4f02a9edb94e7bacf0bc:779d1c4fa455460db60df17a1743c16c@sentry.cloudveil.org/19" />
     </application>
 
 </manifest>

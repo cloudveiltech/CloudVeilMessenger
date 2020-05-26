@@ -179,6 +179,7 @@ public class ChannelCheckingService extends Service {
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
+
                 observeOn(AndroidSchedulers.mainThread()).
                 subscribe(settingsResponse -> {
                     processResponse(settingsResponse);
@@ -188,8 +189,13 @@ public class ChannelCheckingService extends Service {
                     stopForeground(true);
                     stopSelf();
                 }, throwable -> {
+                    if (cached != null) {
+                        processResponse(cached);
+                    }
                     throwable.printStackTrace();
                     freeSubscription();
+                    stopForeground(true);
+                    stopSelf();
                 });
     }
 
@@ -236,7 +242,7 @@ public class ChannelCheckingService extends Service {
     }
 
     private void processResponse(@NonNull SettingsResponse settingsResponse) {
-        if (settingsResponse.access == null || !settingsResponse.access.isValid()) {
+        if (settingsResponse == null || settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
 

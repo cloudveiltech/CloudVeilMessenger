@@ -9298,7 +9298,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             boolean isDialogAllowed = cloudVeilDialogHelper.isDialogIdAllowed(dialog_id);
             if (cloudVeilDialogHelper.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
                 if(chatAdapter != null) {
-                    chatAdapter.notifyDataSetChanged();
+                    getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
                 }
             } else if (!isDialogAllowed) {
                 showWarning(this, cloudVeilDialogHelper.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
@@ -11949,7 +11949,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
         }
         if (chatAdapter != null) {
-            chatAdapter.notifyDataSetChanged();
+            getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
         }
         //CloudVeil end
     }
