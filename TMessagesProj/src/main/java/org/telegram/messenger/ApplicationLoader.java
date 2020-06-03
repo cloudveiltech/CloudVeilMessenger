@@ -30,6 +30,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.firebase.iid.FirebaseInstanceId;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.ForegroundDetector;
@@ -199,7 +200,9 @@ public class ApplicationLoader extends Application {
     public static void startPushService() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled;
-        if (preferences.contains("pushService")) {
+        //CloudVeil start
+        if (preferences.contains("pushService") || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+        //CloudVeil end
             enabled = preferences.getBoolean("pushService", true);
         } else {
             enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);

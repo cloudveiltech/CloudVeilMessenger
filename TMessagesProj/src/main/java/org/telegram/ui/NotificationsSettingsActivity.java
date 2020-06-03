@@ -26,6 +26,7 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
@@ -548,7 +549,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 enabled = preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
                 SharedPreferences.Editor editor = preferences.edit();
-                editor.putBoolean("pushConnection", !enabled);
+                //CLoudVeil start
+                editor.putBoolean("pushConnection", !enabled || GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE);
+                //CloudVeil end
                 editor.commit();
                 if (!enabled) {
                     ConnectionsManager.getInstance(currentAccount).setPushConnectionEnabled(true);
@@ -823,9 +826,17 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     } else if (position == androidAutoAlertRow) {
                         checkCell.setTextAndCheck("Android Auto", preferences.getBoolean("EnableAutoNotifications", false), true);
                     } else if (position == notificationsServiceRow) {
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsService", R.string.NotificationsService), LocaleController.getString("NotificationsServiceInfo", R.string.NotificationsServiceInfo), preferences.getBoolean("pushService", getMessagesController().keepAliveService), true, true);
+                        //CloudVeil start
+                        boolean v = GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE || preferences.getBoolean("pushService", getMessagesController().keepAliveService);
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsService", R.string.NotificationsService), LocaleController.getString("NotificationsServiceInfo", R.string.NotificationsServiceInfo), v, true, true);
+                        checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE, null);
+                        //CloudVeil end
                     } else if (position == notificationsServiceConnectionRow) {
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection), true, true);
+                        //CloudVeil start
+                        boolean v = GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE || preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), v, true, true);
+                        checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE, null);
+                        //CloudVeil end
                     } else if (position == badgeNumberShowRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
                     } else if (position == badgeNumberMutedRow) {

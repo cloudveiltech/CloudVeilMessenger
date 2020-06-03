@@ -12,6 +12,8 @@ import org.telegram.messenger.BuildConfig;
  */
 
 public class GlobalSecuritySettings {
+    public static final boolean LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE = true;
+    public static final boolean LOCK_FORCE_ENABLE_BACKGROUND_SERVICE = true;
     public static final boolean LOCK_DISABLE_DELETE_CHAT = false;
     public static final boolean LOCK_DISABLE_BOTS = false;
     public static final boolean LOCK_DISABLE_YOUTUBE_VIDEO = true;

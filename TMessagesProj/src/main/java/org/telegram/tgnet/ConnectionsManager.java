@@ -13,6 +13,7 @@ import android.util.Base64;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.telegram.messenger.AccountInstance;
@@ -213,7 +214,9 @@ public class ConnectionsManager extends BaseController {
     public boolean isPushConnectionEnabled() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         if (preferences.contains("pushConnection")) {
-            return preferences.getBoolean("pushConnection", true);
+            //CloudVeil start
+            return preferences.getBoolean("pushConnection", true) || GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE;
+            //CloudVeil end
         } else {
             return MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("backgroundConnection", false);
         }

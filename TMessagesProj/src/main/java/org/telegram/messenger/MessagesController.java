@@ -27,6 +27,7 @@ import android.widget.Toast;
 
 import androidx.core.app.NotificationManagerCompat;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.SparseLongArray;
@@ -1106,8 +1107,10 @@ public class MessagesController extends BaseController implements NotificationCe
                             if (value.value instanceof TLRPC.TL_jsonBool) {
                                 TLRPC.TL_jsonBool bool = (TLRPC.TL_jsonBool) value.value;
                                 if (bool.value != keepAliveService) {
-                                    keepAliveService = bool.value;
+                                    //CloudVeil start
+                                    keepAliveService = bool.value || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE;
                                     editor.putBoolean("keepAliveService", keepAliveService);
+                                    //CloudVeil end
                                     changed = true;
                                     keelAliveChanged = true;
                                 }
