@@ -11948,7 +11948,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         } else {
             ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
         }
-        if (chatAdapter != null) {
+        if (chatAdapter != null && getParentActivity() != null) {
             getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
         }
         //CloudVeil end
