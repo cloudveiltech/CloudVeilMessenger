@@ -39,6 +39,8 @@ import java.io.File;
 
 import androidx.multidex.MultiDex;
 
+import static com.microsoft.appcenter.utils.storage.SharedPreferencesManager.putBoolean;
+
 public class ApplicationLoader extends Application {
 
     @SuppressLint("StaticFieldLeak")
@@ -184,6 +186,7 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
 
+
         if (applicationContext == null) {
             applicationContext = getApplicationContext();
         }
@@ -193,6 +196,20 @@ public class ApplicationLoader extends Application {
         new ForegroundDetector(this);
 
         applicationHandler = new Handler(applicationContext.getMainLooper());
+
+        //CloudVeil start
+        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+        SharedPreferences.Editor edit = preferences.edit();
+        if (edit != null) {
+            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
+                edit.putBoolean("pushConnection", true);
+            }
+            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+                edit.putBoolean("pushService", true);
+            }
+            edit.commit();
+        }
+        //CloudVeil end
 
         AndroidUtilities.runOnUIThread(ApplicationLoader::startPushService);
     }
