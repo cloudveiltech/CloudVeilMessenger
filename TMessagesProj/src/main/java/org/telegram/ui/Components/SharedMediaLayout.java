@@ -2823,9 +2823,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                             ArticleViewer.getInstance().open(message);
                             return;
                         } else if (webPage.embed_url != null && webPage.embed_url.length() != 0) {
-                            openWebView(webPage);
-                            return;
-                        } else {
+                            //CloudVeil start
+                            link = webPage.embed_url;
+                            //CloudVeil end
+                        }else {
                             link = webPage.url;
                         }
                     }
