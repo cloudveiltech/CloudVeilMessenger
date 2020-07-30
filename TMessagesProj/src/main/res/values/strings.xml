@@ -3638,4 +3638,6 @@
     <string name="cancel">Cancel</string>
     <string name="resolve">Resolve</string>
     <string name="fetching_data">Fetching data</string>
+    <string name="checkPowerSaving">Enable battery optimization alert</string>
+    <string name="checkPowerSavingInfo">Check battery optimization setting on app start</string>
 </resources>

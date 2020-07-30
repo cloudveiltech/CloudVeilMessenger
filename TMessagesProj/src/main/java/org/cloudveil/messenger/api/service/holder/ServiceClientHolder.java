@@ -12,6 +12,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import com.google.gson.LongSerializationPolicy;
 
 import org.cloudveil.messenger.api.service.interceptor.HttpLoggingInterceptor;
 
@@ -34,6 +35,7 @@ class ServiceClientHolder<T> {
     protected Retrofit createRestAdapter(String endpoint) {
         Gson gson = new GsonBuilder()
                 .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                .setLongSerializationPolicy(LongSerializationPolicy.STRING)
                 .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter())
                 .create();
 

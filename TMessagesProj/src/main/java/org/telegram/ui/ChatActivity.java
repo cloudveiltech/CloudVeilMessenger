@@ -11965,13 +11965,20 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         return false;
     }
 
-    public static void showBatteryWarning(BaseFragment fragment, final Context context) {
+    public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
             return;
         }
         if (!isBatteryOptimized(context)) {
             return;
         }
+
+        SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
+        boolean alertEnabled = preferences.getBoolean("checkPowerSavingOnStart", true);
+        if(!alertEnabled) {
+            return;
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle(context.getString(R.string.warning))
                 .setMessage(context.getString(R.string.cloudveil_battery_warning))
@@ -13383,7 +13390,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             showWarning(this, CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
         } else {
-            showBatteryWarning(this, getParentActivity());
+            showBatteryWarning(this, currentAccount, getParentActivity());
         }
         //CloudVeil end
 

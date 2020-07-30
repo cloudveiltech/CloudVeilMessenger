@@ -122,6 +122,10 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
     private int resetSectionRow;
     private int resetNotificationsRow;
     private int resetNotificationsSectionRow;
+
+    //Cloudveil start
+    private int checkPowerSavingOnStartRow;
+    //Cloudveil end
     private int rowCount = 0;
 
     @Override
@@ -176,6 +180,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
         otherSectionRow = rowCount++;
         notificationsServiceRow = rowCount++;
         notificationsServiceConnectionRow = rowCount++;
+        //CloudVeil start
+        checkPowerSavingOnStartRow = rowCount++;
+        //CloudVeil end
         androidAutoAlertRow = -1;
         repeatRow = rowCount++;
         resetSection2Row = rowCount++;
@@ -558,6 +565,14 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 } else {
                     ConnectionsManager.getInstance(currentAccount).setPushConnectionEnabled(false);
                 }
+                //CloudVeil start
+            } else if(position == checkPowerSavingOnStartRow) {
+                SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
+                enabled = preferences.getBoolean("checkPowerSavingOnStart", true);
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putBoolean("checkPowerSavingOnStart", !enabled);
+                editor.commit();
+                //CloudVeil end
             } else if (position == accountsAllRow) {
                 SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
                 enabled = preferences.getBoolean("AllAccounts", true);
@@ -836,8 +851,12 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                         boolean v = GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE || preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
                         checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), v, true, true);
                         checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE, null);
-                        //CloudVeil end
-                    } else if (position == badgeNumberShowRow) {
+                    } else if (position == checkPowerSavingOnStartRow) {
+                        boolean v = preferences.getBoolean("checkPowerSavingOnStart", true);
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("checkPowerSaving", R.string.checkPowerSaving), LocaleController.getString("checkPowerSavingInfo", R.string.checkPowerSavingInfo), v, true, true);
+                    }
+                    //CloudVeil end
+                    else if (position == badgeNumberShowRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
                     } else if (position == badgeNumberMutedRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberMutedChats", R.string.BadgeNumberMutedChats), getNotificationsController().showBadgeMuted, true);
@@ -976,7 +995,11 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     position == inappPreviewRow || position == contactJoinedRow || position == pinnedMessageRow ||
                     position == notificationsServiceRow || position == badgeNumberMutedRow || position == badgeNumberMessagesRow ||
                     position == badgeNumberShowRow || position == inappPriorityRow || position == inchatSoundRow ||
-                    position == androidAutoAlertRow || position == accountsAllRow) {
+                    position == androidAutoAlertRow || position == accountsAllRow
+                    //CloudVeil start
+                    || position == checkPowerSavingOnStartRow
+                    // Cloudveil end
+                ) {
                 return 1;
             } else if (position == resetNotificationsRow) {
                 return 2;
