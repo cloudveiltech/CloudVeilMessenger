@@ -150,7 +150,7 @@ android {
             jniDebuggable false
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled true
+            minifyEnabled false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             ndk.debugSymbolLevel = 'FULL'
@@ -160,7 +160,7 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled true
+            minifyEnabled false
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
