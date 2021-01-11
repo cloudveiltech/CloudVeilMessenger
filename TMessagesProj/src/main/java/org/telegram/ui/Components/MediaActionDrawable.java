@@ -2,7 +2,6 @@ package org.telegram.ui.Components;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
-import android.graphics.CornerPathEffect;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -41,21 +40,10 @@ public class MediaActionDrawable extends Drawable {
     private Paint backPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint paint2 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint paint3 = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private Path path1 = new Path();
-    private Path path2 = new Path();
     private RectF rect = new RectF();
     private ColorFilter colorFilter;
     private float scale = 1.0f;
     private DecelerateInterpolator interpolator = new DecelerateInterpolator();
-
-    private final static float[] playPath1 = new float[] {18, 15, 34, 24, 34, 24, 18, 24, 18, 24};
-    private final static float[] playPath2 = new float[] {18, 33, 34, 24, 34, 24, 18, 24, 18, 24};
-    private final static float[] playFinalPath = new float[] {18, 15, 34, 24, 18, 33};
-    private final static int playRotation = 0;
-
-    private final static float[] pausePath1 = new float[] {16, 17, 32, 17, 32, 22, 16, 22, 16, 19.5f};
-    private final static float[] pausePath2 = new float[] {16, 31, 32, 31, 32, 26, 16, 26, 16, 28.5f};
-    private final static int pauseRotation = 90;
 
     private boolean isMini;
 
@@ -111,7 +99,6 @@ public class MediaActionDrawable extends Drawable {
         textPaint.setColor(0xffffffff);
 
         paint2.setColor(0xffffffff);
-        paint2.setPathEffect(new CornerPathEffect(AndroidUtilities.dp(2)));
     }
 
     @Override
@@ -170,7 +157,9 @@ public class MediaActionDrawable extends Drawable {
             if (currentIcon == icon || nextIcon == icon) {
                 return false;
             }
-            if (currentIcon == ICON_DOWNLOAD && (icon == ICON_CANCEL || icon == ICON_CANCEL_FILL)) {
+            if (currentIcon == ICON_PLAY && icon == ICON_PAUSE || currentIcon == ICON_PAUSE && icon == ICON_PLAY) {
+                transitionAnimationTime = 300.0f;
+            } else if (currentIcon == ICON_DOWNLOAD && (icon == ICON_CANCEL || icon == ICON_CANCEL_FILL)) {
                 transitionAnimationTime = 400.0f;
             } else if (currentIcon != ICON_NONE && icon == ICON_CHECK) {
                 transitionAnimationTime = 360.0f;
@@ -228,6 +217,10 @@ public class MediaActionDrawable extends Drawable {
         invalidateSelf();
     }
 
+    public float getProgress() {
+        return downloadProgress;
+    }
+
     private float getCircleValue(float value) {
         while (value > 360) {
             value -= 360;
@@ -275,7 +268,7 @@ public class MediaActionDrawable extends Drawable {
         if (messageDrawable != null && messageDrawable.hasGradient() && !hasOverlayImage) {
             LinearGradient shader = messageDrawable.getGradientShader();
             Matrix matrix = messageDrawable.getMatrix();
-            matrix.postTranslate(0, bounds.top);
+            matrix.setTranslate(0, -messageDrawable.getTopY() + bounds.top);
             shader.setLocalMatrix(matrix);
             paint.setShader(shader);
             paint2.setShader(shader);
@@ -447,11 +440,10 @@ public class MediaActionDrawable extends Drawable {
                 float backProgress;
                 if (nextIcon == ICON_CHECK) {
                     progress = Math.min(1.0f, transitionProgress / CANCEL_TO_CHECK_STAGE1);
-                    backProgress = 1.0f - progress;
                 } else {
                     progress = transitionProgress;
-                    backProgress = 1.0f - progress;
                 }
+                backProgress = 1.0f - progress;
                 rotation = 45 * progress;
                 d = AndroidUtilities.dp(7) * backProgress * scale;
                 alpha = (int) (255 * Math.min(1.0f, backProgress * 2.0f));
@@ -656,115 +648,59 @@ public class MediaActionDrawable extends Drawable {
         if (currentIcon == ICON_PLAY || currentIcon == ICON_PAUSE || nextIcon == ICON_PLAY || nextIcon == ICON_PAUSE) {
             float p;
             if (currentIcon == ICON_PLAY && nextIcon == ICON_PAUSE || currentIcon == ICON_PAUSE && nextIcon == ICON_PLAY) {
-                p = animatingTransition ? interpolator.getInterpolation(transitionProgress) : 0.0f;
+                if (animatingTransition) {
+                    if (nextIcon == ICON_PLAY) {
+                        p = 1.0f - transitionProgress;
+                    } else {
+                        p = transitionProgress;
+                    }
+                } else {
+                    p = nextIcon == ICON_PAUSE ? 1.0f : 0.0f;
+                }
             } else {
-                p = 0.0f;
+                p = currentIcon == ICON_PAUSE ? 1.0f : 0.0f;
             }
 
-            path1.reset();
-            path2.reset();
-
-            float[] p1;
-            float[] p2;
-
-            float[] p3;
-            float[] p4;
-
-            float[] finalPath = null;
-
-            int rotation1;
-            int rotation2;
-
-            switch (currentIcon) {
-                case ICON_PLAY:
-                    p1 = playPath1;
-                    p2 = playPath2;
-                    finalPath = playFinalPath;
-                    rotation1 = playRotation;
-                    break;
-                case ICON_PAUSE:
-                    p1 = pausePath1;
-                    p2 = pausePath2;
-                    rotation1 = pauseRotation;
-                    break;
-                default:
-                    rotation1 = 0;
-                    p1 = p2 = null;
-                    break;
-            }
-
-            switch (nextIcon) {
-                case ICON_PLAY:
-                    p3 = playPath1;
-                    p4 = playPath2;
-                    rotation2 = playRotation;
-                    break;
-                case ICON_PAUSE:
-                    p3 = pausePath1;
-                    p4 = pausePath2;
-                    rotation2 = pauseRotation;
-                    break;
-                default:
-                    rotation2 = 0;
-                    p3 = p4 = null;
-                    break;
-            }
-
-            if (p1 == null) {
-                p1 = p3;
-                p2 = p4;
-                p3 = null;
-                p4 = null;
-            }
-            if (!animatingTransition && finalPath != null) {
-                for (int a = 0; a < finalPath.length / 2; a++) {
-                    if (a == 0) {
-                        path1.moveTo(AndroidUtilities.dp(finalPath[a * 2]) * scale, AndroidUtilities.dp(finalPath[a * 2 + 1]) * scale);
-                        path2.moveTo(AndroidUtilities.dp(finalPath[a * 2]) * scale, AndroidUtilities.dp(finalPath[a * 2 + 1]) * scale);
-                    } else {
-                        path1.lineTo(AndroidUtilities.dp(finalPath[a * 2]) * scale, AndroidUtilities.dp(finalPath[a * 2 + 1]) * scale);
-                        path2.lineTo(AndroidUtilities.dp(finalPath[a * 2]) * scale, AndroidUtilities.dp(finalPath[a * 2 + 1]) * scale);
-                    }
-                }
-            } else if (p3 == null) {
-                for (int a = 0; a < 5; a++) {
-                    if (a == 0) {
-                        path1.moveTo(AndroidUtilities.dp(p1[a * 2]) * scale, AndroidUtilities.dp(p1[a * 2 + 1]) * scale);
-                        path2.moveTo(AndroidUtilities.dp(p2[a * 2]) * scale, AndroidUtilities.dp(p2[a * 2 + 1]) * scale);
-                    } else {
-                        path1.lineTo(AndroidUtilities.dp(p1[a * 2]) * scale, AndroidUtilities.dp(p1[a * 2 + 1]) * scale);
-                        path2.lineTo(AndroidUtilities.dp(p2[a * 2]) * scale, AndroidUtilities.dp(p2[a * 2 + 1]) * scale);
-                    }
-                }
+            if (nextIcon != ICON_PLAY && nextIcon != ICON_PAUSE || currentIcon != ICON_PLAY && currentIcon != ICON_PAUSE) {
                 if (nextIcon == ICON_NONE) {
                     paint2.setAlpha((int) (255 * (1.0f - transitionProgress)));
                 } else {
                     paint2.setAlpha(currentIcon == nextIcon ? 255 : (int) (transitionProgress * 255));
                 }
             } else {
-                for (int a = 0; a < 5; a++) {
-                    if (a == 0) {
-                        path1.moveTo(AndroidUtilities.dp(p1[a * 2] + (p3[a * 2] - p1[a * 2]) * p) * scale, AndroidUtilities.dp(p1[a * 2 + 1] + (p3[a * 2 + 1] - p1[a * 2 + 1]) * p) * scale);
-                        path2.moveTo(AndroidUtilities.dp(p2[a * 2] + (p4[a * 2] - p2[a * 2]) * p) * scale, AndroidUtilities.dp(p2[a * 2 + 1] + (p4[a * 2 + 1] - p2[a * 2 + 1]) * p) * scale);
-                    } else {
-                        path1.lineTo(AndroidUtilities.dp(p1[a * 2] + (p3[a * 2] - p1[a * 2]) * p) * scale, AndroidUtilities.dp(p1[a * 2 + 1] + (p3[a * 2 + 1] - p1[a * 2 + 1]) * p) * scale);
-                        path2.lineTo(AndroidUtilities.dp(p2[a * 2] + (p4[a * 2] - p2[a * 2]) * p) * scale, AndroidUtilities.dp(p2[a * 2 + 1] + (p4[a * 2 + 1] - p2[a * 2 + 1]) * p) * scale);
-                    }
-                }
                 paint2.setAlpha(255);
             }
 
-            path1.close();
-            path2.close();
-
             canvas.save();
-            canvas.translate(bounds.left, bounds.top);
-            canvas.rotate(rotation1 + (rotation2 - rotation1) * p, cx - bounds.left, cy - bounds.top);
-            if (currentIcon != ICON_PLAY && currentIcon != ICON_PAUSE || currentIcon == ICON_NONE) {
-                canvas.scale(drawableScale, drawableScale, cx - bounds.left, cy - bounds.top);
+            canvas.translate(bounds.centerX() + AndroidUtilities.dp(1) * (1.0f - p), bounds.centerY());
+            float ms = 500.0f * p;
+            float rotation = currentIcon == ICON_PAUSE ? 90 : 0;
+            if (currentIcon == ICON_PLAY && nextIcon == ICON_PAUSE) {
+                if (ms < 384) {
+                    rotation = 95 * CubicBezierInterpolator.EASE_BOTH.getInterpolation(ms / 384);
+                } else if (ms < 484) {
+                    rotation = 95 - 5 * CubicBezierInterpolator.EASE_BOTH.getInterpolation((ms - 384) / 100.0f);
+                } else {
+                    rotation = 90;
+                }
+                ms += 100;
+            } else if (currentIcon == ICON_PAUSE && nextIcon == ICON_PLAY) {
+                if (ms < 100) {
+                    rotation = -5 * CubicBezierInterpolator.EASE_BOTH.getInterpolation(ms / 100.0f);
+                } else if (ms < 484) {
+                    rotation = -5 + 95 * CubicBezierInterpolator.EASE_BOTH.getInterpolation((ms - 100) / 384);
+                } else {
+                    rotation = 90;
+                }
             }
-            canvas.drawPath(path1, paint2);
-            canvas.drawPath(path2, paint2);
+            canvas.rotate(rotation);
+            if (currentIcon != ICON_PLAY && currentIcon != ICON_PAUSE || currentIcon == ICON_NONE) {
+                canvas.scale(drawableScale, drawableScale);
+            }
+            Theme.playPauseAnimator.draw(canvas, paint2, ms);
+            canvas.scale(1.0f, -1.0f);
+            Theme.playPauseAnimator.draw(canvas, paint2, ms);
+
             canvas.restore();
         }
         if (currentIcon == ICON_CHECK || nextIcon == ICON_CHECK) {
@@ -779,13 +715,18 @@ public class MediaActionDrawable extends Drawable {
                     progress1 = 1.0f;
                     progress2 = 0.0f;
                 }
+                paint.setAlpha(255);
             } else {
                 progress1 = 0.0f;
                 progress2 = 1.0f;
+                if (nextIcon != ICON_CHECK) {
+                    paint.setAlpha((int) (255 * (1.0f - transitionProgress)));
+                } else {
+                    paint.setAlpha(255);
+                }
             }
             int y = cy + AndroidUtilities.dp(7);
             int x = cx - AndroidUtilities.dp(3);
-            paint.setAlpha(255);
             if (progress1 < 1) {
                 canvas.drawLine(x - AndroidUtilities.dp(6), y - AndroidUtilities.dp(6), x - AndroidUtilities.dp(6) * progress1, y - AndroidUtilities.dp(6) * progress1, paint);
             }

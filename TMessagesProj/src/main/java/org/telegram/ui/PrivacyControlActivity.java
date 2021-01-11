@@ -144,15 +144,15 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
             message.date = date + 60;
             message.dialog_id = 1;
             message.flags = 257 + TLRPC.MESSAGE_FLAG_FWD;
-            message.from_id = 0;
+            message.from_id = new TLRPC.TL_peerUser();
             message.id = 1;
             message.fwd_from = new TLRPC.TL_messageFwdHeader();
             message.fwd_from.from_name = ContactsController.formatName(currentUser.first_name, currentUser.last_name);
             message.media = new TLRPC.TL_messageMediaEmpty();
             message.out = false;
-            message.to_id = new TLRPC.TL_peerUser();
-            message.to_id.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
-            messageObject = new MessageObject(currentAccount, message, true);
+            message.peer_id = new TLRPC.TL_peerUser();
+            message.peer_id.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+            messageObject = new MessageObject(currentAccount, message, true, false);
             messageObject.eventId = 1;
             messageObject.resetLayout();
 
@@ -199,13 +199,11 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
                     float scale = 2.0f / AndroidUtilities.density;
                     canvas.scale(scale, scale);
                     backgroundDrawable.setBounds(0, 0, (int) Math.ceil(getMeasuredWidth() / scale), (int) Math.ceil(getMeasuredHeight() / scale));
-                    backgroundDrawable.draw(canvas);
-                    canvas.restore();
                 } else {
                     int viewHeight = getMeasuredHeight();
                     float scaleX = (float) getMeasuredWidth() / (float) backgroundDrawable.getIntrinsicWidth();
                     float scaleY = (float) (viewHeight) / (float) backgroundDrawable.getIntrinsicHeight();
-                    float scale = scaleX < scaleY ? scaleY : scaleX;
+                    float scale = Math.max(scaleX, scaleY);
                     int width = (int) Math.ceil(backgroundDrawable.getIntrinsicWidth() * scale);
                     int height = (int) Math.ceil(backgroundDrawable.getIntrinsicHeight() * scale);
                     int x = (getMeasuredWidth() - width) / 2;
@@ -213,9 +211,9 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
                     canvas.save();
                     canvas.clipRect(0, 0, width, getMeasuredHeight());
                     backgroundDrawable.setBounds(x, y, x + width, y + height);
-                    backgroundDrawable.draw(canvas);
-                    canvas.restore();
                 }
+                backgroundDrawable.draw(canvas);
+                canvas.restore();
             } else {
                 super.onDraw(canvas);
             }
@@ -328,7 +326,7 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
         });
 
         ActionBarMenu menu = actionBar.createMenu();
-        doneButton = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56));
+        doneButton = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
         boolean hasChanges = hasChanges();
         doneButton.setAlpha(hasChanges ? 1.0f : 0.0f);
         doneButton.setScaleX(hasChanges ? 1.0f : 0.0f);
@@ -811,15 +809,16 @@ public class PrivacyControlActivity extends BaseFragment implements Notification
 
     private void setMessageText() {
         if (messageCell != null) {
+            messageCell.messageObject.messageOwner.fwd_from.from_id = new TLRPC.TL_peerUser();
             if (currentType == TYPE_EVERYBODY) {
                 messageCell.hintView.setOverrideText(LocaleController.getString("PrivacyForwardsEverybody", R.string.PrivacyForwardsEverybody));
-                messageCell.messageObject.messageOwner.fwd_from.from_id = 1;
+                messageCell.messageObject.messageOwner.fwd_from.from_id.user_id = 1;
             } else if (currentType == TYPE_NOBODY) {
                 messageCell.hintView.setOverrideText(LocaleController.getString("PrivacyForwardsNobody", R.string.PrivacyForwardsNobody));
-                messageCell.messageObject.messageOwner.fwd_from.from_id = 0;
+                messageCell.messageObject.messageOwner.fwd_from.from_id.user_id = 0;
             } else {
                 messageCell.hintView.setOverrideText(LocaleController.getString("PrivacyForwardsContacts", R.string.PrivacyForwardsContacts));
-                messageCell.messageObject.messageOwner.fwd_from.from_id = 1;
+                messageCell.messageObject.messageOwner.fwd_from.from_id.user_id = 1;
             }
             messageCell.cell.forceResetMessageObject();
         }

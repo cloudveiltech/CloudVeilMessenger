@@ -81,11 +81,13 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
     private boolean ignoreLayout;
 
     private ArrayList<MediaController.AudioEntry> audioEntries = new ArrayList<>();
+    private ArrayList<MediaController.AudioEntry> selectedAudiosOrder = new ArrayList<>();
     private LongSparseArray<MediaController.AudioEntry> selectedAudios = new LongSparseArray<>();
 
     private AudioSelectDelegate delegate;
 
     private MessageObject playingAudio;
+    private float currentPanTranslationProgress;
 
     public interface AudioSelectDelegate {
         void didSelectAudio(ArrayList<MessageObject> audios, CharSequence caption, boolean notify, int scheduleDate);
@@ -116,6 +118,13 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                 }
             }
 
+
+            @Override
+            public boolean onInterceptTouchEvent(MotionEvent ev) {
+                parentAlert.makeFocusable(getSearchEditText(), true);
+                return super.onInterceptTouchEvent(ev);
+            }
+
             @Override
             public void processTouchEvent(MotionEvent event) {
                 MotionEvent e = MotionEvent.obtain(event);
@@ -126,7 +135,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
 
             @Override
             protected void onFieldTouchUp(EditTextBoldCursor editText) {
-                parentAlert.makeFocusable(editText);
+                parentAlert.makeFocusable(editText, true);
             }
         };
         searchField.setHint(LocaleController.getString("SearchMusic", R.string.SearchMusic));
@@ -166,7 +175,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         listView = new RecyclerListView(context) {
             @Override
             protected boolean allowSelectChildAtPosition(float x, float y) {
-                return y >= parentAlert.scrollOffsetY[0] + AndroidUtilities.dp(30) + (Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0);
+                return y >= parentAlert.scrollOffsetY[0] + AndroidUtilities.dp(30) + (Build.VERSION.SDK_INT >= 21 && !parentAlert.inBubbleMode ? AndroidUtilities.statusBarHeight : 0);
             }
         };
         listView.setClipToPadding(false);
@@ -203,7 +212,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                parentAlert.updateLayout(ChatAttachAlertAudioLayout.this, true);
+                parentAlert.updateLayout(ChatAttachAlertAudioLayout.this, true, dy);
                 updateEmptyViewPosition();
             }
         });
@@ -247,7 +256,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         if (child == null) {
             return;
         }
-        currentEmptyView.setTranslationY((currentEmptyView.getMeasuredHeight() - getMeasuredHeight() + child.getTop()) / 2);
+        currentEmptyView.setTranslationY((currentEmptyView.getMeasuredHeight() - getMeasuredHeight() + child.getTop()) / 2 - currentPanTranslationProgress / 2);
     }
 
     private void updateEmptyView() {
@@ -336,7 +345,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
     @Override
     void onPreMeasure(int availableWidth, int availableHeight) {
         int padding;
-        if (parentAlert.sizeNotifierFrameLayout.getKeyboardHeight() > AndroidUtilities.dp(20)) {
+        if (parentAlert.sizeNotifierFrameLayout.measureKeyboardHeight() > AndroidUtilities.dp(20)) {
             padding = AndroidUtilities.dp(8);
             parentAlert.setAllowNestedScroll(false);
         } else {
@@ -363,6 +372,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
     @Override
     void onHidden() {
         selectedAudios.clear();
+        selectedAudiosOrder.clear();
     }
 
     @Override
@@ -455,6 +465,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         boolean add;
         if (selectedAudios.indexOfKey(audioEntry.id) >= 0) {
             selectedAudios.remove(audioEntry.id);
+            selectedAudiosOrder.remove(audioEntry);
             audioCell.setChecked(false, true);
             add = false;
         } else {
@@ -463,6 +474,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                 return;
             }
             selectedAudios.put(audioEntry.id, audioEntry);
+            selectedAudiosOrder.add(audioEntry);
             audioCell.setChecked(true, true);
             add = true;
         }
@@ -481,8 +493,8 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         }
         sendPressed = true;
         ArrayList<MessageObject> audios = new ArrayList<>();
-        for (int a = 0; a < selectedAudios.size(); a++) {
-            audios.add(selectedAudios.valueAt(a).messageObject);
+        for (int a = 0; a < selectedAudiosOrder.size(); a++) {
+            audios.add(selectedAudiosOrder.get(a).messageObject);
         }
         delegate.didSelectAudio(audios, parentAlert.commentTextView.getText().toString(), notify, scheduleDate);
     }
@@ -520,8 +532,9 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                     TLRPC.TL_message message = new TLRPC.TL_message();
                     message.out = true;
                     message.id = id;
-                    message.to_id = new TLRPC.TL_peerUser();
-                    message.to_id.user_id = message.from_id = UserConfig.getInstance(parentAlert.currentAccount).getClientUserId();
+                    message.peer_id = new TLRPC.TL_peerUser();
+                    message.from_id = new TLRPC.TL_peerUser();
+                    message.peer_id.user_id = message.from_id.user_id = UserConfig.getInstance(parentAlert.currentAccount).getClientUserId();
                     message.date = (int) (System.currentTimeMillis() / 1000);
                     message.message = "";
                     message.attachPath = audioEntry.path;
@@ -551,7 +564,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                     fileName.file_name = file.getName();
                     message.media.document.attributes.add(fileName);
 
-                    audioEntry.messageObject = new MessageObject(parentAlert.currentAccount, message, false);
+                    audioEntry.messageObject = new MessageObject(parentAlert.currentAccount, message, false, true);
 
                     newAudioEntries.add(audioEntry);
                     id--;
@@ -604,7 +617,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                             playingAudio = messageObject;
                             ArrayList<MessageObject> arrayList = new ArrayList<>();
                             arrayList.add(messageObject);
-                            return MediaController.getInstance().setPlaylist(arrayList, messageObject);
+                            return MediaController.getInstance().setPlaylist(arrayList, messageObject, 0);
                         }
                     };
                     sharedAudioCell.setCheckForButtonPress(true);
@@ -771,7 +784,7 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
                             playingAudio = messageObject;
                             ArrayList<MessageObject> arrayList = new ArrayList<>();
                             arrayList.add(messageObject);
-                            return MediaController.getInstance().setPlaylist(arrayList, messageObject);
+                            return MediaController.getInstance().setPlaylist(arrayList, messageObject, 0);
                         }
                     };
                     sharedAudioCell.setCheckForButtonPress(true);
@@ -811,6 +824,13 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
             }
             return 0;
         }
+    }
+
+    @Override
+    void onContainerTranslationUpdated(float currentPanTranslationY) {
+        this.currentPanTranslationProgress = currentPanTranslationY;
+        super.onContainerTranslationUpdated(currentPanTranslationY);
+        updateEmptyViewPosition();
     }
 
     @Override

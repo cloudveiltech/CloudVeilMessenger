@@ -168,6 +168,13 @@ public class Browser {
         openUrl(context, Uri.parse(url), allowCustom, tryTelegraph);
     }
 
+    public static boolean isTelegraphUrl(String url, boolean equals) {
+        if (equals) {
+            return url.equals("telegra.ph") || url.equals("te.legra.ph") || url.equals("graph.org");
+        }
+        return url.contains("telegra.ph") || url.contains("te.legra.ph") || url.contains("graph.org");
+    }
+
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph) {
         if (context == null || uri == null) {
             return;
@@ -178,7 +185,7 @@ public class Browser {
         if (tryTelegraph) {
             try {
                 String host = uri.getHost().toLowerCase();
-                if (host.equals("telegra.ph") || uri.toString().toLowerCase().contains("telegram.org/faq")) {
+                if (isTelegraphUrl(host, true) || uri.toString().toLowerCase().contains("telegram.org/faq")) {
                     final AlertDialog[] progressDialog = new AlertDialog[]{new AlertDialog(context, 3)};
 
                     Uri finalUri = uri;
@@ -315,7 +322,11 @@ public class Browser {
     }
 
     public static boolean isInternalUrl(String url, boolean[] forceBrowser) {
-        return isInternalUri(Uri.parse(url), forceBrowser);
+        return isInternalUri(Uri.parse(url), false, forceBrowser);
+    }
+
+    public static boolean isInternalUrl(String url, boolean all, boolean[] forceBrowser) {
+        return isInternalUri(Uri.parse(url), all, forceBrowser);
     }
 
     public static boolean isPassportUrl(String url) {
@@ -334,6 +345,10 @@ public class Browser {
     }
 
     public static boolean isInternalUri(Uri uri, boolean[] forceBrowser) {
+        return isInternalUri(uri, false, forceBrowser);
+    }
+
+    public static boolean isInternalUri(Uri uri, boolean all, boolean[] forceBrowser) {
         String host = uri.getHost();
         host = host != null ? host.toLowerCase() : "";
         if ("ton".equals(uri.getScheme())) {
@@ -352,6 +367,9 @@ public class Browser {
         } else if ("telegram.dog".equals(host)) {
             String path = uri.getPath();
             if (path != null && path.length() > 1) {
+                if (all) {
+                    return true;
+                }
                 path = path.substring(1).toLowerCase();
                 if (path.startsWith("blog") || path.equals("iv") || path.startsWith("faq") || path.equals("apps") || path.startsWith("s/")) {
                     if (forceBrowser != null) {
@@ -364,6 +382,9 @@ public class Browser {
         } else if ("telegram.me".equals(host) || "t.me".equals(host)) {
             String path = uri.getPath();
             if (path != null && path.length() > 1) {
+                if (all) {
+                    return true;
+                }
                 path = path.substring(1).toLowerCase();
                 if (path.equals("iv") || path.startsWith("s/")) {
                     if (forceBrowser != null) {
@@ -371,6 +392,10 @@ public class Browser {
                     }
                     return false;
                 }
+                return true;
+            }
+        } else if (all) {
+            if (host.endsWith("telegram.org") || host.endsWith("telegra.ph") || host.endsWith("telesco.pe")) {
                 return true;
             }
         }

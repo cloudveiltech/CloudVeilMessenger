@@ -53,6 +53,11 @@ public class SharedPhotoVideoCell extends FrameLayout {
     private boolean ignoreLayout;
     private Paint backgroundPaint = new Paint();
 
+    public final static int VIEW_TYPE_DEFAULT = 0;
+    public final static int VIEW_TYPE_GLOBAL_SEARCH = 1;
+
+    private int type;
+
     private int currentAccount = UserConfig.selectedAccount;
 
     public interface SharedPhotoVideoCellDelegate {
@@ -187,13 +192,13 @@ public class SharedPhotoVideoCell extends FrameLayout {
                 }
             } else if (messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaPhoto && messageObject.messageOwner.media.photo != null && !messageObject.photoThumbs.isEmpty()) {
                 videoInfoContainer.setVisibility(INVISIBLE);
-                TLRPC.PhotoSize currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 320);
                 TLRPC.PhotoSize currentPhotoObjectThumb = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 50);
+                TLRPC.PhotoSize currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 320, false, currentPhotoObjectThumb);
                 if (messageObject.mediaExists || DownloadController.getInstance(currentAccount).canDownloadMedia(messageObject)) {
                     if (currentPhotoObject == currentPhotoObjectThumb) {
                         currentPhotoObjectThumb = null;
                     }
-                    imageView.getImageReceiver().setImage(ImageLocation.getForObject(currentPhotoObject, messageObject.photoThumbsObject), "100_100", ImageLocation.getForObject(currentPhotoObjectThumb, messageObject.photoThumbsObject), "b", currentPhotoObject.size, null, messageObject, messageObject.shouldEncryptPhotoOrVideo() ? 2 : 1);
+                    imageView.getImageReceiver().setImage(ImageLocation.getForObject(currentPhotoObject, messageObject.photoThumbsObject), "100_100", ImageLocation.getForObject(currentPhotoObjectThumb, messageObject.photoThumbsObject), "b", currentPhotoObject != null ? currentPhotoObject.size : 0, null, messageObject, messageObject.shouldEncryptPhotoOrVideo() ? 2 : 1);
                 } else {
                     imageView.setImage(null, null, ImageLocation.getForObject(currentPhotoObjectThumb, messageObject.photoThumbsObject), "b", ApplicationLoader.applicationContext.getResources().getDrawable(R.drawable.photo_placeholder_in), null, null, 0, messageObject);
                 }
@@ -223,7 +228,7 @@ public class SharedPhotoVideoCell extends FrameLayout {
         public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
             super.onInitializeAccessibilityNodeInfo(info);
             if (currentMessageObject.isVideo()) {
-                info.setText(LocaleController.getString("AttachVideo", R.string.AttachVideo) + ", " + LocaleController.formatCallDuration(currentMessageObject.getDuration()));
+                info.setText(LocaleController.getString("AttachVideo", R.string.AttachVideo) + ", " + LocaleController.formatDuration(currentMessageObject.getDuration()));
             } else {
                 info.setText(LocaleController.getString("AttachPhoto", R.string.AttachPhoto));
             }
@@ -235,7 +240,11 @@ public class SharedPhotoVideoCell extends FrameLayout {
     }
 
     public SharedPhotoVideoCell(Context context) {
+        this(context, VIEW_TYPE_DEFAULT);
+    }
+    public SharedPhotoVideoCell(Context context, int type) {
         super(context);
+        this.type = type;
 
         backgroundPaint.setColor(Theme.getColor(Theme.key_sharedMedia_photoPlaceholder));
         messageObjects = new MessageObject[6];
@@ -344,7 +353,12 @@ public class SharedPhotoVideoCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        final int itemWidth = getItemSize(itemsCount);
+        int itemWidth;
+        if (type == VIEW_TYPE_GLOBAL_SEARCH) {
+            itemWidth = (MeasureSpec.getSize(widthMeasureSpec) - (itemsCount - 1) * AndroidUtilities.dp(2)) / itemsCount;
+        } else {
+            itemWidth = getItemSize(itemsCount);
+        }
 
         ignoreLayout = true;
         for (int a = 0; a < itemsCount; a++) {

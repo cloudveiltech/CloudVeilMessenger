@@ -9,6 +9,7 @@ public class AnimatedFileDrawableStream implements FileLoadOperationStream {
     private FileLoadOperation loadOperation;
     private CountDownLatch countDownLatch;
     private TLRPC.Document document;
+    private ImageLocation location;
     private Object parentObject;
     private int currentAccount;
     private volatile boolean canceled;
@@ -16,13 +17,26 @@ public class AnimatedFileDrawableStream implements FileLoadOperationStream {
     private int lastOffset;
     private boolean waitingForLoad;
     private boolean preview;
+    private boolean finishedLoadingFile;
+    private String finishedFilePath;
 
-    public AnimatedFileDrawableStream(TLRPC.Document d, Object p, int a, boolean prev) {
+    private boolean ignored;
+
+    public AnimatedFileDrawableStream(TLRPC.Document d, ImageLocation l, Object p, int a, boolean prev) {
         document = d;
+        location = l;
         parentObject = p;
         currentAccount = a;
         preview = prev;
-        loadOperation = FileLoader.getInstance(currentAccount).loadStreamFile(this, document, parentObject, 0, preview);
+        loadOperation = FileLoader.getInstance(currentAccount).loadStreamFile(this, document, location, parentObject, 0, preview);
+    }
+
+    public boolean isFinishedLoadingFile() {
+        return finishedLoadingFile;
+    }
+
+    public String getFinishedFilePath() {
+        return finishedFilePath;
     }
 
     public int read(int offset, int readLength) {
@@ -37,10 +51,15 @@ public class AnimatedFileDrawableStream implements FileLoadOperationStream {
             int availableLength = 0;
             try {
                 while (availableLength == 0) {
-                    availableLength = loadOperation.getDownloadedLengthFromOffset(offset, readLength);
+                    int[] result = loadOperation.getDownloadedLengthFromOffset(offset, readLength);
+                    availableLength = result[0];
+                    if (!finishedLoadingFile && result[1] != 0) {
+                        finishedLoadingFile = true;
+                        finishedFilePath = loadOperation.getCacheFileFinal().getAbsolutePath();
+                    }
                     if (availableLength == 0) {
                         if (loadOperation.isPaused() || lastOffset != offset || preview) {
-                            FileLoader.getInstance(currentAccount).loadStreamFile(this, document, parentObject, offset, preview);
+                            FileLoader.getInstance(currentAccount).loadStreamFile(this, document, location, parentObject, offset, preview);
                         }
                         synchronized (sync) {
                             if (canceled) {
@@ -88,6 +107,10 @@ public class AnimatedFileDrawableStream implements FileLoadOperationStream {
 
     public TLRPC.Document getDocument() {
         return document;
+    }
+
+    public ImageLocation getLocation() {
+        return location;
     }
 
     public Object getParentObject() {

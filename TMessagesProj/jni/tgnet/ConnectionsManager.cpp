@@ -125,6 +125,10 @@ ConnectionsManager::~ConnectionsManager() {
         close(epolFd);
         epolFd = 0;
     }
+    if (pipeFd != nullptr) {
+        delete[] pipeFd;
+        pipeFd = nullptr;
+    }
     pthread_mutex_destroy(&mutex);
 }
 
@@ -560,6 +564,11 @@ int32_t ConnectionsManager::getCurrentTime() {
     return (int32_t) (getCurrentTimeMillis() / 1000) + timeDifference;
 }
 
+uint32_t ConnectionsManager::getCurrentDatacenterId() {
+    Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
+    return datacenter != nullptr ? datacenter->getDatacenterId() : INT_MAX;
+}
+
 bool ConnectionsManager::isTestBackend() {
     return testBackend;
 }
@@ -584,10 +593,17 @@ bool ConnectionsManager::isNetworkAvailable() {
     return networkAvailable;
 }
 
-void ConnectionsManager::cleanUp(bool resetKeys) {
-    scheduleTask([&, resetKeys] {
+void ConnectionsManager::cleanUp(bool resetKeys, int32_t datacenterId) {
+    scheduleTask([&, resetKeys, datacenterId] {
         for (requestsIter iter = requestsQueue.begin(); iter != requestsQueue.end();) {
             Request *request = iter->get();
+            if (datacenterId != -1) {
+                Datacenter *requestDatacenter = getDatacenterWithId(request->datacenterId);
+                if (requestDatacenter != nullptr && requestDatacenter->getDatacenterId() != datacenterId) {
+                    iter++;
+                    continue;
+                }
+            }
             if (request->requestFlags & RequestFlagWithoutLogin) {
                 iter++;
                 continue;
@@ -603,6 +619,13 @@ void ConnectionsManager::cleanUp(bool resetKeys) {
         }
         for (requestsIter iter = runningRequests.begin(); iter != runningRequests.end();) {
             Request *request = iter->get();
+            if (datacenterId != -1) {
+                Datacenter *requestDatacenter = getDatacenterWithId(request->datacenterId);
+                if (requestDatacenter != nullptr && requestDatacenter->getDatacenterId() != datacenterId) {
+                    iter++;
+                    continue;
+                }
+            }
             if (request->requestFlags & RequestFlagWithoutLogin) {
                 iter++;
                 continue;
@@ -619,15 +642,20 @@ void ConnectionsManager::cleanUp(bool resetKeys) {
         quickAckIdToRequestIds.clear();
 
         for (std::map<uint32_t, Datacenter *>::iterator iter = datacenters.begin(); iter != datacenters.end(); iter++) {
+            if (datacenterId != -1 && iter->second->getDatacenterId() != datacenterId) {
+                continue;
+            }
             if (resetKeys) {
                 iter->second->clearAuthKey(HandshakeTypeAll);
             }
             iter->second->recreateSessions(HandshakeTypeAll);
             iter->second->authorized = false;
         }
-        sessionsToDestroy.clear();
-        currentUserId = 0;
-        registeredForInternalPush = false;
+        if (datacenterId == -1) {
+            sessionsToDestroy.clear();
+            currentUserId = 0;
+            registeredForInternalPush = false;
+        }
         saveConfig();
     });
 }
@@ -1279,10 +1307,14 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                                     request->startTime = 0;
                                     request->startTimeMillis = 0;
                                 } else if (error->error_message.find(bindFailed) != std::string::npos && typeid(*request->rawRequest) == typeid(TL_auth_bindTempAuthKey)) {
-                                    if (delegate != nullptr) {
+                                    int datacenterId;
+                                    if (delegate != nullptr && getDatacenterWithId(DEFAULT_DATACENTER_ID) == datacenter) {
                                         delegate->onLogout(instanceNum);
+                                        datacenterId = -1;
+                                    } else {
+                                        datacenterId = datacenter->getDatacenterId();
                                     }
-                                    cleanUp(true);
+                                    cleanUp(true, datacenterId);
                                 }
                             }
                         }
@@ -1327,21 +1359,21 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                                     if (delegate != nullptr) {
                                         delegate->onLogout(instanceNum);
                                     }
-                                    cleanUp(false);
+                                    cleanUp(false, -1);
                                 }
                             } else {
                                 datacenter->authorized = false;
                                 saveConfig();
                                 discardResponse = true;
                                 if (request->connectionType & ConnectionTypeDownload || request->connectionType & ConnectionTypeUpload) {
-                                    retryRequestsFromDatacenter = datacenter->datacenterId;
+                                    retryRequestsFromDatacenter = datacenter->getDatacenterId();
                                     retryRequestsConnections = request->connectionType;
                                 }
                             }
                         } else if (currentUserId == 0 && implicitError->code == 406) {
                             static std::string authKeyDuplicated = "AUTH_KEY_DUPLICATED";
                             if (implicitError->text.find(authKeyDuplicated) != std::string::npos) {
-                                cleanUp(true);
+                                cleanUp(true, datacenter->getDatacenterId());
                             }
                         }
                     }
@@ -1448,7 +1480,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                 bool beginHandshake = false;
                 for (requestsIter iter = runningRequests.begin(); iter != runningRequests.end(); iter++) {
                     Request *request = iter->get();
-                    if (!beginHandshake && request->datacenterId == datacenter->datacenterId && typeid(*request->rawRequest) == typeid(TL_auth_bindTempAuthKey) && request->respondsToMessageId(response->bad_msg_id)) {
+                    if (!beginHandshake && request->datacenterId == datacenter->getDatacenterId() && typeid(*request->rawRequest) == typeid(TL_auth_bindTempAuthKey) && request->respondsToMessageId(response->bad_msg_id)) {
                         beginHandshake = true;
                     }
                     if ((request->connectionType & ConnectionTypeDownload) == 0) {
@@ -1645,6 +1677,7 @@ void ConnectionsManager::initDatacenters() {
         if (datacenters.find(2) == datacenters.end()) {
             datacenter = new Datacenter(instanceNum, 2);
             datacenter->addAddressAndPort("149.154.167.51", 443, 0, "");
+            datacenter->addAddressAndPort("95.161.76.100", 443, 0, "");
             datacenter->addAddressAndPort("2001:67c:4e8:f002:0000:0000:0000:000a", 443, 1, "");
             datacenters[2] = datacenter;
         }
@@ -2309,8 +2342,6 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
         if (genericConnection != nullptr && !sessionsToDestroy.empty() && genericConnection->getConnectionToken() != 0) {
             std::vector<int64_t>::iterator iter = sessionsToDestroy.begin();
 
-            sessionsToDestroy.erase(iter);
-
             if (abs(currentTime - lastDestroySessionRequestTime) > 2) {
                 lastDestroySessionRequestTime = currentTime;
                 TL_destroy_session *request = new TL_destroy_session();
@@ -2324,6 +2355,7 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
                 networkMessage->message->seqno = genericConnection->generateMessageSeqNo(false);
                 addMessageToDatacenter(defaultDatacenter->getDatacenterId(), networkMessage, genericMessagesToDatacenters);
             }
+            sessionsToDestroy.erase(iter);
         }
     }
 
@@ -2725,6 +2757,13 @@ std::unique_ptr<TLObject> ConnectionsManager::wrapInLayer(TLObject *object, Data
 
             TL_jsonObjectValue *objectValue = new TL_jsonObjectValue();
             jsonObject->value.push_back(std::unique_ptr<TL_jsonObjectValue>(objectValue));
+            TL_jsonString *jsonString = new TL_jsonString();
+            jsonString->value = installer;
+            objectValue->key = "installer";
+            objectValue->value = std::unique_ptr<JSONValue>(jsonString);
+
+            objectValue = new TL_jsonObjectValue();
+            jsonObject->value.push_back(std::unique_ptr<TL_jsonObjectValue>(objectValue));
 
             TL_jsonNumber *jsonNumber = new TL_jsonNumber();
             jsonNumber->value = currentDeviceTimezone;
@@ -2762,7 +2801,7 @@ std::unique_ptr<TLObject> ConnectionsManager::wrapInLayer(TLObject *object, Data
             invokeWithLayer *request2 = new invokeWithLayer();
             request2->layer = currentLayer;
             request2->query = std::unique_ptr<TLObject>(request);
-            if (LOGS_ENABLED) DEBUG_D("wrap in layer %s", typeid(*object).name());
+            if (LOGS_ENABLED) DEBUG_D("wrap in layer %s, flags = %d", typeid(*object).name(), request->flags);
             return std::unique_ptr<TLObject>(request2);
         }
     }
@@ -3171,7 +3210,7 @@ void ConnectionsManager::applyDnsConfig(NativeByteBuffer *buffer, std::string ph
     });
 }
 
-void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, int32_t timezoneOffset, int32_t userId, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType) {
+void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, int32_t timezoneOffset, int32_t userId, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType) {
     currentVersion = version;
     currentLayer = layer;
     currentApiId = apiId;
@@ -3182,6 +3221,7 @@ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, st
     currentLangCode = langCode;
     currentRegId = regId;
     certFingerprint = cFingerpting;
+    installer = installerId;
     currentDeviceTimezone = timezoneOffset;
     currentSystemLangCode = systemLangCode;
     currentUserId = userId;

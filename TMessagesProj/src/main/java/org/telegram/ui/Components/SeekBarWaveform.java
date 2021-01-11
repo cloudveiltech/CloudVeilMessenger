@@ -124,6 +124,10 @@ public class SeekBarWaveform {
         return false;
     }
 
+    public float getProgress() {
+        return thumbX / (float) width;
+    }
+
     public void setProgress(float progress) {
         thumbX = (int) Math.ceil(width * progress);
         if (thumbX < 0) {
@@ -156,7 +160,7 @@ public class SeekBarWaveform {
         float barCounter = 0;
         int nextBarNum = 0;
 
-        paintInner.setColor(messageObject != null && !messageObject.isOutOwner() && messageObject.isContentUnread() ? outerColor : (selected ? selectedColor : innerColor));
+        paintInner.setColor(messageObject != null && !messageObject.isOutOwner() && messageObject.isContentUnread() && thumbX == 0 ? outerColor : (selected ? selectedColor : innerColor));
         paintOuter.setColor(outerColor);
 
         int y = (height - AndroidUtilities.dp(14)) / 2;

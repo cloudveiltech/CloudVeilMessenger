@@ -80,6 +80,10 @@ jint getCurrentTime(JNIEnv *env, jclass c, jint instanceNum) {
     return ConnectionsManager::getInstance(instanceNum).getCurrentTime();
 }
 
+jint getCurrentDatacenterId(JNIEnv *env, jclass c, jint instanceNum) {
+    return ConnectionsManager::getInstance(instanceNum).getCurrentDatacenterId();
+}
+
 jint isTestBackend(JNIEnv *env, jclass c, jint instanceNum) {
     return ConnectionsManager::getInstance(instanceNum).isTestBackend() ? 1 : 0;
 }
@@ -139,7 +143,7 @@ void cancelRequest(JNIEnv *env, jclass c, jint instanceNum, jint token, jboolean
 }
 
 void cleanUp(JNIEnv *env, jclass c, jint instanceNum, jboolean resetKeys) {
-    return ConnectionsManager::getInstance(instanceNum).cleanUp(resetKeys);
+    return ConnectionsManager::getInstance(instanceNum).cleanUp(resetKeys, -1);
 }
 
 void cancelRequestsForGuid(JNIEnv *env, jclass c, jint instanceNum, jint guid) {
@@ -367,7 +371,7 @@ void setSystemLangCode(JNIEnv *env, jclass c, jint instanceNum, jstring langCode
     }
 }
 
-void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jint apiId, jstring deviceModel, jstring systemVersion, jstring appVersion, jstring langCode, jstring systemLangCode, jstring configPath, jstring logPath, jstring regId, jstring cFingerprint, jint timezoneOffset, jint userId, jboolean enablePushConnection, jboolean hasNetwork, jint networkType) {
+void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jint apiId, jstring deviceModel, jstring systemVersion, jstring appVersion, jstring langCode, jstring systemLangCode, jstring configPath, jstring logPath, jstring regId, jstring cFingerprint, jstring installerId, jint timezoneOffset, jint userId, jboolean enablePushConnection, jboolean hasNetwork, jint networkType) {
     const char *deviceModelStr = env->GetStringUTFChars(deviceModel, 0);
     const char *systemVersionStr = env->GetStringUTFChars(systemVersion, 0);
     const char *appVersionStr = env->GetStringUTFChars(appVersion, 0);
@@ -377,8 +381,9 @@ void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jin
     const char *logPathStr = env->GetStringUTFChars(logPath, 0);
     const char *regIdStr = env->GetStringUTFChars(regId, 0);
     const char *cFingerprintStr = env->GetStringUTFChars(cFingerprint, 0);
+    const char *installerIdStr = env->GetStringUTFChars(installerId, 0);
 
-    ConnectionsManager::getInstance(instanceNum).init((uint32_t) version, layer, apiId, std::string(deviceModelStr), std::string(systemVersionStr), std::string(appVersionStr), std::string(langCodeStr), std::string(systemLangCodeStr), std::string(configPathStr), std::string(logPathStr), std::string(regIdStr), std::string(cFingerprintStr), timezoneOffset, userId, true, enablePushConnection, hasNetwork, networkType);
+    ConnectionsManager::getInstance(instanceNum).init((uint32_t) version, layer, apiId, std::string(deviceModelStr), std::string(systemVersionStr), std::string(appVersionStr), std::string(langCodeStr), std::string(systemLangCodeStr), std::string(configPathStr), std::string(logPathStr), std::string(regIdStr), std::string(cFingerprintStr), std::string(installerIdStr), timezoneOffset, userId, true, enablePushConnection, hasNetwork, networkType);
 
     if (deviceModelStr != 0) {
         env->ReleaseStringUTFChars(deviceModel, deviceModelStr);
@@ -407,6 +412,9 @@ void init(JNIEnv *env, jclass c, jint instanceNum, jint version, jint layer, jin
     if (cFingerprintStr != 0) {
         env->ReleaseStringUTFChars(cFingerprint, cFingerprintStr);
     }
+    if (installerIdStr != 0) {
+        env->ReleaseStringUTFChars(installerId, installerIdStr);
+    }
 }
 
 void setJava(JNIEnv *env, jclass c, jboolean useJavaByteBuffers) {
@@ -420,6 +428,7 @@ static const char *ConnectionsManagerClassPathName = "org/telegram/tgnet/Connect
 static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_getCurrentTimeMillis", "(I)J", (void *) getCurrentTimeMillis},
         {"native_getCurrentTime", "(I)I", (void *) getCurrentTime},
+        {"native_getCurrentDatacenterId", "(I)I", (void *) getCurrentDatacenterId},
         {"native_isTestBackend", "(I)I", (void *) isTestBackend},
         {"native_getTimeDifference", "(I)I", (void *) getTimeDifference},
         {"native_sendRequest", "(IJLorg/telegram/tgnet/RequestDelegateInternal;Lorg/telegram/tgnet/QuickAckDelegate;Lorg/telegram/tgnet/WriteToSocketDelegate;IIIZI)V", (void *) sendRequest},
@@ -431,7 +440,7 @@ static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_setProxySettings", "(ILjava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void *) setProxySettings},
         {"native_getConnectionState", "(I)I", (void *) getConnectionState},
         {"native_setUserId", "(II)V", (void *) setUserId},
-        {"native_init", "(IIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIZZI)V", (void *) init},
+        {"native_init", "(IIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIZZI)V", (void *) init},
         {"native_setLangCode", "(ILjava/lang/String;)V", (void *) setLangCode},
         {"native_setRegId", "(ILjava/lang/String;)V", (void *) setRegId},
         {"native_setSystemLangCode", "(ILjava/lang/String;)V", (void *) setSystemLangCode},

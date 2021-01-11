@@ -8,6 +8,7 @@
 
 package org.telegram.messenger;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -20,12 +21,14 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 public class FileUploadOperation {
 
-    private class UploadCachedResult {
+    private static class UploadCachedResult {
         private long bytesOffset;
         private byte[] iv;
     }
@@ -40,6 +43,7 @@ public class FileUploadOperation {
     private static final int initialRequestsSlowNetworkCount = 1;
     private static final int maxUploadingKBytes = 1024 * 2;
     private static final int maxUploadingSlowNetworkKBytes = 32;
+    private static final int maxUploadParts = (int) (FileLoader.MAX_FILE_SIZE / 1024 / 512);
     private int maxRequestsCount;
     private int uploadChunkSize = 64 * 1024;
     private boolean slowNetwork;
@@ -250,6 +254,19 @@ public class FileUploadOperation {
                     throw new Exception("trying to upload internal file");
                 }
                 stream = new RandomAccessFile(cacheFile, "r");
+                boolean isInternalFile = false;
+                try {
+                    @SuppressLint("DiscouragedPrivateApi") Method getInt = FileDescriptor.class.getDeclaredMethod("getInt$");
+                    int fdint = (Integer) getInt.invoke(stream.getFD());
+                    if (AndroidUtilities.isInternalUri(fdint)) {
+                        isInternalFile = true;
+                    }
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+                if (isInternalFile) {
+                    throw new Exception("trying to upload internal file");
+                }
                 if (estimatedSize != 0) {
                     totalFileSize = estimatedSize;
                 } else {
@@ -259,7 +276,7 @@ public class FileUploadOperation {
                     isBigFile = true;
                 }
 
-                uploadChunkSize = (int) Math.max(slowNetwork ? minUploadChunkSlowNetworkSize : minUploadChunkSize, (totalFileSize + 1024 * 3000 - 1) / (1024 * 3000));
+                uploadChunkSize = (int) Math.max(slowNetwork ? minUploadChunkSlowNetworkSize : minUploadChunkSize, (totalFileSize + 1024 * maxUploadParts - 1) / (1024 * maxUploadParts));
                 if (1024 % uploadChunkSize != 0) {
                     int chunkSize = 64;
                     while (uploadChunkSize > chunkSize) {
@@ -603,9 +620,6 @@ public class FileUploadOperation {
                     startUploadRequest();
                 }
             } else {
-                if (finalRequest != null) {
-                    FileLog.e("23123");
-                }
                 state = 4;
                 delegate.didFailedUploadingFile(FileUploadOperation.this);
                 cleanup();

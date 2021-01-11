@@ -1772,7 +1772,7 @@ public class WebPlayerView extends ViewGroup implements VideoPlayer.VideoPlayerD
     }
 
     @Override
-    public void onError(Exception e) {
+    public void onError(VideoPlayer player, Exception e) {
         FileLog.e(e);
         onInitFailed();
     }
@@ -2088,6 +2088,88 @@ public class WebPlayerView extends ViewGroup implements VideoPlayer.VideoPlayerD
             id = matcher.group(1);
         }
         return id;
+    }
+
+    public boolean canHandleUrl(String url) {
+        if (url != null) {
+            if (url.endsWith(".mp4")) {
+                return true;
+            } else {
+                try {
+                    Matcher matcher = youtubeIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(1);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    Matcher matcher = vimeoIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(3);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    Matcher matcher = aparatIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(1);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    Matcher matcher = twitchClipIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(1);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    Matcher matcher = twitchStreamIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(1);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+                try {
+                    Matcher matcher = coubIdRegex.matcher(url);
+                    String id = null;
+                    if (matcher.find()) {
+                        id = matcher.group(1);
+                    }
+                    if (id != null) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+            }
+        }
+        return false;
     }
 
     public boolean loadVideo(String url, TLRPC.Photo thumb, Object parentObject, String originalUrl, boolean autoplay) {

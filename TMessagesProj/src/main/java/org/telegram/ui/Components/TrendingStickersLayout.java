@@ -1,8 +1,9 @@
 package org.telegram.ui.Components;
 
-import android.app.Dialog;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.res.Configuration;
 import android.util.LongSparseArray;
 import android.util.SparseArray;
@@ -17,7 +18,6 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.NotificationCenter;
@@ -25,8 +25,10 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.AdjustPanLayoutHelper;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Adapters.StickersSearchAdapter;
 import org.telegram.ui.Cells.EmptyCell;
 import org.telegram.ui.Cells.FeaturedStickerSetCell2;
@@ -64,10 +66,21 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         public void setLastSearchKeyboardLanguage(String[] language) {
             lastSearchKeyboardLanguage = language;
         }
-    }
 
-    public interface AlertDelegate {
-        void setHeavyOperationsEnabled(boolean enabled);
+        public boolean canSendSticker() {
+            return false;
+        }
+
+        public void onStickerSelected(TLRPC.Document sticker, Object parent, boolean clearsInputField, boolean notify, int scheduleDate) {
+        }
+
+        public boolean canSchedule() {
+            return false;
+        }
+
+        public boolean isInScheduleMode() {
+            return false;
+        }
     }
 
     private final int currentAccount = UserConfig.selectedAccount;
@@ -87,7 +100,6 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
 
     private BaseFragment parentFragment;
     private RecyclerListView.OnScrollListener onScrollListener;
-    private AlertDelegate alertDelegate;
 
     private int topOffset;
     private boolean motionEventCatchedByListView;
@@ -96,6 +108,9 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
     private boolean wasLayout;
     private boolean loaded;
     private int hash;
+    ValueAnimator glueToTopAnimator;
+    private boolean gluedToTop;
+    private boolean scrollFromAnimator;
 
     public TrendingStickersLayout(@NonNull Context context, Delegate delegate) {
         this(context, delegate, new TLRPC.StickerSetCovered[10], new LongSparseArray<>(), new LongSparseArray<>());
@@ -122,10 +137,16 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
 
             @Override
             public void setAdapterVisible(boolean visible) {
+                boolean changed = false;
                 if (visible && listView.getAdapter() != searchAdapter) {
                     listView.setAdapter(searchAdapter);
+                    changed = true;
                 } else if (!visible && listView.getAdapter() != adapter) {
                     listView.setAdapter(adapter);
+                    changed = true;
+                }
+                if (changed && listView.getAdapter().getItemCount() > 0) {
+                    layoutManager.scrollToPositionWithOffset(0, -listView.getPaddingTop() + AndroidUtilities.dp(58) + topOffset, false);
                 }
             }
 
@@ -182,6 +203,14 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
             }
 
             @Override
+            public boolean onTouchEvent(MotionEvent e) {
+                if (glueToTopAnimator != null) {
+                    return false;
+                }
+                return super.onTouchEvent(e);
+            }
+
+            @Override
             public void requestLayout() {
                 if (!ignoreLayout) {
                     super.requestLayout();
@@ -209,6 +238,7 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
             }
         };
         listView.setOnTouchListener((v, event) -> delegate.onListViewTouchEvent(listView, trendingOnItemClickListener, event));
+        listView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         listView.setClipToPadding(false);
         listView.setItemAnimator(null);
         listView.setLayoutAnimation(null);
@@ -226,6 +256,33 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
             @Override
             protected boolean shouldCalcLastItemHeight() {
                 return listView.getAdapter() == searchAdapter;
+            }
+
+            @Override
+            public int scrollVerticallyBy(int dy, RecyclerView.Recycler recycler, RecyclerView.State state) {
+                if (scrollFromAnimator) {
+                    return super.scrollVerticallyBy(dy, recycler, state);
+                }
+                if (glueToTopAnimator != null) {
+                    return 0;
+                }
+                if (gluedToTop) {
+                    int minPosition = 1;
+                    for (int i = 0; i < getChildCount(); i++) {
+                        int p = listView.getChildAdapterPosition(getChildAt(i));
+                        if (p < minPosition) {
+                            minPosition = p;
+                            break;
+                        }
+                    }
+                    if (minPosition == 0) {
+                        View minView = layoutManager.findViewByPosition(minPosition);
+                        if (minView != null && minView.getTop() - dy > AndroidUtilities.dp(58)) {
+                            dy = minView.getTop() - AndroidUtilities.dp(58);
+                        }
+                    }
+                }
+                return super.scrollVerticallyBy(dy, recycler, state);
             }
         });
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
@@ -264,7 +321,6 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         });
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(trendingOnItemClickListener);
-        listView.setGlowColor(Theme.getColor(Theme.key_chat_emojiPanelBackground));
         addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 0, 0, 0, 0));
 
         shadowView = new View(context);
@@ -275,6 +331,8 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         addView(shadowView, shadowViewParams);
 
         addView(searchLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 58, Gravity.LEFT | Gravity.TOP));
+
+        updateColors();
 
         final NotificationCenter notificationCenter = NotificationCenter.getInstance(currentAccount);
         notificationCenter.addObserver(this, NotificationCenter.stickersDidLoad);
@@ -325,23 +383,28 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
     }
 
     private void showStickerSet(TLRPC.InputStickerSet inputStickerSet) {
-        final StickersAlert stickersAlert = new StickersAlert(getContext(), parentFragment, inputStickerSet, null, null) {
-            @Override
-            public void show() {
-                super.show();
-                if (alertDelegate != null) {
-                    alertDelegate.setHeavyOperationsEnabled(true);
+        final StickersAlert.StickersAlertDelegate stickersAlertDelegate;
+        if (delegate.canSendSticker()) {
+            stickersAlertDelegate = new StickersAlert.StickersAlertDelegate() {
+                @Override
+                public void onStickerSelected(TLRPC.Document sticker, String query, Object parent, boolean clearsInputField, boolean notify, int scheduleDate) {
+                    delegate.onStickerSelected(sticker, parent, clearsInputField, notify, scheduleDate);
                 }
-            }
 
-            @Override
-            public void dismiss() {
-                super.dismiss();
-                if (alertDelegate != null) {
-                    alertDelegate.setHeavyOperationsEnabled(false);
+                @Override
+                public boolean canSchedule() {
+                    return delegate.canSchedule();
                 }
-            }
-        };
+
+                @Override
+                public boolean isInScheduleMode() {
+                    return delegate.isInScheduleMode();
+                }
+            };
+        } else {
+            stickersAlertDelegate = null;
+        }
+        final StickersAlert stickersAlert = new StickersAlert(getContext(), parentFragment, inputStickerSet, null, stickersAlertDelegate);
         stickersAlert.setShowTooltipWhenToggle(false);
         stickersAlert.setInstallDelegate(new StickersAlert.StickersAlertInstallDelegate() {
             @Override
@@ -398,10 +461,6 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         this.onScrollListener = onScrollListener;
     }
 
-    public void setAlertDelegate(AlertDelegate alertDelegate) {
-        this.alertDelegate = alertDelegate;
-    }
-
     public void setParentFragment(BaseFragment parentFragment) {
         this.parentFragment = parentFragment;
     }
@@ -410,16 +469,7 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         paddingTop += AndroidUtilities.dp(58);
         if (listView.getPaddingTop() != paddingTop) {
             ignoreLayout = true;
-            listView.setPadding(0, paddingTop, 0, listView.getPaddingBottom());
-            ignoreLayout = false;
-        }
-    }
-
-    public void setContentViewPaddingBottom(int paddingBottom) {
-        if (listView.getPaddingBottom() != paddingBottom) {
-            ignoreLayout = true;
-            listView.setPadding(0, listView.getPaddingTop(), 0, paddingBottom);
-            updateLastItemInAdapter();
+            listView.setPadding(0, paddingTop, 0, 0);
             ignoreLayout = false;
         }
     }
@@ -443,6 +493,12 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
             return true;
         }
         View child = listView.getChildAt(0);
+        for (int i = 1; i < listView.getChildCount(); i++) {
+            View view = listView.getChildAt(i);
+            if (view.getTop() < child.getTop()) {
+                child = view;
+            }
+        }
         RecyclerListView.Holder holder = (RecyclerListView.Holder) listView.findContainingViewHolder(child);
         int top = child.getTop() - AndroidUtilities.dp(58);
         int newOffset = top > 0 && holder != null && holder.getAdapterPosition() == 0 ? top : 0;
@@ -471,6 +527,59 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
         }
     }
 
+    public void updateColors() {
+        if (listView.getAdapter() == adapter) {
+            adapter.updateColors(listView);
+        } else {
+            searchAdapter.updateColors(listView);
+        }
+    }
+
+    public void getThemeDescriptions(List<ThemeDescription> descriptions, ThemeDescription.ThemeDescriptionDelegate delegate) {
+        searchView.getThemeDescriptions(descriptions);
+        adapter.getThemeDescriptions(descriptions, listView, delegate);
+        searchAdapter.getThemeDescriptions(descriptions, listView, delegate);
+        descriptions.add(new ThemeDescription(shadowView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_dialogShadowLine));
+        descriptions.add(new ThemeDescription(searchLayout, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_dialogBackground));
+    }
+
+    public void glueToTop(boolean glue) {
+        gluedToTop = glue;
+        if (glue) {
+            if (getContentTopOffset() > 0 && glueToTopAnimator == null) {
+                int startFrom = getContentTopOffset();
+                glueToTopAnimator = ValueAnimator.ofFloat(0, 1f);
+                glueToTopAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    int dy = 0;
+
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                        int currentDy = (int) (startFrom * (float) valueAnimator.getAnimatedValue());
+                        scrollFromAnimator = true;
+                        listView.scrollBy(0, currentDy - dy);
+                        scrollFromAnimator = false;
+                        dy = currentDy;
+                    }
+                });
+                glueToTopAnimator.addListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        glueToTopAnimator = null;
+                    }
+                });
+                glueToTopAnimator.setDuration(AdjustPanLayoutHelper.keyboardDuration);
+                glueToTopAnimator.setInterpolator(AdjustPanLayoutHelper.keyboardInterpolator);
+                glueToTopAnimator.start();
+            }
+        } else {
+            if (glueToTopAnimator != null) {
+                glueToTopAnimator.removeAllListeners();
+                glueToTopAnimator.cancel();
+                glueToTopAnimator = null;
+            }
+        }
+    }
+
     private class TrendingStickersAdapter extends RecyclerListView.SelectionAdapter {
 
         public static final int PAYLOAD_ANIMATED = 0;
@@ -495,11 +604,7 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
 
         @Override
         public int getItemCount() {
-            return cache.size() + 1;
-        }
-
-        public Object getItem(int i) {
-            return cache.get(i);
+            return totalItems + 1;
         }
 
         @Override
@@ -530,7 +635,7 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
             View view = null;
             switch (viewType) {
                 case 0:
-                    StickerEmojiCell stickerCell = new StickerEmojiCell(context) {
+                    StickerEmojiCell stickerCell = new StickerEmojiCell(context, false) {
                         public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
                             super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(82), MeasureSpec.EXACTLY));
                         }
@@ -655,7 +760,6 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
                 installing = false;
             } else if (removing && !isSetInstalled) {
                 removingStickerSets.remove(stickerSetCovered.set.id);
-                removing = false;
             }
             final FeaturedStickerSetInfoCell cell = (FeaturedStickerSetInfoCell) view;
             cell.setStickerSet(stickerSetCovered, unread, animated, 0, 0, forceInstalled);
@@ -817,6 +921,23 @@ public class TrendingStickersLayout extends FrameLayout implements NotificationC
                     endReached = true;
                 }
             }));
+        }
+
+        public void updateColors(RecyclerListView listView) {
+            for (int i = 0, size = listView.getChildCount(); i < size; i++) {
+                final View child = listView.getChildAt(i);
+                if (child instanceof FeaturedStickerSetInfoCell) {
+                    ((FeaturedStickerSetInfoCell) child).updateColors();
+                } else if (child instanceof FeaturedStickerSetCell2) {
+                    ((FeaturedStickerSetCell2) child).updateColors();
+                }
+            }
+        }
+
+        public void getThemeDescriptions(List<ThemeDescription> descriptions, RecyclerListView listView, ThemeDescription.ThemeDescriptionDelegate delegate) {
+            FeaturedStickerSetInfoCell.createThemeDescriptions(descriptions, listView, delegate);
+            FeaturedStickerSetCell2.createThemeDescriptions(descriptions, listView, delegate);
+            GraySectionCell.createThemeDescriptions(descriptions, listView);
         }
     }
 }

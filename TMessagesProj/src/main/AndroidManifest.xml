@@ -47,7 +47,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
 
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="com.sec.android.provider.badge.permission.READ"/>
     <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE"/>
     <uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS"/>
@@ -65,8 +67,9 @@
     <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_READ"/>
     <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_WRITE"/>
 
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="replace" />
+
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:name="org.telegram.messenger.ApplicationLoader"
@@ -77,6 +80,7 @@
         android:theme="@style/Theme.TMessages.Start"
         android:manageSpaceActivity="org.telegram.ui.ExternalActionActivity"
         android:supportsRtl="false"
+        android:requestLegacyExternalStorage="true"
         tools:replace="android:supportsRtl">
 
         <activity
@@ -84,7 +88,7 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
             android:hardwareAccelerated="@bool/useHardwareAcceleration"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustPan">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -148,8 +152,28 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="ton" />
             </intent-filter>
-            <meta-data android:name="android.service.chooser.chooser_target_service" android:value=".TgChooserTargetService" />
+            <meta-data android:name="android.service.chooser.chooser_target_service" android:value="androidx.sharetarget.ChooserTargetServiceCompat" />
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
+        <activity-alias
+            android:name="org.telegram.ui.CallsActivity"
+            android:targetActivity="org.telegram.ui.LaunchActivity"
+            android:permission="android.permission.CALL_PHONE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.org.telegram.messenger.android.call"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.org.telegram.messenger.android.call.video"/>
+            </intent-filter>
+        </activity-alias>
+        <activity
+            android:name="org.telegram.ui.BubbleActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
+            android:hardwareAccelerated="@bool/useHardwareAcceleration"
+            android:windowSoftInputMode="adjustResize"
+            android:allowEmbedded="true"
+            android:documentLaunchMode="always"
+            android:resizeableActivity="true"/>
         <activity
             android:name="org.telegram.ui.ShareActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
@@ -204,20 +228,6 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="org.telegram.ui.VoIPActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:excludeFromRecents="true"
-            android:windowSoftInputMode="adjustNothing"
-			android:taskAffinity="${applicationId}.voip">
-        </activity>
-        <activity
-            android:name="org.telegram.ui.VoIPGroupActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
-            android:excludeFromRecents="true"
-			android:windowSoftInputMode="adjustNothing"
-            android:taskAffinity="${applicationId}.voip">
-        </activity>
         <activity android:name="org.telegram.ui.VoIPPermissionActivity"
                   android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode"
                   android:taskAffinity="${applicationId}.voip"
@@ -234,6 +244,14 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="org.telegram.messenger.ACTION_MESSAGE_HEARD"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".NotificationsDisabledReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.NOTIFICATION_CHANNEL_BLOCK_STATE_CHANGED"/>
             </intent-filter>
         </receiver>
 
@@ -277,15 +295,6 @@
                 android:resource="@xml/contacts" />
         </service>
 
-        <service
-            android:name="org.telegram.messenger.TgChooserTargetService"
-            android:label="@string/AppName"
-            android:permission="android.permission.BIND_CHOOSER_TARGET_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.chooser.ChooserTargetService" />
-            </intent-filter>
-        </service>
-
         <service android:name=".KeepAliveJob"
                  android:exported="false"
                  android:permission="android.permission.BIND_JOB_SERVICE"/>
@@ -293,7 +302,9 @@
         <service android:name=".NotificationsService" android:enabled="true"/>
         <service android:name=".NotificationRepeat" android:exported="false"/>
         <service android:name=".VideoEncodingService" android:enabled="true"/>
-        <service android:name=".LocationSharingService" android:enabled="true"/>
+        <service android:name=".LocationSharingService"
+            android:foregroundServiceType="location"
+            android:enabled="true"/>
         <service android:name=".voip.VoIPService" android:enabled="true"/>
         <service android:name=".GoogleVoiceClientService"/>
         <service android:name=".MusicPlayerService" android:exported="true" android:enabled="true"/>
@@ -317,9 +328,10 @@
                 <action android:name="android.telecom.ConnectionService" />
             </intent-filter>
         </service>
+
         <service android:name="org.cloudveil.messenger.service.ChannelCheckingService" />
 
-        <receiver android:name=".MusicPlayerReceiver" >
+		<receiver android:name=".MusicPlayerReceiver" >
             <intent-filter>
                 <action android:name="org.telegram.android.musicplayer.close" />
                 <action android:name="org.telegram.android.musicplayer.pause" />
@@ -393,7 +405,7 @@
         <meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_W" android:value="632dp" />
         <meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_H" android:value="598dp" />
 
-        <!--<meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />-->
+        <meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />
 
         <meta-data android:name="com.google.android.gms.car.notification.SmallIcon" android:resource="@drawable/ic_player" />
         <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
@@ -401,7 +413,9 @@
         <meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="face,barcode" />
 
         <meta-data android:name="android.max_aspect" android:value="2.5" />
-         <meta-data android:name="io.sentry.dsn" android:value="https://2ead39436a3f4f02a9edb94e7bacf0bc:779d1c4fa455460db60df17a1743c16c@sentry.cloudveil.org/19" />
+
+        <meta-data android:name="com.google.android.actions" android:resource="@xml/actions" />
+        <meta-data android:name="io.sentry.dsn" android:value="https://2ead39436a3f4f02a9edb94e7bacf0bc:779d1c4fa455460db60df17a1743c16c@sentry.cloudveil.org/19" />
     </application>
 
 </manifest>

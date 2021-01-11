@@ -355,7 +355,6 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.contactsDidLoad);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateInterfaces);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.chatDidCreated);
-        AndroidUtilities.removeAdjustResize(getParentActivity(), classGuid, true);
     }
 
     @Override
@@ -819,7 +818,7 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
         if (editText != null) {
             editText.requestFocus();
         }
-        AndroidUtilities.requestAdjustResize(getParentActivity(), classGuid, true);
+        AndroidUtilities.requestAdjustResize(getParentActivity(), classGuid);
     }
 
     @Override
@@ -1045,7 +1044,7 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
             View view;
             switch (viewType) {
                 case 1:
-                    view = new GroupCreateUserCell(context, true, 0);
+                    view = new GroupCreateUserCell(context, true, 0, true);
                     break;
                 case 2:
                 default:
@@ -1164,7 +1163,6 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
                         }
                         object = contacts.get(position - usersStartRow);
                     }
-                    cell.setObject(object, name, username);
                     int id;
                     if (object instanceof TLRPC.User) {
                         id = ((TLRPC.User) object).id;
@@ -1173,6 +1171,21 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
                     } else {
                         id = 0;
                     }
+                    if (!searching) {
+                        StringBuilder builder = new StringBuilder();
+                        ArrayList<MessagesController.DialogFilter> filters = getMessagesController().dialogFilters;
+                        for (int a = 0, N = filters.size(); a < N; a++) {
+                            MessagesController.DialogFilter filter = filters.get(a);
+                            if (filter.includesDialog(getAccountInstance(), id)) {
+                                if (builder.length() > 0) {
+                                    builder.append(", ");
+                                }
+                                builder.append(filter.name);
+                            }
+                        }
+                        username = builder;
+                    }
+                    cell.setObject(object, name, username);
                     if (id != 0) {
                         cell.setChecked(selectedContacts.indexOfKey(id) >= 0, false);
                         cell.setCheckBoxEnabled(true);
@@ -1269,7 +1282,9 @@ public class FilterUsersActivity extends BaseFragment implements NotificationCen
                                 TLRPC.User user = (TLRPC.User) object;
                                 names[0] = ContactsController.formatName(user.first_name, user.last_name).toLowerCase();
                                 username = user.username;
-                                if (user.self) {
+                                if (UserObject.isReplyUser(user)) {
+                                    names[2] = LocaleController.getString("RepliesTitle", R.string.RepliesTitle).toLowerCase();
+                                } else if (user.self) {
                                     names[2] = LocaleController.getString("SavedMessages", R.string.SavedMessages).toLowerCase();
                                 }
                             } else {

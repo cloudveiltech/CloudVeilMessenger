@@ -32,6 +32,7 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
@@ -98,9 +99,9 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
     private ArrayList<ListItem> items = new ArrayList<>();
     private boolean receiverRegistered = false;
     private ArrayList<HistoryEntry> history = new ArrayList<>();
-    private static final long sizeLimit = 1024 * 1024 * 1536;
     private DocumentSelectActivityDelegate delegate;
     private HashMap<String, ListItem> selectedFiles = new HashMap<>();
+    private ArrayList<String> selectedFilesOrder = new ArrayList<>();
     private boolean scrolling;
     private ArrayList<ListItem> recentItems = new ArrayList<>();
     private int maxSelectedFiles = -1;
@@ -182,7 +183,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
             public void onSearchExpand() {
                 searching = true;
                 sortItem.setVisibility(View.GONE);
-                parentAlert.makeFocusable(searchItem.getSearchField());
+                parentAlert.makeFocusable(searchItem.getSearchField(), true);
             }
 
             @Override
@@ -270,7 +271,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                parentAlert.updateLayout(ChatAttachAlertDocumentLayout.this, true);
+                parentAlert.updateLayout(ChatAttachAlertDocumentLayout.this, true, dy);
                 updateEmptyViewPosition();
             }
 
@@ -460,7 +461,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
     @Override
     void onPreMeasure(int availableWidth, int availableHeight) {
         int padding;
-        if (parentAlert.actionBar.isSearchFieldVisible() || parentAlert.sizeNotifierFrameLayout.getKeyboardHeight() > AndroidUtilities.dp(20)) {
+        if (parentAlert.actionBar.isSearchFieldVisible() || parentAlert.sizeNotifierFrameLayout.measureKeyboardHeight() > AndroidUtilities.dp(20)) {
             padding = AndroidUtilities.dp(56);
             parentAlert.setAllowNestedScroll(false);
         } else {
@@ -511,7 +512,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
             return;
         }
         sendPressed = true;
-        ArrayList<String> files = new ArrayList<>(selectedFiles.keySet());
+        ArrayList<String> files = new ArrayList<>(selectedFilesOrder);
         delegate.didSelectFiles(files, parentAlert.commentTextView.getText().toString(), notify, scheduleDate);
         parentAlert.dismiss();
     }
@@ -524,6 +525,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
         boolean add;
         if (selectedFiles.containsKey(path)) {
             selectedFiles.remove(path);
+            selectedFilesOrder.remove(path);
             add = false;
         } else {
             if (!item.file.canRead()) {
@@ -534,11 +536,9 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
                 showErrorBox(LocaleController.formatString("PassportUploadNotImage", R.string.PassportUploadNotImage));
                 return false;
             }
-            if (sizeLimit != 0) {
-                if (item.file.length() > sizeLimit) {
-                    showErrorBox(LocaleController.formatString("FileUploadLimit", R.string.FileUploadLimit, AndroidUtilities.formatFileSize(sizeLimit)));
-                    return false;
-                }
+            if (item.file.length() > FileLoader.MAX_FILE_SIZE) {
+                showErrorBox(LocaleController.formatString("FileUploadLimit", R.string.FileUploadLimit, AndroidUtilities.formatFileSize(FileLoader.MAX_FILE_SIZE)));
+                return false;
             }
             if (maxSelectedFiles >= 0 && selectedFiles.size() >= maxSelectedFiles) {
                 showErrorBox(LocaleController.formatString("PassportUploadMaxReached", R.string.PassportUploadMaxReached, LocaleController.formatPluralString("Files", maxSelectedFiles)));
@@ -548,6 +548,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
                 return false;
             }
             selectedFiles.put(path, item);
+            selectedFilesOrder.add(path);
             add = true;
         }
         scrolling = false;
@@ -578,18 +579,17 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
             media.add(info);
             if (object instanceof MediaController.PhotoEntry) {
                 MediaController.PhotoEntry photoEntry = (MediaController.PhotoEntry) object;
-                if (photoEntry.isVideo) {
-                    info.path = photoEntry.path;
-                    info.videoEditedInfo = photoEntry.editedInfo;
-                } else if (photoEntry.imagePath != null) {
+                if (photoEntry.imagePath != null) {
                     info.path = photoEntry.imagePath;
-                } else if (photoEntry.path != null) {
+                } else {
                     info.path = photoEntry.path;
                 }
+                info.thumbPath = photoEntry.thumbPath;
+                info.videoEditedInfo = photoEntry.editedInfo;
                 info.isVideo = photoEntry.isVideo;
                 info.caption = photoEntry.caption != null ? photoEntry.caption.toString() : null;
                 info.entities = photoEntry.entities;
-                info.masks = !photoEntry.stickers.isEmpty() ? new ArrayList<>(photoEntry.stickers) : null;
+                info.masks = photoEntry.stickers;
                 info.ttl = photoEntry.ttl;
             }
         }
@@ -689,6 +689,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
     @Override
     void onShow() {
         selectedFiles.clear();
+        selectedFilesOrder.clear();
         history.clear();
         listRoots();
         updateSearchButton();
@@ -1078,7 +1079,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
                     view = new HeaderCell(mContext);
                     break;
                 case 1:
-                    view = new SharedDocumentCell(mContext, true);
+                    view = new SharedDocumentCell(mContext, SharedDocumentCell.VIEW_TYPE_PICKER);
                     break;
                 case 2:
                     view = new ShadowSectionCell(mContext);
@@ -1240,7 +1241,7 @@ public class ChatAttachAlertDocumentLayout extends ChatAttachAlert.AttachAlertLa
             View view;
             switch (viewType) {
                 case 0:
-                    view = new SharedDocumentCell(mContext, true);
+                    view = new SharedDocumentCell(mContext, SharedDocumentCell.VIEW_TYPE_PICKER);
                     break;
                 case 1:
                 default:

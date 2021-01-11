@@ -78,7 +78,7 @@ public class CloudVeilDialogHelper {
                 }
                 TLRPC.Chat chat = res.chats.get(0);
                 messagesController.putChat(chat, false);
-                messagesController.addUserToChat(chat.id, UserConfig.getInstance(currentAccount).getCurrentUser(), null, 0, null, null, null);
+                messagesController.addUserToChat(chat.id, UserConfig.getInstance(currentAccount).getCurrentUser(), 0, null, null, null);
             }
         }));
     }

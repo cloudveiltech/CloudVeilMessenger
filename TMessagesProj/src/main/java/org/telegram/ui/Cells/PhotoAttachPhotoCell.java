@@ -21,6 +21,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -227,11 +228,22 @@ public class PhotoAttachPhotoCell extends FrameLayout {
             imageView.setImage(ImageLocation.getForPhoto(searchImage.photoSize, searchImage.photo), "80_80", thumb, searchImage);
         } else if (searchImage.thumbPath != null) {
             imageView.setImage(searchImage.thumbPath, null, thumb);
-        } else if (searchImage.thumbUrl != null && searchImage.thumbUrl.length() > 0) {
-            imageView.setImage(searchImage.thumbUrl, null, thumb);
-        } else if (MessageObject.isDocumentHasThumb(searchImage.document)) {
-            TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(searchImage.document.thumbs, 320);
-            imageView.setImage(ImageLocation.getForDocument(photoSize, searchImage.document), null, thumb, searchImage);
+        } else if (!TextUtils.isEmpty(searchImage.thumbUrl)) {
+            ImageLocation location = ImageLocation.getForPath(searchImage.thumbUrl);
+            if (searchImage.type == 1 && searchImage.thumbUrl.endsWith("mp4")) {
+                location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
+            }
+            imageView.setImage(location, null, thumb, searchImage);
+        } else if (searchImage.document != null) {
+            MessageObject.getDocumentVideoThumb(searchImage.document);
+            TLRPC.VideoSize videoSize = MessageObject.getDocumentVideoThumb(searchImage.document);
+            if (videoSize != null) {
+                TLRPC.PhotoSize currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(searchImage.document.thumbs, 90);
+                imageView.setImage(ImageLocation.getForDocument(videoSize, searchImage.document), null, ImageLocation.getForDocument(currentPhotoObject, searchImage.document), "52_52", null, -1, 1, searchImage);
+            } else {
+                TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(searchImage.document.thumbs, 320);
+                imageView.setImage(ImageLocation.getForDocument(photoSize, searchImage.document), null, thumb, searchImage);
+            }
         } else {
             imageView.setImageDrawable(thumb);
         }
@@ -391,7 +403,7 @@ public class PhotoAttachPhotoCell extends FrameLayout {
         super.onInitializeAccessibilityNodeInfo(info);
         info.setEnabled(true);
         if (photoEntry != null && photoEntry.isVideo) {
-            info.setText(LocaleController.getString("AttachVideo", R.string.AttachVideo) + ", " + LocaleController.formatCallDuration(photoEntry.duration));
+            info.setText(LocaleController.getString("AttachVideo", R.string.AttachVideo) + ", " + LocaleController.formatDuration(photoEntry.duration));
         } else {
             info.setText(LocaleController.getString("AttachPhoto", R.string.AttachPhoto));
         }

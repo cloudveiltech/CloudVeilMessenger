@@ -30,6 +30,7 @@ public class RadialProgressView extends View {
     private float currentProgressTime;
     private RectF cicleRect = new RectF();
     private boolean useSelfAlpha;
+    private float drawingCircleLenght;
 
     private int progressColor;
 
@@ -39,6 +40,15 @@ public class RadialProgressView extends View {
     private static final float rotationTime = 2000;
     private static final float risingTime = 500;
     private int size;
+
+    private float currentProgress;
+    private float progressAnimationStart;
+    private int progressTime;
+    private float animatedProgress;
+    private boolean toCircle;
+    private float toCircleProgress;
+
+    private boolean noProgress = true;
 
     public RadialProgressView(Context context) {
         super(context);
@@ -73,6 +83,19 @@ public class RadialProgressView extends View {
         }
     }
 
+    public void setNoProgress(boolean value) {
+        noProgress = value;
+    }
+
+    public void setProgress(float value) {
+        currentProgress = value;
+        if (animatedProgress > value) {
+            animatedProgress = value;
+        }
+        progressAnimationStart = animatedProgress;
+        progressTime = 0;
+    }
+
     private void updateAnimation() {
         long newTime = System.currentTimeMillis();
         long dt = newTime - lastUpdateTime;
@@ -85,22 +108,69 @@ public class RadialProgressView extends View {
         int count = (int) (radOffset / 360);
         radOffset -= count * 360;
 
-        currentProgressTime += dt;
-        if (currentProgressTime >= risingTime) {
-            currentProgressTime = risingTime;
-        }
-        if (risingCircleLength) {
-            currentCircleLength = 4 + 266 * accelerateInterpolator.getInterpolation(currentProgressTime / risingTime);
-        } else {
-            currentCircleLength = 4 - 270 * (1.0f - decelerateInterpolator.getInterpolation(currentProgressTime / risingTime));
-        }
-        if (currentProgressTime == risingTime) {
-            if (risingCircleLength) {
-                radOffset += 270;
-                currentCircleLength = -266;
+        if (toCircle && toCircleProgress != 1f) {
+            toCircleProgress += 16 / 220f;
+            if (toCircleProgress > 1f) {
+                toCircleProgress = 1f;
             }
-            risingCircleLength = !risingCircleLength;
-            currentProgressTime = 0;
+        } else if (!toCircle && toCircleProgress != 0f) {
+            toCircleProgress -= 16 / 400f;
+            if (toCircleProgress < 0) {
+                toCircleProgress = 0f;
+            }
+        }
+
+        if (noProgress) {
+            if (toCircleProgress == 0) {
+                currentProgressTime += dt;
+                if (currentProgressTime >= risingTime) {
+                    currentProgressTime = risingTime;
+                }
+                if (risingCircleLength) {
+                    currentCircleLength = 4 + 266 * accelerateInterpolator.getInterpolation(currentProgressTime / risingTime);
+                } else {
+                    currentCircleLength = 4 - 270 * (1.0f - decelerateInterpolator.getInterpolation(currentProgressTime / risingTime));
+                }
+
+                if (currentProgressTime == risingTime) {
+                    if (risingCircleLength) {
+                        radOffset += 270;
+                        currentCircleLength = -266;
+                    }
+                    risingCircleLength = !risingCircleLength;
+                    currentProgressTime = 0;
+                }
+            } else {
+                if (risingCircleLength) {
+                    float old = currentCircleLength;
+                    currentCircleLength = 4 + 266 * accelerateInterpolator.getInterpolation(currentProgressTime / risingTime);
+                    currentCircleLength += 360 * toCircleProgress;
+                    float dx = old - currentCircleLength;
+                    if (dx > 0) {
+                        radOffset += old - currentCircleLength;
+                    }
+                } else {
+                    float old = currentCircleLength;
+                    currentCircleLength = 4 - 270 * (1.0f - decelerateInterpolator.getInterpolation(currentProgressTime / risingTime));
+                    currentCircleLength -= 364 * toCircleProgress;
+                    float dx = old - currentCircleLength;
+                    if (dx > 0) {
+                        radOffset += old - currentCircleLength;
+                    }
+                }
+            }
+        } else {
+            float progressDiff = currentProgress - progressAnimationStart;
+            if (progressDiff > 0) {
+                progressTime += dt;
+                if (progressTime >= 200.0f) {
+                    animatedProgress = progressAnimationStart = currentProgress;
+                    progressTime = 0;
+                } else {
+                    animatedProgress = progressAnimationStart + progressDiff * AndroidUtilities.decelerateInterpolator.getInterpolation(progressTime / 200.0f);
+                }
+            }
+            currentCircleLength = Math.max(4, 360 * animatedProgress);
         }
         invalidate();
     }
@@ -119,12 +189,29 @@ public class RadialProgressView extends View {
         progressPaint.setColor(progressColor);
     }
 
+    public void toCircle(boolean toCircle, boolean animated) {
+        this.toCircle = toCircle;
+        if (!animated) {
+            toCircleProgress = toCircle ? 1f : 0f;
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         int x = (getMeasuredWidth() - size) / 2;
         int y = (getMeasuredHeight() - size) / 2;
         cicleRect.set(x, y, x + size, y + size);
-        canvas.drawArc(cicleRect, radOffset, currentCircleLength, false, progressPaint);
+        canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
         updateAnimation();
+    }
+
+    public void draw(Canvas canvas, float cx, float cy) {
+        cicleRect.set(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy +  size / 2f);
+        canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
+        updateAnimation();
+    }
+
+    public boolean isCircle() {
+        return Math.abs(drawingCircleLenght) >= 360;
     }
 }

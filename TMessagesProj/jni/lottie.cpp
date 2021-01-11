@@ -8,10 +8,10 @@
 #include <atomic>
 #include <thread>
 #include <map>
-#include <tgnet/FileLog.h>
-#include <tgnet/ConnectionsManager.h>
 #include <sys/stat.h>
 #include <utime.h>
+#include "tgnet/FileLog.h"
+#include "tgnet/ConnectionsManager.h"
 #include "c_utils.h"
 
 extern "C" {
@@ -51,7 +51,7 @@ typedef struct LottieInfo {
     volatile uint32_t framesAvailableInCache = 0;
 };
 
-jlong Java_org_telegram_ui_Components_RLottieDrawable_create(JNIEnv *env, jclass clazz, jstring src, jint w, jint h, jintArray data, jboolean precache, jintArray colorReplacement, jboolean limitFps) {
+JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieDrawable_create(JNIEnv *env, jclass clazz, jstring src, jint w, jint h, jintArray data, jboolean precache, jintArray colorReplacement, jboolean limitFps) {
     LottieInfo *info = new LottieInfo();
 
     std::map<int32_t, int32_t> *colors = nullptr;
@@ -135,7 +135,7 @@ jlong Java_org_telegram_ui_Components_RLottieDrawable_create(JNIEnv *env, jclass
     return (jlong) (intptr_t) info;
 }
 
-jlong Java_org_telegram_ui_Components_RLottieDrawable_createWithJson(JNIEnv *env, jclass clazz, jstring json, jstring name, jintArray data, jintArray colorReplacement) {
+JNIEXPORT jlong Java_org_telegram_ui_Components_RLottieDrawable_createWithJson(JNIEnv *env, jclass clazz, jstring json, jstring name, jintArray data, jintArray colorReplacement) {
     std::map<int32_t, int32_t> *colors = nullptr;
     if (colorReplacement != nullptr) {
         jint *arr = env->GetIntArrayElements(colorReplacement, 0);
@@ -177,16 +177,16 @@ jlong Java_org_telegram_ui_Components_RLottieDrawable_createWithJson(JNIEnv *env
     return (jlong) (intptr_t) info;
 }
 
-void Java_org_telegram_ui_Components_RLottieDrawable_destroy(JNIEnv *env, jclass clazz, jlong ptr) {
-    if (ptr == NULL) {
+JNIEXPORT void Java_org_telegram_ui_Components_RLottieDrawable_destroy(JNIEnv *env, jclass clazz, jlong ptr) {
+    if (!ptr) {
         return;
     }
     LottieInfo *info = (LottieInfo *) (intptr_t) ptr;
     delete info;
 }
 
-void Java_org_telegram_ui_Components_RLottieDrawable_setLayerColor(JNIEnv *env, jclass clazz, jlong ptr, jstring layer, jint color) {
-    if (ptr == NULL || layer == nullptr) {
+JNIEXPORT void Java_org_telegram_ui_Components_RLottieDrawable_setLayerColor(JNIEnv *env, jclass clazz, jlong ptr, jstring layer, jint color) {
+    if (!ptr || layer == nullptr) {
         return;
     }
     LottieInfo *info = (LottieInfo *) (intptr_t) ptr;
@@ -197,8 +197,8 @@ void Java_org_telegram_ui_Components_RLottieDrawable_setLayerColor(JNIEnv *env, 
     }
 }
 
-void Java_org_telegram_ui_Components_RLottieDrawable_replaceColors(JNIEnv *env, jclass clazz, jlong ptr, jintArray colorReplacement) {
-    if (ptr == NULL || colorReplacement == nullptr) {
+JNIEXPORT void Java_org_telegram_ui_Components_RLottieDrawable_replaceColors(JNIEnv *env, jclass clazz, jlong ptr, jintArray colorReplacement) {
+    if (!ptr || colorReplacement == nullptr) {
         return;
     }
     LottieInfo *info = (LottieInfo *) (intptr_t) ptr;
@@ -258,7 +258,7 @@ void CacheWriteThreadProc() {
     }
 }
 
-void Java_org_telegram_ui_Components_RLottieDrawable_createCache(JNIEnv *env, jclass clazz, jlong ptr, jint w, jint h) {
+JNIEXPORT void Java_org_telegram_ui_Components_RLottieDrawable_createCache(JNIEnv *env, jclass clazz, jlong ptr, jint w, jint h) {
     if (ptr == NULL) {
         return;
     }
@@ -299,7 +299,7 @@ void Java_org_telegram_ui_Components_RLottieDrawable_createCache(JNIEnv *env, jc
             for (size_t a = 0; a < info->frameCount; a += framesPerUpdate) {
                 Surface &surfaceToRender = num % 2 == 0 ? surface1 : surface2;
                 num++;
-                info->animation->renderSync(a, surfaceToRender);
+                info->animation->renderSync(a, surfaceToRender, true);
                 if (a != 0) {
                     std::unique_lock<std::mutex> lk(cacheDoneMutex);
                     cacheDoneCv.wait(lk, [] { return !frameReady.load(); });
@@ -317,6 +317,7 @@ void Java_org_telegram_ui_Components_RLottieDrawable_createCache(JNIEnv *env, jc
 
             //DEBUG_D("sticker time = %d", (int) (ConnectionsManager::getInstance(0).getCurrentTimeMonotonicMillis() - time));
             delete[] info->compressBuffer;
+            delete[] firstBuffer;
             delete[] secondBuffer;
             fseek(info->precacheFile, 0, SEEK_SET);
             uint8_t byte = 1;
@@ -332,8 +333,8 @@ void Java_org_telegram_ui_Components_RLottieDrawable_createCache(JNIEnv *env, jc
     }
 }
 
-jint Java_org_telegram_ui_Components_RLottieDrawable_getFrame(JNIEnv *env, jclass clazz, jlong ptr, jint frame, jobject bitmap, jint w, jint h, jint stride) {
-    if (ptr == NULL || bitmap == nullptr) {
+JNIEXPORT jint Java_org_telegram_ui_Components_RLottieDrawable_getFrame(JNIEnv *env, jclass clazz, jlong ptr, jint frame, jobject bitmap, jint w, jint h, jint stride, jboolean clear) {
+    if (!ptr || bitmap == nullptr) {
         return 0;
     }
     LottieInfo *info = (LottieInfo *) (intptr_t) ptr;
@@ -384,7 +385,7 @@ jint Java_org_telegram_ui_Components_RLottieDrawable_getFrame(JNIEnv *env, jclas
         if (!loadedFromCache) {
             if (!info->nextFrameIsCacheFrame || !info->precache) {
                 Surface surface((uint32_t *) pixels, (size_t) w, (size_t) h, (size_t) stride);
-                info->animation->renderSync((size_t) frame, surface);
+                info->animation->renderSync((size_t) frame, surface, clear);
                 info->nextFrameIsCacheFrame = true;
             }
         }

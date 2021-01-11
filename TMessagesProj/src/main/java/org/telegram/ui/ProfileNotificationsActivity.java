@@ -462,7 +462,7 @@ public class ProfileNotificationsActivity extends BaseFragment implements Notifi
                             if (adapter != null) {
                                 adapter.notifyItemChanged(smartRow);
                             }
-                            dismissCurrentDialig();
+                            dismissCurrentDialog();
                         });
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         builder.setTitle(LocaleController.getString("SmartNotificationsAlert", R.string.SmartNotificationsAlert));
@@ -474,7 +474,7 @@ public class ProfileNotificationsActivity extends BaseFragment implements Notifi
                             if (adapter != null) {
                                 adapter.notifyItemChanged(smartRow);
                             }
-                            dismissCurrentDialig();
+                            dismissCurrentDialog();
                         });
                         showDialog(builder.create());
                     } else if (position == colorRow) {
@@ -549,6 +549,7 @@ public class ProfileNotificationsActivity extends BaseFragment implements Notifi
                     editor.putString("sound_" + dialog_id, "NoSound");
                     editor.putString("sound_path_" + dialog_id, "NoSound");
                 }
+                getNotificationsController().deleteNotificationChannel(dialog_id);
             } else if (requestCode == 13) {
                 if (name != null) {
                     editor.putString("ringtone_" + dialog_id, name);

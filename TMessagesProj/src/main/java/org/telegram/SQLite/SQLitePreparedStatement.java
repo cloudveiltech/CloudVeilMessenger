@@ -31,13 +31,15 @@ public class SQLitePreparedStatement {
 
     public SQLitePreparedStatement(SQLiteDatabase db, String sql) throws SQLiteException {
         sqliteStatementHandle = prepare(db.getSQLiteHandle(), sql);
-        if (BuildVars.DEBUG_VERSION) {
+        if (BuildVars.LOGS_ENABLED) {
             query = sql;
             startTime = SystemClock.elapsedRealtime();
-            /*if (hashMap == null) {
-                hashMap = new HashMap<>();
-            }
-            hashMap.put(this, sql);*/
+            /*if (BuildVars.DEBUG_PRIVATE_VERSION) {
+                if (hashMap == null) {
+                    hashMap = new HashMap<>();
+                }
+                hashMap.put(this, sql);
+            }*/
         }
     }
 
@@ -101,14 +103,14 @@ public class SQLitePreparedStatement {
         if (isFinalized) {
             return;
         }
-        if (BuildVars.DEBUG_VERSION) {
+        if (BuildVars.LOGS_ENABLED) {
             long diff = SystemClock.elapsedRealtime() - startTime;
             if (diff > 500) {
                 FileLog.d("sqlite query " + query + " took " + diff + "ms");
             }
         }
         try {
-            /*if (BuildVars.DEBUG_VERSION) {
+            /*if (BuildVars.DEBUG_PRIVATE_VERSION) {
                 hashMap.remove(this);
             }*/
             isFinalized = true;

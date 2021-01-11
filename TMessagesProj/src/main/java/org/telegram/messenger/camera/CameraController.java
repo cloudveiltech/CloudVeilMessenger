@@ -11,13 +11,13 @@ package org.telegram.messenger.camera;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.BitmapDrawable;
 import android.hardware.Camera;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
-import android.media.ThumbnailUtils;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Base64;
@@ -32,6 +32,7 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.SerializedData;
@@ -58,6 +59,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
     protected ArrayList<String> availableFlashModes = new ArrayList<>();
     private MediaRecorder recorder;
     private String recordedFile;
+    private boolean mirrorRecorderVideo;
     protected volatile ArrayList<CameraInfo> cameraInfos;
     private VideoTakeCallback onVideoTakeCallback;
     private boolean cameraInitied;
@@ -602,7 +604,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         });
     }
 
-    public void recordVideo(final CameraSession session, final File path, final VideoTakeCallback callback, final Runnable onVideoStartRecord) {
+    public void recordVideo(final CameraSession session, final File path, boolean mirror, final VideoTakeCallback callback, final Runnable onVideoStartRecord) {
         if (session == null) {
             return;
         }
@@ -622,6 +624,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     camera.unlock();
                     //camera.stopPreview();
                     try {
+                        mirrorRecorderVideo = mirror;
                         recorder = new MediaRecorder();
                         recorder.setCamera(camera);
                         recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
@@ -684,22 +687,31 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                 FileLog.e(e);
             }
         }
-        final Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(recordedFile, MediaStore.Video.Thumbnails.MINI_KIND);
+        Bitmap bitmap = SendMessagesHelper.createVideoThumbnail(recordedFile, MediaStore.Video.Thumbnails.MINI_KIND);
+        if (mirrorRecorderVideo) {
+            Bitmap b = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(b);
+            canvas.scale(-1, 1, b.getWidth() / 2, b.getHeight() / 2);
+            canvas.drawBitmap(bitmap, 0, 0, null);
+            bitmap.recycle();
+            bitmap = b;
+        }
         String fileName = Integer.MIN_VALUE + "_" + SharedConfig.getLastLocalId() + ".jpg";
         final File cacheFile = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
         try {
             FileOutputStream stream = new FileOutputStream(cacheFile);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 87, stream);
         } catch (Throwable e) {
             FileLog.e(e);
         }
         SharedConfig.saveConfig();
         final long durationFinal = duration;
+        final Bitmap bitmapFinal = bitmap;
         AndroidUtilities.runOnUIThread(() -> {
             if (onVideoTakeCallback != null) {
                 String path = cacheFile.getAbsolutePath();
-                if (bitmap != null) {
-                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmap), Utilities.MD5(path));
+                if (bitmapFinal != null) {
+                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal), Utilities.MD5(path));
                 }
                 onVideoTakeCallback.onFinishVideoRecording(path, durationFinal);
                 onVideoTakeCallback = null;

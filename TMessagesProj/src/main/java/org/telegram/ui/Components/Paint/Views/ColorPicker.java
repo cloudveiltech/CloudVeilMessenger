@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -76,7 +77,7 @@ public class ColorPicker extends FrameLayout {
     private RectF rectF = new RectF();
 
     private float location;
-    private float weight = 0.27f;
+    private float weight = 0.016773745f;
     private float draggingFactor;
     private boolean dragging;
 
@@ -91,7 +92,7 @@ public class ColorPicker extends FrameLayout {
         settingsButton = new ImageView(context);
         settingsButton.setScaleType(ImageView.ScaleType.CENTER);
         settingsButton.setImageResource(R.drawable.photo_paint_brush);
-        addView(settingsButton, LayoutHelper.createFrame(60, 52));
+        addView(settingsButton, LayoutHelper.createFrame(46, 52));
         settingsButton.setOnClickListener(v -> {
             if (delegate != null) {
                 delegate.onSettingsPressed();
@@ -101,14 +102,16 @@ public class ColorPicker extends FrameLayout {
         undoButton = new ImageView(context);
         undoButton.setScaleType(ImageView.ScaleType.CENTER);
         undoButton.setImageResource(R.drawable.photo_undo);
-        addView(undoButton, LayoutHelper.createFrame(60, 52));
+        addView(undoButton, LayoutHelper.createFrame(46, 52));
         undoButton.setOnClickListener(v -> {
             if (delegate != null) {
                 delegate.onUndoPressed();
             }
         });
 
-        location = context.getSharedPreferences("paint", Activity.MODE_PRIVATE).getFloat("last_color_location", 1.0f);
+        SharedPreferences preferences = context.getSharedPreferences("paint", Activity.MODE_PRIVATE);
+        location = preferences.getFloat("last_color_location", 1.0f);
+        setWeight(preferences.getFloat("last_color_weight", 0.016773745f));
         setLocation(location);
     }
 
@@ -150,7 +153,7 @@ public class ColorPicker extends FrameLayout {
 
         for (int i = 1; i < LOCATIONS.length; i++) {
             float value = LOCATIONS[i];
-            if (value > location) {
+            if (value >= location) {
                 leftIndex = i - 1;
                 rightIndex = i;
                 break;
@@ -225,7 +228,10 @@ public class ColorPicker extends FrameLayout {
         if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) {
             if (interacting && delegate != null) {
                 delegate.onFinishedColorPicking();
-                getContext().getSharedPreferences("paint", Activity.MODE_PRIVATE).edit().putFloat("last_color_location", location).commit();
+                SharedPreferences.Editor editor = getContext().getSharedPreferences("paint", Activity.MODE_PRIVATE).edit();
+                editor.putFloat("last_color_location", location);
+                editor.putFloat("last_color_weight", weight);
+                editor.commit();
             }
             interacting = false;
             wasChangingWeight = changingWeight;

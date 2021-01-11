@@ -20,6 +20,8 @@ public class ImageLocation {
 
     public TLRPC.Document document;
 
+    public long videoSeekTo;
+
     public TLRPC.PhotoSize photoSize;
     public TLRPC.Photo photo;
     public boolean photoPeerBig;
@@ -85,7 +87,7 @@ public class ImageLocation {
     }
 
     public static ImageLocation getForPhoto(TLRPC.PhotoSize photoSize, TLRPC.Photo photo) {
-        if (photoSize instanceof TLRPC.TL_photoStrippedSize) {
+        if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             ImageLocation imageLocation = new ImageLocation();
             imageLocation.photoSize = photoSize;
             return imageLocation;
@@ -168,7 +170,7 @@ public class ImageLocation {
     }
 
     public static ImageLocation getForSticker(TLRPC.PhotoSize photoSize, TLRPC.Document sticker) {
-        if (photoSize instanceof TLRPC.TL_photoStrippedSize) {
+        if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             ImageLocation imageLocation = new ImageLocation();
             imageLocation.photoSize = photoSize;
             return imageLocation;
@@ -186,8 +188,29 @@ public class ImageLocation {
         return imageLocation;
     }
 
+    public static ImageLocation getForDocument(TLRPC.VideoSize videoSize, TLRPC.Document document) {
+        if (videoSize == null || document == null) {
+            return null;
+        }
+        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, null, document, null, false, document.dc_id, null, videoSize.type);
+        location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
+        return location;
+    }
+
+    public static ImageLocation getForPhoto(TLRPC.VideoSize videoSize, TLRPC.Photo photo) {
+        if (videoSize == null || photo == null) {
+            return null;
+        }
+        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, photo, null, null, false, photo.dc_id, null, videoSize.type);
+        location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
+        if ((videoSize.flags & 1) != 0) {
+            location.videoSeekTo = (int) (videoSize.video_start_ts * 1000);
+        }
+        return location;
+    }
+
     public static ImageLocation getForDocument(TLRPC.PhotoSize photoSize, TLRPC.Document document) {
-        if (photoSize instanceof TLRPC.TL_photoStrippedSize) {
+        if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             ImageLocation imageLocation = new ImageLocation();
             imageLocation.photoSize = photoSize;
             return imageLocation;
@@ -286,7 +309,7 @@ public class ImageLocation {
     public String getKey(Object parentObject, Object fullObject, boolean url) {
         if (secureDocument != null) {
             return secureDocument.secureFile.dc_id + "_" + secureDocument.secureFile.id;
-        } else if (photoSize instanceof TLRPC.TL_photoStrippedSize) {
+        } else if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             if (photoSize.bytes.length > 0) {
                 return getStippedKey(parentObject, fullObject, photoSize);
             }

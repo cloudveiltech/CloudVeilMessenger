@@ -27,19 +27,25 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ProgressButton;
+import org.telegram.ui.Components.RecyclerListView;
+
+import java.util.List;
 
 public class FeaturedStickerSetCell2 extends FrameLayout {
 
@@ -87,8 +93,6 @@ public class FeaturedStickerSetCell2 extends FrameLayout {
         addButton = new ProgressButton(context);
         addButton.setText(LocaleController.getString("Add", R.string.Add));
         addButton.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
-        addButton.setProgressColor(Theme.getColor(Theme.key_featuredStickers_buttonProgress));
-        addButton.setBackgroundRoundRect(Theme.getColor(Theme.key_featuredStickers_addButton), Theme.getColor(Theme.key_featuredStickers_addButtonPressed));
         addView(addButton, LayoutHelper.createFrameRelatively(LayoutHelper.WRAP_CONTENT, 28, Gravity.TOP | Gravity.END, 0, 18, 14, 0));
 
         delButton = new TextView(context);
@@ -98,6 +102,8 @@ public class FeaturedStickerSetCell2 extends FrameLayout {
         delButton.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         delButton.setText(LocaleController.getString("StickersRemove", R.string.StickersRemove));
         addView(delButton, LayoutHelper.createFrameRelatively(LayoutHelper.WRAP_CONTENT, 28, Gravity.TOP | Gravity.END, 0, 16, 14, 0));
+
+        updateColors();
     }
 
     @Override
@@ -180,12 +186,11 @@ public class FeaturedStickerSetCell2 extends FrameLayout {
         }
         if (sticker != null) {
             if (MessageObject.canAutoplayAnimatedSticker(sticker)) {
-                TLObject object;
-                if (set.set.thumb instanceof TLRPC.TL_photoSize) {
-                    object = set.set.thumb;
-                } else {
+                TLObject object = FileLoader.getClosestPhotoSizeWithSize(set.set.thumbs, 90);
+                if (object == null) {
                     object = sticker;
                 }
+                SvgHelper.SvgDrawable svgThumb = DocumentObject.getSvgThumb(set.set.thumbs, Theme.key_windowBackgroundGray, 1.0f);
                 ImageLocation imageLocation;
 
                 if (object instanceof TLRPC.Document) { // first sticker in set as a thumb
@@ -197,11 +202,15 @@ public class FeaturedStickerSetCell2 extends FrameLayout {
                 }
 
                 if (object instanceof TLRPC.Document && MessageObject.isAnimatedStickerDocument(sticker, true)) {
-                    imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", imageLocation, null, 0, set);
+                    if (svgThumb != null) {
+                        imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", svgThumb, 0, set);
+                    } else {
+                        imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", imageLocation, null, 0, set);
+                    }
                 } else if (imageLocation != null && imageLocation.imageType == FileLoader.IMAGE_TYPE_LOTTIE) {
-                    imageView.setImage(imageLocation, "50_50", "tgs", null, set);
+                    imageView.setImage(imageLocation, "50_50", "tgs", svgThumb, set);
                 } else {
-                    imageView.setImage(imageLocation, "50_50", "webp", null, set);
+                    imageView.setImage(imageLocation, "50_50", "webp", svgThumb, set);
                 }
             } else {
                 final TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(sticker.thumbs, 90);
@@ -293,5 +302,20 @@ public class FeaturedStickerSetCell2 extends FrameLayout {
 
     public BackupImageView getImageView() {
         return imageView;
+    }
+
+    public void updateColors() {
+        addButton.setProgressColor(Theme.getColor(Theme.key_featuredStickers_buttonProgress));
+        addButton.setBackgroundRoundRect(Theme.getColor(Theme.key_featuredStickers_addButton), Theme.getColor(Theme.key_featuredStickers_addButtonPressed));
+    }
+
+    public static void createThemeDescriptions(List<ThemeDescription> descriptions, RecyclerListView listView, ThemeDescription.ThemeDescriptionDelegate delegate) {
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FeaturedStickerSetCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FeaturedStickerSetCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteGrayText2));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FeaturedStickerSetCell.class}, new String[]{"addButton"}, null, null, null, Theme.key_featuredStickers_buttonText));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{FeaturedStickerSetCell.class}, new String[]{"delButton"}, null, null, null, Theme.key_featuredStickers_removeButtonText));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{FeaturedStickerSetCell.class}, Theme.dividerPaint, null, null, Theme.key_divider));
+        descriptions.add(new ThemeDescription(null, 0, null, null, null, delegate, Theme.key_featuredStickers_buttonProgress));
+        descriptions.add(new ThemeDescription(null, 0, null, null, null, delegate, Theme.key_featuredStickers_addButtonPressed));
     }
 }

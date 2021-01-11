@@ -34,7 +34,9 @@ import android.widget.ScrollView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.Components.LayoutHelper;
 
 import java.lang.reflect.Field;
@@ -51,6 +53,10 @@ public class ActionBarPopupWindow extends PopupWindow {
     private AnimatorSet windowAnimatorSet;
     private boolean animationEnabled = allowAnimation;
     private int dismissAnimationDuration = 150;
+    private boolean isClosingAnimated;
+    private int currentAccount = UserConfig.selectedAccount;
+    private boolean pauseNotifications;
+
     static {
         Field f = null;
         try {
@@ -68,6 +74,7 @@ public class ActionBarPopupWindow extends PopupWindow {
 
     private ViewTreeObserver.OnScrollChangedListener mSuperScrollListener;
     private ViewTreeObserver mViewTreeObserver;
+    private int popupAnimationIndex = -1;
 
     public interface OnDispatchKeyEventListener {
         void onDispatchKeyEvent(KeyEvent keyEvent);
@@ -171,13 +178,18 @@ public class ActionBarPopupWindow extends PopupWindow {
                     }
                 } else {
                     int count = getItemsCount();
-                    for (int a = lastStartedChild; a < count; a++) {
+                    int h = 0;
+                    for (int a = 0; a < count; a++) {
                         View child = getItemAt(a);
                         if (child.getVisibility() != VISIBLE) {
                             continue;
                         }
+                        h += child.getMeasuredHeight();
+                        if (a < lastStartedChild) {
+                            continue;
+                        }
                         Integer position = positions.get(child);
-                        if (position != null && (position + 1) * AndroidUtilities.dp(48) - AndroidUtilities.dp(24) > value * height) {
+                        if (position != null && h - AndroidUtilities.dp(24) > value * height) {
                             break;
                         }
                         lastStartedChild = a + 1;
@@ -222,6 +234,10 @@ public class ActionBarPopupWindow extends PopupWindow {
         @Override
         public void addView(View child) {
             linearLayout.addView(child);
+        }
+
+        public void addView(View child, LinearLayout.LayoutParams layoutParams) {
+            linearLayout.addView(child, layoutParams);
         }
 
         public void removeInnerViews() {
@@ -273,6 +289,40 @@ public class ActionBarPopupWindow extends PopupWindow {
         public void scrollToTop() {
             if (scrollView != null) {
                 scrollView.scrollTo(0, 0);
+            }
+        }
+
+        public void setupRadialSelectors(int color) {
+            int count = linearLayout.getChildCount();
+            for (int a = 0; a < count; a++) {
+                View child = linearLayout.getChildAt(a);
+                child.setBackground(Theme.createRadSelectorDrawable(color, a == 0 ? 6 : 0, a == count - 1 ? 6 : 0));
+            }
+        }
+
+        public void updateRadialSelectors() {
+            int count = linearLayout.getChildCount();
+            View firstVisible = null;
+            View lastVisible = null;
+            for (int a = 0; a < count; a++) {
+                View child = linearLayout.getChildAt(a);
+                if (child.getVisibility() != View.VISIBLE) {
+                    continue;
+                }
+                if (firstVisible == null) {
+                    firstVisible = child;
+                }
+                lastVisible = child;
+            }
+
+            for (int a = 0; a < count; a++) {
+                View child = linearLayout.getChildAt(a);
+                if (child.getVisibility() != View.VISIBLE) {
+                    continue;
+                }
+                if (child instanceof ActionBarMenuSubItem) {
+                    ((ActionBarMenuSubItem) child).updateSelectorBackground(child == firstVisible, child == lastVisible);
+                }
             }
         }
     }
@@ -414,12 +464,7 @@ public class ActionBarPopupWindow extends PopupWindow {
                     ObjectAnimator.ofFloat(content, "backScaleY", 0.0f, 1.0f),
                     ObjectAnimator.ofInt(content, "backAlpha", 0, 255));
             windowAnimatorSet.setDuration(150 + 16 * visibleCount);
-            windowAnimatorSet.addListener(new Animator.AnimatorListener() {
-                @Override
-                public void onAnimationStart(Animator animation) {
-
-                }
-
+            windowAnimatorSet.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     windowAnimatorSet = null;
@@ -429,16 +474,6 @@ public class ActionBarPopupWindow extends PopupWindow {
                         View child = content.getItemAt(a);
                         child.setAlpha(1.0f);
                     }
-                }
-
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                    onAnimationEnd(animation);
-                }
-
-                @Override
-                public void onAnimationRepeat(Animator animation) {
-
                 }
             });
             windowAnimatorSet.start();
@@ -468,12 +503,22 @@ public class ActionBarPopupWindow extends PopupWindow {
         dismiss(true);
     }
 
+    public void setPauseNotifications(boolean value) {
+        pauseNotifications = value;
+    }
+
     public void dismiss(boolean animated) {
         setFocusable(false);
-        if (animationEnabled && animated) {
-            if (windowAnimatorSet != null) {
-                windowAnimatorSet.cancel();
+        if (windowAnimatorSet != null) {
+            if (animated && isClosingAnimated) {
+                return;
             }
+            windowAnimatorSet.cancel();
+            windowAnimatorSet = null;
+        }
+        isClosingAnimated = false;
+        if (animationEnabled && animated) {
+            isClosingAnimated = true;
             ActionBarPopupWindowLayout content = (ActionBarPopupWindowLayout) getContentView();
             if (content.itemAnimators != null && !content.itemAnimators.isEmpty()) {
                 for (int a = 0, N = content.itemAnimators.size(); a < N; a++) {
@@ -488,15 +533,11 @@ public class ActionBarPopupWindow extends PopupWindow {
                     ObjectAnimator.ofFloat(content, View.TRANSLATION_Y, AndroidUtilities.dp(content.showedFromBotton ? 5 : -5)),
                     ObjectAnimator.ofFloat(content, View.ALPHA, 0.0f));
             windowAnimatorSet.setDuration(dismissAnimationDuration);
-            windowAnimatorSet.addListener(new Animator.AnimatorListener() {
-                @Override
-                public void onAnimationStart(Animator animation) {
-
-                }
-
+            windowAnimatorSet.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     windowAnimatorSet = null;
+                    isClosingAnimated = false;
                     setFocusable(false);
                     try {
                         ActionBarPopupWindow.super.dismiss();
@@ -504,18 +545,14 @@ public class ActionBarPopupWindow extends PopupWindow {
 
                     }
                     unregisterListener();
-                }
-
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                    onAnimationEnd(animation);
-                }
-
-                @Override
-                public void onAnimationRepeat(Animator animation) {
-
+                    if (pauseNotifications) {
+                        NotificationCenter.getInstance(currentAccount).onAnimationFinish(popupAnimationIndex);
+                    }
                 }
             });
+            if (pauseNotifications) {
+                popupAnimationIndex = NotificationCenter.getInstance(currentAccount).setAnimationInProgress(popupAnimationIndex, null);
+            }
             windowAnimatorSet.start();
         } else {
             try {

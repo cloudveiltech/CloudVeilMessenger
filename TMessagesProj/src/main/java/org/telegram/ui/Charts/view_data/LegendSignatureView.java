@@ -3,13 +3,13 @@ package org.telegram.ui.Charts.view_data;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.transition.ChangeBounds;
 import android.transition.Fade;
 import android.transition.TransitionManager;
 import android.transition.TransitionSet;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -20,10 +20,10 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Charts.data.ChartData;
 import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RadialProgressView;
-import org.telegram.ui.Charts.data.ChartData;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -43,8 +43,11 @@ public class LegendSignatureView extends FrameLayout {
 
     SimpleDateFormat format = new SimpleDateFormat("E, ");
     SimpleDateFormat format2 = new SimpleDateFormat("MMM dd");
+    SimpleDateFormat format3 =  new SimpleDateFormat("d MMM yyyy");
+    SimpleDateFormat format4 =  new SimpleDateFormat("d MMM");
     SimpleDateFormat hourFormat = new SimpleDateFormat(" HH:mm");
 
+    public boolean useWeek;
     public boolean useHour;
     public boolean showPercentage;
     public boolean zoomEnabled;
@@ -75,10 +78,10 @@ public class LegendSignatureView extends FrameLayout {
         content.setOrientation(LinearLayout.VERTICAL);
 
         time = new TextView(context);
-        time.setTextSize(14);
+        time.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         time.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         hourTime = new TextView(context);
-        hourTime.setTextSize(14);
+        hourTime.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         hourTime.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
 
         chevron = new ImageView(context);
@@ -127,10 +130,10 @@ public class LegendSignatureView extends FrameLayout {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 TransitionSet transition = new TransitionSet();
                 transition.
-                        addTransition(new Fade(Fade.OUT).setDuration(100)).
+                        addTransition(new Fade(Fade.OUT).setDuration(150)).
                         addTransition(new ChangeBounds().setDuration(150)).
-                        addTransition(new Fade(Fade.IN).setDuration(100));
-                transition.setOrdering(TransitionSet.ORDERING_SEQUENTIAL);
+                        addTransition(new Fade(Fade.IN).setDuration(150));
+                transition.setOrdering(TransitionSet.ORDERING_TOGETHER);
                 TransitionManager.beginDelayedTransition(this, transition);
             }
         }
@@ -138,7 +141,11 @@ public class LegendSignatureView extends FrameLayout {
         if (isTopHourChart) {
             time.setText(String.format(Locale.ENGLISH, "%02d:00", date));
         } else {
-            time.setText(formatData(new Date(date)));
+            if (useWeek) {
+                time.setText(String.format("%s — %s", format4.format(new Date(date)), format3.format(new Date(date + 86400000L * 7))));
+            } else {
+                time.setText(formatData(new Date(date)));
+            }
             if (useHour) hourTime.setText(hourFormat.format(date));
         }
 
@@ -237,6 +244,10 @@ public class LegendSignatureView extends FrameLayout {
         }
     }
 
+    public void setUseWeek(boolean useWeek) {
+        this.useWeek = useWeek;
+    }
+
     class Holder {
         final TextView value;
         final TextView signature;
@@ -252,7 +263,7 @@ public class LegendSignatureView extends FrameLayout {
                 percentage.getLayoutParams().width = AndroidUtilities.dp(36);
                 percentage.setVisibility(GONE);
                 percentage.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-                percentage.setTextSize(13);
+                percentage.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
             }
 
             root.addView(signature = new TextView(getContext()));
@@ -263,10 +274,10 @@ public class LegendSignatureView extends FrameLayout {
             value.setGravity(Gravity.END);
 
             value.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-            value.setTextSize(13);
+            value.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
             value.setMinEms(4);
             value.setMaxEms(4);
-            signature.setTextSize(13);
+            signature.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         }
     }
 }

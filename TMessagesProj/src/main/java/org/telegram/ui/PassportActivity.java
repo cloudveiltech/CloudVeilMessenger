@@ -930,7 +930,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
     public boolean onFragmentCreate() {
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.FileDidUpload);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.FileDidFailUpload);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.didSetTwoStepPassword);
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.twoStepPasswordChanged);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.didRemoveTwoStepPassword);
         return super.onFragmentCreate();
     }
@@ -940,7 +940,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
         super.onFragmentDestroy();
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.FileDidUpload);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.FileDidFailUpload);
-        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.didSetTwoStepPassword);
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.twoStepPasswordChanged);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.didRemoveTwoStepPassword);
         callCallback(false);
         if (chatAttachAlert != null) {
@@ -1122,7 +1122,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
                         spanned.setSpan(new URLSpanNoUnderline(LocaleController.getString("PassportInfoUrl", R.string.PassportInfoUrl)) {
                             @Override
                             public void onClick(View widget) {
-                                dismissCurrentDialig();
+                                dismissCurrentDialog();
                                 super.onClick(widget);
                             }
                         }, index1, index2 - 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -1288,7 +1288,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
 
         if (currentActivityType != TYPE_REQUEST && currentActivityType != TYPE_MANAGE) {
             ActionBarMenu menu = actionBar.createMenu();
-            doneItem = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56));
+            doneItem = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
             progressView = new ContextProgressView(context, 1);
             progressView.setAlpha(0.0f);
             progressView.setScaleX(0.1f);
@@ -1341,14 +1341,14 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
     }
 
     @Override
-    public void dismissCurrentDialig() {
+    public void dismissCurrentDialog() {
         if (chatAttachAlert != null && visibleDialog == chatAttachAlert) {
             chatAttachAlert.getPhotoLayout().closeCamera(false);
             chatAttachAlert.dismissInternal();
             chatAttachAlert.getPhotoLayout().hideCamera(true);
             return;
         }
-        super.dismissCurrentDialig();
+        super.dismissCurrentDialog();
     }
 
     private String getTranslitString(String value) {
@@ -1559,9 +1559,8 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
         noPasswordSetTextView.setText(LocaleController.getString("TelegramPassportCreatePassword", R.string.TelegramPassportCreatePassword));
         linearLayout2.addView(noPasswordSetTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 24, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 21, 9, 21, 0));
         noPasswordSetTextView.setOnClickListener(v -> {
-            TwoStepVerificationActivity activity = new TwoStepVerificationActivity(currentAccount, 1);
+            TwoStepVerificationSetupActivity activity = new TwoStepVerificationSetupActivity(currentAccount, TwoStepVerificationSetupActivity.TYPE_ENTER_FIRST, currentPassword);
             activity.setCloseAfterSet(true);
-            activity.setCurrentPasswordInfo(new byte[0], currentPassword);
             presentFragment(activity);
         });
 
@@ -1640,9 +1639,8 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
                         builder.setMessage(LocaleController.formatString("RestoreEmailSent", R.string.RestoreEmailSent, res.email_pattern));
                         builder.setTitle(LocaleController.getString("RestoreEmailSentTitle", R.string.RestoreEmailSentTitle));
                         builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> {
-                            TwoStepVerificationActivity fragment = new TwoStepVerificationActivity(currentAccount, 1);
-                            fragment.setRecoveryParams(currentPassword);
                             currentPassword.email_unconfirmed_pattern = res.email_pattern;
+                            TwoStepVerificationSetupActivity fragment = new TwoStepVerificationSetupActivity(currentAccount, TwoStepVerificationSetupActivity.TYPE_EMAIL_RECOVERY, currentPassword);
                             presentFragment(fragment);
                         });
                         Dialog dialog = showDialog(builder.create());
@@ -6516,7 +6514,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
             }
         } else if (id == NotificationCenter.FileDidFailUpload) {
 
-        } else if (id == NotificationCenter.didSetTwoStepPassword) {
+        } else if (id == NotificationCenter.twoStepPasswordChanged) {
             if (args != null && args.length > 0) {
                 if (args[7] != null && inputFields[FIELD_PASSWORD] != null) {
                     inputFields[FIELD_PASSWORD].setText((String) args[7]);
@@ -6619,7 +6617,7 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
     @Override
     public void onRequestPermissionsResultFragment(int requestCode, String[] permissions, int[] grantResults) {
         if ((currentActivityType == TYPE_IDENTITY || currentActivityType == TYPE_ADDRESS) && chatAttachAlert != null) {
-            if (requestCode == 17 && chatAttachAlert != null) {
+            if (requestCode == 17) {
                 chatAttachAlert.getPhotoLayout().checkCamera(false);
             } else if (requestCode == 21) {
                 if (getParentActivity() == null) {
@@ -6834,11 +6832,10 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
                             ArrayList<SendMessagesHelper.SendingMediaInfo> photos = new ArrayList<>();
                             for (int a = 0; a < selectedPhotosOrder.size(); a++) {
                                 MediaController.PhotoEntry photoEntry = (MediaController.PhotoEntry) selectedPhotos.get(selectedPhotosOrder.get(a));
-
                                 SendMessagesHelper.SendingMediaInfo info = new SendMessagesHelper.SendingMediaInfo();
                                 if (photoEntry.imagePath != null) {
                                     info.path = photoEntry.imagePath;
-                                } else if (photoEntry.path != null) {
+                                } else {
                                     info.path = photoEntry.path;
                                 }
                                 photos.add(info);
@@ -6869,8 +6866,13 @@ public class PassportActivity extends BaseFragment implements NotificationCenter
                 }
 
                 @Override
-                public void needEnterComment() {
+                public boolean needEnterComment() {
+                    return false;
+                }
 
+                @Override
+                public void doOnIdle(Runnable runnable) {
+                    runnable.run();
                 }
             });
         }

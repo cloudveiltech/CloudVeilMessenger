@@ -6,6 +6,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -30,6 +31,7 @@ public class ChartHeaderView extends FrameLayout {
     private TextView datesTmp;
     public TextView back;
     private boolean showDate = true;
+    private boolean useWeekInterval;
 
     private Drawable zoomIcon;
 
@@ -45,24 +47,24 @@ public class ChartHeaderView extends FrameLayout {
         textMargin = (int) textPaint.measureText("00 MMM 0000 - 00 MMM 000");
 
         title = new TextView(context);
-        title.setTextSize(15);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         title.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         addView(title, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL, 16, 0, textMargin, 0));
 
         back = new TextView(context);
-        back.setTextSize(15);
+        back.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
         back.setTypeface(Typeface.DEFAULT_BOLD);
         back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         addView(back, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL, 8, 0, 8, 0));
 
         dates = new TextView(context);
-        dates.setTextSize(13);
+        dates.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         dates.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         dates.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         addView(dates, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL, 16, 0, 16, 0));
 
         datesTmp = new TextView(context);
-        datesTmp.setTextSize(13);
+        datesTmp.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
         datesTmp.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         datesTmp.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         addView(datesTmp, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.END | Gravity.CENTER_VERTICAL, 16, 0, 16, 0));
@@ -98,6 +100,9 @@ public class ChartHeaderView extends FrameLayout {
             dates.setVisibility(GONE);
             datesTmp.setVisibility(GONE);
             return;
+        }
+        if (useWeekInterval) {
+            end += 86400000L * 7;
         }
         final String newText;
         if (end - start >= 86400000L) {
@@ -147,6 +152,8 @@ public class ChartHeaderView extends FrameLayout {
             back.setAlpha(1f);
             back.setTranslationX(0);
             back.setTranslationY(0);
+            back.setScaleX(1f);
+            back.setScaleY(1f);
             title.setAlpha(0f);
         }
     }
@@ -183,6 +190,10 @@ public class ChartHeaderView extends FrameLayout {
             title.setScaleY(1f);
             back.setAlpha(0);
         }
+    }
+
+    public void setUseWeekInterval(boolean useWeekInterval) {
+        this.useWeekInterval = useWeekInterval;
     }
 
     public void showDate(boolean b) {

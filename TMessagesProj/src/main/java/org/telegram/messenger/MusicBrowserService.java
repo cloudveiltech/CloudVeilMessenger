@@ -192,7 +192,7 @@ public class MusicBrowserService extends MediaBrowserService implements Notifica
                                         arrayList1 = new ArrayList<>();
                                         musicQueues.put(did, arrayList1);
                                     }
-                                    MessageObject messageObject = new MessageObject(currentAccount, message, false);
+                                    MessageObject messageObject = new MessageObject(currentAccount, message, false, true);
                                     arrayList.add(0, messageObject);
                                     MediaDescription.Builder builder = new MediaDescription.Builder().setMediaId(did + "_" + arrayList.size());
                                     builder.setTitle(messageObject.getMusicTitle());
@@ -379,7 +379,7 @@ public class MusicBrowserService extends MediaBrowserService implements Notifica
 
         @Override
         public void onPlayFromMediaId(String mediaId, Bundle extras) {
-            String args[] = mediaId.split("_");
+            String[] args = mediaId.split("_");
             if (args.length != 2) {
                 return;
             }
@@ -393,7 +393,7 @@ public class MusicBrowserService extends MediaBrowserService implements Notifica
                 }
                 lastSelectedDialog = did;
                 MessagesController.getNotificationsSettings(currentAccount).edit().putInt("auto_lastSelectedDialog", did).commit();
-                MediaController.getInstance().setPlaylist(arrayList, arrayList.get(id), false);
+                MediaController.getInstance().setPlaylist(arrayList, arrayList.get(id), 0, false, null);
                 mediaSession.setQueue(arrayList1);
                 if (did > 0) {
                     TLRPC.User user = users.get(did);

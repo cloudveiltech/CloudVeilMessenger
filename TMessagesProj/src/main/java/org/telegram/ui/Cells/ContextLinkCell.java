@@ -28,6 +28,7 @@ import android.view.animation.AccelerateInterpolator;
 import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.DownloadController;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
@@ -40,6 +41,7 @@ import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.WebFile;
@@ -85,6 +87,8 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
 
     private boolean canPreviewGif;
 
+    private boolean isForceGif;
+
     private int linkY;
     private StaticLayout linkLayout;
 
@@ -95,6 +99,7 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
     private StaticLayout descriptionLayout;
 
     private TLRPC.BotInlineResult inlineResult;
+    private TLRPC.User inlineBot;
     private TLRPC.Document documentAttach;
     private int currentDate;
     private TLRPC.Photo photoAttach;
@@ -115,6 +120,8 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
     private boolean scaled;
     private float scale;
     private static AccelerateInterpolator interpolator = new AccelerateInterpolator(0.5f);
+
+    private boolean hideLoadProgress;
 
     private CheckBox2 checkBox;
 
@@ -215,7 +222,7 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
 
         String ext = null;
         if (documentAttach != null) {
-            if (MessageObject.isGifDocument(documentAttach)) {
+            if (isForceGif || MessageObject.isGifDocument(documentAttach)) {
                 currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(documentAttach.thumbs, 90);
             } else if (MessageObject.isStickerDocument(documentAttach) || MessageObject.isAnimatedStickerDocument(documentAttach, true)) {
                 currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(documentAttach.thumbs, 90);
@@ -236,7 +243,11 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             if (inlineResult.content instanceof TLRPC.TL_webDocument) {
                 if (inlineResult.type != null) {
                     if (inlineResult.type.startsWith("gif")) {
-                        webDocument = (TLRPC.TL_webDocument) inlineResult.content;
+                        if (inlineResult.thumb instanceof TLRPC.TL_webDocument && "video/mp4".equals(inlineResult.thumb.mime_type)) {
+                            webDocument = (TLRPC.TL_webDocument) inlineResult.thumb;
+                        } else {
+                            webDocument = (TLRPC.TL_webDocument) inlineResult.content;
+                        }
                         documentAttachType = DOCUMENT_ATTACH_TYPE_GIF;
                     } else if (inlineResult.type.equals("photo")) {
                         if (inlineResult.thumb instanceof TLRPC.TL_webDocument) {
@@ -315,19 +326,37 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
 
             if (documentAttachType == DOCUMENT_ATTACH_TYPE_GIF) {
                 if (documentAttach != null) {
-                    linkImageView.setImage(ImageLocation.getForDocument(documentAttach), null, ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, documentAttach.size, ext, parentObject, 0);
+                    TLRPC.VideoSize thumb = MessageObject.getDocumentVideoThumb(documentAttach);
+                    if (thumb != null) {
+                        linkImageView.setImage(ImageLocation.getForDocument(thumb, documentAttach), "100_100", ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, -1, ext, parentObject, 1);
+                    } else {
+                        ImageLocation location = ImageLocation.getForDocument(documentAttach);
+                        if (isForceGif) {
+                            location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
+                        }
+                        linkImageView.setImage(location, "100_100", ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, documentAttach.size, ext, parentObject, 0);
+                    }
                 } else if (webFile != null) {
-                    linkImageView.setImage(ImageLocation.getForWebFile(webFile), null, ImageLocation.getForPhoto(currentPhotoObject, photoAttach), currentPhotoFilter, -1, ext, parentObject, 1);
+                    linkImageView.setImage(ImageLocation.getForWebFile(webFile), "100_100", ImageLocation.getForPhoto(currentPhotoObject, photoAttach), currentPhotoFilter, -1, ext, parentObject, 1);
                 } else {
-                    linkImageView.setImage(ImageLocation.getForPath(urlLocation), null, ImageLocation.getForPhoto(currentPhotoObject, photoAttach), currentPhotoFilter, -1, ext, parentObject, 1);
+                    linkImageView.setImage(ImageLocation.getForPath(urlLocation), "100_100", ImageLocation.getForPhoto(currentPhotoObject, photoAttach), currentPhotoFilter, -1, ext, parentObject, 1);
                 }
             } else {
                 if (currentPhotoObject != null) {
+                    SvgHelper.SvgDrawable svgThumb = DocumentObject.getSvgThumb(documentAttach, Theme.key_windowBackgroundGray, 1.0f);
                     if (MessageObject.canAutoplayAnimatedSticker(documentAttach)) {
-                        linkImageView.setImage(ImageLocation.getForDocument(documentAttach), "80_80", ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilterThumb, currentPhotoObject.size, null, parentObject, 0);
+                        if (svgThumb != null) {
+                            linkImageView.setImage(ImageLocation.getForDocument(documentAttach), "80_80", svgThumb, currentPhotoObject.size, ext, parentObject, 0);
+                        } else {
+                            linkImageView.setImage(ImageLocation.getForDocument(documentAttach), "80_80", ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilterThumb, currentPhotoObject.size, ext, parentObject, 0);
+                        }
                     } else {
                         if (documentAttach != null) {
-                            linkImageView.setImage(ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, ImageLocation.getForPhoto(currentPhotoObjectThumb, photoAttach), currentPhotoFilterThumb, currentPhotoObject.size, ext, parentObject, 0);
+                            if (svgThumb != null) {
+                                linkImageView.setImage(ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, svgThumb, currentPhotoObject.size, ext, parentObject, 0);
+                            } else {
+                                linkImageView.setImage(ImageLocation.getForDocument(currentPhotoObject, documentAttach), currentPhotoFilter, ImageLocation.getForPhoto(currentPhotoObjectThumb, photoAttach), currentPhotoFilterThumb, currentPhotoObject.size, ext, parentObject, 0);
+                            }
                         } else {
                             linkImageView.setImage(ImageLocation.getForPhoto(currentPhotoObject, photoAttach), currentPhotoFilter, ImageLocation.getForPhoto(currentPhotoObjectThumb, photoAttach), currentPhotoFilterThumb, currentPhotoObject.size, ext, parentObject, 0);
                         }
@@ -407,8 +436,9 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             TLRPC.TL_message message = new TLRPC.TL_message();
             message.out = true;
             message.id = -Utilities.random.nextInt();
-            message.to_id = new TLRPC.TL_peerUser();
-            message.to_id.user_id = message.from_id = UserConfig.getInstance(currentAccount).getClientUserId();
+            message.peer_id = new TLRPC.TL_peerUser();
+            message.from_id = new TLRPC.TL_peerUser();
+            message.peer_id.user_id = message.from_id.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
             message.date = (int) (System.currentTimeMillis() / 1000);
             message.message = "";
             message.media = new TLRPC.TL_messageMediaDocument();
@@ -446,13 +476,18 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
                 message.attachPath = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), Utilities.MD5(inlineResult.content.url) + "." + ImageLoader.getHttpUrlExtension(inlineResult.content.url, documentAttachType == DOCUMENT_ATTACH_TYPE_MUSIC ? "mp3" : "ogg")).getAbsolutePath();
             }
 
-            currentMessageObject = new MessageObject(currentAccount, message, false);
+            currentMessageObject = new MessageObject(currentAccount, message, false, true);
         }
     }
 
-    public void setLink(TLRPC.BotInlineResult contextResult, boolean media, boolean divider, boolean shadow) {
+    public void setLink(TLRPC.BotInlineResult contextResult, TLRPC.User bot, boolean media, boolean divider, boolean shadow) {
+        setLink(contextResult, bot, media, divider, shadow, false);
+    }
+
+    public void setLink(TLRPC.BotInlineResult contextResult, TLRPC.User bot, boolean media, boolean divider, boolean shadow, boolean forceGif) {
         needDivider = divider;
         needShadow = shadow;
+        inlineBot = bot;
         parentObject = inlineResult = contextResult;
         if (inlineResult != null) {
             documentAttach = inlineResult.document;
@@ -462,9 +497,17 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             photoAttach = null;
         }
         mediaWebpage = media;
+        isForceGif = forceGif;
         setAttachType();
+        if (forceGif) {
+            documentAttachType = DOCUMENT_ATTACH_TYPE_GIF;
+        }
         requestLayout();
         updateButtonState(false, false);
+    }
+
+    public TLRPC.User getInlineBot() {
+        return inlineBot;
     }
 
     public Object getParentObject() {
@@ -484,7 +527,9 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
         documentAttach = document;
         photoAttach = null;
         mediaWebpage = true;
+        isForceGif = true;
         setAttachType();
+        documentAttachType = DOCUMENT_ATTACH_TYPE_GIF;
         requestLayout();
         updateButtonState(false, false);
     }
@@ -703,24 +748,24 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             } else if (inlineResult != null && inlineResult.type.equals("file")) {
                 int w = Theme.chat_inlineResultFile.getIntrinsicWidth();
                 int h = Theme.chat_inlineResultFile.getIntrinsicHeight();
-                int x = linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2;
-                int y = linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2;
+                int x = (int) (linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2);
+                int y = (int) (linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2);
                 canvas.drawRect(linkImageView.getImageX(), linkImageView.getImageY(), linkImageView.getImageX() + AndroidUtilities.dp(52), linkImageView.getImageY() + AndroidUtilities.dp(52), LetterDrawable.paint);
                 Theme.chat_inlineResultFile.setBounds(x, y, x + w, y + h);
                 Theme.chat_inlineResultFile.draw(canvas);
             } else if (inlineResult != null && (inlineResult.type.equals("audio") || inlineResult.type.equals("voice"))) {
                 int w = Theme.chat_inlineResultAudio.getIntrinsicWidth();
                 int h = Theme.chat_inlineResultAudio.getIntrinsicHeight();
-                int x = linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2;
-                int y = linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2;
+                int x = (int) (linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2);
+                int y = (int) (linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2);
                 canvas.drawRect(linkImageView.getImageX(), linkImageView.getImageY(), linkImageView.getImageX() + AndroidUtilities.dp(52), linkImageView.getImageY() + AndroidUtilities.dp(52), LetterDrawable.paint);
                 Theme.chat_inlineResultAudio.setBounds(x, y, x + w, y + h);
                 Theme.chat_inlineResultAudio.draw(canvas);
             } else if (inlineResult != null && (inlineResult.type.equals("venue") || inlineResult.type.equals("geo"))) {
                 int w = Theme.chat_inlineResultLocation.getIntrinsicWidth();
                 int h = Theme.chat_inlineResultLocation.getIntrinsicHeight();
-                int x = linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2;
-                int y = linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2;
+                int x = (int) (linkImageView.getImageX() + (AndroidUtilities.dp(52) - w) / 2);
+                int y = (int) (linkImageView.getImageY() + (AndroidUtilities.dp(52) - h) / 2);
                 canvas.drawRect(linkImageView.getImageX(), linkImageView.getImageY(), linkImageView.getImageX() + AndroidUtilities.dp(52), linkImageView.getImageY() + AndroidUtilities.dp(52), LetterDrawable.paint);
                 Theme.chat_inlineResultLocation.setBounds(x, y, x + w, y + h);
                 Theme.chat_inlineResultLocation.draw(canvas);
@@ -731,8 +776,8 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             if (inlineResult != null && (inlineResult.send_message instanceof TLRPC.TL_botInlineMessageMediaGeo || inlineResult.send_message instanceof TLRPC.TL_botInlineMessageMediaVenue)) {
                 int w = Theme.chat_inlineResultLocation.getIntrinsicWidth();
                 int h = Theme.chat_inlineResultLocation.getIntrinsicHeight();
-                int x = linkImageView.getImageX() + (linkImageView.getImageWidth() - w) / 2;
-                int y = linkImageView.getImageY() + (linkImageView.getImageHeight() - h) / 2;
+                int x = (int) (linkImageView.getImageX() + (linkImageView.getImageWidth() - w) / 2);
+                int y = (int) (linkImageView.getImageY() + (linkImageView.getImageHeight() - h) / 2);
                 canvas.drawRect(linkImageView.getImageX(), linkImageView.getImageY(), linkImageView.getImageX() + linkImageView.getImageWidth(), linkImageView.getImageY() + linkImageView.getImageHeight(), LetterDrawable.paint);
                 Theme.chat_inlineResultLocation.setBounds(x, y, x + w, y + h);
                 Theme.chat_inlineResultLocation.draw(canvas);
@@ -818,19 +863,28 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
                     fileName = FileLoader.getAttachFileName(currentPhotoObject);
                     cacheFile = FileLoader.getPathToAttach(currentPhotoObject);
                 } else if (inlineResult.content instanceof TLRPC.TL_webDocument) {
-                    fileName = Utilities.MD5(inlineResult.content.url) + "." + ImageLoader.getHttpUrlExtension(inlineResult.content.url, "jpg");
+                    fileName = Utilities.MD5(inlineResult.content.url) + "." + ImageLoader.getHttpUrlExtension(inlineResult.content.url, FileLoader.getMimeTypePart(inlineResult.content.mime_type));
                     cacheFile = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
+                    if (documentAttachType == DOCUMENT_ATTACH_TYPE_GIF && inlineResult.thumb instanceof TLRPC.TL_webDocument && "video/mp4".equals(inlineResult.thumb.mime_type)) {
+                        fileName = null;
+                    }
                 } else if (inlineResult.thumb instanceof TLRPC.TL_webDocument) {
-                    fileName = Utilities.MD5(inlineResult.thumb.url) + "." + ImageLoader.getHttpUrlExtension(inlineResult.thumb.url, "jpg");
+                    fileName = Utilities.MD5(inlineResult.thumb.url) + "." + ImageLoader.getHttpUrlExtension(inlineResult.thumb.url, FileLoader.getMimeTypePart(inlineResult.thumb.mime_type));
                     cacheFile = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
                 }
             } else if (documentAttach != null) {
                 fileName = FileLoader.getAttachFileName(documentAttach);
                 cacheFile = FileLoader.getPathToAttach(documentAttach);
             }
+
+            if (documentAttach != null && documentAttachType == DOCUMENT_ATTACH_TYPE_GIF && MessageObject.getDocumentVideoThumb(documentAttach) != null) {
+                fileName = null;
+            }
         }
 
         if (TextUtils.isEmpty(fileName)) {
+            buttonState = -1;
+            radialProgress.setIcon(MediaActionDrawable.ICON_NONE, ifSame, false);
             return;
         }
         if (!cacheFile.exists()) {
@@ -844,7 +898,6 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
                 }
                 if (!isLoading) {
                     buttonState = 2;
-                    radialProgress.setIcon(getIconForCurrentState(), ifSame, animated);
                 } else {
                     buttonState = 4;
                     Float progress = ImageLoader.getInstance().getFileProgress(fileName);
@@ -853,16 +906,13 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
                     } else {
                         radialProgress.setProgress(0, animated);
                     }
-                    radialProgress.setIcon(getIconForCurrentState(), ifSame, animated);
                 }
             } else {
                 buttonState = 1;
                 Float progress = ImageLoader.getInstance().getFileProgress(fileName);
                 float setProgress = progress != null ? progress : 0;
                 radialProgress.setProgress(setProgress, false);
-                radialProgress.setIcon(getIconForCurrentState(), ifSame, animated);
             }
-            invalidate();
         } else {
             DownloadController.getInstance(currentAccount).removeLoadingFileObserver(this);
             if (documentAttachType == DOCUMENT_ATTACH_TYPE_MUSIC || documentAttachType == DOCUMENT_ATTACH_TYPE_AUDIO) {
@@ -876,9 +926,9 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             } else {
                 buttonState = -1;
             }
-            radialProgress.setIcon(getIconForCurrentState(), ifSame, animated);
-            invalidate();
         }
+        radialProgress.setIcon(getIconForCurrentState(), ifSame, animated);
+        invalidate();
     }
 
     public void setDelegate(ContextLinkCellDelegate contextLinkCellDelegate) {
@@ -943,10 +993,6 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
                 break;
             case DOCUMENT_ATTACH_TYPE_MUSIC:
                 sbuf.append(LocaleController.getString("AttachMusic", R.string.AttachMusic));
-                if (descriptionLayout != null && titleLayout != null) {
-                    sbuf.append(", ");
-                    sbuf.append(LocaleController.formatString("AccDescrMusicInfo", R.string.AccDescrMusicInfo, descriptionLayout.getText(), titleLayout.getText()));
-                }
                 break;
             case DOCUMENT_ATTACH_TYPE_STICKER:
                 sbuf.append(LocaleController.getString("AttachSticker", R.string.AttachSticker));
@@ -957,16 +1003,25 @@ public class ContextLinkCell extends FrameLayout implements DownloadController.F
             case DOCUMENT_ATTACH_TYPE_GEO:
                 sbuf.append(LocaleController.getString("AttachLocation", R.string.AttachLocation));
                 break;
-            default:
-                if (titleLayout != null && !TextUtils.isEmpty(titleLayout.getText())) {
-                    sbuf.append(titleLayout.getText());
+        }
+        final boolean hasTitle = titleLayout != null && !TextUtils.isEmpty(titleLayout.getText());
+        final boolean hasDescription = descriptionLayout != null && !TextUtils.isEmpty(descriptionLayout.getText());
+        if (documentAttachType == DOCUMENT_ATTACH_TYPE_MUSIC && hasTitle && hasDescription) {
+            sbuf.append(", ");
+            sbuf.append(LocaleController.formatString("AccDescrMusicInfo", R.string.AccDescrMusicInfo, descriptionLayout.getText(), titleLayout.getText()));
+        } else {
+            if (hasTitle) {
+                if (sbuf.length() > 0) {
+                    sbuf.append(", ");
                 }
-                if (descriptionLayout != null && !TextUtils.isEmpty(descriptionLayout.getText())) {
-                    if (sbuf.length() > 0)
-                        sbuf.append(", ");
-                    sbuf.append(descriptionLayout.getText());
+                sbuf.append(titleLayout.getText());
+            }
+            if (hasDescription) {
+                if (sbuf.length() > 0) {
+                    sbuf.append(", ");
                 }
-                break;
+                sbuf.append(descriptionLayout.getText());
+            }
         }
         info.setText(sbuf);
         if (checkBox != null && checkBox.isChecked()) {

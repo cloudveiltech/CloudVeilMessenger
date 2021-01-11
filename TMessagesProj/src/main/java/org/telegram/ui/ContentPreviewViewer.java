@@ -72,23 +72,31 @@ public class ContentPreviewViewer {
     }
 
     public interface ContentPreviewViewerDelegate {
-        void sendSticker(TLRPC.Document sticker, Object parent, boolean notify, int scheduleDate);
+        void sendSticker(TLRPC.Document sticker, String query, Object parent, boolean notify, int scheduleDate);
         void openSet(TLRPC.InputStickerSet set, boolean clearInputField);
         boolean needSend();
         boolean canSchedule();
         boolean isInScheduleMode();
         long getDialogId();
 
+        default String getQuery(boolean isGif) {
+            return null;
+        }
+
         default boolean needOpen() {
             return true;
         }
 
-        default void sendGif(Object gif, boolean notify, int scheduleDate) {
+        default void sendGif(Object gif, Object parent, boolean notify, int scheduleDate) {
 
         }
 
         default void gifAddedOrDeleted() {
 
+        }
+
+        default boolean needMenu() {
+            return true;
         }
     }
 
@@ -184,7 +192,7 @@ public class ContentPreviewViewer {
                     }
                     if (actions.get(which) == 0) {
                         if (delegate != null) {
-                            delegate.sendSticker(currentDocument, parentObject, true, 0);
+                            delegate.sendSticker(currentDocument, currentQuery, parentObject, true, 0);
                         }
                     } else if (actions.get(which) == 1) {
                         if (delegate != null) {
@@ -195,8 +203,9 @@ public class ContentPreviewViewer {
                     } else if (actions.get(which) == 3) {
                         TLRPC.Document sticker = currentDocument;
                         Object parent = parentObject;
+                        String query = currentQuery;
                         ContentPreviewViewerDelegate stickerPreviewViewerDelegate = delegate;
-                        AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate) -> stickerPreviewViewerDelegate.sendSticker(sticker, parent, notify, scheduleDate));
+                        AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate) -> stickerPreviewViewerDelegate.sendSticker(sticker, query, parent, notify, scheduleDate));
                     } else if (actions.get(which) == 4) {
                         MediaDataController.getInstance(currentAccount).addRecentSticker(MediaDataController.TYPE_IMAGE, parentObject, currentDocument, (int) (System.currentTimeMillis() / 1000), true);
                     }
@@ -268,7 +277,7 @@ public class ContentPreviewViewer {
                         return;
                     }
                     if (actions.get(which) == 0) {
-                        delegate.sendGif(currentDocument != null ? currentDocument : inlineResult, true, 0);
+                        delegate.sendGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0);
                     } else if (actions.get(which) == 1) {
                         MediaDataController.getInstance(currentAccount).removeRecentGif(currentDocument);
                         delegate.gifAddedOrDeleted();
@@ -281,7 +290,7 @@ public class ContentPreviewViewer {
                         TLRPC.BotInlineResult result = inlineResult;
                         Object parent = parentObject;
                         ContentPreviewViewerDelegate stickerPreviewViewerDelegate = delegate;
-                        AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate) -> stickerPreviewViewerDelegate.sendGif(document != null ? document : result, notify, scheduleDate));
+                        AlertsCreator.createScheduleDatePickerDialog(parentActivity, stickerPreviewViewerDelegate.getDialogId(), (notify, scheduleDate) -> stickerPreviewViewerDelegate.sendGif(document != null ? document : result, parent, notify, scheduleDate));
                     }
                 });
                 visibleDialog.setDimBehind(false);
@@ -300,6 +309,7 @@ public class ContentPreviewViewer {
 
     private int currentContentType;
     private TLRPC.Document currentDocument;
+    private String currentQuery;
     private TLRPC.BotInlineResult inlineResult;
     private TLRPC.InputStickerSet currentStickerSet;
     private Object parentObject;
@@ -444,16 +454,16 @@ public class ContentPreviewViewer {
                             clearsInputField = false;
                             if (currentPreviewCell instanceof StickerEmojiCell) {
                                 StickerEmojiCell stickerEmojiCell = (StickerEmojiCell) currentPreviewCell;
-                                open(stickerEmojiCell.getSticker(), null, contentType, stickerEmojiCell.isRecent(), stickerEmojiCell.getParentObject());
+                                open(stickerEmojiCell.getSticker(), delegate != null ? delegate.getQuery(false) : null, null, contentType, stickerEmojiCell.isRecent(), stickerEmojiCell.getParentObject());
                                 stickerEmojiCell.setScaled(true);
                             } else if (currentPreviewCell instanceof StickerCell) {
                                 StickerCell stickerCell = (StickerCell) currentPreviewCell;
-                                open(stickerCell.getSticker(), null, contentType, false, stickerCell.getParentObject());
+                                open(stickerCell.getSticker(), delegate != null ? delegate.getQuery(false) : null, null, contentType, false, stickerCell.getParentObject());
                                 stickerCell.setScaled(true);
                                 clearsInputField = stickerCell.isClearsInputField();
                             } else if (currentPreviewCell instanceof ContextLinkCell) {
                                 ContextLinkCell contextLinkCell = (ContextLinkCell) currentPreviewCell;
-                                open(contextLinkCell.getDocument(), contextLinkCell.getBotInlineResult(), contentType, false, null);
+                                open(contextLinkCell.getDocument(), delegate != null ? delegate.getQuery(true) : null, contextLinkCell.getBotInlineResult(), contentType, false, contextLinkCell.getInlineBot());
                                 if (contentType != CONTENT_TYPE_GIF) {
                                     contextLinkCell.setScaled(true);
                                 }
@@ -541,16 +551,16 @@ public class ContentPreviewViewer {
                     clearsInputField = false;
                     if (currentPreviewCell instanceof StickerEmojiCell) {
                         StickerEmojiCell stickerEmojiCell = (StickerEmojiCell) currentPreviewCell;
-                        open(stickerEmojiCell.getSticker(), null, contentTypeFinal, stickerEmojiCell.isRecent(), stickerEmojiCell.getParentObject());
+                        open(stickerEmojiCell.getSticker(), delegate != null ? delegate.getQuery(false) : null, null, contentTypeFinal, stickerEmojiCell.isRecent(), stickerEmojiCell.getParentObject());
                         stickerEmojiCell.setScaled(true);
                     } else if (currentPreviewCell instanceof StickerCell) {
                         StickerCell stickerCell = (StickerCell) currentPreviewCell;
-                        open(stickerCell.getSticker(), null, contentTypeFinal, false, stickerCell.getParentObject());
+                        open(stickerCell.getSticker(), delegate != null ? delegate.getQuery(false) : null, null, contentTypeFinal, false, stickerCell.getParentObject());
                         stickerCell.setScaled(true);
                         clearsInputField = stickerCell.isClearsInputField();
                     } else if (currentPreviewCell instanceof ContextLinkCell) {
                         ContextLinkCell contextLinkCell = (ContextLinkCell) currentPreviewCell;
-                        open(contextLinkCell.getDocument(), contextLinkCell.getBotInlineResult(), contentTypeFinal, false, null);
+                        open(contextLinkCell.getDocument(), delegate != null ? delegate.getQuery(true) : null, contextLinkCell.getBotInlineResult(), contentTypeFinal, false, contextLinkCell.getInlineBot());
                         if (contentTypeFinal != CONTENT_TYPE_GIF) {
                             contextLinkCell.setScaled(true);
                         }
@@ -619,7 +629,7 @@ public class ContentPreviewViewer {
         keyboardHeight = height;
     }
 
-    public void open(TLRPC.Document document, TLRPC.BotInlineResult botInlineResult, int contentType, boolean isRecent, Object parent) {
+    public void open(TLRPC.Document document, String query, TLRPC.BotInlineResult botInlineResult, int contentType, boolean isRecent, Object parent) {
         if (parentActivity == null || windowView == null) {
             return;
         }
@@ -642,7 +652,7 @@ public class ContentPreviewViewer {
                     break;
                 }
             }
-            if (newSet != null) {
+            if (newSet != null && (delegate == null || delegate.needMenu())) {
                 try {
                     if (visibleDialog != null) {
                         visibleDialog.setOnDismissListener(null);
@@ -656,7 +666,6 @@ public class ContentPreviewViewer {
                 AndroidUtilities.runOnUIThread(showSheetRunnable, 1300);
             }
             currentStickerSet = newSet;
-            parentObject = parent;
             TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 90);
             centerImage.setImage(ImageLocation.getForDocument(document), null, ImageLocation.getForDocument(thumb, document), null, "webp", currentStickerSet, 1);
             for (int a = 0; a < document.attributes.size(); a++) {
@@ -672,12 +681,23 @@ public class ContentPreviewViewer {
         } else {
             if (document != null) {
                 TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 90);
-                centerImage.setImage(ImageLocation.getForDocument(document), null, ImageLocation.getForDocument(thumb, document), "90_90_b", document.size, null, "gif" + document, 0);
+                TLRPC.VideoSize videoSize = MessageObject.getDocumentVideoThumb(document);
+                ImageLocation location = ImageLocation.getForDocument(document);
+                location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
+                if (videoSize != null) {
+                    centerImage.setImage(location, null, ImageLocation.getForDocument(videoSize, document), null, ImageLocation.getForDocument(thumb, document), "90_90_b", null, document.size, null, "gif" + document, 0);
+                } else {
+                    centerImage.setImage(location, null, ImageLocation.getForDocument(thumb, document), "90_90_b", document.size, null, "gif" + document, 0);
+                }
             } else if (botInlineResult != null) {
                 if (botInlineResult.content == null) {
                     return;
                 }
-                centerImage.setImage(ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.content)), null, ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.thumb)), "90_90_b", botInlineResult.content.size, null, "gif" + botInlineResult, 1);
+                if (botInlineResult.thumb instanceof TLRPC.TL_webDocument && "video/mp4".equals(botInlineResult.thumb.mime_type)) {
+                    centerImage.setImage(ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.content)), null, ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.thumb)), null, ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.thumb)), "90_90_b", null, botInlineResult.content.size, null, "gif" + botInlineResult, 1);
+                } else {
+                    centerImage.setImage(ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.content)), null, ImageLocation.getForWebFile(WebFile.createWithWebDocument(botInlineResult.thumb)), "90_90_b", botInlineResult.content.size, null, "gif" + botInlineResult, 1);
+                }
             } else {
                 return;
             }
@@ -687,7 +707,9 @@ public class ContentPreviewViewer {
 
         currentContentType = contentType;
         currentDocument = document;
+        currentQuery = query;
         inlineResult = botInlineResult;
+        parentObject = parent;
         containerView.invalidate();
 
         if (!isVisible) {
@@ -736,6 +758,7 @@ public class ContentPreviewViewer {
         }
         currentDocument = null;
         currentStickerSet = null;
+        currentQuery = null;
         delegate = null;
         isVisible = false;
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 8);
@@ -745,6 +768,7 @@ public class ContentPreviewViewer {
         isVisible = false;
         delegate = null;
         currentDocument = null;
+        currentQuery = null;
         currentStickerSet = null;
         try {
             if (visibleDialog != null) {

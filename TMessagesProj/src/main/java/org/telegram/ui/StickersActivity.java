@@ -22,7 +22,6 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.MediaDataController;
@@ -50,6 +49,7 @@ import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.Bulletin;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.NumberTextView;
 import org.telegram.ui.Components.RecyclerListView;
@@ -86,6 +86,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
     private DefaultItemAnimator itemAnimator;
     private ItemTouchHelper itemTouchHelper;
     private NumberTextView selectedCountTextView;
+    private TrendingStickersAlert trendingStickersAlert;
 
     private ActionBarMenuItem archiveMenuItem;
     private ActionBarMenuItem deleteMenuItem;
@@ -281,7 +282,8 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
                         MediaDataController.getInstance(currentAccount).toggleStickerSet(getParentActivity(), stickerSet, 0, StickersActivity.this, false, false);
                     }
                 };
-                new TrendingStickersAlert(context, this, new TrendingStickersLayout(context, trendingDelegate)).show();
+                trendingStickersAlert = new TrendingStickersAlert(context, this, new TrendingStickersLayout(context, trendingDelegate));
+                trendingStickersAlert.show();
             } else if (position == archivedRow) {
                 presentFragment(new ArchivedStickersActivity(currentType));
             } else if (position == masksRow) {
@@ -632,7 +634,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
                     android.content.ClipboardManager clipboard = (android.content.ClipboardManager) ApplicationLoader.applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
                     android.content.ClipData clip = android.content.ClipData.newPlainText("label", String.format(Locale.US, "https://" + MessagesController.getInstance(currentAccount).linkPrefix + "/addstickers/%s", stickerSet.set.short_name));
                     clipboard.setPrimaryClip(clip);
-                    Toast.makeText(getParentActivity(), LocaleController.getString("LinkCopied", R.string.LinkCopied), Toast.LENGTH_SHORT).show();
+                    BulletinFactory.createCopyLinkBulletin(StickersActivity.this).show();
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
@@ -1011,6 +1013,10 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{StickerSetCell.class}, new String[]{"reorderButton"}, null, null, null, Theme.key_stickers_menu));
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CHECKBOX, new Class[]{StickerSetCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_windowBackgroundWhite));
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CHECKBOXCHECK, new Class[]{StickerSetCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_checkboxCheck));
+
+        if (trendingStickersAlert != null) {
+            themeDescriptions.addAll(trendingStickersAlert.getThemeDescriptions());
+        }
 
         return themeDescriptions;
     }

@@ -13,14 +13,11 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.text.TextPaint;
+import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -605,13 +602,12 @@ public class DataAutoDownloadActivity extends BaseFragment {
         }
         if (listView != null) {
             RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(usageProgressRow);
-            if (holder.itemView instanceof SlideChooseView) {
+            if (holder != null && holder.itemView instanceof SlideChooseView) {
                 updatePresetChoseView((SlideChooseView) holder.itemView);
             } else {
                 listAdapter.notifyItemChanged(usageProgressRow);
             }
         }
-
     }
 
     private void updateRows() {
@@ -755,6 +751,7 @@ public class DataAutoDownloadActivity extends BaseFragment {
                         view.setText(LocaleController.getString("AutoDownloadAudioInfo", R.string.AutoDownloadAudioInfo));
                         view.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
                         view.setFixedSize(0);
+                        view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
                     } else if (position == autoDownloadSectionRow) {
                         if (usageHeaderRow == -1) {
                             view.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
@@ -765,10 +762,16 @@ public class DataAutoDownloadActivity extends BaseFragment {
                             } else if (currentType == 2) {
                                 view.setText(LocaleController.getString("AutoDownloadOnRoamingDataInfo", R.string.AutoDownloadOnRoamingDataInfo));
                             }
+                            view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
                         } else {
                             view.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
                             view.setText(null);
                             view.setFixedSize(12);
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+                            } else {
+                                view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                            }
                         }
                         break;
                     }

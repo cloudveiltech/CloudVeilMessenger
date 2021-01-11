@@ -157,7 +157,7 @@ public class GroupStickersActivity extends BaseFragment implements NotificationC
         });
 
         ActionBarMenu menu = actionBar.createMenu();
-        doneItem = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56));
+        doneItem = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
         progressView = new ContextProgressView(context, 1);
         progressView.setAlpha(0.0f);
         progressView.setScaleX(0.1f);
@@ -502,7 +502,7 @@ public class GroupStickersActivity extends BaseFragment implements NotificationC
                     info.flags = info.flags &~ 256;
                 }
                 MessagesStorage.getInstance(currentAccount).updateChatInfo(info, false);
-                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, true, null);
+                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, true);
                 finishFragment();
             } else {
                 Toast.makeText(getParentActivity(), LocaleController.getString("ErrorOccurred", R.string.ErrorOccurred) + "\n" + error.text, Toast.LENGTH_SHORT).show();

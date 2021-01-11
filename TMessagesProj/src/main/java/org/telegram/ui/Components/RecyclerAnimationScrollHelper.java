@@ -9,9 +9,13 @@ import android.view.View;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.Cells.ChatMessageCell;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class RecyclerAnimationScrollHelper {
 
@@ -30,6 +34,7 @@ public class RecyclerAnimationScrollHelper {
     private AnimationCallback animationCallback;
 
     public SparseArray<View> positionToOldView = new SparseArray<>();
+    private HashMap<Long, View> oldStableIds = new HashMap<>();
 
     public RecyclerAnimationScrollHelper(RecyclerListView recyclerView, LinearLayoutManager layoutManager) {
         this.recyclerView = recyclerView;
@@ -45,14 +50,16 @@ public class RecyclerAnimationScrollHelper {
     }
 
     public void scrollToPosition(int position, int offset, final boolean bottom, boolean smooth) {
-        if (recyclerView.animationRunning) return;
+        if (recyclerView.fastScrollAnimationRunning || (recyclerView.getItemAnimator() != null && recyclerView.getItemAnimator().isRunning())) {
+            return;
+        }
         if (!smooth || scrollDirection == SCROLL_DIRECTION_UNSET) {
             layoutManager.scrollToPositionWithOffset(position, offset, bottom);
             return;
         }
 
         int n = recyclerView.getChildCount();
-        if (n == 0) {
+        if (n == 0 || !MessagesController.getGlobalMainSettings().getBoolean("view_animations", true)) {
             layoutManager.scrollToPositionWithOffset(position, offset, bottom);
             return;
         }
@@ -60,36 +67,29 @@ public class RecyclerAnimationScrollHelper {
         boolean scrollDown = scrollDirection == SCROLL_DIRECTION_DOWN;
 
         recyclerView.setScrollEnabled(false);
-        int h = 0;
-        int t = 0;
+
         final ArrayList<View> oldViews = new ArrayList<>();
         positionToOldView.clear();
-        final ArrayList<RecyclerView.ViewHolder> oldHolders = new ArrayList<>();
-        recyclerView.getRecycledViewPool().clear();
+
+        RecyclerView.Adapter adapter = recyclerView.getAdapter();
+        oldStableIds.clear();
 
         for (int i = 0; i < n; i++) {
-            View child = recyclerView.getChildAt(0);
+            View child = recyclerView.getChildAt(i);
             oldViews.add(child);
-            RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(child);
-            if (holder != null) {
-                oldHolders.add(holder);
+            int childPosition = layoutManager.getPosition(child);
+            positionToOldView.put(childPosition, child);
+            if (adapter != null && adapter.hasStableIds()) {
+                long itemId = ((RecyclerView.LayoutParams) child.getLayoutParams()).mViewHolder.getItemId();
+                oldStableIds.put(itemId, child);
             }
-            positionToOldView.put(layoutManager.getPosition(child), child);
-
-            int bot = child.getBottom();
-            int top = child.getTop();
-            if (bot > h) h = bot;
-            if (top < t) t = top;
-
             if (child instanceof ChatMessageCell) {
                 ((ChatMessageCell) child).setAnimationRunning(true, true);
             }
-            recyclerView.removeView(child);
         }
 
-        final int finalHeight = scrollDown ? h : recyclerView.getHeight() - t;
+        recyclerView.prepareForFastScroll();
 
-        RecyclerView.Adapter adapter = recyclerView.getAdapter();
         AnimatableAdapter animatableAdapter = null;
         if (adapter instanceof AnimatableAdapter) {
             animatableAdapter = (AnimatableAdapter) adapter;
@@ -103,6 +103,9 @@ public class RecyclerAnimationScrollHelper {
         recyclerView.setVerticalScrollBarEnabled(false);
         if (animationCallback != null) animationCallback.onStartAnimation();
 
+        recyclerView.fastScrollAnimationRunning = true;
+        if (finalAnimatableAdapter != null) finalAnimatableAdapter.onAnimationStart();
+
         recyclerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
@@ -112,6 +115,8 @@ public class RecyclerAnimationScrollHelper {
                 int n = recyclerView.getChildCount();
                 int top = 0;
                 int bottom = 0;
+                int scrollDiff = 0;
+                boolean hasSameViews = false;
                 for (int i = 0; i < n; i++) {
                     View child = recyclerView.getChildAt(i);
                     incomingViews.add(child);
@@ -123,21 +128,60 @@ public class RecyclerAnimationScrollHelper {
                     if (child instanceof ChatMessageCell) {
                         ((ChatMessageCell) child).setAnimationRunning(true, false);
                     }
+
+                    if (adapter != null && adapter.hasStableIds()) {
+                        long stableId = adapter.getItemId(recyclerView.getChildAdapterPosition(child));
+                        if (oldStableIds.containsKey(stableId)) {
+                            View view = oldStableIds.get(stableId);
+                            if (view != null) {
+                                hasSameViews = true;
+                                if (view instanceof ChatMessageCell) {
+                                    ((ChatMessageCell) view).setAnimationRunning(false, false);
+                                }
+                                oldViews.remove(view);
+                                if (animationCallback != null) {
+                                    animationCallback.recycleView(view);
+                                }
+                                int dif = child.getTop() - view.getTop();
+                                if (dif != 0) {
+                                    scrollDiff = dif;
+                                }
+                            }
+                        }
+                    }
                 }
 
+                oldStableIds.clear();
+
+                int oldH = 0;
+                int oldT = Integer.MAX_VALUE;
+
                 for (View view : oldViews) {
+                    int bot = view.getBottom();
+                    int topl = view.getTop();
+                    if (bot > oldH) oldH = bot;
+                    if (topl < oldT) oldT = topl;
+
                     if (view.getParent() == null) {
                         recyclerView.addView(view);
+                        layoutManager.ignoreView(view);
                     }
                     if (view instanceof ChatMessageCell) {
                         ((ChatMessageCell) view).setAnimationRunning(true, true);
                     }
                 }
 
-                recyclerView.animationRunning = true;
-                if (finalAnimatableAdapter != null) finalAnimatableAdapter.onAnimationStart();
+                if (oldT == Integer.MAX_VALUE) {
+                    oldT = 0;
+                }
 
-                final int scrollLength = finalHeight + (scrollDown ? -top : bottom - recyclerView.getHeight());
+                final int scrollLength ;
+                if (oldViews.isEmpty()) {
+                    scrollLength = Math.abs(scrollDiff);
+                } else {
+                    int finalHeight = scrollDown ? oldH : recyclerView.getHeight() - oldT;
+                    scrollLength = finalHeight + (scrollDown ? -top : bottom - recyclerView.getHeight());
+                }
 
                 if (animator != null) {
                     animator.removeAllListeners();
@@ -177,17 +221,34 @@ public class RecyclerAnimationScrollHelper {
                 animator.addListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        recyclerView.animationRunning = false;
+                        if (animator == null) {
+                            return;
+                        }
+                        recyclerView.fastScrollAnimationRunning = false;
 
                         for (View view : oldViews) {
                             if (view instanceof ChatMessageCell) {
                                 ((ChatMessageCell) view).setAnimationRunning(false, true);
                             }
                             view.setTranslationY(0);
+                            layoutManager.stopIgnoringView(view);
                             recyclerView.removeView(view);
+                            if (animationCallback != null) {
+                                animationCallback.recycleView(view);
+                            }
                         }
 
                         recyclerView.setVerticalScrollBarEnabled(true);
+
+                        if (BuildVars.DEBUG_VERSION) {
+                            if (recyclerView.mChildHelper.getChildCount() != recyclerView.getChildCount()) {
+                                throw new RuntimeException("views count in child helper must be quals views count in recycler view");
+                            }
+
+                            if (recyclerView.mChildHelper.getHiddenChildCount() != 0) {
+                                throw new RuntimeException("hidden child count must be 0");
+                            }
+                        }
 
                         int n = recyclerView.getChildCount();
                         for (int i = 0; i < n; i++) {
@@ -196,6 +257,13 @@ public class RecyclerAnimationScrollHelper {
                                 ((ChatMessageCell) child).setAnimationRunning(false, false);
                             }
                             child.setTranslationY(0);
+                        }
+
+                        for (View v : incomingViews) {
+                            if (v instanceof ChatMessageCell) {
+                                ((ChatMessageCell) v).setAnimationRunning(false, false);
+                            }
+                            v.setTranslationY(0);
                         }
 
                         if (finalAnimatableAdapter != null) {
@@ -214,9 +282,16 @@ public class RecyclerAnimationScrollHelper {
 
                 recyclerView.removeOnLayoutChangeListener(this);
 
-                long duration = (long) (((scrollLength / (float) recyclerView.getMeasuredHeight()) + 1f) * 200L);
-
-                duration = Math.min(duration, 1300);
+                long duration;
+                if (hasSameViews) {
+                   duration = 600;
+                } else {
+                 duration = (long) (((scrollLength / (float) recyclerView.getMeasuredHeight()) + 1f) * 200L);
+                    if (duration < 300) {
+                        duration = 300;
+                    }
+                    duration = Math.min(duration, 1300);
+                }
 
                 animator.setDuration(duration);
                 animator.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -232,7 +307,7 @@ public class RecyclerAnimationScrollHelper {
 
     private void clear() {
         recyclerView.setVerticalScrollBarEnabled(true);
-        recyclerView.animationRunning = false;
+        recyclerView.fastScrollAnimationRunning = false;
         RecyclerView.Adapter adapter = recyclerView.getAdapter();
         if (adapter instanceof AnimatableAdapter)
             ((AnimatableAdapter) adapter).onAnimationEnd();
@@ -274,6 +349,10 @@ public class RecyclerAnimationScrollHelper {
 
         public void onEndAnimation() {
         }
+
+        public void recycleView(View view) {
+
+        }
     }
 
     public static abstract class AnimatableAdapter extends RecyclerListView.SelectionAdapter {
@@ -293,6 +372,16 @@ public class RecyclerAnimationScrollHelper {
         }
 
         @Override
+        public void notifyItemInserted(int position) {
+            if (!animationRunning) {
+                super.notifyItemInserted(position);
+            } else {
+                rangeInserted.add(position);
+                rangeInserted.add(1);
+            }
+        }
+
+        @Override
         public void notifyItemRangeInserted(int positionStart, int itemCount) {
             if (!animationRunning) {
                 super.notifyItemRangeInserted(positionStart, itemCount);
@@ -303,12 +392,29 @@ public class RecyclerAnimationScrollHelper {
         }
 
         @Override
+        public void notifyItemRemoved(int position) {
+            if (!animationRunning) {
+                super.notifyItemRemoved(position);
+            } else {
+                rangeRemoved.add(position);
+                rangeRemoved.add(1);
+            }
+        }
+
+        @Override
         public void notifyItemRangeRemoved(int positionStart, int itemCount) {
             if (!animationRunning) {
                 super.notifyItemRangeRemoved(positionStart, itemCount);
             } else {
                 rangeRemoved.add(positionStart);
                 rangeRemoved.add(itemCount);
+            }
+        }
+
+        @Override
+        public void notifyItemChanged(int position) {
+            if (!animationRunning) {
+                super.notifyItemChanged(position);
             }
         }
 

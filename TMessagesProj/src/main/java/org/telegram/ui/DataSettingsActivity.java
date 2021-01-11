@@ -8,25 +8,29 @@
 
 package org.telegram.ui;
 
-import android.animation.AnimatorSet;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.os.Build;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.DownloadController;
+import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
-import org.telegram.messenger.voip.TgVoip;
+import org.telegram.messenger.voip.Instance;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -34,6 +38,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.NotificationsCheckCell;
+import org.telegram.ui.Cells.RadioColorCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
@@ -43,6 +48,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.voip.VoIPHelper;
 
+import java.io.File;
 import java.util.ArrayList;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -54,12 +60,14 @@ public class DataSettingsActivity extends BaseFragment {
     private RecyclerListView listView;
     @SuppressWarnings("FieldCanBeLocal")
     private LinearLayoutManager layoutManager;
-    private AnimatorSet animatorSet;
+
+    private ArrayList<File> storageDirs;
 
     private int mediaDownloadSectionRow;
     private int mobileRow;
     private int roamingRow;
     private int wifiRow;
+    private int storageNumRow;
     private int resetDownloadRow;
     private int mediaDownloadSection2Row;
     private int usageSectionRow;
@@ -83,6 +91,8 @@ public class DataSettingsActivity extends BaseFragment {
     private int proxySectionRow;
     private int proxyRow;
     private int proxySection2Row;
+    private int clearDraftsRow;
+    private int clearDraftsSectionRow;
     private int rowCount;
 
     @Override
@@ -95,6 +105,13 @@ public class DataSettingsActivity extends BaseFragment {
         usageSectionRow = rowCount++;
         storageUsageRow = rowCount++;
         dataUsageRow = rowCount++;
+        storageNumRow = -1;
+        if (Build.VERSION.SDK_INT >= 19) {
+            storageDirs = AndroidUtilities.getRootDirs();
+            if (storageDirs.size() > 1) {
+                storageNumRow = rowCount++;
+            }
+        }
         usageSection2Row = rowCount++;
         mediaDownloadSectionRow = rowCount++;
         mobileRow = rowCount++;
@@ -124,6 +141,8 @@ public class DataSettingsActivity extends BaseFragment {
         proxySectionRow = rowCount++;
         proxyRow = rowCount++;
         proxySection2Row = rowCount++;
+        clearDraftsRow = rowCount++;
+        clearDraftsSectionRow = rowCount++;
 
         return true;
     }
@@ -273,16 +292,16 @@ public class DataSettingsActivity extends BaseFragment {
                 final SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                 int selected = 0;
                 switch (preferences.getInt("VoipDataSaving", VoIPHelper.getDataSavingDefault())) {
-                    case TgVoip.DATA_SAVING_NEVER:
+                    case Instance.DATA_SAVING_NEVER:
                         selected = 0;
                         break;
-                    case TgVoip.DATA_SAVING_ROAMING:
+                    case Instance.DATA_SAVING_ROAMING:
                         selected = 1;
                         break;
-                    case TgVoip.DATA_SAVING_MOBILE:
+                    case Instance.DATA_SAVING_MOBILE:
                         selected = 2;
                         break;
-                    case TgVoip.DATA_SAVING_ALWAYS:
+                    case Instance.DATA_SAVING_ALWAYS:
                         selected = 3;
                         break;
                 }
@@ -295,16 +314,16 @@ public class DataSettingsActivity extends BaseFragment {
                             int val = -1;
                             switch (which) {
                                 case 0:
-                                    val = TgVoip.DATA_SAVING_NEVER;
+                                    val = Instance.DATA_SAVING_NEVER;
                                     break;
                                 case 1:
-                                    val = TgVoip.DATA_SAVING_ROAMING;
+                                    val = Instance.DATA_SAVING_ROAMING;
                                     break;
                                 case 2:
-                                    val = TgVoip.DATA_SAVING_MOBILE;
+                                    val = Instance.DATA_SAVING_MOBILE;
                                     break;
                                 case 3:
-                                    val = TgVoip.DATA_SAVING_ALWAYS;
+                                    val = Instance.DATA_SAVING_ALWAYS;
                                     break;
                             }
                             if (val != -1) {
@@ -318,6 +337,42 @@ public class DataSettingsActivity extends BaseFragment {
                 dlg.show();
             } else if (position == dataUsageRow) {
                 presentFragment(new DataUsageActivity());
+            } else if (position == storageNumRow) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(LocaleController.getString("StoragePath", R.string.StoragePath));
+                final LinearLayout linearLayout = new LinearLayout(getParentActivity());
+                linearLayout.setOrientation(LinearLayout.VERTICAL);
+                builder.setView(linearLayout);
+
+                String dir = storageDirs.get(0).getAbsolutePath();
+                if (!TextUtils.isEmpty(SharedConfig.storageCacheDir)) {
+                    for (int a = 0, N = storageDirs.size(); a < N; a++) {
+                        String path = storageDirs.get(a).getAbsolutePath();
+                        if (path.startsWith(SharedConfig.storageCacheDir)) {
+                            dir = path;
+                            break;
+                        }
+                    }
+                }
+
+                for (int a = 0, N = storageDirs.size(); a < N; a++) {
+                    String storageDir = storageDirs.get(a).getAbsolutePath();
+                    RadioColorCell cell = new RadioColorCell(context);
+                    cell.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
+                    cell.setTag(a);
+                    cell.setCheckColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_dialogRadioBackgroundChecked));
+                    cell.setTextAndValue(storageDir, storageDir.startsWith(dir));
+                    linearLayout.addView(cell);
+                    cell.setOnClickListener(v -> {
+                        SharedConfig.storageCacheDir = storageDir;
+                        SharedConfig.saveConfig();
+                        ImageLoader.getInstance().checkMediaPaths();
+                        builder.getDismissRunnable().run();
+                        listAdapter.notifyItemChanged(storageNumRow);
+                    });
+                }
+                builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+                showDialog(builder.create());
             } else if (position == proxyRow) {
                 presentFragment(new ProxyListActivity());
             } else if (position == enableStreamRow) {
@@ -347,6 +402,21 @@ public class DataSettingsActivity extends BaseFragment {
                 SharedConfig.toggleAutoplayVideo();
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(SharedConfig.autoplayVideo);
+                }
+            } else if (position == clearDraftsRow) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(LocaleController.getString("AreYouSureClearDraftsTitle", R.string.AreYouSureClearDraftsTitle));
+                builder.setMessage(LocaleController.getString("AreYouSureClearDrafts", R.string.AreYouSureClearDrafts));
+                builder.setPositiveButton(LocaleController.getString("Delete", R.string.Delete), (dialogInterface, i) -> {
+                    TLRPC.TL_messages_clearAllDrafts req = new TLRPC.TL_messages_clearAllDrafts();
+                    getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> getMediaDataController().clearAllDrafts(true)));
+                });
+                builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+                AlertDialog alertDialog = builder.create();
+                showDialog(alertDialog);
+                TextView button = (TextView) alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+                if (button != null) {
+                    button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
                 }
             }
         });
@@ -384,7 +454,7 @@ public class DataSettingsActivity extends BaseFragment {
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
                 case 0: {
-                    if (position == proxySection2Row) {
+                    if (position == clearDraftsSectionRow) {
                         holder.itemView.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     } else {
                         holder.itemView.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
@@ -401,22 +471,34 @@ public class DataSettingsActivity extends BaseFragment {
                         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                         String value = null;
                         switch (preferences.getInt("VoipDataSaving", VoIPHelper.getDataSavingDefault())) {
-                            case TgVoip.DATA_SAVING_NEVER:
+                            case Instance.DATA_SAVING_NEVER:
                                 value = LocaleController.getString("UseLessDataNever", R.string.UseLessDataNever);
                                 break;
-                            case TgVoip.DATA_SAVING_MOBILE:
+                            case Instance.DATA_SAVING_MOBILE:
                                 value = LocaleController.getString("UseLessDataOnMobile", R.string.UseLessDataOnMobile);
                                 break;
-                            case TgVoip.DATA_SAVING_ROAMING:
+                            case Instance.DATA_SAVING_ROAMING:
                                 value = LocaleController.getString("UseLessDataOnRoaming", R.string.UseLessDataOnRoaming);
                                 break;
-                            case TgVoip.DATA_SAVING_ALWAYS:
+                            case Instance.DATA_SAVING_ALWAYS:
                                 value = LocaleController.getString("UseLessDataAlways", R.string.UseLessDataAlways);
                                 break;
                         }
                         textCell.setTextAndValue(LocaleController.getString("VoipUseLessData", R.string.VoipUseLessData), value, true);
                     } else if (position == dataUsageRow) {
-                        textCell.setText(LocaleController.getString("NetworkUsage", R.string.NetworkUsage), false);
+                        textCell.setText(LocaleController.getString("NetworkUsage", R.string.NetworkUsage), storageNumRow != -1);
+                    } else if (position == storageNumRow) {
+                        String dir = storageDirs.get(0).getAbsolutePath();
+                        if (!TextUtils.isEmpty(SharedConfig.storageCacheDir)) {
+                            for (int a = 0, N = storageDirs.size(); a < N; a++) {
+                                String path = storageDirs.get(a).getAbsolutePath();
+                                if (path.startsWith(SharedConfig.storageCacheDir)) {
+                                    dir = path;
+                                    break;
+                                }
+                            }
+                        }
+                        textCell.setTextAndValue(LocaleController.getString("StoragePath", R.string.StoragePath), dir, false);
                     } else if (position == proxyRow) {
                         textCell.setText(LocaleController.getString("ProxySettings", R.string.ProxySettings), false);
                     } else if (position == resetDownloadRow) {
@@ -425,6 +507,8 @@ public class DataSettingsActivity extends BaseFragment {
                         textCell.setText(LocaleController.getString("ResetAutomaticMediaDownload", R.string.ResetAutomaticMediaDownload), false);
                     } else if (position == quickRepliesRow){
                         textCell.setText(LocaleController.getString("VoipQuickReplies", R.string.VoipQuickReplies), false);
+                    } else if (position == clearDraftsRow) {
+                        textCell.setText(LocaleController.getString("PrivacyDeleteCloudDrafts", R.string.PrivacyDeleteCloudDrafts), false);
                     }
                     break;
                 }
@@ -564,8 +648,9 @@ public class DataSettingsActivity extends BaseFragment {
                         !controller.mediumPreset.equals(controller.getCurrentMobilePreset()) || controller.mediumPreset.isEnabled() != controller.mobilePreset.enabled ||
                         !controller.highPreset.equals(controller.getCurrentWiFiPreset()) || controller.highPreset.isEnabled() != controller.wifiPreset.enabled;
             }
-            return position == mobileRow || position == roamingRow || position == wifiRow || position == storageUsageRow || position == useLessDataForCallsRow || position == dataUsageRow || position == proxyRow ||
-                    position == enableCacheStreamRow || position == enableStreamRow || position == enableAllStreamRow || position == enableMkvRow || position == quickRepliesRow || position == autoplayVideoRow || position == autoplayGifsRow;
+            return position == mobileRow || position == roamingRow || position == wifiRow || position == storageUsageRow || position == useLessDataForCallsRow || position == dataUsageRow || position == proxyRow || position == clearDraftsRow ||
+                    position == enableCacheStreamRow || position == enableStreamRow || position == enableAllStreamRow || position == enableMkvRow || position == quickRepliesRow || position == autoplayVideoRow || position == autoplayGifsRow ||
+                    position == storageNumRow;
         }
 
         @Override
@@ -597,6 +682,7 @@ public class DataSettingsActivity extends BaseFragment {
                     view.setBackgroundDrawable(Theme.getThemedDrawable(mContext, R.drawable.greydivider, Theme.key_windowBackgroundGrayShadow));
                     break;
                 case 5:
+                default:
                     view = new NotificationsCheckCell(mContext);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
@@ -607,7 +693,7 @@ public class DataSettingsActivity extends BaseFragment {
 
         @Override
         public int getItemViewType(int position) {
-            if (position == mediaDownloadSection2Row || position == usageSection2Row || position == callsSection2Row || position == proxySection2Row || position == autoplaySectionRow) {
+            if (position == mediaDownloadSection2Row || position == usageSection2Row || position == callsSection2Row || position == proxySection2Row || position == autoplaySectionRow || position == clearDraftsSectionRow) {
                 return 0;
             } else if (position == mediaDownloadSectionRow || position == streamSectionRow || position == callsSectionRow || position == usageSectionRow || position == proxySectionRow || position == autoplayHeaderRow) {
                 return 2;

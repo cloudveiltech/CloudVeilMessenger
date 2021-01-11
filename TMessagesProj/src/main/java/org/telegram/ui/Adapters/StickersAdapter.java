@@ -114,7 +114,7 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
         for (int a = 0; a < size; a++) {
             StickerResult result = stickers.get(a);
             TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(result.sticker.thumbs, 90);
-            if (thumb instanceof TLRPC.TL_photoSize) {
+            if (thumb instanceof TLRPC.TL_photoSize || thumb instanceof TLRPC.TL_photoSizeProgressive) {
                 File f = FileLoader.getPathToAttach(thumb, "webp", true);
                 if (!f.exists()) {
                     stickersToLoad.add(FileLoader.getAttachFileName(thumb, "webp"));
@@ -227,19 +227,22 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
     public void loadStikersForEmoji(CharSequence emoji, boolean emojiOnly) {
         boolean searchEmoji = emoji != null && emoji.length() > 0 && emoji.length() <= 14;
 
-        String originalEmoji = emoji.toString();
-        int length = emoji.length();
-        for (int a = 0; a < length; a++) {
-            char ch = emoji.charAt(a);
-            char nch = a < length - 1 ? emoji.charAt(a + 1) : 0;
-            if (a < length - 1 && ch == 0xD83C && nch >= 0xDFFB && nch <= 0xDFFF) {
-                emoji = TextUtils.concat(emoji.subSequence(0, a), emoji.subSequence(a + 2, emoji.length()));
-                length -= 2;
-                a--;
-            } else if (ch == 0xfe0f) {
-                emoji = TextUtils.concat(emoji.subSequence(0, a), emoji.subSequence(a + 1, emoji.length()));
-                length--;
-                a--;
+        String originalEmoji = "";
+        if (searchEmoji) {
+            originalEmoji = emoji.toString();
+            int length = emoji.length();
+            for (int a = 0; a < length; a++) {
+                char ch = emoji.charAt(a);
+                char nch = a < length - 1 ? emoji.charAt(a + 1) : 0;
+                if (a < length - 1 && ch == 0xD83C && nch >= 0xDFFB && nch <= 0xDFFF) {
+                    emoji = TextUtils.concat(emoji.subSequence(0, a), emoji.subSequence(a + 2, emoji.length()));
+                    length -= 2;
+                    a--;
+                } else if (ch == 0xfe0f) {
+                    emoji = TextUtils.concat(emoji.subSequence(0, a), emoji.subSequence(a + 1, emoji.length()));
+                    length--;
+                    a--;
+                }
             }
         }
         lastSticker = emoji.toString().trim();
@@ -417,6 +420,10 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
         }
     }
 
+    public String getQuery() {
+        return lastSticker;
+    }
+
     public boolean isShowingKeywords() {
         return keywordResults != null && !keywordResults.isEmpty();
     }
@@ -431,7 +438,7 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
 
     public Object getItem(int i) {
         if (keywordResults != null && !keywordResults.isEmpty()) {
-            return keywordResults.get(i).emoji;
+            return i >= 0 && i < keywordResults.size() ? keywordResults.get(i).emoji : null;
         }
         return stickers != null && i >= 0 && i < stickers.size() ? stickers.get(i).sticker : null;
     }

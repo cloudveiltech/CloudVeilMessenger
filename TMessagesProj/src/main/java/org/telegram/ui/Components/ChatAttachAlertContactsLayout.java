@@ -260,6 +260,12 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
             }
 
             @Override
+            public boolean onInterceptTouchEvent(MotionEvent ev) {
+                parentAlert.makeFocusable(getSearchEditText(), true);
+                return super.onInterceptTouchEvent(ev);
+            }
+
+            @Override
             public void processTouchEvent(MotionEvent event) {
                 MotionEvent e = MotionEvent.obtain(event);
                 e.setLocation(e.getRawX(), e.getRawY() - parentAlert.getSheetContainer().getTranslationY() - AndroidUtilities.dp(58));
@@ -269,7 +275,7 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
 
             @Override
             protected void onFieldTouchUp(EditTextBoldCursor editText) {
-                parentAlert.makeFocusable(editText);
+                parentAlert.makeFocusable(editText, true);
             }
         };
         searchField.setHint(LocaleController.getString("SearchFriends", R.string.SearchFriends));
@@ -283,7 +289,7 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
         listView = new RecyclerListView(context) {
             @Override
             protected boolean allowSelectChildAtPosition(float x, float y) {
-                return y >= parentAlert.scrollOffsetY[0] + AndroidUtilities.dp(30) + (Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0);
+                return y >= parentAlert.scrollOffsetY[0] + AndroidUtilities.dp(30) + (Build.VERSION.SDK_INT >= 21 && !parentAlert.inBubbleMode ? AndroidUtilities.statusBarHeight : 0);
             }
         };
         listView.setClipToPadding(false);
@@ -358,7 +364,7 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                parentAlert.updateLayout(ChatAttachAlertContactsLayout.this, true);
+                parentAlert.updateLayout(ChatAttachAlertContactsLayout.this, true, dy);
                 updateEmptyViewPosition();
             }
         });
@@ -420,7 +426,7 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
     @Override
     void onPreMeasure(int availableWidth, int availableHeight) {
         int padding;
-        if (parentAlert.sizeNotifierFrameLayout.getKeyboardHeight() > AndroidUtilities.dp(20)) {
+        if (parentAlert.sizeNotifierFrameLayout.measureKeyboardHeight() > AndroidUtilities.dp(20)) {
             padding = AndroidUtilities.dp(8);
             parentAlert.setAllowNestedScroll(false);
         } else {

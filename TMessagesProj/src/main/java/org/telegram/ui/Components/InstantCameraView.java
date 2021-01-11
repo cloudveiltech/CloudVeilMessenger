@@ -57,7 +57,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.util.Log;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -65,6 +64,7 @@ import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.DispatchQueue;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.NotificationCenter;
@@ -107,7 +107,7 @@ import javax.microedition.khronos.opengles.GL;
 public class InstantCameraView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
     private int currentAccount = UserConfig.selectedAccount;
-    private FrameLayout cameraContainer;
+    private InstantViewCameraContainer cameraContainer;
     private ChatActivity baseFragment;
     private Paint paint;
     private RectF rect;
@@ -160,38 +160,38 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
     private float[] moldSTMatrix = new float[16];
     private static final String VERTEX_SHADER =
             "uniform mat4 uMVPMatrix;\n" +
-            "uniform mat4 uSTMatrix;\n" +
-            "attribute vec4 aPosition;\n" +
-            "attribute vec4 aTextureCoord;\n" +
-            "varying vec2 vTextureCoord;\n" +
-            "void main() {\n" +
-            "   gl_Position = uMVPMatrix * aPosition;\n" +
-            "   vTextureCoord = (uSTMatrix * aTextureCoord).xy;\n" +
-            "}\n";
+                    "uniform mat4 uSTMatrix;\n" +
+                    "attribute vec4 aPosition;\n" +
+                    "attribute vec4 aTextureCoord;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "void main() {\n" +
+                    "   gl_Position = uMVPMatrix * aPosition;\n" +
+                    "   vTextureCoord = (uSTMatrix * aTextureCoord).xy;\n" +
+                    "}\n";
 
     private static final String FRAGMENT_SHADER =
             "#extension GL_OES_EGL_image_external : require\n" +
-            "precision highp float;\n" +
-            "varying vec2 vTextureCoord;\n" +
-            "uniform float scaleX;\n" +
-            "uniform float scaleY;\n" +
-            "uniform float alpha;\n" +
-            "uniform samplerExternalOES sTexture;\n" +
-            "void main() {\n" +
-            "   vec2 coord = vec2((vTextureCoord.x - 0.5) * scaleX, (vTextureCoord.y - 0.5) * scaleY);\n" +
-            "   float coef = ceil(clamp(0.2601 - dot(coord, coord), 0.0, 1.0));\n" +
-            "   vec3 color = texture2D(sTexture, vTextureCoord).rgb * coef + (1.0 - step(0.001, coef));\n" +
-            "   gl_FragColor = vec4(color * alpha, alpha);\n" +
-            "}\n";
+                    "precision highp float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "uniform float scaleX;\n" +
+                    "uniform float scaleY;\n" +
+                    "uniform float alpha;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "void main() {\n" +
+                    "   vec2 coord = vec2((vTextureCoord.x - 0.5) * scaleX, (vTextureCoord.y - 0.5) * scaleY);\n" +
+                    "   float coef = ceil(clamp(0.2601 - dot(coord, coord), 0.0, 1.0));\n" +
+                    "   vec3 color = texture2D(sTexture, vTextureCoord).rgb * coef + (1.0 - step(0.001, coef));\n" +
+                    "   gl_FragColor = vec4(color * alpha, alpha);\n" +
+                    "}\n";
 
     private static final String FRAGMENT_SCREEN_SHADER =
             "#extension GL_OES_EGL_image_external : require\n" +
-            "precision lowp float;\n" +
-            "varying vec2 vTextureCoord;\n" +
-            "uniform samplerExternalOES sTexture;\n" +
-            "void main() {\n" +
-            "   gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
-            "}\n";
+                    "precision lowp float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "void main() {\n" +
+                    "   gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
+                    "}\n";
 
     private FloatBuffer vertexBuffer;
     private FloatBuffer textureBuffer;
@@ -256,7 +256,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         rect = new RectF();
 
         if (Build.VERSION.SDK_INT >= 21) {
-            cameraContainer = new FrameLayout(context) {
+            cameraContainer = new InstantViewCameraContainer(context) {
                 @Override
                 public void setScaleX(float scaleX) {
                     super.setScaleX(scaleX);
@@ -283,7 +283,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             paint.setColor(0xff000000);
             paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            cameraContainer = new FrameLayout(context) {
+            cameraContainer = new InstantViewCameraContainer(context) {
 
                 @Override
                 public void setScaleX(float scaleX) {
@@ -556,7 +556,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         MediaController.getInstance().requestAudioFocus(true);
     }
 
-    public FrameLayout getCameraContainer() {
+    public InstantViewCameraContainer getCameraContainer() {
         return cameraContainer;
     }
 
@@ -584,7 +584,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         animatorSet = new AnimatorSet();
         float toX = 0;
         if (!open) {
-            toX = recordedTime > 300 ?  AndroidUtilities.dp(24) - getMeasuredWidth() / 2f : 0;
+            toX = recordedTime > 300 ? AndroidUtilities.dp(24) - getMeasuredWidth() / 2f : 0;
         }
         ValueAnimator translationYAnimator = ValueAnimator.ofFloat(open ? 1f : 0f, open ? 0 : 1f);
         translationYAnimator.addUpdateListener(animation -> {
@@ -729,6 +729,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                     File file = new File(ApplicationLoader.getFilesDirFixed(), "icthumb.jpg");
                     FileOutputStream stream = new FileOutputStream(file);
                     lastBitmap.compress(Bitmap.CompressFormat.JPEG, 87, stream);
+                    stream.close();
                 } catch (Throwable ignore) {
 
                 }
@@ -790,13 +791,14 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
         }
         textureView = null;
+        cameraContainer.setImageReceiver(null);
     }
 
     private void switchCamera() {
         saveLastCameraBitmap();
         if (lastBitmap != null) {
             textureOverlayView.setImageBitmap(lastBitmap);
-            textureOverlayView.animate().setDuration(120).alpha(1.0f).setInterpolator(new DecelerateInterpolator()).start();
+            textureOverlayView.setAlpha(1f);
         }
         if (cameraSession != null) {
             cameraSession.destroy();
@@ -973,10 +975,14 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         invalidate();
     }
 
-    public void onPanTranslationUpdate(int y) {
+    public void onPanTranslationUpdate(float y) {
         panTranslationY = y / 2f;
         updateTranslationY();
         blurBehindDrawable.onPanTranslationUpdate(y);
+    }
+
+    public TextureView getTextureView() {
+        return textureView;
     }
 
     public class CameraGLThread extends DispatchQueue {
@@ -1084,7 +1090,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 return false;
             }
 
-            int[] attrib_list = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL10.EGL_NONE };
+            int[] attrib_list = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL10.EGL_NONE};
             eglContext = egl10.eglCreateContext(eglDisplay, eglConfig, EGL10.EGL_NO_CONTEXT, attrib_list);
             if (eglContext == null) {
                 if (BuildVars.LOGS_ENABLED) {
@@ -1423,14 +1429,14 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         }
     }
 
-    private static class AudioBufferInfo {
-        final static int MAX_SAMPLES = 10;
-        ByteBuffer[] buffer = new ByteBuffer[MAX_SAMPLES];
-        long[] offset = new long[MAX_SAMPLES];
-        int[] read = new int[MAX_SAMPLES];
-        int results;
-        int lastWroteBuffer;
-        boolean last;
+    public static class AudioBufferInfo {
+        public final static int MAX_SAMPLES = 10;
+        public ByteBuffer[] buffer = new ByteBuffer[MAX_SAMPLES];
+        public long[] offset = new long[MAX_SAMPLES];
+        public int[] read = new int[MAX_SAMPLES];
+        public int results;
+        public int lastWroteBuffer;
+        public boolean last;
 
         public AudioBufferInfo() {
             for (int i = 0; i < MAX_SAMPLES; i++) {
@@ -1504,13 +1510,13 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         private int scaleYHandle;
         private int alphaHandle;
         private int zeroTimeStamps;
-
         private Integer lastCameraId = 0;
 
         private AudioRecord audioRecorder;
 
         private ArrayBlockingQueue<AudioBufferInfo> buffers = new ArrayBlockingQueue<>(10);
         private ArrayList<Bitmap> keyframeThumbs = new ArrayList<>();
+        private DispatchQueue generateKeyframeThumbsQueue;
         private int frameCount;
 
         private Runnable recorderRunnable = new Runnable() {
@@ -1636,6 +1642,11 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
             keyframeThumbs.clear();
             frameCount = 0;
+            if (generateKeyframeThumbsQueue != null) {
+                generateKeyframeThumbsQueue.cleanupQueue();
+                generateKeyframeThumbsQueue.recycle();
+            }
+            generateKeyframeThumbsQueue = new DispatchQueue("keyframes_thumb_queque");
             handler.sendMessage(handler.obtainMessage(MSG_START_RECORDING));
         }
 
@@ -1876,19 +1887,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, currentTimestamp);
             EGL14.eglSwapBuffers(eglDisplay, eglSurface);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && frameCount % 30 == 0) {
-                final TextureView textureViewFinal = textureView;
-                if (textureViewFinal != null) {
-                    Bitmap bitmap = textureViewFinal.getBitmap( AndroidUtilities.dp(56),  AndroidUtilities.dp(56));
-                    if ((bitmap == null || bitmap.getPixel(0,0) == 0) && keyframeThumbs.size() > 1) {
-                        keyframeThumbs.add(keyframeThumbs.get(keyframeThumbs.size() - 1));
-                    } else {
-                        keyframeThumbs.add(bitmap);
-                    }
-                }
-            }
+            createKeyframeThumb();
             frameCount++;
-
 
             if (oldCameraTexture[0] != 0 && cameraTextureAlpha < 1.0f) {
                 cameraTextureAlpha += alphaDt / 200000000.0f;
@@ -1906,6 +1906,30 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             } else if (!cameraReady) {
                 cameraReady = true;
                 AndroidUtilities.runOnUIThread(() -> textureOverlayView.animate().setDuration(120).alpha(0.0f).setInterpolator(new DecelerateInterpolator()).start());
+            }
+        }
+
+        private void createKeyframeThumb() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && frameCount % 33 == 0) {
+                GenerateKeyframeThumbTask task = new GenerateKeyframeThumbTask();
+                generateKeyframeThumbsQueue.postRunnable(task);
+            }
+        }
+
+        private class GenerateKeyframeThumbTask implements Runnable {
+            @Override
+            public void run() {
+                final TextureView textureView = InstantCameraView.this.textureView;
+                if (textureView != null) {
+                    final Bitmap bitmap = textureView.getBitmap(AndroidUtilities.dp(56), AndroidUtilities.dp(56));
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if ((bitmap == null || bitmap.getPixel(0, 0) == 0) && keyframeThumbs.size() > 1) {
+                            keyframeThumbs.add(keyframeThumbs.get(keyframeThumbs.size() - 1));
+                        } else {
+                            keyframeThumbs.add(bitmap);
+                        }
+                    });
+                }
             }
         }
 
@@ -1945,6 +1969,11 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                     FileLog.e(e);
                 }
             }
+            if (generateKeyframeThumbsQueue != null) {
+                generateKeyframeThumbsQueue.cleanupQueue();
+                generateKeyframeThumbsQueue.recycle();
+                generateKeyframeThumbsQueue = null;
+            }
             if (send != 0) {
                 AndroidUtilities.runOnUIThread(() -> {
                     videoEditedInfo = new VideoEditedInfo();
@@ -1965,6 +1994,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                             AlertsCreator.createScheduleDatePickerDialog(baseFragment.getParentActivity(), baseFragment.getDialogId(), (notify, scheduleDate) -> {
                                 baseFragment.sendMedia(new MediaController.PhotoEntry(0, 0, 0, videoFile.getAbsolutePath(), 0, true, 0, 0, 0), videoEditedInfo, notify, scheduleDate);
                                 startAnimation(false);
+                            }, () -> {
+                                startAnimation(false);
                             });
                         } else {
                             baseFragment.sendMedia(new MediaController.PhotoEntry(0, 0, 0, videoFile.getAbsolutePath(), 0, true, 0, 0, 0), videoEditedInfo, true, 0);
@@ -1983,7 +2014,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                             }
 
                             @Override
-                            public void onError(Exception e) {
+                            public void onError(VideoPlayer player, Exception e) {
                                 FileLog.e(e);
                             }
 
@@ -2397,6 +2428,46 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 }
             } finally {
                 super.finalize();
+            }
+        }
+    }
+
+    public class InstantViewCameraContainer extends FrameLayout {
+
+        ImageReceiver imageReceiver;
+        float imageProgress;
+
+        public InstantViewCameraContainer(Context context) {
+            super(context);
+            InstantCameraView.this.setWillNotDraw(false);
+        }
+
+        public void setImageReceiver(ImageReceiver imageReceiver) {
+            if (this.imageReceiver == null) {
+                imageProgress = 0;
+            }
+            this.imageReceiver = imageReceiver;
+            invalidate();
+        }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (imageProgress != 1f) {
+                imageProgress += 16 / 250.0f;
+                if (imageProgress > 1f) {
+                    imageProgress = 1f;
+                }
+                invalidate();
+            }
+            if (imageReceiver != null) {
+                canvas.save();
+                canvas.translate(-imageReceiver.getImageX(), -imageReceiver.getImageY());
+                float oldAlpha = imageReceiver.getAlpha();
+                imageReceiver.setAlpha(imageProgress);
+                imageReceiver.draw(canvas);
+                imageReceiver.setAlpha(oldAlpha);
+                canvas.restore();
             }
         }
     }

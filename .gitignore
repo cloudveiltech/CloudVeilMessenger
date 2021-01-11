@@ -4,4 +4,3 @@ build/
 obj/
 *.iml
 local.properties
-.cxx

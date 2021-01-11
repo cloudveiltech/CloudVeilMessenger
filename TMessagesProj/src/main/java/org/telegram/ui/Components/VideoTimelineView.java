@@ -285,10 +285,10 @@ public class VideoTimelineView extends View {
         if (frameNum == 0) {
             if (isRoundFrames) {
                 frameHeight = frameWidth = AndroidUtilities.dp(56);
-                framesToLoad = (int) Math.ceil((getMeasuredWidth() - AndroidUtilities.dp(16)) / (frameHeight / 2.0f));
+                framesToLoad = Math.max(1, (int) Math.ceil((getMeasuredWidth() - AndroidUtilities.dp(16)) / (frameHeight / 2.0f)));
             } else {
                 frameHeight = AndroidUtilities.dp(40);
-                framesToLoad = (getMeasuredWidth() - AndroidUtilities.dp(16)) / frameHeight;
+                framesToLoad = Math.max(1, (getMeasuredWidth() - AndroidUtilities.dp(16)) / frameHeight);
                 frameWidth = (int) Math.ceil((float) (getMeasuredWidth() - AndroidUtilities.dp(16)) / (float) framesToLoad);
             }
             frameTimeOffset = videoLength / framesToLoad;
@@ -325,7 +325,7 @@ public class VideoTimelineView extends View {
                         Canvas canvas = new Canvas(result);
                         float scaleX = (float) frameWidth / (float) bitmap.getWidth();
                         float scaleY = (float) frameHeight / (float) bitmap.getHeight();
-                        float scale = scaleX > scaleY ? scaleX : scaleY;
+                        float scale = Math.max(scaleX, scaleY);
                         int w = (int) (bitmap.getWidth() * scale);
                         int h = (int) (bitmap.getHeight() * scale);
                         Rect srcRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
@@ -424,16 +424,15 @@ public class VideoTimelineView extends View {
                 canvas.drawRect(0, topOffset, getMeasuredWidth(), getMeasuredHeight() - topOffset, backgroundGrayPaint);
             }
             int offset = 0;
-            int y = topOffset;
             for (int a = 0; a < frames.size(); a++) {
                 Bitmap bitmap = frames.get(a);
                 if (bitmap != null) {
                     int x = offset * (isRoundFrames ? frameWidth / 2 : frameWidth);
                     if (isRoundFrames) {
-                        rect2.set(x, y, x + AndroidUtilities.dp(28), y + AndroidUtilities.dp(32));
+                        rect2.set(x, topOffset, x + AndroidUtilities.dp(28), topOffset + AndroidUtilities.dp(32));
                         canvas.drawBitmap(bitmap, rect1, rect2, null);
                     } else {
-                        canvas.drawBitmap(bitmap, x, y, null);
+                        canvas.drawBitmap(bitmap, x, topOffset, null);
                     }
                 }
                 offset++;

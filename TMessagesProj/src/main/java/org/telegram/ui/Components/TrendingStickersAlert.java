@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.view.MotionEvent;
@@ -20,8 +21,11 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeDescription;
 
-public class TrendingStickersAlert extends BottomSheet implements TrendingStickersLayout.AlertDelegate {
+import java.util.ArrayList;
+
+public class TrendingStickersAlert extends BottomSheet {
 
     private final int topOffset = AndroidUtilities.dp(12);
 
@@ -38,10 +42,8 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
         alertContainerView.addView(trendingStickersLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         containerView = alertContainerView;
-        useSmoothKeyboard = true;
 
         layout = trendingStickersLayout;
-        layout.setAlertDelegate(this);
         layout.setParentFragment(parentFragment);
         layout.setOnScrollListener(new RecyclerListView.OnScrollListener() {
 
@@ -57,14 +59,16 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 scrolledY += dy;
-                if (Math.abs(scrolledY) > AndroidUtilities.dp(96)) {
+                if (recyclerView.getScrollState() == RecyclerListView.SCROLL_STATE_DRAGGING && Math.abs(scrolledY) > AndroidUtilities.dp(96)) {
                     View view = layout.findFocus();
                     if (view == null) {
                         view = layout;
                     }
                     AndroidUtilities.hideKeyboard(view);
                 }
-                updateLayout();
+                if (dy != 0) {
+                    updateLayout();
+                }
             }
         });
     }
@@ -82,7 +86,6 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
         setHeavyOperationsEnabled(true);
     }
 
-    @Override
     public void setHeavyOperationsEnabled(boolean enabled) {
         NotificationCenter.getGlobalInstance().postNotificationName(enabled ? NotificationCenter.startAllHeavyOperations : NotificationCenter.stopAllHeavyOperations, 2);
     }
@@ -103,6 +106,20 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
         }
     }
 
+    @Override
+    public ArrayList<ThemeDescription> getThemeDescriptions() {
+        final ArrayList<ThemeDescription> descriptions = new ArrayList<>();
+        layout.getThemeDescriptions(descriptions, layout::updateColors);
+        descriptions.add(new ThemeDescription(alertContainerView, 0, null, null, new Drawable[]{shadowDrawable}, null, Theme.key_dialogBackground));
+        descriptions.add(new ThemeDescription(alertContainerView, 0, null, null, null, null, Theme.key_sheet_scrollUp));
+        return descriptions;
+    }
+
+    @Override
+    public void setAllowNestedScroll(boolean allowNestedScroll) {
+        this.allowNestedScroll = allowNestedScroll;
+    }
+
     private class AlertContainerView extends SizeNotifierFrameLayout {
 
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -112,9 +129,10 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
         private boolean statusBarVisible = false;
         private ValueAnimator statusBarAnimator;
         private float statusBarAlpha = 0f;
+        private float[] radii = new float[8];
 
         public AlertContainerView(@NonNull Context context) {
-            super(context, true);
+            super(context);
             setWillNotDraw(false);
             setPadding(backgroundPaddingLeft, 0, backgroundPaddingLeft, 0);
             setDelegate(new SizeNotifierFrameLayoutDelegate() {
@@ -128,11 +146,9 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
                         lastKeyboardHeight = keyboardHeight;
                         lastIsWidthGreater = isWidthGreater;
                         if (keyboardHeight > AndroidUtilities.dp(20) && !gluedToTop) {
-                            layout.setContentViewPaddingTop(0);
                             TrendingStickersAlert.this.setAllowNestedScroll(false);
                             gluedToTop = true;
                         }
-                        layout.setContentViewPaddingBottom(keyboardHeight);
                     }
                 }
             });
@@ -160,32 +176,32 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
 
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            final int statusBarHeight = Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0;
-            final int height = MeasureSpec.getSize(heightMeasureSpec) - statusBarHeight;
-            final int padding = (int) (height * 0.2f);
-            final int keyboardHeight = getKeyboardHeight();
-            ignoreLayout = true;
-            if (keyboardHeight > AndroidUtilities.dp(20)) {
-                layout.setContentViewPaddingTop(0);
-                TrendingStickersAlert.this.setAllowNestedScroll(false);
-                gluedToTop = true;
-            } else {
-                layout.setContentViewPaddingTop(padding);
-                TrendingStickersAlert.this.setAllowNestedScroll(true);
-                gluedToTop = false;
-            }
-            layout.setContentViewPaddingBottom(keyboardHeight);
-            if (getPaddingTop() != statusBarHeight) {
-                setPadding(backgroundPaddingLeft, statusBarHeight, backgroundPaddingLeft, 0);
-            }
-            ignoreLayout = false;
             super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(heightMeasureSpec), MeasureSpec.EXACTLY));
         }
 
         @Override
-        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-            super.onLayout(changed, left, top, right, bottom);
-            updateLayout();
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            final int statusBarHeight = Build.VERSION.SDK_INT >= 21 ? AndroidUtilities.statusBarHeight : 0;
+            final int height = MeasureSpec.getSize(getMeasuredHeight()) - statusBarHeight;
+            final int keyboardHeight = measureKeyboardHeight();
+            final int padding = (int) ((height + keyboardHeight) * 0.2f);
+
+            ignoreLayout = true;
+            if (keyboardHeight > AndroidUtilities.dp(20)) {
+                layout.glueToTop(true);
+                TrendingStickersAlert.this.setAllowNestedScroll(false);
+                gluedToTop = true;
+            } else {
+                layout.glueToTop(false);
+                TrendingStickersAlert.this.setAllowNestedScroll(true);
+                gluedToTop = false;
+            }
+            layout.setContentViewPaddingTop(padding);
+            if (getPaddingTop() != statusBarHeight) {
+                setPadding(backgroundPaddingLeft, statusBarHeight, backgroundPaddingLeft, 0);
+            }
+            ignoreLayout = false;
+            super.onLayout(changed, l, t, r, b);
         }
 
         @Override
@@ -197,6 +213,7 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
 
         @Override
         protected void onDraw(Canvas canvas) {
+            updateLayout();
             super.onDraw(canvas);
 
             final float fraction = getFraction();
@@ -214,7 +231,8 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
             if (fraction > 0f && fraction < 1f) {
                 final float radius = AndroidUtilities.dp(12) * fraction;
                 shapeDrawable.setColor(Theme.getColor(Theme.key_dialogBackground));
-                shapeDrawable.setCornerRadii(new float[]{radius, radius, radius, radius, 0, 0, 0, 0});
+                radii[0] = radii[1] = radii[2] = radii[3] = radius;
+                shapeDrawable.setCornerRadii(radii);
                 shapeDrawable.setBounds(backgroundPaddingLeft, scrollOffsetY + offset, getWidth() - backgroundPaddingLeft, scrollOffsetY + offset + AndroidUtilities.dp(24));
                 shapeDrawable.draw(canvas);
             }
@@ -236,14 +254,15 @@ public class TrendingStickersAlert extends BottomSheet implements TrendingSticke
             final int h = AndroidUtilities.dp(4);
             final int offset = (int) (h * 2f * (1f - fraction));
             shapeDrawable.setCornerRadius(AndroidUtilities.dp(2));
-            shapeDrawable.setColor(ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_sheet_scrollUp), (int) (255 * fraction)));
+            final int sheetScrollUpColor = Theme.getColor(Theme.key_sheet_scrollUp);
+            shapeDrawable.setColor(ColorUtils.setAlphaComponent(sheetScrollUpColor, (int) (Color.alpha(sheetScrollUpColor) * fraction)));
             shapeDrawable.setBounds((getWidth() - w) / 2, scrollOffsetY + AndroidUtilities.dp(10) + offset, (getWidth() + w) / 2, scrollOffsetY + AndroidUtilities.dp(10) + offset + h);
             shapeDrawable.draw(canvas);
 
             canvas.restore();
 
             // status bar
-            setStatusBarVisible(fraction == 0f && Build.VERSION.SDK_INT >= 21 && !isDismissed(), !gluedToTop);
+            setStatusBarVisible(fraction == 0f && Build.VERSION.SDK_INT >= 21 && !isDismissed(), true);
             if (statusBarAlpha > 0f) {
                 final int color = Theme.getColor(Theme.key_dialogBackground);
                 paint.setColor(Color.argb((int) (0xff * statusBarAlpha), (int) (Color.red(color) * 0.8f), (int) (Color.green(color) * 0.8f), (int) (Color.blue(color) * 0.8f)));
