@@ -161,7 +161,9 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
         icons.add(R.drawable.menu_camera);
         ids.add(0);
 
-        if (canSelectVideo) {
+        //CloudVeil start
+        if (canSelectVideo && !GlobalSecuritySettings.getIsProfileVideoChangeDisabled()) {
+        //CloudVeil end
             items.add(LocaleController.getString("ChooseRecordVideo", R.string.ChooseRecordVideo));
             icons.add(R.drawable.msg_video);
             ids.add(4);

@@ -40,6 +40,8 @@ public class SettingsResponse {
     public boolean disableStickers;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
+    public boolean disableProfileVideo;
+    public boolean disableProfileVideoChange;
     public String disableStickersImage;
     public int profilePhotoLimit;
     public GoogleMapsKeys googleMapsKeys;

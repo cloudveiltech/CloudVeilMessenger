@@ -23,6 +23,8 @@ public class GlobalSecuritySettings {
 
     private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
     private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
+    private static final boolean DEFAULT_IS_PROFILE_VIDEO_DISABLED = false;
+    private static final boolean DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED = false;
     private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
@@ -150,6 +152,28 @@ public class GlobalSecuritySettings {
             return Integer.MAX_VALUE;
         }
         return limit;
+    }
+
+    public static void setIsProfileVideoDisabled(boolean isProfileVideoDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isProfileVideoDisabled", isProfileVideoDisabled).apply();
+    }
+
+    public static boolean getIsProfileVideoDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        boolean res = preferences.getBoolean("isProfileVideoDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_DISABLED);
+        return res && getLockDisableOthersPhoto();
+    }
+
+    public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isProfileVideoChangeDisabled", isProfileVideoChangeDisabled).apply();
+    }
+
+    public static boolean getIsProfileVideoChangeDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        boolean res = preferences.getBoolean("isProfileVideoChangeDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED);
+        return res && getLockDisableOwnPhoto();
     }
 
     public static void setGoogleMapsKey(String key) {

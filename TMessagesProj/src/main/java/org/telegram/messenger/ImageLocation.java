@@ -108,9 +108,12 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil start
-        boolean allowPhoto =  !GlobalSecuritySettings.getLockDisableOthersPhoto();
+        boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
         if(user != null && user.self) {
             allowPhoto = !GlobalSecuritySettings.getLockDisableOwnPhoto();
+        }
+        if(allowPhoto && user.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+            allowPhoto = false;
         }
         if(!allowPhoto) {
             return null;
@@ -140,6 +143,9 @@ public class ImageLocation {
 
         //CloudVeil start
         if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            return null;
+        }
+        if(chat.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
             return null;
         }
         //CloudVeil end

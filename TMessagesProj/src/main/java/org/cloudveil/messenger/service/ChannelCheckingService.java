@@ -276,6 +276,9 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
         GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
         GlobalSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
+        GlobalSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
+        GlobalSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
+        
         if(settingsResponse.googleMapsKeys != null) {
             GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
         }

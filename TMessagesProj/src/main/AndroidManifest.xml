@@ -157,8 +157,7 @@
         </activity>
         <activity-alias
             android:name="org.telegram.ui.CallsActivity"
-            android:targetActivity="org.telegram.ui.LaunchActivity"
-            android:permission="android.permission.CALL_PHONE">
+            android:targetActivity="org.telegram.ui.LaunchActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

@@ -469,6 +469,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         @Override
         public void openPhotoForEdit(String file, String thumb, boolean isVideo) {
+
             imageUpdater.openPhotoForEdit(file, thumb, 0, isVideo);
         }
     };
@@ -3197,6 +3198,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void openAvatar() {
+        //CloudVeil start
+        if (user_id == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
+            if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+                return;
+            }
+        }
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            return;
+        }
+        //CloudVeil end
         if (listView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING) {
             return;
         }
@@ -3207,6 +3218,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user.photo.dc_id != 0) {
                     user.photo.photo_big.dc_id = user.photo.dc_id;
                 }
+
+                //CloudVeil start
+                if(user.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+                    return;
+                }
+                //CloudVeil end
+
                 PhotoViewer.getInstance().openPhoto(user.photo.photo_big, provider);
             }
         } else if (chat_id != 0) {
@@ -3222,6 +3240,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else {
                     videoLocation = null;
                 }
+                //CloudVeil start
+                if(videoLocation != null && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+                    return;
+                }
+                //CloudVeil end
                 PhotoViewer.getInstance().openPhotoWithVideo(chat.photo.photo_big, videoLocation, provider);
             }
         }
@@ -5529,6 +5552,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             final ImageLocation imageLocation = ImageLocation.getForChat(chat, true);
             final ImageLocation thumbLocation = ImageLocation.getForChat(chat, false);
             final ImageLocation videoLocation = avatarsViewPager.getCurrentVideoLocation(thumbLocation, imageLocation);
+
             boolean initied = avatarsViewPager.initIfEmpty(imageLocation, thumbLocation);
             if ((imageLocation == null || initied) && isPulledDown) {
                 final View view = layoutManager.findViewByPosition(0);
