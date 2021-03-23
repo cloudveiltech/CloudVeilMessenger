@@ -57,12 +57,14 @@ public class ChannelCheckingService extends Service {
     private static final String EXTRA_ADDITION_DIALOG_ID = "extra_dialog_id";
     private static final String EXTRA_ACCOUNT_NUMBER = "extra_account_number";
     private static final long DEBOUNCE_TIME_MS = 200;
+    private static final long CACHE_TIMEOUT_MS = 30000;
 
     private Disposable subscription;
     Handler handler = new Handler();
     private long additionalDialogId = 0;
     private boolean firstCall = true;
     private int accountNumber = 0;
+    private static long lastServerCallTime = 0;
 
     @Nullable
     @Override
@@ -164,11 +166,19 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsResponse cached = loadFromCache();
-        if (cached != null && (firstCall || !ApplicationLoader.isNetworkOnline())) {
+        long now = System.currentTimeMillis();
+        boolean cacheIsFreshEnough = (now-lastServerCallTime) < CACHE_TIMEOUT_MS;
+        boolean cachedResponseCalled = false;
+        if(cacheIsFreshEnough) {
+            Log.d("CloudVeil", "cached response");
+        }
+        boolean forceCache = firstCall || !ApplicationLoader.isNetworkOnline() || cacheIsFreshEnough;
+        if (cached != null && forceCache) {
             processResponse(cached);
             firstCall = false;
+            cachedResponseCalled = true;
         }
-        if (!ApplicationLoader.isNetworkOnline()) {
+        if (!ApplicationLoader.isNetworkOnline() || (cachedResponseCalled && cacheIsFreshEnough)) {
             stopForeground(true);
             stopSelf();
             return;
@@ -177,6 +187,8 @@ public class ChannelCheckingService extends Service {
         CloudVeilDialogHelper.getInstance(accountNumber).loadNotificationChannelDialog(request);
 
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
+        lastServerCallTime = System.currentTimeMillis();
+        Log.d("CloudVeil", "not cached response");
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
 

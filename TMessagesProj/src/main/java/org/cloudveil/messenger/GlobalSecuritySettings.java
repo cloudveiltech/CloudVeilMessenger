@@ -162,7 +162,7 @@ public class GlobalSecuritySettings {
     public static boolean getIsProfileVideoDisabled() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         boolean res = preferences.getBoolean("isProfileVideoDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_DISABLED);
-        return res && getLockDisableOthersPhoto();
+        return res || getLockDisableOthersPhoto();
     }
 
     public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {
@@ -173,7 +173,7 @@ public class GlobalSecuritySettings {
     public static boolean getIsProfileVideoChangeDisabled() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         boolean res = preferences.getBoolean("isProfileVideoChangeDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED);
-        return res && getLockDisableOwnPhoto();
+        return res || getLockDisableOwnPhoto();
     }
 
     public static void setGoogleMapsKey(String key) {
