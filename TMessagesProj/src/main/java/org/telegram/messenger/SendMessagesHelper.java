@@ -41,6 +41,7 @@ import android.widget.Toast;
 import androidx.annotation.UiThread;
 import androidx.core.view.inputmethod.InputContentInfoCompat;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.audioinfo.AudioInfo;
 import org.telegram.messenger.support.SparseLongArray;
 import org.telegram.tgnet.ConnectionsManager;
@@ -2623,6 +2624,25 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             caption = "";
         }
 
+        //CloudVeil start
+        if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer)) {
+            return;
+        }
+        boolean isBotCommand = message.startsWith("/") && message.contains("@");
+        if(isBotCommand) {
+            String botName = message.split("@")[1].split(" ")[0].trim().replace("/", "");
+            if(botName.length() > 0) {
+                TLObject userOrChat = getMessagesController().getUserOrChat(botName);
+                if(userOrChat instanceof TLRPC.User) {
+                    TLRPC.User botUser = (TLRPC.User) userOrChat;
+                    if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(botUser)) {
+                        return;
+                    }
+                }
+            }
+        }
+        //CloudVeil end
+
         String originalPath = null;
         if (params != null && params.containsKey("originalPath")) {
             originalPath = params.get("originalPath");
@@ -2641,6 +2661,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         int linkedToGroup = 0;
         TLRPC.EncryptedChat encryptedChat = null;
         TLRPC.InputPeer sendToPeer = lower_id != 0 ? getMessagesController().getInputPeer(lower_id) : null;
+
         int myId = getUserConfig().getClientUserId();
         if (lower_id == 0) {
             encryptedChat = getMessagesController().getEncryptedChat(high_id);

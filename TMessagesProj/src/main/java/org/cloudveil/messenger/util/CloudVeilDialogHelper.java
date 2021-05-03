@@ -101,17 +101,31 @@ public class CloudVeilDialogHelper {
         if (user == null) {
             return true;
         }
+        long id = user.id;
         if (user.bot) {
-            if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
-                return false;
-            }
-            long id = (long) user.id;
-            return !allowedBots.containsKey(id) || allowedBots.get(id);
+            return isBotIdAllowed(id);
         } else if (GlobalSecuritySettings.getManageUsers()) {
-            long id = (long) user.id;
             return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
         }
         return true;
+    }
+
+    public boolean isBotAllowed(TLRPC.BotInfo bot) {
+        if (bot == null) {
+            return true;
+        }
+
+        return isBotIdAllowed(bot.user_id);
+    }
+
+    private boolean isBotIdAllowed(long id) {
+        if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
+            return false;
+        }
+        if(id == 831835893 || id==119606003) {
+            return false;
+        }
+        return !allowedBots.containsKey(id) || allowedBots.get(id);
     }
 
     public TLObject getObjectByDialogId(long currentDialogId) {

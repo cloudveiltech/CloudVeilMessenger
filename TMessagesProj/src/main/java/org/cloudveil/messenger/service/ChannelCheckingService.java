@@ -62,7 +62,7 @@ public class ChannelCheckingService extends Service {
     private Disposable subscription;
     Handler handler = new Handler();
     private long additionalDialogId = 0;
-    private boolean firstCall = true;
+    private static boolean firstCall = true;
     private int accountNumber = 0;
     private static long lastServerCallTime = 0;
 

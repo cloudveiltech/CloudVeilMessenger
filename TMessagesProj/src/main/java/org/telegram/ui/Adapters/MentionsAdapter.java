@@ -912,14 +912,18 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter {
             String command = result.toString().toLowerCase();
             for (int b = 0; b < botInfo.size(); b++) {
                 TLRPC.BotInfo info = botInfo.valueAt(b);
-                for (int a = 0; a < info.commands.size(); a++) {
-                    TLRPC.TL_botCommand botCommand = info.commands.get(a);
-                    if (botCommand != null && botCommand.command != null && botCommand.command.startsWith(command)) {
-                        newResult.add("/" + botCommand.command);
-                        newResultHelp.add(botCommand.description);
-                        newResultUsers.add(messagesController.getUser(info.user_id));
+                //CloudVeil start
+                if(CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(info)) {
+                    for (int a = 0; a < info.commands.size(); a++) {
+                        TLRPC.TL_botCommand botCommand = info.commands.get(a);
+                        if (botCommand != null && botCommand.command != null && botCommand.command.startsWith(command)) {
+                            newResult.add("/" + botCommand.command);
+                            newResultHelp.add(botCommand.description);
+                            newResultUsers.add(messagesController.getUser(info.user_id));
+                        }
                     }
                 }
+                //CloudVeil end
             }
             searchResultHashtags = null;
             searchResultUsernames = null;

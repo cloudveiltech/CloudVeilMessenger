@@ -87,6 +87,7 @@ import androidx.core.view.inputmethod.InputContentInfoCompat;
 import androidx.customview.widget.ExploreByTouchHelper;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -5260,6 +5261,12 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (longPress) {
             String text = messageEditText.getText().toString();
             TLRPC.User user = messageObject != null && (int) dialog_id < 0 ? accountInstance.getMessagesController().getUser(messageObject.messageOwner.from_id.user_id) : null;
+
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
             if ((botCount != 1 || username) && user != null && user.bot && !command.contains("@")) {
                 text = String.format(Locale.US, "%s@%s", command, user.username) + " " + text.replaceFirst("^/[a-zA-Z@\\d_]{1,255}(\\s|$)", "");
             } else {
@@ -5283,6 +5290,12 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
                 return;
             }
             TLRPC.User user = messageObject != null && (int) dialog_id < 0 ? accountInstance.getMessagesController().getUser(messageObject.messageOwner.from_id.user_id) : null;
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
+
             if ((botCount != 1 || username) && user != null && user.bot && !command.contains("@")) {
                 SendMessagesHelper.getInstance(currentAccount).sendMessage(String.format(Locale.US, "%s@%s", command, user.username), dialog_id, replyingMessageObject, getThreadMessage(), null, false, null, null, null, true, 0);
             } else {
@@ -5770,6 +5783,8 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     }
 
     public void setBotsCount(int count, boolean hasCommands) {
+        count = 0 ;
+        hasBotCommands = false;
         botCount = count;
         if (hasBotCommands != hasCommands) {
             hasBotCommands = hasCommands;
