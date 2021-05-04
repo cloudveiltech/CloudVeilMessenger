@@ -13192,12 +13192,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         TLRPC.ChatParticipant participant = chatInfo.participants.participants.get(a);
                         TLRPC.User user = getMessagesController().getUser(participant.user_id);
                         if (user != null && user.bot) {
-                            URLSpanBotCommand.enabled = true;
-                            botsCount++;
-                            if (!isThreadChat()) {
-                                hasBotsCommands = true;
+                            //CloudVeil start
+                            if(CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                                URLSpanBotCommand.enabled = true;
+                                botsCount++;
+                                if (!isThreadChat()) {
+                                    hasBotsCommands = true;
+                                }
+                                getMediaDataController().loadBotInfo(user.id, true, classGuid);
                             }
-                            getMediaDataController().loadBotInfo(user.id, true, classGuid);
+                            //CloudVeil end
                         }
                     }
                     if (chatListView != null) {
@@ -13211,10 +13215,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     botsCount = chatInfo.bot_info.size();
                     for (int a = 0; a < chatInfo.bot_info.size(); a++) {
                         TLRPC.BotInfo bot = chatInfo.bot_info.get(a);
-                        if (!isThreadChat() && !bot.commands.isEmpty() && (!ChatObject.isChannel(currentChat) || currentChat != null && currentChat.megagroup)) {
-                            hasBotsCommands = true;
+                        //CloudVeil start
+                        if(CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(bot)) {
+                            if (!isThreadChat() && !bot.commands.isEmpty() && (!ChatObject.isChannel(currentChat) || currentChat != null && currentChat.megagroup)) {
+                                hasBotsCommands = true;
+                            }
+                            botInfo.put(bot.user_id, bot);
                         }
-                        botInfo.put(bot.user_id, bot);
+                        //CloudVeil end
                     }
                     if (chatListView != null) {
                         chatListView.invalidateViews();
@@ -13877,10 +13885,15 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (classGuid == guid) {
                 TLRPC.BotInfo info = (TLRPC.BotInfo) args[0];
                 if (currentEncryptedChat == null) {
-                    if (!info.commands.isEmpty() && !ChatObject.isChannel(currentChat) && !isThreadChat()) {
-                        hasBotsCommands = true;
+                    //CloudVeil start
+                    if (CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(info)) {
+                        if (!info.commands.isEmpty() && !ChatObject.isChannel(currentChat) && !isThreadChat()) {
+                            hasBotsCommands = true;
+                        }
+                        botInfo.put(info.user_id, info);
                     }
-                    botInfo.put(info.user_id, info);
+                    //CloudVeil end
+
                     if (chatAdapter != null) {
                         int prevRow = chatAdapter.botInfoRow;
                         chatAdapter.updateRowsInternal();

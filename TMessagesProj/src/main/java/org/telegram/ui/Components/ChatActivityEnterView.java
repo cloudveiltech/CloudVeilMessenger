@@ -5750,6 +5750,7 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
         if (botButton == null) {
             return;
         }
+
         if (hasBotCommands || botReplyMarkup != null) {
             if (botButton.getVisibility() != VISIBLE) {
                 botButton.setVisibility(VISIBLE);
@@ -5793,7 +5794,20 @@ public class ChatActivityEnterView extends FrameLayout implements NotificationCe
     }
 
     public void setButtons(MessageObject messageObject) {
-        setButtons(messageObject, true);
+        //CloudVeil start
+        if(CloudVeilDialogHelper.getInstance(currentAccount).isMessageAllowed(messageObject)) {
+            setButtons(messageObject, true);
+        } else {
+            hasBotCommands = false;
+            updateBotButton();
+            if(botButton != null) {
+                botButton.setVisibility(GONE);
+            }
+            if(botKeyboardView != null) {
+                botKeyboardView.setVisibility(GONE);
+            }
+        }
+        //CloudVeil end
     }
 
     public void setButtons(MessageObject messageObject, boolean openKeyboard) {

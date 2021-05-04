@@ -122,9 +122,6 @@ public class CloudVeilDialogHelper {
         if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
             return false;
         }
-        if(id == 831835893 || id==119606003) {
-            return false;
-        }
         return !allowedBots.containsKey(id) || allowedBots.get(id);
     }
 
@@ -315,14 +312,20 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        if (messageObject.messageOwner.via_bot_id <= 0) {
-            return true;
+        if (messageObject.messageOwner.via_bot_id > 0) {
+            TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.via_bot_id);
+            if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
+                return isUserAllowed(botUser);
+            }
         }
 
-        TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.via_bot_id);
-        if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
-            return isUserAllowed(botUser);
+        if(messageObject.messageOwner.from_id != null && messageObject.messageOwner.from_id.user_id > 0) {
+            TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.from_id.user_id);
+            if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
+                return isUserAllowed(botUser);
+            }
         }
+
         return false;
     }
 
