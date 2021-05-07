@@ -2628,15 +2628,17 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer)) {
             return;
         }
-        boolean isBotCommand = message.startsWith("/") && message.contains("@");
-        if(isBotCommand) {
-            String botName = message.split("@")[1].split(" ")[0].trim().replace("/", "");
-            if(botName.length() > 0) {
-                TLObject userOrChat = getMessagesController().getUserOrChat(botName);
-                if(userOrChat instanceof TLRPC.User) {
-                    TLRPC.User botUser = (TLRPC.User) userOrChat;
-                    if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(botUser)) {
-                        return;
+        if(message != null) {
+            boolean isBotCommand = message.startsWith("/") && message.contains("@");
+            if (isBotCommand) {
+                String botName = message.split("@")[1].split(" ")[0].trim().replace("/", "");
+                if (botName.length() > 0) {
+                    TLObject userOrChat = getMessagesController().getUserOrChat(botName);
+                    if (userOrChat instanceof TLRPC.User) {
+                        TLRPC.User botUser = (TLRPC.User) userOrChat;
+                        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(botUser)) {
+                            return;
+                        }
                     }
                 }
             }
