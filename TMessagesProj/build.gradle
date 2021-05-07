@@ -301,11 +301,14 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 2214
+    defaultConfig.versionCode = 2215
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "app.apk"
+            def date = new Date();
+            def formattedDate = date.format('yy-MM-dd')
+
+            outputFileName = "cloudveil_messenger_" + formattedDate + ".apk"
             output.versionCodeOverride = defaultConfig.versionCode * 10 + variant.productFlavors.get(0).abiVersionCode
         }
     }

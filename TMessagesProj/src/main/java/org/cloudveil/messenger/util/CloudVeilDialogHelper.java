@@ -1,28 +1,20 @@
 package org.cloudveil.messenger.util;
 
 import android.text.TextUtils;
-import android.widget.Toast;
-
-import com.google.android.exoplayer2.extractor.mkv.MatroskaExtractor;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ProfileActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,7 +54,7 @@ public class CloudVeilDialogHelper {
     }
      */
     public void loadNotificationChannelDialog(SettingsRequest request) {
-        if(isCloudVeilChannelLoaded(request)) {
+        if (isCloudVeilChannelLoaded(request)) {
             return;
         }
 
@@ -73,7 +65,7 @@ public class CloudVeilDialogHelper {
 
             if (error == null) {
                 TLRPC.TL_contacts_resolvedPeer res = (TLRPC.TL_contacts_resolvedPeer) response;
-                if(res.chats.size() == 0) {
+                if (res.chats.size() == 0) {
                     return;
                 }
                 TLRPC.Chat chat = res.chats.get(0);
@@ -84,12 +76,12 @@ public class CloudVeilDialogHelper {
     }
 
     private boolean isCloudVeilChannelLoaded(SettingsRequest request) {
-        if(request == null) {
+        if (request == null) {
             return false;
         }
-        for(int i=0; i<request.channels.size(); i++) {
+        for (int i = 0; i < request.channels.size(); i++) {
             String userName = request.channels.get(i).userName;
-            if(userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
+            if (userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
                 return true;
             }
         }
@@ -199,11 +191,15 @@ public class CloudVeilDialogHelper {
         if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
             return false;
         } else if (chat != null) {
-            return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
+            return isChatIdAllowed(currentDialogId);
         } else if (user != null) {
             return isUserAllowed(user);
         }
         return false;
+    }
+
+    private boolean isChatIdAllowed(long currentDialogId) {
+        return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
@@ -253,7 +249,7 @@ public class CloudVeilDialogHelper {
 
     public static void dismissProgress() {
         delegateInstance = null;
-        if(progressDialog != null) {
+        if (progressDialog != null) {
             progressDialog.dismiss();
         }
         progressDialog = null;
@@ -283,7 +279,7 @@ public class CloudVeilDialogHelper {
 
             NotificationCenter.getInstance(fragment.getCurrentAccount()).removeObserver(this, NotificationCenter.filterDialogsReady);
             delegateInstance = null;
-            if(progressDialog != null) {
+            if (progressDialog != null) {
                 progressDialog.dismiss();
             }
             progressDialog = null;
@@ -294,7 +290,7 @@ public class CloudVeilDialogHelper {
         if (progressDialog != null) {
             progressDialog.dismiss();
         }
-        if(fragment.getParentActivity() == null) {
+        if (fragment.getParentActivity() == null) {
             return;
         }
         delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
@@ -319,10 +315,19 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        if(messageObject.messageOwner.from_id != null && messageObject.messageOwner.from_id.user_id > 0) {
-            TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.from_id.user_id);
-            if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
-                return isUserAllowed(botUser);
+        TLRPC.Peer fromId = messageObject.messageOwner.from_id;
+        if (fromId != null) {
+            if (fromId.user_id > 0) {
+                TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(fromId.user_id);
+                if (user != null && user.username != null && user.username.length() > 0) {
+                    return isUserAllowed(user);
+                }
+            }
+            if (fromId.chat_id > 0 || fromId.channel_id > 0) {
+                TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(fromId.chat_id > 0 ? fromId.chat_id : fromId.channel_id);
+                if (chat != null) {
+                    return isChatIdAllowed(-chat.id);
+                }
             }
         }
 
