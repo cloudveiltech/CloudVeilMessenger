@@ -121,7 +121,7 @@ public class DrawerProfileCell extends FrameLayout {
             @Override
             public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
                 super.onInitializeAccessibilityNodeInfo(info);
-                if (sunDrawable.getCustomEndFrame() == 0) {
+                if (sunDrawable.getCustomEndFrame() != 0) {
                     info.setText(LocaleController.getString("AccDescrSwitchToNightTheme", R.string.AccDescrSwitchToNightTheme));
                 } else {
                     info.setText(LocaleController.getString("AccDescrSwitchToDayTheme", R.string.AccDescrSwitchToDayTheme));
@@ -351,7 +351,7 @@ public class DrawerProfileCell extends FrameLayout {
         phoneTextView.setText(PhoneFormat.getInstance().format("+" + user.phone));
         AvatarDrawable avatarDrawable = new AvatarDrawable(user);
         avatarDrawable.setColor(Theme.getColor(Theme.key_avatar_backgroundInProfileBlue));
-        avatarImageView.setImage(ImageLocation.getForUser(user, false), "50_50", avatarDrawable, user);
+        avatarImageView.setForUserOrChat(user, avatarDrawable);
 
         applyBackground(true);
     }

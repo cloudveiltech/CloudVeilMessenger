@@ -24,10 +24,12 @@ public class ImageLocation {
 
     public TLRPC.PhotoSize photoSize;
     public TLRPC.Photo photo;
-    public boolean photoPeerBig;
+    public int photoPeerType;
     public TLRPC.InputPeer photoPeer;
     public TLRPC.InputStickerSet stickerSet;
     public int imageType;
+
+    public int thumbVersion;
 
     public int currentSize;
 
@@ -100,13 +102,27 @@ public class ImageLocation {
         } else {
             dc_id = photoSize.location.dc_id;
         }
-        return getForPhoto(photoSize.location, photoSize.size, photo, null, null, false, dc_id, null, photoSize.type);
+        return getForPhoto(photoSize.location, photoSize.size, photo, null, null, TYPE_SMALL, dc_id, null, photoSize.type);
     }
 
-    public static ImageLocation getForUser(TLRPC.User user, boolean big) {
+    public static final int TYPE_BIG = 0;
+    public static final int TYPE_SMALL = 1;
+    public static final int TYPE_STRIPPED = 2;
+
+    public static ImageLocation getForUserOrChat(TLObject object, int type) {
+        if (object instanceof TLRPC.User) {
+            return getForUser((TLRPC.User) object, type);
+        } else if (object instanceof TLRPC.Chat) {
+            return getForChat((TLRPC.Chat) object, type);
+        }
+        return null;
+    }
+
+    public static ImageLocation getForUser(TLRPC.User user, int type) {
         if (user == null || user.access_hash == 0 || user.photo == null) {
             return null;
         }
+
         //CloudVeil start
         boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
         if(user != null && user.self) {
@@ -120,7 +136,17 @@ public class ImageLocation {
         }
         //CloudVeil end
 
-        TLRPC.FileLocation fileLocation = big ? user.photo.photo_big : user.photo.photo_small;
+        if (type == TYPE_STRIPPED) {
+            if (user.photo.stripped_thumb == null) {
+                return null;
+            }
+            ImageLocation imageLocation = new ImageLocation();
+            imageLocation.photoSize = new TLRPC.TL_photoStrippedSize();
+            imageLocation.photoSize.type = "s";
+            imageLocation.photoSize.bytes = user.photo.stripped_thumb;
+            return imageLocation;
+        }
+        TLRPC.FileLocation fileLocation = type == TYPE_BIG ? user.photo.photo_big : user.photo.photo_small;
         if (fileLocation == null) {
             return null;
         }
@@ -133,14 +159,15 @@ public class ImageLocation {
         } else {
             dc_id = fileLocation.dc_id;
         }
-        return getForPhoto(fileLocation, 0, null, null, inputPeer, big, dc_id, null, null);
+        ImageLocation location = getForPhoto(fileLocation, 0, null, null, inputPeer, type, dc_id, null, null);
+        location.photoId = user.photo.photo_id;
+        return location;
     }
 
-    public static ImageLocation getForChat(TLRPC.Chat chat, boolean big) {
+    public static ImageLocation getForChat(TLRPC.Chat chat, int type) {
         if (chat == null || chat.photo == null) {
             return null;
         }
-
         //CloudVeil start
         if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
             return null;
@@ -150,7 +177,17 @@ public class ImageLocation {
         }
         //CloudVeil end
 
-        TLRPC.FileLocation fileLocation = big ? chat.photo.photo_big : chat.photo.photo_small;
+        if (type == TYPE_STRIPPED) {
+            if (chat.photo.stripped_thumb == null) {
+                return null;
+            }
+            ImageLocation imageLocation = new ImageLocation();
+            imageLocation.photoSize = new TLRPC.TL_photoStrippedSize();
+            imageLocation.photoSize.type = "s";
+            imageLocation.photoSize.bytes = chat.photo.stripped_thumb;
+            return imageLocation;
+        }
+        TLRPC.FileLocation fileLocation = type == TYPE_BIG ? chat.photo.photo_big : chat.photo.photo_small;
         if (fileLocation == null) {
             return null;
         }
@@ -172,10 +209,12 @@ public class ImageLocation {
         } else {
             dc_id = fileLocation.dc_id;
         }
-        return getForPhoto(fileLocation, 0, null, null, inputPeer, big, dc_id, null, null);
+        ImageLocation location = getForPhoto(fileLocation, 0, null, null, inputPeer, type, dc_id, null, null);
+        location.photoId = chat.photo.photo_id;
+        return location;
     }
 
-    public static ImageLocation getForSticker(TLRPC.PhotoSize photoSize, TLRPC.Document sticker) {
+    public static ImageLocation getForSticker(TLRPC.PhotoSize photoSize, TLRPC.Document sticker, int thumbVersion) {
         if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             ImageLocation imageLocation = new ImageLocation();
             imageLocation.photoSize = photoSize;
@@ -187,10 +226,11 @@ public class ImageLocation {
         if (stickerSet == null) {
             return null;
         }
-        ImageLocation imageLocation = getForPhoto(photoSize.location, photoSize.size, null, null, null, false, sticker.dc_id, stickerSet, photoSize.type);
+        ImageLocation imageLocation = getForPhoto(photoSize.location, photoSize.size, null, null, null, TYPE_SMALL, sticker.dc_id, stickerSet, photoSize.type);
         if (MessageObject.isAnimatedStickerDocument(sticker, true)) {
             imageLocation.imageType = FileLoader.IMAGE_TYPE_LOTTIE;
         }
+        imageLocation.thumbVersion = thumbVersion;
         return imageLocation;
     }
 
@@ -198,7 +238,7 @@ public class ImageLocation {
         if (videoSize == null || document == null) {
             return null;
         }
-        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, null, document, null, false, document.dc_id, null, videoSize.type);
+        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, null, document, null, TYPE_SMALL, document.dc_id, null, videoSize.type);
         location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
         return location;
     }
@@ -207,7 +247,7 @@ public class ImageLocation {
         if (videoSize == null || photo == null) {
             return null;
         }
-        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, photo, null, null, false, photo.dc_id, null, videoSize.type);
+        ImageLocation location = getForPhoto(videoSize.location, videoSize.size, photo, null, null, TYPE_SMALL, photo.dc_id, null, videoSize.type);
         location.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
         if ((videoSize.flags & 1) != 0) {
             location.videoSeekTo = (int) (videoSize.video_start_ts * 1000);
@@ -223,7 +263,7 @@ public class ImageLocation {
         } else if (photoSize == null || document == null) {
             return null;
         }
-        return getForPhoto(photoSize.location, photoSize.size, null, document, null, false, document.dc_id, null, photoSize.type);
+        return getForPhoto(photoSize.location, photoSize.size, null, document, null, TYPE_SMALL, document.dc_id, null, photoSize.type);
     }
 
     public static ImageLocation getForLocal(TLRPC.FileLocation location) {
@@ -239,7 +279,7 @@ public class ImageLocation {
         return imageLocation;
     }
 
-    private static ImageLocation getForPhoto(TLRPC.FileLocation location, int size, TLRPC.Photo photo, TLRPC.Document document, TLRPC.InputPeer photoPeer, boolean photoPeerBig, int dc_id, TLRPC.InputStickerSet stickerSet, String thumbSize) {
+    private static ImageLocation getForPhoto(TLRPC.FileLocation location, int size, TLRPC.Photo photo, TLRPC.Document document, TLRPC.InputPeer photoPeer, int photoPeerType, int dc_id, TLRPC.InputStickerSet stickerSet, String thumbSize) {
         if (location == null || photo == null && photoPeer == null && stickerSet == null && document == null) {
             return null;
         }
@@ -248,7 +288,7 @@ public class ImageLocation {
         imageLocation.photo = photo;
         imageLocation.currentSize = size;
         imageLocation.photoPeer = photoPeer;
-        imageLocation.photoPeerBig = photoPeerBig;
+        imageLocation.photoPeerType = photoPeerType;
         imageLocation.stickerSet = stickerSet;
         if (location instanceof TLRPC.TL_fileLocationToBeDeprecated) {
             imageLocation.location = (TLRPC.TL_fileLocationToBeDeprecated) location;

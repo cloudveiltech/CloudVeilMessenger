@@ -146,8 +146,12 @@ public class BubbleActivity extends Activity implements ActionBarLayout.ActionBa
             return false;
         }
         currentAccount = intent.getIntExtra("currentAccount", UserConfig.selectedAccount);
+        if (!UserConfig.isValidAccount(currentAccount)) {
+            finish();
+            return false;
+        }
         BaseFragment chatActivity = null;
-        if (intent.getAction().startsWith("com.tmessages.openchat")) {
+        if (intent.getAction() != null && intent.getAction().startsWith("com.tmessages.openchat")) {
             int chatId = intent.getIntExtra("chatId", 0);
             int userId = intent.getIntExtra("userId", 0);
             Bundle args = new Bundle();
@@ -299,6 +303,10 @@ public class BubbleActivity extends Activity implements ActionBarLayout.ActionBa
 
     @Override
     public void onBackPressed() {
+        if (mainFragmentsStack.size() == 1) {
+            super.onBackPressed();
+            return;
+        }
         if (passcodeView.getVisibility() == View.VISIBLE) {
             finish();
             return;

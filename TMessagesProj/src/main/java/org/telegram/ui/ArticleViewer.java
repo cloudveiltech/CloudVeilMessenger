@@ -135,6 +135,7 @@ import org.telegram.ui.Components.AnchorSpan;
 import org.telegram.ui.Components.AnimatedArrowDrawable;
 import org.telegram.ui.Components.AnimationProperties;
 import org.telegram.ui.Components.AvatarDrawable;
+import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CloseProgressDrawable2;
 import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.ContextProgressView;
@@ -288,6 +289,8 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
 
     TextSelectionHelper.ArticleTextSelectionHelper textSelectionHelper;
     TextSelectionHelper.ArticleTextSelectionHelper textSelectionHelperBottomSheet;
+
+    PinchToZoomHelper pinchToZoomHelper;
 
     private int allowAnimationIndex = -1;
 
@@ -706,6 +709,10 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent ev) {
+            if (pinchToZoomHelper.isInOverlayMode()) {
+                ev.offsetLocation(-containerView.getX(), -containerView.getY());
+                return pinchToZoomHelper.onTouchEvent(ev);
+            }
             TextSelectionHelper.TextSelectionOverlay selectionOverlay = textSelectionHelper.getOverlayView(getContext());
             MotionEvent textSelectionEv = MotionEvent.obtain(ev);
             textSelectionEv.offsetLocation(-containerView.getX(), -containerView.getY());
@@ -1244,7 +1251,7 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
                     popupWindow.dismiss();
                 }
             });
-            popupLayout.setShowedFromBotton(false);
+            popupLayout.setShownFromBotton(false);
 
             deleteView = new TextView(parentActivity);
             deleteView.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 2));
@@ -2719,31 +2726,6 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
     private void openWebpageUrl(String url, String anchor) {
         //CloudVeil start
         Browser.openUrl(ApplicationLoader.applicationContext, Uri.parse(url));
-        /*
-        if (openUrlReqId != 0) {
-            ConnectionsManager.getInstance(currentAccount).cancelRequest(openUrlReqId, false);
-            openUrlReqId = 0;
-        }
-        int reqId = ++lastReqId;
-        showProgressView(true, true);
-        final TLRPC.TL_messages_getWebPage req = new TLRPC.TL_messages_getWebPage();
-        req.url = url;
-        req.hash = 0;
-        openUrlReqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
-            if (openUrlReqId == 0 || reqId != lastReqId) {
-                return;
-            }
-            openUrlReqId = 0;
-            showProgressView(true, false);
-            if (isVisible) {
-                if (response instanceof TLRPC.TL_webPage && ((TLRPC.TL_webPage) response).cached_page instanceof TLRPC.TL_page) {
-                    addPageToStack((TLRPC.TL_webPage) response, anchor, 1);
-                } else {
-                    Browser.openUrl(parentActivity, req.url);
-                }
-            }
-        }));
-        */
         //CloudVeil end
     }
 
@@ -3038,7 +3020,13 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
         //containerView.setFitsSystemWindows(true);
         if (Build.VERSION.SDK_INT >= 21) {
             windowView.setFitsSystemWindows(true);
-            containerView.setOnApplyWindowInsetsListener((v, insets) -> insets.consumeSystemWindowInsets());
+            containerView.setOnApplyWindowInsetsListener((v, insets) -> {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    return WindowInsets.CONSUMED;
+                } else {
+                    return insets.consumeSystemWindowInsets();
+                }
+            });
         }
 
         fullscreenVideoContainer = new FrameLayout(activity);
@@ -3650,11 +3638,27 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
 
             @Override
             public void onTextCopied() {
-
+                BulletinFactory.of(containerView).createCopyBulletin(LocaleController.getString("TextCopied", R.string.TextCopied)).show();
             }
         });
         containerView.addView(textSelectionHelper.getOverlayView(activity));
 
+        pinchToZoomHelper = new PinchToZoomHelper(containerView);
+        pinchToZoomHelper.setClipBoundsListener(new PinchToZoomHelper.ClipBoundsListener() {
+            @Override
+            public void getClipTopBottom(float[] topBottom) {
+                topBottom[0] = currentHeaderHeight;
+                topBottom[1] = listView[0].getMeasuredHeight();
+            }
+        });
+        pinchToZoomHelper.setCallback(new PinchToZoomHelper.Callback() {
+            @Override
+            public void onZoomStarted(MessageObject messageObject) {
+                if (listView[0] != null) {
+                    listView[0].cancelClickRunnables(true);
+                }
+            }
+        });
         updatePaintColors();
     }
 
@@ -3964,6 +3968,9 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
         }
 
         float heightDiff = maxHeight - minHeight;
+        if (heightDiff == 0) {
+            heightDiff = 1;
+        }
 
         currentHeaderHeight = newHeight;
         float scale = 0.8f + (currentHeaderHeight - minHeight) / heightDiff * 0.2f;
@@ -5947,6 +5954,9 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            if (pinchToZoomHelper.checkPinchToZoom(event, this, imageView, null)) {
+                return true;
+            }
             float x = event.getX();
             float y = event.getY();
             if (channelCell.getVisibility() == VISIBLE && y > channelCell.getTranslationY() && y < channelCell.getTranslationY() + AndroidUtilities.dp(39)) {
@@ -6113,9 +6123,11 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
             if (!imageView.hasBitmapImage() || imageView.getCurrentAlpha() != 1.0f) {
                 canvas.drawRect(imageView.getDrawRegion(), photoBackgroundPaint);
             }
-            imageView.draw(canvas);
-            if (imageView.getVisible()) {
-                radialProgress.draw(canvas);
+            if (!pinchToZoomHelper.isInOverlayModeFor(this)) {
+                imageView.draw(canvas);
+                if (imageView.getVisible()) {
+                    radialProgress.draw(canvas);
+                }
             }
             int count = 0;
             if (captionLayout != null) {
@@ -9826,6 +9838,9 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            if (pinchToZoomHelper.checkPinchToZoom(event, this, imageView, null)) {
+                return true;
+            }
             float x = event.getX();
             float y = event.getY();
             if (channelCell.getVisibility() == VISIBLE && y > channelCell.getTranslationY() && y < channelCell.getTranslationY() + AndroidUtilities.dp(39)) {
@@ -9987,9 +10002,11 @@ public class ArticleViewer implements NotificationCenter.NotificationCenterDeleg
             if (!imageView.hasBitmapImage() || imageView.getCurrentAlpha() != 1.0f) {
                 canvas.drawRect(imageView.getImageX(), imageView.getImageY(), imageView.getImageX2(), imageView.getImageY2(), photoBackgroundPaint);
             }
-            imageView.draw(canvas);
-            if (imageView.getVisible()) {
-                radialProgress.draw(canvas);
+            if (!pinchToZoomHelper.isInOverlayModeFor(this)) {
+                imageView.draw(canvas);
+                if (imageView.getVisible()) {
+                    radialProgress.draw(canvas);
+                }
             }
             if (!TextUtils.isEmpty(currentBlock.url)) {
                 int x = getMeasuredWidth() - AndroidUtilities.dp(11 + 24);

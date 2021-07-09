@@ -119,7 +119,11 @@ public class DrawerLayoutContainer extends FrameLayout {
                     hasCutout = cutout != null && cutout.getBoundingRects().size() != 0;
                 }
                 invalidate();
-                return insets.consumeSystemWindowInsets();
+                if (Build.VERSION.SDK_INT >= 30) {
+                    return WindowInsets.CONSUMED;
+                } else {
+                    return insets.consumeSystemWindowInsets();
+                }
             });
             setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         }
@@ -188,6 +192,16 @@ public class DrawerLayoutContainer extends FrameLayout {
         final int newVisibility = drawerPosition > 0 ? VISIBLE : INVISIBLE;
         if (drawerLayout.getVisibility() != newVisibility) {
             drawerLayout.setVisibility(newVisibility);
+        }
+        if (!parentActionBarLayout.fragmentsStack.isEmpty()) {
+            BaseFragment currentFragment = parentActionBarLayout.fragmentsStack.get(0);
+            if (drawerPosition == drawerLayout.getMeasuredWidth()) {
+                currentFragment.setProgressToDrawerOpened(1f);
+            } else if (drawerPosition == 0) {
+                currentFragment.setProgressToDrawerOpened(0);
+            } else {
+                currentFragment.setProgressToDrawerOpened(drawerPosition / drawerLayout.getMeasuredWidth());
+            }
         }
         setScrimOpacity(drawerPosition / (float) drawerLayout.getMeasuredWidth());
     }
@@ -286,6 +300,13 @@ public class DrawerLayoutContainer extends FrameLayout {
         parentActionBarLayout = layout;
     }
 
+    public void closeDrawer() {
+        if (drawerPosition != 0) {
+            setDrawerPosition(0);
+            onDrawerAnimationEnd(false);
+        }
+    }
+
     public void setAllowOpenDrawer(boolean value, boolean animated) {
         allowOpenDrawer = value;
         if (!allowOpenDrawer && drawerPosition != 0) {
@@ -296,6 +317,10 @@ public class DrawerLayoutContainer extends FrameLayout {
                 closeDrawer(true);
             }
         }
+    }
+
+    public boolean isAllowOpenDrawer() {
+        return allowOpenDrawer;
     }
 
     public void setAllowOpenDrawerBySwipe(boolean value) {

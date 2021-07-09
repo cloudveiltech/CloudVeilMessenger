@@ -47,6 +47,8 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
     private RecyclerView.ViewHolder greetingsSticker;
     private ChatGreetingsView chatGreetingsView;
 
+    private boolean reversePositions;
+
     public ChatListItemAnimator(ChatActivity activity, RecyclerListView listView) {
         this.activity = activity;
         this.recyclerListView = listView;
@@ -69,8 +71,15 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         boolean runTranslationFromBottom = false;
         if (shouldAnimateEnterFromBottom) {
             for (int i = 0; i < mPendingAdditions.size(); i++) {
-                if (mPendingAdditions.get(i).getLayoutPosition() == 0) {
-                    runTranslationFromBottom = true;
+                if (reversePositions) {
+                    int itemCount = recyclerListView.getAdapter() == null ? 0 : recyclerListView.getAdapter().getItemCount();
+                    if (mPendingAdditions.get(i).getLayoutPosition() == itemCount - 1) {
+                        runTranslationFromBottom = true;
+                    }
+                } else {
+                    if (mPendingAdditions.get(i).getLayoutPosition() == 0) {
+                        runTranslationFromBottom = true;
+                    }
                 }
             }
         }
@@ -85,7 +94,11 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
 
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(0, 1f);
         valueAnimator.addUpdateListener(animation -> {
-            activity.onListItemAniamtorTick();
+            if (activity != null) {
+                activity.onListItemAniamtorTick();
+            } else {
+                recyclerListView.invalidate();
+            }
         });
         valueAnimator.setDuration(getRemoveDuration() + getMoveDuration());
         valueAnimator.start();
@@ -222,6 +235,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         if (res && shouldAnimateEnterFromBottom) {
             boolean runTranslationFromBottom = false;
             for (int i = 0; i < mPendingAdditions.size(); i++) {
+
                 if (mPendingAdditions.get(i).getLayoutPosition() == 0) {
                     runTranslationFromBottom = true;
                 }
@@ -614,14 +628,24 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
 
         MoveInfoExtended moveInfoExtended = (MoveInfoExtended) moveInfo;
 
-        if (holder.itemView instanceof BotHelpCell) {
+        if (activity != null && holder.itemView instanceof BotHelpCell) {
             BotHelpCell botCell = (BotHelpCell) holder.itemView ;
-            float top = recyclerListView.getMeasuredHeight() / 2 - botCell.getMeasuredHeight() / 2 + activity.getChatListViewPadding();
-            float animateTo = 0;
-            if (botCell.getTop() > top) {
-                animateTo = top - botCell.getTop();
-            }
-            animatorSet.playTogether(ObjectAnimator.ofFloat(botCell, View.TRANSLATION_Y, botCell.getTranslationY(), animateTo));
+            float animateFrom = botCell.getTranslationY();
+
+            ValueAnimator valueAnimator = ValueAnimator.ofFloat(0, 1f);
+            valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                    float v = (float) valueAnimator.getAnimatedValue();
+                    float top = recyclerListView.getMeasuredHeight() / 2f - botCell.getMeasuredHeight() / 2f + activity.getChatListViewPadding();
+                    float animateTo = 0;
+                    if (botCell.getTop() > top) {
+                        animateTo = top - botCell.getTop();
+                    }
+                    botCell.setTranslationY(animateFrom * (1f - v) + animateTo * v);
+                }
+            });
+            animatorSet.playTogether(valueAnimator);
         } else if (holder.itemView instanceof ChatMessageCell) {
             ChatMessageCell chatMessageCell = (ChatMessageCell) holder.itemView;
             ChatMessageCell.TransitionParams params = chatMessageCell.getTransitionParams();
@@ -729,7 +753,9 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                     if (animateCaption) {
                         groupTransitionParams.captionEnterProgress = captionEnterFrom * v + captionEnterTo * (1f - v);
                     }
-                    recyclerListView.invalidate();
+                    if (recyclerListView != null) {
+                        recyclerListView.invalidate();
+                    }
                 });
 
                 valueAnimator.addListener(new AnimatorListenerAdapter() {
@@ -1401,6 +1427,10 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         greetingsSticker = holder;
         chatGreetingsView = greetingsViewContainer;
         shouldAnimateEnterFromBottom = false;
+    }
+
+    public void setReversePositions(boolean reversePositions) {
+        this.reversePositions = reversePositions;
     }
 
     class MoveInfoExtended extends MoveInfo {

@@ -284,7 +284,7 @@ public class ScrollSlidingTabStrip extends HorizontalScrollView {
             BackupImageView imageView = new BackupImageView(getContext());
             imageView.setLayerNum(1);
             imageView.setRoundRadius(AndroidUtilities.dp(15));
-            imageView.setImage(ImageLocation.getForChat(chat, false), "50_50", avatarDrawable, chat);
+            imageView.setForUserOrChat(chat, avatarDrawable);
             imageView.setAspectFit(true);
             tab.addView(imageView, LayoutHelper.createFrame(30, 30, Gravity.CENTER));
         }
@@ -378,7 +378,11 @@ public class ScrollSlidingTabStrip extends HorizontalScrollView {
                 imageLocation = ImageLocation.getForDocument(thumb, sticker);
             } else if (object instanceof TLRPC.PhotoSize) {
                 TLRPC.PhotoSize thumb = (TLRPC.PhotoSize) object;
-                imageLocation = ImageLocation.getForSticker(thumb, sticker);
+                int thumbVersion = 0;
+                if (parentObject instanceof TLRPC.TL_messages_stickerSet) {
+                    thumbVersion = ((TLRPC.TL_messages_stickerSet) parentObject).set.thumb_version;
+                }
+                imageLocation = ImageLocation.getForSticker(thumb, sticker, thumbVersion);
             } else {
                 continue;
             }
@@ -426,7 +430,11 @@ public class ScrollSlidingTabStrip extends HorizontalScrollView {
                 imageLocation = ImageLocation.getForDocument(thumb, sticker);
             } else if (object instanceof TLRPC.PhotoSize) {
                 TLRPC.PhotoSize thumb = (TLRPC.PhotoSize) object;
-                imageLocation = ImageLocation.getForSticker(thumb, sticker);
+                int thumbVersion = 0;
+                if (parentObject instanceof TLRPC.TL_messages_stickerSet) {
+                    thumbVersion = ((TLRPC.TL_messages_stickerSet) parentObject).set.thumb_version;
+                }
+                imageLocation = ImageLocation.getForSticker(thumb, sticker, thumbVersion);
             } else {
                 continue;
             }

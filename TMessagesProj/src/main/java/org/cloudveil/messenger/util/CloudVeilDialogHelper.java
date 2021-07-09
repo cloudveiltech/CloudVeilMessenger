@@ -331,7 +331,7 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        return false;
+        return true;
     }
 
 

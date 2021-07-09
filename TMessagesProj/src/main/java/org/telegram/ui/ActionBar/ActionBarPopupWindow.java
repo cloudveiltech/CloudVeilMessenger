@@ -17,6 +17,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 
@@ -87,10 +88,13 @@ public class ActionBarPopupWindow extends PopupWindow {
         private float backScaleY = 1;
         private int backAlpha = 255;
         private int lastStartedChild = 0;
-        private boolean showedFromBotton;
+        private boolean shownFromBotton;
         private boolean animationEnabled = allowAnimation;
         private ArrayList<AnimatorSet> itemAnimators;
         private HashMap<View, Integer> positions = new HashMap<>();
+        private int gapStartY = Integer.MIN_VALUE;
+        private int gapEndY = Integer.MIN_VALUE;
+        private Rect bgPaddings = new Rect();
 
         private ScrollView scrollView;
         protected LinearLayout linearLayout;
@@ -98,10 +102,15 @@ public class ActionBarPopupWindow extends PopupWindow {
         private int backgroundColor = Color.WHITE;
         protected Drawable backgroundDrawable;
 
+        private boolean fitItems;
+
         public ActionBarPopupWindowLayout(Context context) {
             super(context);
 
             backgroundDrawable = getResources().getDrawable(R.drawable.popup_fixed_alert2).mutate();
+            if (backgroundDrawable != null) {
+                backgroundDrawable.getPadding(bgPaddings);
+            }
             setBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground));
 
             setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
@@ -115,7 +124,45 @@ public class ActionBarPopupWindow extends PopupWindow {
                 FileLog.e(e);
             }
 
-            linearLayout = new LinearLayout(context);
+            linearLayout = new LinearLayout(context) {
+                @Override
+                protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                    if (fitItems) {
+                        int maxWidth = 0;
+                        int fixWidth = 0;
+                        gapStartY = Integer.MIN_VALUE;
+                        gapEndY = Integer.MIN_VALUE;
+                        ArrayList<View> viewsToFix = null;
+                        for (int a = 0, N = getChildCount(); a < N; a++) {
+                            View view = getChildAt(a);
+                            if (view.getVisibility() == GONE) {
+                                continue;
+                            }
+                            Object tag = view.getTag(R.id.width_tag);
+                            Object tag2 = view.getTag(R.id.object_tag);
+                            measureChildWithMargins(view, widthMeasureSpec, 0, heightMeasureSpec, 0);
+                            if (!(tag instanceof Integer) && tag2 == null) {
+                                maxWidth = Math.max(maxWidth, view.getMeasuredWidth());
+                                continue;
+                            } else if (tag instanceof Integer) {
+                                fixWidth = Math.max((Integer) tag, view.getMeasuredWidth());
+                                gapStartY = view.getMeasuredHeight();
+                                gapEndY = gapStartY + AndroidUtilities.dp(6);
+                            }
+                            if (viewsToFix == null) {
+                                viewsToFix = new ArrayList<>();
+                            }
+                            viewsToFix.add(view);
+                        }
+                        if (viewsToFix != null) {
+                            for (int a = 0, N = viewsToFix.size(); a < N; a++) {
+                                viewsToFix.get(a).getLayoutParams().width = Math.max(maxWidth, fixWidth);
+                            }
+                        }
+                    }
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                }
+            };
             linearLayout.setOrientation(LinearLayout.VERTICAL);
             if (scrollView != null) {
                 scrollView.addView(linearLayout, new ScrollView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -124,8 +171,12 @@ public class ActionBarPopupWindow extends PopupWindow {
             }
         }
 
-        public void setShowedFromBotton(boolean value) {
-            showedFromBotton = value;
+        public void setFitItems(boolean value) {
+            fitItems = value;
+        }
+
+        public void setShownFromBotton(boolean value) {
+            shownFromBotton = value;
         }
 
         public void setDispatchKeyEventListener(OnDispatchKeyEventListener listener) {
@@ -163,7 +214,7 @@ public class ActionBarPopupWindow extends PopupWindow {
             backScaleY = value;
             if (animationEnabled) {
                 int height = getMeasuredHeight() - AndroidUtilities.dp(16);
-                if (showedFromBotton) {
+                if (shownFromBotton) {
                     for (int a = lastStartedChild; a >= 0; a--) {
                         View child = getItemAt(a);
                         if (child.getVisibility() != VISIBLE) {
@@ -203,6 +254,9 @@ public class ActionBarPopupWindow extends PopupWindow {
         public void setBackgroundDrawable(Drawable drawable) {
             backgroundColor = Color.WHITE;
             backgroundDrawable = drawable;
+            if (backgroundDrawable != null) {
+                backgroundDrawable.getPadding(bgPaddings);
+            }
         }
 
         private void startChildAnimation(View child) {
@@ -210,7 +264,7 @@ public class ActionBarPopupWindow extends PopupWindow {
                 AnimatorSet animatorSet = new AnimatorSet();
                 animatorSet.playTogether(
                         ObjectAnimator.ofFloat(child, View.ALPHA, 0.0f, 1.0f),
-                        ObjectAnimator.ofFloat(child, View.TRANSLATION_Y, AndroidUtilities.dp(showedFromBotton ? 6 : -6), 0));
+                        ObjectAnimator.ofFloat(child, View.TRANSLATION_Y, AndroidUtilities.dp(shownFromBotton ? 6 : -6), 0));
                 animatorSet.setDuration(180);
                 animatorSet.addListener(new AnimatorListenerAdapter() {
                     @Override
@@ -263,14 +317,43 @@ public class ActionBarPopupWindow extends PopupWindow {
         @Override
         protected void onDraw(Canvas canvas) {
             if (backgroundDrawable != null) {
-                backgroundDrawable.setAlpha(backAlpha);
-                if (showedFromBotton) {
-                    final int height = getMeasuredHeight();
-                    backgroundDrawable.setBounds(0, (int) (height * (1.0f - backScaleY)), (int) (getMeasuredWidth() * backScaleX), height);
-                } else {
-                    backgroundDrawable.setBounds(0, 0, (int) (getMeasuredWidth() * backScaleX), (int) (getMeasuredHeight() * backScaleY));
+                int start = gapStartY - scrollView.getScrollY();
+                int end = gapEndY - scrollView.getScrollY();
+                for (int a = 0; a < 2; a++) {
+                    if (a == 1 && start < -AndroidUtilities.dp(16)) {
+                        break;
+                    }
+                    if (gapStartY != Integer.MIN_VALUE) {
+                        canvas.save();
+                        canvas.clipRect(0, bgPaddings.top, getMeasuredWidth(), getMeasuredHeight());
+                    }
+                    backgroundDrawable.setAlpha(backAlpha);
+                    if (shownFromBotton) {
+                        final int height = getMeasuredHeight();
+                        backgroundDrawable.setBounds(0, (int) (height * (1.0f - backScaleY)), (int) (getMeasuredWidth() * backScaleX), height);
+                    } else {
+                        if (start > -AndroidUtilities.dp(16)) {
+                            int h = (int) (getMeasuredHeight() * backScaleY);
+                            if (a == 0) {
+                                backgroundDrawable.setBounds(0, -scrollView.getScrollY(), (int) (getMeasuredWidth() * backScaleX), Math.min(h, start + AndroidUtilities.dp(16)));
+                            } else {
+                                if (h < end) {
+                                    if (gapStartY != Integer.MIN_VALUE) {
+                                        canvas.restore();
+                                    }
+                                    continue;
+                                }
+                                backgroundDrawable.setBounds(0, end, (int) (getMeasuredWidth() * backScaleX), h);
+                            }
+                        } else {
+                            backgroundDrawable.setBounds(0, gapStartY < 0 ? 0 : -AndroidUtilities.dp(16), (int) (getMeasuredWidth() * backScaleX), (int) (getMeasuredHeight() * backScaleY));
+                        }
+                    }
+                    backgroundDrawable.draw(canvas);
+                    if (gapStartY != Integer.MIN_VALUE) {
+                        canvas.restore();
+                    }
                 }
-                backgroundDrawable.draw(canvas);
             }
         }
 
@@ -454,7 +537,7 @@ public class ActionBarPopupWindow extends PopupWindow {
                 content.positions.put(child, visibleCount);
                 visibleCount++;
             }
-            if (content.showedFromBotton) {
+            if (content.shownFromBotton) {
                 content.lastStartedChild = count - 1;
             } else {
                 content.lastStartedChild = 0;
@@ -530,7 +613,7 @@ public class ActionBarPopupWindow extends PopupWindow {
             }
             windowAnimatorSet = new AnimatorSet();
             windowAnimatorSet.playTogether(
-                    ObjectAnimator.ofFloat(content, View.TRANSLATION_Y, AndroidUtilities.dp(content.showedFromBotton ? 5 : -5)),
+                    ObjectAnimator.ofFloat(content, View.TRANSLATION_Y, AndroidUtilities.dp(content.shownFromBotton ? 5 : -5)),
                     ObjectAnimator.ofFloat(content, View.ALPHA, 0.0f));
             windowAnimatorSet.setDuration(dismissAnimationDuration);
             windowAnimatorSet.addListener(new AnimatorListenerAdapter() {

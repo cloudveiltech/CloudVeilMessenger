@@ -407,7 +407,7 @@ public class ChatLinkActivity extends BaseFragment implements NotificationCenter
                                 }
                                 progressDialog[0] = null;
                                 info.linked_chat_id = 0;
-                                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, false);
+                                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, false, false);
                                 AndroidUtilities.runOnUIThread(() -> getMessagesController().loadFullChat(currentChatId, 0, true), 1000);
                                 if (!isChannel) {
                                     finishFragment();
@@ -499,7 +499,7 @@ public class ChatLinkActivity extends BaseFragment implements NotificationCenter
         frameLayout2.addView(textView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, (LocaleController.isRTL ? 21 : 76), 11, (LocaleController.isRTL ? 76 : 21), 0));
         frameLayout2.addView(messageTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 24, 57, 24, 9));
         avatarDrawable.setInfo(chat);
-        imageView.setImage(ImageLocation.getForChat(chat, false), "50_50", avatarDrawable, chat);
+        imageView.setForUserOrChat(chat, avatarDrawable);
         builder.setPositiveButton(LocaleController.getString("DiscussionLinkGroup", R.string.DiscussionLinkGroup), (dialogInterface, i) -> {
             if (chatFull.hidden_prehistory) {
                 MessagesController.getInstance(currentAccount).toogleChannelInvitesHistory(chat.id, false);
@@ -537,7 +537,7 @@ public class ChatLinkActivity extends BaseFragment implements NotificationCenter
                 progressDialog[0] = null;
             }
             info.linked_chat_id = chat.id;
-            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, false);
+            NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.chatInfoDidLoad, info, 0, false, false);
             AndroidUtilities.runOnUIThread(() -> getMessagesController().loadFullChat(currentChatId, 0, true), 1000);
             if (createFragment != null) {
                 removeSelfFromStack();

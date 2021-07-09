@@ -11,20 +11,14 @@ package org.telegram.ui.Cells;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.StaticLayout;
-import android.text.TextPaint;
 import android.text.TextUtils;
-import android.text.style.ReplacementSpan;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DownloadController;
@@ -39,6 +33,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.DotDividerSpan;
 import org.telegram.ui.Components.MediaActionDrawable;
 import org.telegram.ui.Components.RadialProgress2;
 import org.telegram.ui.FilteredSearchView;
@@ -85,25 +80,7 @@ public class AudioPlayerCell extends View implements DownloadController.FileDown
 
         if (viewType == VIEW_TYPE_GLOBAL_SEARCH) {
             dotSpan = new SpannableStringBuilder(".");
-            dotSpan.setSpan(new ReplacementSpan() {
-
-                Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-                int color;
-
-                @Override
-                public int getSize(@NonNull Paint paint, CharSequence charSequence, int i, int i1, @Nullable Paint.FontMetricsInt fontMetricsInt) {
-                    return AndroidUtilities.dp(3);
-                }
-
-                @Override
-                public void draw(@NonNull Canvas canvas, CharSequence text, int start, int end, float x, int top, int y, int bottom, @NonNull Paint paint) {
-                    if (color != paint.getColor()) {
-                        p.setColor(paint.getColor());
-                    }
-                    float radius = AndroidUtilities.dpf2(3) / 2f;
-                    canvas.drawCircle(x + radius, (bottom - top) / 2, radius, p);
-                }
-            }, 0, 1, 0);
+            dotSpan.setSpan(new DotDividerSpan(), 0, 1, 0);
         }
     }
 

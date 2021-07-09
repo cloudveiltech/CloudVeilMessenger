@@ -65,6 +65,7 @@ public class EditTextBoldCursor extends EditText {
     private Object editor;
 
     private GradientDrawable gradientDrawable;
+    private SubstringLayoutAnimator hintAnimator;
 
     private Runnable invalidateRunnable = new Runnable() {
         @Override
@@ -391,8 +392,25 @@ public class EditTextBoldCursor extends EditText {
     }
 
     public void setHintText(CharSequence text) {
+        setHintText(text, false);
+    }
+
+    public void setHintText(CharSequence text, boolean animated) {
         if (text == null) {
             text = "";
+        }
+        if (getMeasuredWidth() == 0) {
+            animated = false;
+        }
+        if (animated) {
+            if (hintAnimator == null) {
+                hintAnimator = new SubstringLayoutAnimator(this);
+            }
+            hintAnimator.create(hintLayout, hint, text, getPaint());
+        } else {
+            if (hintAnimator != null) {
+                hintAnimator.cancel();
+            }
         }
         hint = text;
         if (getMeasuredWidth() != 0) {
@@ -410,7 +428,11 @@ public class EditTextBoldCursor extends EditText {
 
     @Override
     protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
-        super.onFocusChanged(focused, direction, previouslyFocusedRect);
+        try {
+            super.onFocusChanged(focused, direction, previouslyFocusedRect);
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
         checkHeaderVisibility(true);
     }
 
@@ -561,7 +583,14 @@ public class EditTextBoldCursor extends EditText {
                 getPaint().setColor(hintColor);
                 getPaint().setAlpha((int) (255 * hintAlpha * (Color.alpha(hintColor) / 255.0f)));
             }
-            hintLayout.draw(canvas);
+            if (hintAnimator != null && hintAnimator.animateTextChange) {
+                canvas.save();
+                canvas.clipRect(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                hintAnimator.draw(canvas, getPaint());
+                canvas.restore();
+            } else {
+                hintLayout.draw(canvas);
+            }
             getPaint().setColor(oldColor);
             canvas.restore();
         }

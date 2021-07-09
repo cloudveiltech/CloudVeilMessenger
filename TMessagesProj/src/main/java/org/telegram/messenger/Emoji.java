@@ -48,7 +48,7 @@ public class Emoji {
     public static ArrayList<String> recentEmoji = new ArrayList<>();
     public static HashMap<String, String> emojiColor = new HashMap<>();
     private static boolean recentEmojiLoaded;
-    private static Runnable invalidateUiRunnable = () -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.emojiDidLoad);
+    private static Runnable invalidateUiRunnable = () -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.emojiLoaded);
 
     private final static int MAX_RECENT_EMOJI_COUNT = 48;
 
@@ -187,9 +187,6 @@ public class Emoji {
     public static EmojiDrawable getEmojiDrawable(CharSequence code) {
         DrawableInfo info = getDrawableInfo(code);
         if (info == null) {
-            if (BuildVars.LOGS_ENABLED) {
-                FileLog.d("No drawable for emoji " + code);
-            }
             return null;
         }
         EmojiDrawable ed = new EmojiDrawable(info);

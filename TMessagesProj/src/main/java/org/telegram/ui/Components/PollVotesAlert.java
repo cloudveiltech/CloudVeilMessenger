@@ -42,7 +42,6 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.Emoji;
-import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
@@ -375,7 +374,7 @@ public class PollVotesAlert extends BottomSheet {
 
             lastAvatar = photo;
             if (currentUser != null) {
-                avatarImageView.setImage(ImageLocation.getForUser(currentUser, false), "50_50", avatarDrawable, currentUser);
+                avatarImageView.setForUserOrChat(currentUser, avatarDrawable);
             } else {
                 avatarImageView.setImageDrawable(avatarDrawable);
             }
@@ -1033,7 +1032,7 @@ public class PollVotesAlert extends BottomSheet {
         }
 
         @Override
-        public boolean isEnabled(int section, int row) {
+        public boolean isEnabled(RecyclerView.ViewHolder holder, int section, int row) {
             if (section == 0 || row == 0 || queries != null && !queries.isEmpty()) {
                 return false;
             }

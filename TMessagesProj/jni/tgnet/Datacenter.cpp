@@ -1158,7 +1158,7 @@ NativeByteBuffer *Datacenter::createRequestsData(std::vector<std::unique_ptr<Net
     if (pfsInit) {
         mtProtoVersion = 1;
     } else {
-        mtProtoVersion = ConnectionsManager::getInstance(instanceNum).getMtProtoVersion();
+        mtProtoVersion = 2;
     }
     uint32_t messageSize = messageBody->getObjectSize();
     uint32_t additionalSize = (32 + messageSize) % 16;
@@ -1235,43 +1235,29 @@ bool Datacenter::decryptServerResponse(int64_t keyId, uint8_t *key, uint8_t *dat
     if (authKey == nullptr) {
         return false;
     }
-    bool error = false;
-    if (authKeyId != keyId) {
-        error = true;
-    }
+    bool error = authKeyId != keyId;
     thread_local static uint8_t messageKey[96];
-    int mtProtoVersion = ConnectionsManager::getInstance(instanceNum).getMtProtoVersion();
-    generateMessageKey(instanceNum, authKey->bytes, key, messageKey + 32, true, mtProtoVersion);
+    generateMessageKey(instanceNum, authKey->bytes, key, messageKey + 32, true, 2);
     aesIgeEncryption(data, messageKey + 32, messageKey + 64, false, false, length);
 
     uint32_t messageLength;
     memcpy(&messageLength, data + 28, sizeof(uint32_t));
-    uint32_t paddingLength = (int32_t) length - (messageLength + 32);
-    if (messageLength > length - 32) {
-        error = true;
-    } else if (paddingLength < 12 || paddingLength > 1024) {
-        error = true;
-    }
-    messageLength += 32;
-    if (messageLength > length) {
-        messageLength = length;
+    uint32_t paddingLength = length - (messageLength + 32);
+
+    error |= (messageLength > length - 32);
+    error |= (paddingLength < 12);
+    error |= (paddingLength > 1024);
+
+    SHA256_Init(&sha256Ctx);
+    SHA256_Update(&sha256Ctx, authKey->bytes + 88 + 8, 32);
+    SHA256_Update(&sha256Ctx, data, length);
+    SHA256_Final(messageKey, &sha256Ctx);
+
+    for (uint32_t i = 0; i < 16; i++) {
+        error |= (messageKey[i + 8] != key[i]);
     }
 
-    switch (mtProtoVersion) {
-        case 2: {
-            SHA256_Init(&sha256Ctx);
-            SHA256_Update(&sha256Ctx, authKey->bytes + 88 + 8, 32);
-            SHA256_Update(&sha256Ctx, data, length);
-            SHA256_Final(messageKey, &sha256Ctx);
-            break;
-        }
-        default: {
-            SHA1(data, messageLength, messageKey + 4);
-            break;
-        }
-    }
-
-    return memcmp(messageKey + 8, key, 16) == 0 && !error;
+    return !error;
 }
 
 bool Datacenter::hasPermanentAuthKey() {
@@ -1448,14 +1434,14 @@ void Datacenter::exportAuthorization() {
     TL_auth_exportAuthorization *request = new TL_auth_exportAuthorization();
     request->dc_id = datacenterId;
     if (LOGS_ENABLED) DEBUG_D("dc%u begin export authorization", datacenterId);
-    ConnectionsManager::getInstance(instanceNum).sendRequest(request, [&](TLObject *response, TL_error *error, int32_t networkType) {
+    ConnectionsManager::getInstance(instanceNum).sendRequest(request, [&](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime) {
         if (error == nullptr) {
             TL_auth_exportedAuthorization *res = (TL_auth_exportedAuthorization *) response;
             TL_auth_importAuthorization *request2 = new TL_auth_importAuthorization();
             request2->bytes = std::move(res->bytes);
             request2->id = res->id;
             if (LOGS_ENABLED) DEBUG_D("dc%u begin import authorization", datacenterId);
-            ConnectionsManager::getInstance(instanceNum).sendRequest(request2, [&](TLObject *response2, TL_error *error2, int32_t networkType) {
+            ConnectionsManager::getInstance(instanceNum).sendRequest(request2, [&](TLObject *response2, TL_error *error2, int32_t networkType, int64_t responseTime) {
                 if (error2 == nullptr) {
                     authorized = true;
                     ConnectionsManager::getInstance(instanceNum).onDatacenterExportAuthorizationComplete(this);
@@ -1477,7 +1463,8 @@ bool Datacenter::isExportingAuthorization() {
 
 bool Datacenter::hasMediaAddress() {
     std::vector<TcpAddress> *addresses;
-    if (ConnectionsManager::getInstance(instanceNum).isIpv6Enabled()) {
+    int strategy = ConnectionsManager::getInstance(instanceNum).getIpStratagy();
+    if (strategy == USE_IPV6_ONLY) {
         addresses = &addressesIpv6Download;
     } else {
         addresses = &addressesIpv4Download;

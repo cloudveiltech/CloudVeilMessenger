@@ -41,9 +41,12 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.exoplayer2.util.Log;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -484,8 +487,28 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 return null;
             }
             final RecyclerListView listView = mediaPages[0].listView;
+            int firstVisiblePosition = -1;
+            int lastVisiblePosition = -1;
             for (int a = 0, count = listView.getChildCount(); a < count; a++) {
                 View view = listView.getChildAt(a);
+                int visibleHeight = mediaPages[0].listView.getMeasuredHeight();
+                View parent = (View) getParent();
+                if (parent != null) {
+                    if (getY() + getMeasuredHeight() > parent.getMeasuredHeight()) {
+                        visibleHeight -= getBottom() - parent.getMeasuredHeight();
+                    }
+                }
+
+                if (view.getTop() >= visibleHeight) {
+                    continue;
+                }
+                int adapterPosition = listView.getChildAdapterPosition(view);
+                if (adapterPosition < firstVisiblePosition || firstVisiblePosition == -1) {
+                    firstVisiblePosition = adapterPosition;
+                }
+                if (adapterPosition > lastVisiblePosition || lastVisiblePosition == -1) {
+                    lastVisiblePosition = adapterPosition;
+                }
                 int[] coords = new int[2];
                 ImageReceiver imageReceiver = null;
                 if (view instanceof SharedPhotoVideoCell) {
@@ -563,6 +586,18 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     return object;
                 }
             }
+            if (mediaPages[0].selectedType == 0 && firstVisiblePosition >= 0 && lastVisiblePosition >= 0) {
+                int position = photoVideoAdapter.getPositionForIndex(index);
+
+                if (position <= firstVisiblePosition) {
+                    mediaPages[0].layoutManager.scrollToPositionWithOffset(position, 0);
+                    profileActivity.scrollToSharedMedia();
+                } else if (position >= lastVisiblePosition && lastVisiblePosition >= 0) {
+                    mediaPages[0].layoutManager.scrollToPositionWithOffset(position, 0, true);
+                    profileActivity.scrollToSharedMedia();
+                }
+            }
+
             return null;
         }
     };
@@ -988,6 +1023,15 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     }
                     return getItemCount();
                 }
+
+                @Override
+                public void onInitializeAccessibilityNodeInfoForItem(RecyclerView.Recycler recycler, RecyclerView.State state, View host, AccessibilityNodeInfoCompat info) {
+                    super.onInitializeAccessibilityNodeInfoForItem(recycler, state, host, info);
+                    final AccessibilityNodeInfoCompat.CollectionItemInfoCompat itemInfo = info.getCollectionItemInfo();
+                    if (itemInfo != null && itemInfo.isHeading()) {
+                        info.setCollectionItemInfo(AccessibilityNodeInfoCompat.CollectionItemInfoCompat.obtain(itemInfo.getRowIndex(), itemInfo.getRowSpan(), itemInfo.getColumnIndex(), itemInfo.getColumnSpan(), false));
+                    }
+                }
             };
             layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
                 @Override
@@ -1007,6 +1051,9 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 protected void onLayout(boolean changed, int l, int t, int r, int b) {
                     super.onLayout(changed, l, t, r, b);
                     checkLoadMoreScroll(mediaPage, mediaPage.listView, layoutManager);
+                    if (mediaPage.selectedType == 0) {
+                        PhotoViewer.getInstance().checkCurrentImageVisibility();
+                    }
                 }
 
                 @Override
@@ -1080,7 +1127,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                         TLObject object = groupUsersSearchAdapter.getItem(position);
                         if (object instanceof TLRPC.ChannelParticipant) {
                             TLRPC.ChannelParticipant channelParticipant = (TLRPC.ChannelParticipant) object;
-                            user_id = channelParticipant.user_id;
+                            user_id = MessageObject.getPeerId(channelParticipant.peer);
                         } else if (object instanceof TLRPC.ChatParticipant) {
                             TLRPC.ChatParticipant chatParticipant = (TLRPC.ChatParticipant) object;
                             user_id = chatParticipant.user_id;
@@ -1254,7 +1301,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
     @Override
     protected void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
-        if (fragmentContextView != null && fragmentContextView.getCurrentStyle() == 3) {
+        if (fragmentContextView != null && fragmentContextView.isCallStyle()) {
             canvas.save();
             canvas.translate(fragmentContextView.getX(), fragmentContextView.getY());
             fragmentContextView.setDrawOverlay(true);
@@ -1631,7 +1678,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     for (int a = 0; a < dids.size(); a++) {
                         long did = dids.get(a);
                         if (message != null) {
-                            profileActivity.getSendMessagesHelper().sendMessage(message.toString(), did, null, null, null, true, null, null, null, true, 0);
+                            profileActivity.getSendMessagesHelper().sendMessage(message.toString(), did, null, null, null, true, null, null, null, true, 0, null);
                         }
                         profileActivity.getSendMessagesHelper().sendMessage(fmessages, did, true, 0);
                     }
@@ -1688,9 +1735,8 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 args.putInt("enc_id", high_id);
             }
             args.putInt("message_id", messageObject.getId());
-            profileActivity.getNotificationCenter().removeObserver(profileActivity, NotificationCenter.closeChats);
-            profileActivity.getNotificationCenter().postNotificationName(NotificationCenter.closeChats);
-            profileActivity.presentFragment(new ChatActivity(args), true);
+            args.putBoolean("need_remove_previous_same_chat_activity", false);
+            profileActivity.presentFragment(new ChatActivity(args), false);
         }
     }
 
@@ -2461,41 +2507,38 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         if (!profileActivity.isFragmentOpened) {
             animated = false;
         }
-        boolean changed = false;
+        int changed = 0;
         if ((chatUsersAdapter.chatInfo == null) == scrollSlidingTextTabStrip.hasTab(7)) {
-            changed = true;
+            changed++;
         }
         if ((hasMedia[0] <= 0) == scrollSlidingTextTabStrip.hasTab(0)) {
-            changed = true;
+            changed++;
         }
         if ((hasMedia[1] <= 0) == scrollSlidingTextTabStrip.hasTab(1)) {
-            changed = true;
+            changed++;
         }
         if ((int) dialog_id != 0) {
             if ((hasMedia[3] <= 0) == scrollSlidingTextTabStrip.hasTab(3)) {
-                changed = true;
+                changed++;
             }
             if ((hasMedia[4] <= 0) == scrollSlidingTextTabStrip.hasTab(4)) {
-                changed = true;
+                changed++;
             }
         } else {
-            TLRPC.EncryptedChat currentEncryptedChat = profileActivity.getMessagesController().getEncryptedChat((int) (dialog_id >> 32));
-            if (currentEncryptedChat != null && AndroidUtilities.getPeerLayerVersion(currentEncryptedChat.layer) >= 46) {
-                if ((hasMedia[4] <= 0) == scrollSlidingTextTabStrip.hasTab(4)) {
-                    changed = true;
-                }
+            if ((hasMedia[4] <= 0) == scrollSlidingTextTabStrip.hasTab(4)) {
+                changed++;
             }
         }
         if ((hasMedia[2] <= 0) == scrollSlidingTextTabStrip.hasTab(2)) {
-            changed = true;
+            changed++;
         }
         if ((hasMedia[5] <= 0) == scrollSlidingTextTabStrip.hasTab(5)) {
-            changed = true;
+            changed++;
         }
         if ((hasMedia[6] <= 0) == scrollSlidingTextTabStrip.hasTab(6)) {
-            changed = true;
+            changed++;
         }
-        if (changed) {
+        if (changed > 0) {
             if (animated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 final TransitionSet transitionSet = new TransitionSet();
                 transitionSet.setOrdering(TransitionSet.ORDERING_TOGETHER);
@@ -2530,6 +2573,9 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 scrollSlidingTextTabStrip.recordIndicatorParams();
             }
             SparseArray<View> idToView = scrollSlidingTextTabStrip.removeTabs();
+            if (changed > 3) {
+                idToView = null;
+            }
             if (chatUsersAdapter.chatInfo != null) {
                 if (!scrollSlidingTextTabStrip.hasTab(7)) {
                     scrollSlidingTextTabStrip.addTextTab(7, LocaleController.getString("GroupMembers", R.string.GroupMembers), idToView);
@@ -2561,12 +2607,9 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     }
                 }
             } else {
-                TLRPC.EncryptedChat currentEncryptedChat = profileActivity.getMessagesController().getEncryptedChat((int) (dialog_id >> 32));
-                if (currentEncryptedChat != null && AndroidUtilities.getPeerLayerVersion(currentEncryptedChat.layer) >= 46) {
-                    if (hasMedia[4] > 0) {
-                        if (!scrollSlidingTextTabStrip.hasTab(4)) {
-                            scrollSlidingTextTabStrip.addTextTab(4, LocaleController.getString("SharedMusicTab2", R.string.SharedMusicTab2), idToView);
-                        }
+                if (hasMedia[4] > 0) {
+                    if (!scrollSlidingTextTabStrip.hasTab(4)) {
+                        scrollSlidingTextTabStrip.addTextTab(4, LocaleController.getString("SharedMusicTab2", R.string.SharedMusicTab2), idToView);
                     }
                 }
             }
@@ -2912,10 +2955,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     } else if (!cell.isLoading()) {
                         MessageObject messageObject = cell.getMessage();
                         profileActivity.getFileLoader().loadFile(document, messageObject, 0, 0);
-                        cell.updateFileExistIcon();
+                        cell.updateFileExistIcon(true);
                     } else {
                         profileActivity.getFileLoader().cancelLoadFile(document);
-                        cell.updateFileExistIcon();
+                        cell.updateFileExistIcon(true);
                     }
                 }
             } else if (selectedMode == 3) {
@@ -3045,7 +3088,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         }
 
         @Override
-        public boolean isEnabled(int section, int row) {
+        public boolean isEnabled(RecyclerView.ViewHolder holder, int section, int row) {
             if (sharedMediaData[3].sections.size() == 0 && !sharedMediaData[3].loading) {
                 return false;
             }
@@ -3183,7 +3226,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         }
 
         @Override
-        public boolean isEnabled(int section, int row) {
+        public boolean isEnabled(RecyclerView.ViewHolder holder, int section, int row) {
             if (sharedMediaData[currentType].sections.size() == 0 && !sharedMediaData[currentType].loading) {
                 return false;
             }
@@ -3245,7 +3288,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 case 2:
                     FlickerLoadingView flickerLoadingView = new FlickerLoadingView(mContext);
                     view = flickerLoadingView;
-                    if (currentType == MediaDataController.MEDIA_MUSIC) {
+                    if (currentType == 2) {
                         flickerLoadingView.setViewType(FlickerLoadingView.AUDIO_TYPE);
                     } else {
                         flickerLoadingView.setViewType(FlickerLoadingView.FILES_TYPE);
@@ -3474,6 +3517,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
         public SharedPhotoVideoAdapter(Context context) {
             mContext = context;
+        }
+
+        public int getPositionForIndex(int i) {
+            return i / columnsCount;
         }
 
         @Override
@@ -4034,6 +4081,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             loading = true;
             notifyDataSetChanged();
             int reqId = profileActivity.getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                int oldCount = getItemCount();
                 if (error == null) {
                     TLRPC.messages_Chats res = (TLRPC.messages_Chats) response;
                     profileActivity.getMessagesController().putChats(res.chats, false);
@@ -4047,7 +4095,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     if (mediaPages[a].selectedType == 6) {
                         if (mediaPages[a].listView != null) {
                             final RecyclerListView listView = mediaPages[a].listView;
-                            if (firstLoaded) {
+                            if (firstLoaded || oldCount == 0) {
                                 animateItemsEnter(listView, 0);
                             }
                         }
@@ -4246,7 +4294,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 TLRPC.ChannelParticipant channelParticipant = (TLRPC.ChannelParticipant) participant;
                 TLRPC.TL_chatChannelParticipant p = new TLRPC.TL_chatChannelParticipant();
                 p.channelParticipant = channelParticipant;
-                p.user_id = channelParticipant.user_id;
+                p.user_id = MessageObject.getPeerId(channelParticipant.peer);
                 p.inviter_id = channelParticipant.inviter_id;
                 p.date = channelParticipant.date;
                 participant = p;
@@ -4309,7 +4357,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                             if (o instanceof TLRPC.ChatParticipant) {
                                 userId = ((TLRPC.ChatParticipant) o).user_id;
                             } else if (o instanceof TLRPC.ChannelParticipant) {
-                                userId = ((TLRPC.ChannelParticipant) o).user_id;
+                                userId = MessageObject.getPeerId(((TLRPC.ChannelParticipant) o).peer);
                             } else {
                                 continue;
                             }
@@ -4434,7 +4482,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             TLObject object = getItem(position);
             TLRPC.User user;
             if (object instanceof TLRPC.ChannelParticipant) {
-                user = profileActivity.getMessagesController().getUser(((TLRPC.ChannelParticipant) object).user_id);
+                user = profileActivity.getMessagesController().getUser(MessageObject.getPeerId(((TLRPC.ChannelParticipant) object).peer));
             } else if (object instanceof TLRPC.ChatParticipant) {
                 user = profileActivity.getMessagesController().getUser(((TLRPC.ChatParticipant) object).user_id);
             } else {

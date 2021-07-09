@@ -853,7 +853,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     } else if (position == checkPowerSavingOnStartRow) {
                         boolean v = preferences.getBoolean("checkPowerSavingOnStart", true);
                         checkCell.setTextAndValueAndCheck(LocaleController.getString("checkPowerSaving", R.string.checkPowerSaving), LocaleController.getString("checkPowerSavingInfo", R.string.checkPowerSavingInfo), v, true, true);
-                    //CloudVeil end
+                        //CloudVeil end
                     } else if (position == badgeNumberShowRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
                     } else if (position == badgeNumberMutedRow) {
@@ -997,7 +997,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     //CloudVeil start
                     || position == checkPowerSavingOnStartRow
                     // Cloudveil end
-                     ) {
+                ) {
                 return 1;
             } else if (position == resetNotificationsRow) {
                 return 2;

@@ -849,7 +849,7 @@ void Handshake::processHandshakeResponse(TLObject *message, int64_t messageId) {
                         inner->temp_session_id = connection->getSessionId();
 
                         NetworkMessage *networkMessage = new NetworkMessage();
-                        networkMessage->message = std::unique_ptr<TL_message>(new TL_message());
+                        networkMessage->message = std::make_unique<TL_message>();
                         networkMessage->message->msg_id = authKeyPendingMessageId = messageId;
                         networkMessage->message->bytes = inner->getObjectSize();
                         networkMessage->message->body = std::unique_ptr<TLObject>(inner);
@@ -864,7 +864,7 @@ void Handshake::processHandshakeResponse(TLObject *message, int64_t messageId) {
                         request->encrypted_message = currentDatacenter->createRequestsData(array, nullptr, connection, true);
                     };
 
-                    authKeyPendingRequestId = ConnectionsManager::getInstance(currentDatacenter->instanceNum).sendRequest(request, [&](TLObject *response, TL_error *error, int32_t networkType) {
+                    authKeyPendingRequestId = ConnectionsManager::getInstance(currentDatacenter->instanceNum).sendRequest(request, [&](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime) {
                         authKeyPendingMessageId = 0;
                         authKeyPendingRequestId = 0;
                         if (response != nullptr && typeid(*response) == typeid(TL_boolTrue)) {
@@ -980,7 +980,7 @@ void Handshake::loadCdnConfig(Datacenter *datacenter) {
     loadingCdnKeys = true;
     TL_help_getCdnConfig *request = new TL_help_getCdnConfig();
 
-    ConnectionsManager::getInstance(datacenter->instanceNum).sendRequest(request, [&, datacenter](TLObject *response, TL_error *error, int32_t networkType) {
+    ConnectionsManager::getInstance(datacenter->instanceNum).sendRequest(request, [&, datacenter](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime) {
         if (response != nullptr) {
             TL_cdnConfig *config = (TL_cdnConfig *) response;
             size_t count = config->public_keys.size();

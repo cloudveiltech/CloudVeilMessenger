@@ -34,7 +34,7 @@ public class WearReplyReceiver extends BroadcastReceiver {
         long dialog_id = intent.getLongExtra("dialog_id", 0);
         int max_id = intent.getIntExtra("max_id", 0);
         int currentAccount = intent.getIntExtra("currentAccount", 0);
-        if (dialog_id == 0 || max_id == 0) {
+        if (dialog_id == 0 || max_id == 0 || !UserConfig.isValidAccount(currentAccount)) {
             return;
         }
         int lowerId = (int) dialog_id;
@@ -69,7 +69,7 @@ public class WearReplyReceiver extends BroadcastReceiver {
     }
 
     private void sendMessage(AccountInstance accountInstance, CharSequence text, long dialog_id, int max_id) {
-        accountInstance.getSendMessagesHelper().sendMessage(text.toString(), dialog_id, null, null, null, true, null, null, null, true, 0);
+        accountInstance.getSendMessagesHelper().sendMessage(text.toString(), dialog_id, null, null, null, true, null, null, null, true, 0, null);
         accountInstance.getMessagesController().markDialogAsRead(dialog_id, max_id, max_id, 0, false, 0, 0, true, 0);
     }
 }

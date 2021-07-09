@@ -8,32 +8,36 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.Emoji;
+import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.UserConfig;
-import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.messenger.SvgHelper;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 
-import java.util.ArrayList;
 import java.util.Locale;
-import java.util.Random;
 
 public class ChatGreetingsView extends LinearLayout {
 
+    private TLRPC.Document preloadedGreetingsSticker;
     private TextView titleView;
     private TextView descriptionView;
     private Listener listener;
 
+    private final int currentAccount;
+
     public BackupImageView stickerToSendView;
 
-    public ChatGreetingsView(Context context, TLRPC.User user, int distance, TLRPC.Document preloadedGreetingsSticker) {
+
+    public ChatGreetingsView(Context context, TLRPC.User user, int distance, int currentAccount, TLRPC.Document sticker) {
         super(context);
         setOrientation(VERTICAL);
+        this.currentAccount = currentAccount;
 
         titleView = new TextView(context);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
@@ -53,38 +57,32 @@ public class ChatGreetingsView extends LinearLayout {
 
         updateColors();
 
-        titleView.setText(LocaleController.formatString("NearbyPeopleGreetingsMessage", R.string.NearbyPeopleGreetingsMessage, user.first_name, LocaleController.formatDistance(distance, 1)));
-        descriptionView.setText(LocaleController.getString("NearbyPeopleGreetingsDescription", R.string.NearbyPeopleGreetingsDescription));
-
-        if (preloadedGreetingsSticker == null) {
-            TLRPC.TL_messages_getStickers req = new TLRPC.TL_messages_getStickers();
-            req.emoticon = "\uD83D\uDC4B" + Emoji.fixEmoji("⭐");
-            ConnectionsManager.getInstance(UserConfig.selectedAccount).sendRequest(req, (response, error) -> {
-                if (response instanceof TLRPC.TL_messages_stickers) {
-                    ArrayList<TLRPC.Document> list = ((TLRPC.TL_messages_stickers) response).stickers;
-                    if (!list.isEmpty()) {
-                        TLRPC.Document sticker = list.get(Math.abs(new Random().nextInt() % list.size()));
-                        AndroidUtilities.runOnUIThread(() -> {
-                            setSticker(sticker);
-                        });
-                    }
-                }
-            });
-
+        if (distance <= 0) {
+            titleView.setText(LocaleController.getString("NoMessages", R.string.NoMessages));
+            descriptionView.setText(LocaleController.getString("NoMessagesGreetingsDescription", R.string.NoMessagesGreetingsDescription));
         } else {
-            setSticker(preloadedGreetingsSticker);
+            titleView.setText(LocaleController.formatString("NearbyPeopleGreetingsMessage", R.string.NearbyPeopleGreetingsMessage, user.first_name, LocaleController.formatDistance(distance, 1)));
+            descriptionView.setText(LocaleController.getString("NearbyPeopleGreetingsDescription", R.string.NearbyPeopleGreetingsDescription));
         }
+
+        preloadedGreetingsSticker = sticker;
+        if (preloadedGreetingsSticker == null) {
+            preloadedGreetingsSticker = MediaDataController.getInstance(currentAccount).getGreetingsSticker();
+        }
+        setSticker(preloadedGreetingsSticker);
     }
 
     private void setSticker(TLRPC.Document sticker) {
-        TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(sticker.thumbs, 90);
-
-
-        stickerToSendView.setImage(
-                ImageLocation.getForDocument(sticker), createFilter(sticker),
-                ImageLocation.getForDocument(thumb, sticker), null,
-                0, sticker
-        );
+        if (sticker == null) {
+            return;
+        }
+        SvgHelper.SvgDrawable svgThumb = DocumentObject.getSvgThumb(sticker, Theme.key_chat_serviceBackground, 1.0f);
+        if (svgThumb != null) {
+            stickerToSendView.setImage(ImageLocation.getForDocument(sticker), createFilter(sticker), svgThumb, 0, sticker);
+        } else {
+            TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(sticker.thumbs, 90);
+            stickerToSendView.setImage(ImageLocation.getForDocument(sticker), createFilter(sticker), ImageLocation.getForDocument(thumb, sticker), null, 0, sticker);
+        }
         stickerToSendView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onGreetings(sticker);
@@ -133,7 +131,6 @@ public class ChatGreetingsView extends LinearLayout {
     private void updateColors() {
         titleView.setTextColor(Theme.getColor(Theme.key_chat_serviceText));
         descriptionView.setTextColor(Theme.getColor(Theme.key_chat_serviceText));
-        setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_chat_serviceBackground)));
     }
 
     public void setListener(Listener listener) {
@@ -169,5 +166,23 @@ public class ChatGreetingsView extends LinearLayout {
             return;
         }
         super.requestLayout();
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        fetchSticker();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+    }
+
+    private void fetchSticker() {
+        if (preloadedGreetingsSticker == null) {
+            preloadedGreetingsSticker = MediaDataController.getInstance(currentAccount).getGreetingsSticker();
+            setSticker(preloadedGreetingsSticker);
+        }
     }
 }

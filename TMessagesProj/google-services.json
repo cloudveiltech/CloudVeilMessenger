@@ -1,70 +1,125 @@
 {
   "project_info": {
-    "project_number": "326794357017",
-    "firebase_url": "https://messenger-28d82.firebaseio.com",
-    "project_id": "messenger-28d82",
-    "storage_bucket": "messenger-28d82.appspot.com"
+    "project_number": "13898262596",
+    "firebase_url": "https://cloudveil-messenger-f5339.firebaseio.com",
+    "project_id": "cloudveil-messenger-f5339",
+    "storage_bucket": "cloudveil-messenger-f5339.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:326794357017:android:ced908e3a237f308",
+        "mobilesdk_app_id": "1:13898262596:android:0e5c9a66a0f1dd77ab7411",
+        "android_client_info": {
+          "package_name": "org.cloudveil.cloudveilmessenger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZx710Rs-4ExXDcXztbEmGdS8jfaOTNT4"
+        },
+        {
+          "current_key": "AIzaSyBaaAVGnnyO38h_SjhLNc3NwbCMfEBNTsg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "13898262596-pbgr63hm6pso2tqcut23fd07e4pefjkq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.cloudveil.CloudVeilMessenger"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:13898262596:android:36270c817965e263ab7411",
         "android_client_info": {
           "package_name": "org.cloudveil.messenger"
         }
       },
       "oauth_client": [
         {
-          "client_id": "326794357017-570prpvsfon7qcdv8u7frvr70tcicga0.apps.googleusercontent.com",
+          "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBefMpjsbqbmch1TOvCbhycbjKrY68jK4U"
+          "current_key": "AIzaSyDZx710Rs-4ExXDcXztbEmGdS8jfaOTNT4"
+        },
+        {
+          "current_key": "AIzaSyBaaAVGnnyO38h_SjhLNc3NwbCMfEBNTsg"
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 1,
-          "other_platform_oauth_client": []
-        },
-        "ads_service": {
-          "status": 2
+          "other_platform_oauth_client": [
+            {
+              "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "13898262596-pbgr63hm6pso2tqcut23fd07e4pefjkq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.cloudveil.CloudVeilMessenger"
+              }
+            }
+          ]
         }
       }
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:326794357017:android:ecf635a934db5edd",
+        "mobilesdk_app_id": "1:13898262596:android:391afaf6be1504ceab7411",
         "android_client_info": {
           "package_name": "org.cloudveil.messenger.beta"
         }
       },
       "oauth_client": [
         {
-          "client_id": "326794357017-570prpvsfon7qcdv8u7frvr70tcicga0.apps.googleusercontent.com",
+          "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBefMpjsbqbmch1TOvCbhycbjKrY68jK4U"
+          "current_key": "AIzaSyDZx710Rs-4ExXDcXztbEmGdS8jfaOTNT4"
+        },
+        {
+          "current_key": "AIzaSyBaaAVGnnyO38h_SjhLNc3NwbCMfEBNTsg"
         }
       ],
       "services": {
-        "analytics_service": {
-          "status": 1
-        },
         "appinvite_service": {
-          "status": 1,
-          "other_platform_oauth_client": []
-        },
-        "ads_service": {
-          "status": 2
+          "other_platform_oauth_client": [
+            {
+              "client_id": "13898262596-lenehjvn99llbq0ppev0p8sdjpc5p57o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "13898262596-pbgr63hm6pso2tqcut23fd07e4pefjkq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.cloudveil.CloudVeilMessenger"
+              }
+            }
+          ]
         }
       }
     }
