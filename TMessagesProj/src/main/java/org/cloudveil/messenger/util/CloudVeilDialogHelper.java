@@ -6,6 +6,7 @@ import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
@@ -20,12 +21,12 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CloudVeilDialogHelper {
-    private int currentAccount;
+    private int accountNumber;
 
     private static volatile CloudVeilDialogHelper[] Instance = new CloudVeilDialogHelper[UserConfig.MAX_ACCOUNT_COUNT];
 
     private CloudVeilDialogHelper(int num) {
-        currentAccount = num;
+        accountNumber = num;
     }
 
     public static CloudVeilDialogHelper getInstance(int num) {
@@ -60,7 +61,7 @@ public class CloudVeilDialogHelper {
 
         TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
         req.username = "CloudVeilMessenger";
-        MessagesController messagesController = MessagesController.getInstance(currentAccount);
+        MessagesController messagesController = MessagesController.getInstance(accountNumber);
         final int reqId = messagesController.getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
 
             if (error == null) {
@@ -70,7 +71,7 @@ public class CloudVeilDialogHelper {
                 }
                 TLRPC.Chat chat = res.chats.get(0);
                 messagesController.putChat(chat, false);
-                messagesController.addUserToChat(chat.id, UserConfig.getInstance(currentAccount).getCurrentUser(), 0, null, null, null);
+                messagesController.addUserToChat(chat.id, UserConfig.getInstance(accountNumber).getCurrentUser(), 0, null, null, null);
             }
         }));
     }
@@ -118,33 +119,20 @@ public class CloudVeilDialogHelper {
     }
 
     public TLObject getObjectByDialogId(long currentDialogId) {
-        MessagesController messagesController = MessagesController.getInstance(currentAccount);
-
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
         TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = messagesController.getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = messagesController.getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = messagesController.getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = messagesController.getUser(lower_id);
-                }
-            }
-        } else {
-            encryptedChat = messagesController.getEncryptedChat(high_id);
+        if (DialogObject.isEncryptedDialog(currentDialogId)) {
+            encryptedChat = MessagesController.getInstance(accountNumber).getEncryptedChat(DialogObject.getEncryptedChatId(currentDialogId));
             if (encryptedChat != null) {
-                user = messagesController.getUser(encryptedChat.user_id);
+                user = MessagesController.getInstance(accountNumber).getUser(encryptedChat.user_id);
+            }
+        } else if (DialogObject.isUserDialog(currentDialogId)) {
+            user = MessagesController.getInstance(accountNumber).getUser(currentDialogId);
+        } else {
+            chat = MessagesController.getInstance(accountNumber).getChat(currentDialogId);
+            if (chat == null) {
+                chat = MessagesController.getInstance(accountNumber).getChat(-currentDialogId);
             }
         }
 
@@ -158,44 +146,18 @@ public class CloudVeilDialogHelper {
         return null;
     }
 
-    public boolean isDialogIdAllowed(long currentDialogId) {
-        MessagesController messagesController = MessagesController.getInstance(currentAccount);
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
-        TLRPC.Chat chat = null;
-        TLRPC.User user = null;
-        TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = messagesController.getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = messagesController.getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = messagesController.getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = messagesController.getUser(lower_id);
-                }
-            }
-        } else {
-            encryptedChat = messagesController.getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = messagesController.getUser(encryptedChat.user_id);
-            }
-        }
 
-        if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
-            return false;
-        } else if (chat != null) {
+    public boolean isDialogIdAllowed(long currentDialogId) {
+        if (DialogObject.isEncryptedDialog(currentDialogId)) {
+            if(GlobalSecuritySettings.isDisabledSecretChat()) {
+                return false;
+            }
+            return true;
+        } else if (DialogObject.isUserDialog(currentDialogId)) {
+            return isUserAllowed(MessagesController.getInstance(accountNumber).getUser(currentDialogId));
+        } else {
             return isChatIdAllowed(currentDialogId);
-        } else if (user != null) {
-            return isUserAllowed(user);
         }
-        return false;
     }
 
     private boolean isChatIdAllowed(long currentDialogId) {
@@ -203,41 +165,21 @@ public class CloudVeilDialogHelper {
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
-        MessagesController messagesController = MessagesController.getInstance(currentAccount);
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
-        TLRPC.EncryptedChat encryptedChat = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = messagesController.getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = messagesController.getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = messagesController.getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = messagesController.getUser(lower_id);
-                }
-            }
+
+        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId);
+        if (object instanceof TLRPC.Chat) {
+            chat = (TLRPC.Chat) object;
         } else {
-            encryptedChat = messagesController.getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = messagesController.getUser(encryptedChat.user_id);
-            }
+            user = (TLRPC.User) object;
         }
 
         if (chat != null) {
             return allowedDialogs.containsKey(currentDialogId);
         } else if (user != null) {
             if (user.bot) {
-                long id = (long) user.id;
-                return allowedBots.containsKey(id);
+                return allowedBots.containsKey(user.id);
             } else if (GlobalSecuritySettings.getManageUsers()) {
                 return allowedDialogs.containsKey(currentDialogId);
             }
@@ -302,14 +244,14 @@ public class CloudVeilDialogHelper {
 
     public boolean isMessageAllowed(MessageObject messageObject) {
         if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
-                && !MediaDataController.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)) {
+                && !MediaDataController.getInstance(accountNumber).isStickerAllowed(messageObject.messageOwner.media.document)) {
             if (TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
                 return false;
             }
         }
 
         if (messageObject.messageOwner.via_bot_id > 0) {
-            TLRPC.User botUser = MessagesController.getInstance(currentAccount).getUser(messageObject.messageOwner.via_bot_id);
+            TLRPC.User botUser = MessagesController.getInstance(accountNumber).getUser(messageObject.messageOwner.via_bot_id);
             if (botUser != null && botUser.username != null && botUser.username.length() > 0) {
                 return isUserAllowed(botUser);
             }
@@ -318,13 +260,13 @@ public class CloudVeilDialogHelper {
         TLRPC.Peer fromId = messageObject.messageOwner.from_id;
         if (fromId != null) {
             if (fromId.user_id > 0) {
-                TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(fromId.user_id);
+                TLRPC.User user = MessagesController.getInstance(accountNumber).getUser(fromId.user_id);
                 if (user != null && user.username != null && user.username.length() > 0) {
                     return isUserAllowed(user);
                 }
             }
             if (fromId.chat_id > 0 || fromId.channel_id > 0) {
-                TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(fromId.chat_id > 0 ? fromId.chat_id : fromId.channel_id);
+                TLRPC.Chat chat = MessagesController.getInstance(accountNumber).getChat(fromId.chat_id > 0 ? fromId.chat_id : fromId.channel_id);
                 if (chat != null) {
                     return isChatIdAllowed(-chat.id);
                 }

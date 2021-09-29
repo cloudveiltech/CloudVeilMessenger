@@ -57,6 +57,9 @@ public:
 };
 
 struct BroadcastPart {
+    struct VideoParams {
+    };
+
     enum class Status {
         Success,
         NotReady,
@@ -66,7 +69,7 @@ struct BroadcastPart {
     int64_t timestampMilliseconds = 0;
     double responseTimestamp = 0;
     Status status = Status::NotReady;
-    std::vector<uint8_t> oggData;
+    std::vector<uint8_t> data;
 };
 
 enum class GroupConnectionMode {
@@ -88,7 +91,8 @@ enum class VideoContentType {
 
 enum class VideoCodecName {
     VP8,
-    VP9
+    VP9,
+    H264
 };
 
 class RequestMediaChannelDescriptionTask {
@@ -127,6 +131,15 @@ struct VideoChannelDescription {
     Quality maxQuality = Quality::Thumbnail;
 };
 
+struct GroupInstanceStats {
+    struct IncomingVideoStats {
+        int receivingQuality = 0;
+        int availableQuality = 0;
+    };
+
+    std::vector<std::pair<std::string, IncomingVideoStats>> incomingVideoStats;
+};
+
 struct GroupInstanceDescriptor {
     std::shared_ptr<Threads> threads;
     GroupConfig config;
@@ -140,7 +153,9 @@ struct GroupInstanceDescriptor {
     std::function<rtc::scoped_refptr<webrtc::AudioDeviceModule>(webrtc::TaskQueueFactory*)> createAudioDeviceModule;
     std::shared_ptr<VideoCaptureInterface> videoCapture; // deprecated
     std::function<webrtc::VideoTrackSourceInterface*()> getVideoSource;
-    std::function<std::shared_ptr<BroadcastPartTask>(std::shared_ptr<PlatformContext>, int64_t, int64_t, std::function<void(BroadcastPart &&)>)> requestBroadcastPart;
+    std::function<std::shared_ptr<BroadcastPartTask>(std::function<void(int64_t)>)> requestCurrentTime;
+    std::function<std::shared_ptr<BroadcastPartTask>(std::shared_ptr<PlatformContext>, int64_t, int64_t, std::function<void(BroadcastPart &&)>)> requestAudioBroadcastPart;
+    std::function<std::shared_ptr<BroadcastPartTask>(std::shared_ptr<PlatformContext>, int64_t, int64_t, int32_t, VideoChannelDescription::Quality, std::function<void(BroadcastPart &&)>)> requestVideoBroadcastPart;
     int outgoingAudioBitrateKbit{32};
     bool disableOutgoingAudioProcessing{false};
     VideoContentType videoContentType{VideoContentType::None};
@@ -177,11 +192,14 @@ public:
     virtual void setVideoSource(std::function<webrtc::VideoTrackSourceInterface*()> getVideoSource) = 0;
     virtual void setAudioOutputDevice(std::string id) = 0;
     virtual void setAudioInputDevice(std::string id) = 0;
+    virtual void addExternalAudioSamples(std::vector<uint8_t> &&samples) = 0;
 
     virtual void addIncomingVideoOutput(std::string const &endpointId, std::weak_ptr<rtc::VideoSinkInterface<webrtc::VideoFrame>> sink) = 0;
 
     virtual void setVolume(uint32_t ssrc, double volume) = 0;
     virtual void setRequestedVideoChannels(std::vector<VideoChannelDescription> &&requestedVideoChannels) = 0;
+
+    virtual void getStats(std::function<void(GroupInstanceStats)> completion) = 0;
 
     struct AudioDevice {
       enum class Type {Input, Output};

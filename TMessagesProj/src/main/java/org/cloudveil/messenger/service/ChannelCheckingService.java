@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.text.TextUtils;
 import android.util.Log;
+import org.telegram.messenger.DialogObject;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -35,6 +36,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 import java.util.ArrayList;
@@ -354,32 +356,14 @@ public class ChannelCheckingService extends Service {
     }
 
     private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
-        //this is very complicated code from Telegram core to separate dialogs to users, groups and channels
-        int lower_id = (int) currentDialogId;
-        int high_id = (int) (currentDialogId >> 32);
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
-        if (lower_id != 0) {
-            if (high_id == 1) {
-                chat = MessagesController.getInstance(accountNumber).getChat(lower_id);
-            } else {
-                if (lower_id < 0) {
-                    chat = MessagesController.getInstance(accountNumber).getChat(-lower_id);
-                    if (chat != null && chat.migrated_to != null) {
-                        TLRPC.Chat chat2 = MessagesController.getInstance(accountNumber).getChat(chat.migrated_to.channel_id);
-                        if (chat2 != null) {
-                            chat = chat2;
-                        }
-                    }
-                } else {
-                    user = MessagesController.getInstance(accountNumber).getUser(lower_id);
-                }
-            }
+
+        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId);
+        if(object instanceof TLRPC.Chat) {
+            chat = (TLRPC.Chat) object;
         } else {
-            TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance(accountNumber).getEncryptedChat(high_id);
-            if (encryptedChat != null) {
-                user = MessagesController.getInstance(accountNumber).getUser(encryptedChat.user_id);
-            }
+            user = (TLRPC.User) object;
         }
 
         if (chat != null) {

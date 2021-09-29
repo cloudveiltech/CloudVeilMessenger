@@ -53,10 +53,11 @@ public class SearchCounterView extends View {
     public float horizontalPadding;
 
     String currentString;
+    private final Theme.ResourcesProvider resourcesProvider;
 
-
-    public SearchCounterView(Context context) {
+    public SearchCounterView(Context context, Theme.ResourcesProvider resourcesProvider) {
         super(context);
+        this.resourcesProvider = resourcesProvider;
         textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         textPaint.setTextSize(AndroidUtilities.dp(15));
     }
@@ -214,7 +215,7 @@ public class SearchCounterView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        int textColor = Theme.getColor(textColorKey);
+        int textColor = Theme.getColor(textColorKey, resourcesProvider);
 
         if (this.textColor != textColor) {
             this.textColor = textColor;
@@ -237,13 +238,13 @@ public class SearchCounterView extends View {
             boolean increment = countAnimationIncrement;
             if (countAnimationInLayout != null) {
                 canvas.save();
-                canvas.translate(countLeft, countTop + AndroidUtilities.dp(4) + (increment ? AndroidUtilities.dp(13) : -AndroidUtilities.dp(13)) * (1f - countChangeProgress));
+                canvas.translate(countLeft, countTop + AndroidUtilities.dp(2) + (increment ? AndroidUtilities.dp(13) : -AndroidUtilities.dp(13)) * (1f - countChangeProgress));
                 textPaint.setAlpha((int) (255 * countChangeProgress));
                 countAnimationInLayout.draw(canvas);
                 canvas.restore();
             } else if (countLayout != null) {
                 canvas.save();
-                canvas.translate(countLeft, countTop + AndroidUtilities.dp(4) + (increment ? AndroidUtilities.dp(13) : -AndroidUtilities.dp(13)) * (1f - countChangeProgress));
+                canvas.translate(countLeft, countTop + AndroidUtilities.dp(2) + (increment ? AndroidUtilities.dp(13) : -AndroidUtilities.dp(13)) * (1f - countChangeProgress));
                 textPaint.setAlpha((int) (255 * countChangeProgress));
                 countLayout.draw(canvas);
                 canvas.restore();
@@ -251,7 +252,7 @@ public class SearchCounterView extends View {
 
             if (countOldLayout != null) {
                 canvas.save();
-                canvas.translate(countLeft, countTop + AndroidUtilities.dp(4) + (increment ? -AndroidUtilities.dp(13) : AndroidUtilities.dp(13)) * (countChangeProgress));
+                canvas.translate(countLeft, countTop + AndroidUtilities.dp(2) + (increment ? -AndroidUtilities.dp(13) : AndroidUtilities.dp(13)) * (countChangeProgress));
                 textPaint.setAlpha((int) (255 * (1f - countChangeProgress)));
                 countOldLayout.draw(canvas);
                 canvas.restore();
@@ -259,7 +260,7 @@ public class SearchCounterView extends View {
 
             if (countAnimationStableLayout != null) {
                 canvas.save();
-                canvas.translate(countLeft + dx * (1f - countChangeProgress), countTop + AndroidUtilities.dp(4));
+                canvas.translate(countLeft + dx * (1f - countChangeProgress), countTop + AndroidUtilities.dp(2));
                 textPaint.setAlpha(255);
                 countAnimationStableLayout.draw(canvas);
                 canvas.restore();
@@ -267,7 +268,7 @@ public class SearchCounterView extends View {
 
             if (countAnimationStableLayout2 != null) {
                 canvas.save();
-                canvas.translate(countLeft, countTop + AndroidUtilities.dp(4));
+                canvas.translate(countLeft, countTop + AndroidUtilities.dp(2));
                 textPaint.setAlpha(255);
                 countAnimationStableLayout2.draw(canvas);
                 canvas.restore();
@@ -299,7 +300,7 @@ public class SearchCounterView extends View {
         updateX(countWidth);
         if (countLayout != null) {
             canvas.save();
-            canvas.translate(countLeft, countTop + AndroidUtilities.dp(4));
+            canvas.translate(countLeft, countTop + AndroidUtilities.dp(2));
             countLayout.draw(canvas);
             canvas.restore();
         }

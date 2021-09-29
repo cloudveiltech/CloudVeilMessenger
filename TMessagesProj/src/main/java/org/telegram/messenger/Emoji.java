@@ -27,6 +27,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.Spannable;
 import android.text.Spanned;
+import android.text.TextUtils;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
 import android.view.View;
@@ -40,7 +41,7 @@ public class Emoji {
     private static int bigImgSize;
     private static boolean inited = false;
     private static Paint placeholderPaint;
-    private static int[] emojiCounts = new int[]{1695, 199, 123, 332, 128, 222, 290, 259};
+    private static int[] emojiCounts = new int[]{1906, 199, 123, 332, 128, 222, 292, 259};
     private static Bitmap[][] emojiBmp = new Bitmap[8][];
     private static boolean[][] loadingEmoji = new boolean[8][];
 
@@ -49,6 +50,7 @@ public class Emoji {
     public static HashMap<String, String> emojiColor = new HashMap<>();
     private static boolean recentEmojiLoaded;
     private static Runnable invalidateUiRunnable = () -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.emojiLoaded);
+    public static float emojiDrawingYOffset;
 
     private final static int MAX_RECENT_EMOJI_COUNT = 48;
 
@@ -92,33 +94,16 @@ public class Emoji {
 
     private static void loadEmojiInternal(final byte page, final short page2) {
         try {
-            float scale;
-            int imageResize = 1;
+            int imageResize;
             if (AndroidUtilities.density <= 1.0f) {
-                scale = 2.0f;
                 imageResize = 2;
-            } else if (AndroidUtilities.density <= 1.5f) {
-                scale = 2.0f;
-            } else if (AndroidUtilities.density <= 2.0f) {
-                scale = 2.0f;
             } else {
-                scale = 2.0f;
+                imageResize = 1;
             }
 
             String imageName;
             File imageFile;
 
-            try {
-                for (int a = 13; a < 16; a++) {
-                    imageName = String.format(Locale.US, "v%d_emoji%.01fx_%d.png", a, scale, page);
-                    imageFile = ApplicationLoader.applicationContext.getFileStreamPath(imageName);
-                    if (imageFile.exists()) {
-                        imageFile.delete();
-                    }
-                }
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
             Bitmap bitmap = null;
             try {
                 InputStream is = ApplicationLoader.applicationContext.getAssets().open("emoji/" + String.format(Locale.US, "%d_%d.png", page, page2));
@@ -206,6 +191,9 @@ public class Emoji {
     }
 
     public static boolean isValidEmoji(CharSequence code) {
+        if (TextUtils.isEmpty(code)) {
+            return false;
+        }
         DrawableInfo info = rects.get(code);
         if (info == null) {
             CharSequence newCode = EmojiData.emojiAliasMap.get(code);
@@ -288,7 +276,7 @@ public class Emoji {
 
         @Override
         public void setAlpha(int alpha) {
-
+            paint.setAlpha(alpha);
         }
 
         @Override
@@ -483,7 +471,7 @@ public class Emoji {
                     emojiCode.setLength(0);
                     doneEmoji = false;
                 }
-                if ((Build.VERSION.SDK_INT < 23 || Build.VERSION.SDK_INT >= 29) && emojiCount >= 50) {
+                if ((Build.VERSION.SDK_INT < 23 || Build.VERSION.SDK_INT >= 29) && !BuildVars.DEBUG_PRIVATE_VERSION && emojiCount >= 50) {
                     break;
                 }
             }
@@ -547,6 +535,28 @@ public class Emoji {
                     getDrawable().setBounds(0, 0, size, size);
                 }
                 return size;
+            }
+        }
+
+        @Override
+        public void draw(Canvas canvas, CharSequence text, int start, int end, float x, int top, int y, int bottom, Paint paint) {
+            boolean restoreAlpha = false;
+            if (paint.getAlpha() != 255) {
+                restoreAlpha = true;
+                getDrawable().setAlpha(paint.getAlpha());
+            }
+            boolean needRestore = false;
+            if (emojiDrawingYOffset != 0) {
+                needRestore = true;
+                canvas.save();
+                canvas.translate(0, emojiDrawingYOffset);
+            }
+            super.draw(canvas, text, start, end, x, top, y, bottom, paint);
+            if (needRestore) {
+                canvas.restore();
+            }
+            if (restoreAlpha) {
+                getDrawable().setAlpha(255);
             }
         }
     }

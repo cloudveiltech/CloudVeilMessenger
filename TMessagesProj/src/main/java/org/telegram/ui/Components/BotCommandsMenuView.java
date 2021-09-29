@@ -4,12 +4,12 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
-import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -18,6 +18,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.collection.LongSparseArray;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 
 public class BotCommandsMenuView extends View {
 
+    final RectF rectTmp = new RectF();
     final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     final TextPaint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     final MenuDrawable backDrawable = new MenuDrawable() {
@@ -63,7 +65,7 @@ public class BotCommandsMenuView extends View {
 
     private void updateColors() {
         paint.setColor(Theme.getColor(Theme.key_chat_messagePanelVoiceBackground));
-        int textColor = Theme.getColor(Theme.key_windowBackgroundWhite);
+        int textColor = Theme.getColor(Theme.key_chat_messagePanelVoicePressed);
         backDrawable.setBackColor(textColor);
         backDrawable.setIconColor(textColor);
         textPaint.setColor(textColor);
@@ -74,7 +76,7 @@ public class BotCommandsMenuView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int size = MeasureSpec.getSize(widthMeasureSpec) + MeasureSpec.getSize(heightMeasureSpec) << 16;
-        if (lastSize != size) {
+        if (lastSize != size || menuText == null) {
             backDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());
             textPaint.setTextSize(AndroidUtilities.dp(15));
             lastSize = size;
@@ -93,49 +95,49 @@ public class BotCommandsMenuView extends View {
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
-        boolean update = false;
-        if (expanded && expandProgress != 1f) {
-            expandProgress += 16f / 150f;
-            if (expandProgress > 1) {
-                expandProgress = 1f;
-            } else {
-                invalidate();
+        if (menuText != null) {
+            boolean update = false;
+            if (expanded && expandProgress != 1f) {
+                expandProgress += 16f / 150f;
+                if (expandProgress > 1) {
+                    expandProgress = 1f;
+                } else {
+                    invalidate();
+                }
+                update = true;
+            } else if (!expanded && expandProgress != 0) {
+                expandProgress -= 16f / 150f;
+                if (expandProgress < 0) {
+                    expandProgress = 0;
+                } else {
+                    invalidate();
+                }
+                update = true;
             }
-            update = true;
-        } else if (!expanded && expandProgress != 0) {
-            expandProgress -= 16f / 150f;
-            if (expandProgress < 0) {
-                expandProgress = 0;
-            } else {
-                invalidate();
+
+            float expandProgress = CubicBezierInterpolator.DEFAULT.getInterpolation(this.expandProgress);
+            if (update && expandProgress > 0) {
+                textPaint.setAlpha((int) (255 * expandProgress));
             }
-            update = true;
-        }
-
-        float expandProgress = CubicBezierInterpolator.DEFAULT.getInterpolation(this.expandProgress);
-        if (update && expandProgress > 0) {
-            textPaint.setAlpha((int) (255 * expandProgress));
-        }
-        AndroidUtilities.rectTmp.set(0, 0, AndroidUtilities.dp(40) + (menuText.getWidth() + AndroidUtilities.dp(4)) * expandProgress, getMeasuredHeight());
-        canvas.drawRoundRect(AndroidUtilities.rectTmp, AndroidUtilities.dp(16), AndroidUtilities.dp(16), paint);
-        backgroundDrawable.setBounds((int) AndroidUtilities.rectTmp.left, (int) AndroidUtilities.rectTmp.top, (int) AndroidUtilities.rectTmp.right, (int) AndroidUtilities.rectTmp.bottom);
-        backgroundDrawable.draw(canvas);
-        canvas.save();
-        canvas.translate(AndroidUtilities.dp(8), AndroidUtilities.dp(4));
-        backDrawable.draw(canvas);
-        canvas.restore();
-
-
-
-        if (expandProgress > 0) {
+            rectTmp.set(0, 0, AndroidUtilities.dp(40) + (menuText.getWidth() + AndroidUtilities.dp(4)) * expandProgress, getMeasuredHeight());
+            canvas.drawRoundRect(rectTmp, AndroidUtilities.dp(16), AndroidUtilities.dp(16), paint);
+            backgroundDrawable.setBounds((int) rectTmp.left, (int) rectTmp.top, (int) rectTmp.right, (int) rectTmp.bottom);
+            backgroundDrawable.draw(canvas);
             canvas.save();
-            canvas.translate(AndroidUtilities.dp(34), (getMeasuredHeight() - menuText.getHeight()) / 2f);
-            menuText.draw(canvas);
+            canvas.translate(AndroidUtilities.dp(8), AndroidUtilities.dp(4));
+            backDrawable.draw(canvas);
             canvas.restore();
-        }
 
-        if (update) {
-            onTranslationChanged((menuText.getWidth() + AndroidUtilities.dp(4)) * expandProgress);
+            if (expandProgress > 0) {
+                canvas.save();
+                canvas.translate(AndroidUtilities.dp(34), (getMeasuredHeight() - menuText.getHeight()) / 2f);
+                menuText.draw(canvas);
+                canvas.restore();
+            }
+
+            if (update) {
+                onTranslationChanged((menuText.getWidth() + AndroidUtilities.dp(4)) * expandProgress);
+            }
         }
         super.dispatchDraw(canvas);
     }
@@ -198,7 +200,7 @@ public class BotCommandsMenuView extends View {
             return newResult.size();
         }
 
-        public void setBotInfo(SparseArray<TLRPC.BotInfo> botInfo) {
+        public void setBotInfo(LongSparseArray<TLRPC.BotInfo> botInfo) {
             newResult.clear();
             newResultHelp.clear();
             for (int b = 0; b < botInfo.size(); b++) {

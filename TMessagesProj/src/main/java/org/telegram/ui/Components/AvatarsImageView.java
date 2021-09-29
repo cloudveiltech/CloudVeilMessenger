@@ -17,6 +17,7 @@ import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
@@ -34,6 +35,7 @@ public class AvatarsImageView extends FrameLayout {
 
 
     public final static int STYLE_GROUP_CALL_TOOLTIP = 10;
+    public final static int STYLE_MESSAGE_SEEN = 11;
 
     DrawingState[] currentStates = new DrawingState[3];
     DrawingState[] animatingStates = new DrawingState[3];
@@ -49,6 +51,8 @@ public class AvatarsImageView extends FrameLayout {
     Runnable updateDelegate;
     int currentStyle;
     boolean centered;
+
+    private boolean isInCall;
 
     public void commitTransition(boolean animated) {
         if (!wasDraw || !animated) {
@@ -166,7 +170,7 @@ public class AvatarsImageView extends FrameLayout {
         private ImageReceiver imageReceiver;
         TLRPC.TL_groupCallParticipant participant;
 
-        private int id;
+        private long id;
 
         private int animationType;
         private int moveFromIndex;
@@ -174,21 +178,22 @@ public class AvatarsImageView extends FrameLayout {
 
     Random random = new Random();
 
-    public AvatarsImageView(Context context) {
+    public AvatarsImageView(Context context, boolean inCall) {
         super(context);
         for (int a = 0; a < 3; a++) {
             currentStates[a] = new DrawingState();
             currentStates[a].imageReceiver = new ImageReceiver(this);
             currentStates[a].imageReceiver.setRoundRadius(AndroidUtilities.dp(12));
             currentStates[a].avatarDrawable = new AvatarDrawable();
-            currentStates[a].avatarDrawable.setTextSize(AndroidUtilities.dp(9));
+            currentStates[a].avatarDrawable.setTextSize(AndroidUtilities.dp(12));
 
             animatingStates[a] = new DrawingState();
             animatingStates[a].imageReceiver = new ImageReceiver(this);
             animatingStates[a].imageReceiver.setRoundRadius(AndroidUtilities.dp(12));
             animatingStates[a].avatarDrawable = new AvatarDrawable();
-            animatingStates[a].avatarDrawable.setTextSize(AndroidUtilities.dp(9));
+            animatingStates[a].avatarDrawable.setTextSize(AndroidUtilities.dp(12));
         }
+        isInCall = inCall;
         setWillNotDraw(false);
         xRefP.setColor(0);
         xRefP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
@@ -208,8 +213,8 @@ public class AvatarsImageView extends FrameLayout {
         if (object instanceof TLRPC.TL_groupCallParticipant) {
             TLRPC.TL_groupCallParticipant participant = (TLRPC.TL_groupCallParticipant) object;
             animatingStates[index].participant = participant;
-            int id = MessageObject.getPeerId(participant.peer);
-            if (id > 0) {
+            long id = MessageObject.getPeerId(participant.peer);
+            if (DialogObject.isUserDialog(id)) {
                 currentUser = MessagesController.getInstance(account).getUser(id);
                 animatingStates[index].avatarDrawable.setInfo(currentUser);
             } else {
@@ -220,7 +225,11 @@ public class AvatarsImageView extends FrameLayout {
                 if (id == AccountInstance.getInstance(account).getUserConfig().getClientUserId()) {
                     animatingStates[index].lastSpeakTime = 0;
                 } else {
-                    animatingStates[index].lastSpeakTime = participant.lastActiveDate;
+                    if (isInCall) {
+                        animatingStates[index].lastSpeakTime = participant.lastActiveDate;
+                    } else {
+                        animatingStates[index].lastSpeakTime = participant.active_date;
+                    }
                 }
             } else {
                 animatingStates[index].lastSpeakTime = participant.active_date;
@@ -254,14 +263,19 @@ public class AvatarsImageView extends FrameLayout {
 
         boolean bigAvatars = currentStyle == 4 || currentStyle == STYLE_GROUP_CALL_TOOLTIP;
         int size = AndroidUtilities.dp(bigAvatars ? 32 : 24);
-        int toAdd = AndroidUtilities.dp(bigAvatars ? 24 : 20);
+        int toAdd;
+        if (currentStyle == STYLE_MESSAGE_SEEN) {
+            toAdd = AndroidUtilities.dp(12);
+        } else {
+            toAdd = AndroidUtilities.dp(bigAvatars ? 24 : 20);
+        }
         int drawCount = 0;
         for (int i = 0; i < 3; i++) {
             if (currentStates[i].id != 0) {
                 drawCount++;
             }
         }
-        int startPadding = (currentStyle == 0 || currentStyle == STYLE_GROUP_CALL_TOOLTIP) ? 0 : AndroidUtilities.dp(10);
+        int startPadding = (currentStyle == 0 || currentStyle == STYLE_GROUP_CALL_TOOLTIP || currentStyle == STYLE_MESSAGE_SEEN) ? 0 : AndroidUtilities.dp(10);
         int ax = centered ? (getMeasuredWidth() - drawCount * toAdd - AndroidUtilities.dp(bigAvatars ? 8 : 4)) / 2 : startPadding;
         boolean isMuted = VoIPService.getSharedInstance() != null && VoIPService.getSharedInstance().isMicMute();
         if (currentStyle == 4) {
@@ -276,7 +290,7 @@ public class AvatarsImageView extends FrameLayout {
                 animateToDrawCount++;
             }
         }
-        boolean useAlphaLayer = currentStyle == 0 || currentStyle == 1 || currentStyle == 3 || currentStyle == 4 || currentStyle == 5 || currentStyle == STYLE_GROUP_CALL_TOOLTIP;
+        boolean useAlphaLayer = currentStyle == 0 || currentStyle == 1 || currentStyle == 3 || currentStyle == 4 || currentStyle == 5 || currentStyle == STYLE_GROUP_CALL_TOOLTIP || currentStyle == STYLE_MESSAGE_SEEN;
         if (useAlphaLayer) {
             float padding = currentStyle == STYLE_GROUP_CALL_TOOLTIP ? AndroidUtilities.dp(16) : 0;
             canvas.saveLayerAlpha(-padding, -padding, getMeasuredWidth() + padding, getMeasuredHeight() + padding, 255, Canvas.ALL_SAVE_FLAG);
@@ -303,7 +317,7 @@ public class AvatarsImageView extends FrameLayout {
                     imageReceiver.setImageX(ax + toAdd * a);
                 }
 
-               if (currentStyle == 0 || currentStyle == STYLE_GROUP_CALL_TOOLTIP) {
+                if (currentStyle == 0 || currentStyle == STYLE_GROUP_CALL_TOOLTIP || currentStyle == STYLE_MESSAGE_SEEN) {
                     imageReceiver.setImageY((getMeasuredHeight() - size) / 2f);
                 } else {
                     imageReceiver.setImageY(AndroidUtilities.dp(currentStyle == 4 ? 8 : 6));

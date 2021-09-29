@@ -41,7 +41,6 @@ import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.AlertsCreator;
-import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
@@ -343,7 +342,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 builder.setMessage(AndroidUtilities.replaceTags(LocaleController.getString("SyncContactsDeleteText", R.string.SyncContactsDeleteText)));
                 builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
                 builder.setPositiveButton(LocaleController.getString("Delete", R.string.Delete), (dialogInterface, i) -> {
-                    AlertDialog.Builder builder12 = new AlertDialog.Builder(getParentActivity(), 3);
+                    AlertDialog.Builder builder12 = new AlertDialog.Builder(getParentActivity(), 3, null);
                     progressDialog = builder12.show();
                     progressDialog.setCanCacnel(false);
 
@@ -384,8 +383,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                         button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
                     }
                 } else {
-                    newSuggest = !newSuggest;
-                    cell.setChecked(newSuggest);
+                    cell.setChecked(newSuggest = true);
                 }
             } else if (position == newChatsRow) {
                 final TextCheckCell cell = (TextCheckCell) view;
@@ -397,7 +395,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     ((TextCheckCell) view).setChecked(newSync);
                 }
             } else if (position == secretMapRow) {
-                AlertsCreator.showSecretLocationAlert(getParentActivity(), currentAccount, () -> listAdapter.notifyDataSetChanged(), false);
+                AlertsCreator.showSecretLocationAlert(getParentActivity(), currentAccount, () -> listAdapter.notifyDataSetChanged(), false, null);
             } else if (position == paymentsClearRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                 builder.setTitle(LocaleController.getString("PrivacyPaymentsClearAlertTitle", R.string.PrivacyPaymentsClearAlertTitle));
@@ -408,14 +406,14 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 builder.setView(linearLayout);
 
                 for (int a = 0; a < 2; a++) {
-                    String name = null;
+                    String name;
                     if (a == 0) {
                         name = LocaleController.getString("PrivacyClearShipping", R.string.PrivacyClearShipping);
-                    } else if (a == 1) {
+                    } else {
                         name = LocaleController.getString("PrivacyClearPayment", R.string.PrivacyClearPayment);
                     }
                     clear[a] = true;
-                    CheckBoxCell checkBoxCell = new CheckBoxCell(getParentActivity(), 1, 21);
+                    CheckBoxCell checkBoxCell = new CheckBoxCell(getParentActivity(), 1, 21, null);
                     checkBoxCell.setTag(a);
                     checkBoxCell.setBackgroundDrawable(Theme.getSelectorDrawable(false));
                     checkBoxCell.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
@@ -506,7 +504,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     listAdapter.notifyItemChanged(passwordRow);
                 }
             } else {
+                currentPassword = null;
                 loadPasswordSettings();
+                updateRows();
             }
         }
     }

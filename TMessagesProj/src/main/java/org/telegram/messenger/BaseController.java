@@ -28,6 +28,7 @@ public class BaseController {
         return parentAccountInstance.getMediaDataController();
     }
 
+    //CloudVeil - changed visibility
     public final ConnectionsManager getConnectionsManager() {
         return parentAccountInstance.getConnectionsManager();
     }

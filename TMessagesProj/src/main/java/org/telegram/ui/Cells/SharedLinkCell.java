@@ -24,6 +24,7 @@ import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.ImageLocation;
@@ -32,7 +33,6 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.CheckBox2;
 import org.telegram.ui.Components.LayoutHelper;
@@ -47,7 +47,7 @@ import java.util.Locale;
 public class SharedLinkCell extends FrameLayout {
 
     public interface SharedLinkCellDelegate {
-        void needOpenWebView(TLRPC.WebPage webPage);
+        void needOpenWebView(TLRPC.WebPage webPage, MessageObject messageObject);
         boolean canPerformActions();
         void onLinkPress(final String urlFinal, boolean longPress);
     }
@@ -305,7 +305,7 @@ public class SharedLinkCell extends FrameLayout {
         if (title != null) {
             try {
                 CharSequence titleFinal = title;
-                CharSequence titleH = AndroidUtilities.highlightText(titleFinal, message.highlightedWords);
+                CharSequence titleH = AndroidUtilities.highlightText(titleFinal, message.highlightedWords, null);
                 if (titleH != null) {
                     titleFinal = titleH;
                 }
@@ -351,7 +351,7 @@ public class SharedLinkCell extends FrameLayout {
 
         if (message != null && !TextUtils.isEmpty(message.messageOwner.message)) {
             CharSequence caption = Emoji.replaceEmoji(message.messageOwner.message.replace("\n", " ").replaceAll(" +", " ").trim(), Theme.chat_msgTextPaint.getFontMetricsInt(), AndroidUtilities.dp(20), false);
-            CharSequence sequence = AndroidUtilities.highlightText(caption, message.highlightedWords);
+            CharSequence sequence = AndroidUtilities.highlightText(caption, message.highlightedWords, null);
             if (sequence != null) {
                 sequence = TextUtils.ellipsize(AndroidUtilities.ellipsizeCenterEnd(sequence, message.highlightedWords.get(0), maxWidth, captionTextPaint, 130), captionTextPaint, maxWidth, TextUtils.TruncateAt.END);
                 captionLayout = new StaticLayout(sequence, captionTextPaint, maxWidth + AndroidUtilities.dp(4), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
@@ -447,6 +447,10 @@ public class SharedLinkCell extends FrameLayout {
         message = messageObject;
 
         requestLayout();
+    }
+
+    public ImageReceiver getLinkImageView() {
+        return linkImageView;
     }
 
     public void setDelegate(SharedLinkCellDelegate sharedLinkCellDelegate) {

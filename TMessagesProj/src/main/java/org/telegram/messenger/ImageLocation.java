@@ -122,7 +122,6 @@ public class ImageLocation {
         if (user == null || user.access_hash == 0 || user.photo == null) {
             return null;
         }
-
         //CloudVeil start
         boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
         if(user != null && user.self) {
@@ -176,7 +175,6 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil end
-
         if (type == TYPE_STRIPPED) {
             if (chat.photo.stripped_thumb == null) {
                 return null;
@@ -366,7 +364,8 @@ public class ImageLocation {
         } else if (document != null) {
             if (!url && document instanceof DocumentObject.ThemeDocument) {
                 DocumentObject.ThemeDocument themeDocument = (DocumentObject.ThemeDocument) document;
-                return document.dc_id + "_" + document.id + "_" + Theme.getBaseThemeKey(themeDocument.themeSettings) + "_" + themeDocument.themeSettings.accent_color + "_" + themeDocument.themeSettings.message_top_color + "_" + themeDocument.themeSettings.message_bottom_color;
+                return document.dc_id + "_" + document.id + "_" + Theme.getBaseThemeKey(themeDocument.themeSettings) + "_" + themeDocument.themeSettings.accent_color + "_" +
+                        (themeDocument.themeSettings.message_colors.size() > 1 ? themeDocument.themeSettings.message_colors.get(1) : 0) + "_" + (themeDocument.themeSettings.message_colors.size() > 0 ? themeDocument.themeSettings.message_colors.get(0) : 0);
             } else if (document.id != 0 && document.dc_id != 0) {
                 return document.dc_id + "_" + document.id;
             }

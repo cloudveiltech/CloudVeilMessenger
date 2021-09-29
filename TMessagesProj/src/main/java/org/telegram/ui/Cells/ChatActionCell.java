@@ -12,6 +12,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -19,12 +20,15 @@ import android.graphics.RectF;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.StaticLayout;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.URLSpan;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
+
+import com.google.android.exoplayer2.util.Log;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
@@ -58,7 +62,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
         default void didLongPress(ChatActionCell cell, float x, float y) {
         }
 
-        default void needOpenUserProfile(int uid) {
+        default void needOpenUserProfile(long uid) {
         }
 
         default void didPressBotButton(MessageObject messageObject, TLRPC.KeyboardButton button) {
@@ -70,6 +74,11 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
         default void needOpenInviteLink(TLRPC.TL_chatInviteExported invite) {
 
         }
+    }
+
+    public interface ThemeDelegate extends Theme.ResourcesProvider {
+
+        int getCurrentColor();
     }
 
     private int TAG;
@@ -106,18 +115,26 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
 
     private String overrideBackground;
     private String overrideText;
-    private ColorFilter overrideColorFilter;
+    private Paint overrideBackgroundPaint;
+    private TextPaint overrideTextPaint;
     private int overrideColor;
     private ArrayList<Integer> lineWidths = new ArrayList<>();
     private ArrayList<Integer> lineHeights = new ArrayList<>();
     private Path backgroundPath = new Path();
     private RectF rect = new RectF();
     private boolean invalidatePath = true;
+    private boolean invalidateColors = false;
 
     private ChatActionCellDelegate delegate;
+    private ThemeDelegate themeDelegate;
 
     public ChatActionCell(Context context) {
+        this(context, null);
+    }
+
+    public ChatActionCell(Context context, ThemeDelegate themeDelegate) {
         super(context);
+        this.themeDelegate = themeDelegate;
         imageReceiver = new ImageReceiver(this);
         imageReceiver.setRoundRadius(AndroidUtilities.roundMessageSize / 2);
         avatarDrawable = new AvatarDrawable();
@@ -129,7 +146,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
     }
 
     public void setCustomDate(int date, boolean scheduled, boolean inLayout) {
-        if (customDate == date) {
+        if (customDate == date || customDate / 3600 == date / 3600) {
             return;
         }
         CharSequence newText;
@@ -187,7 +204,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
         DownloadController.getInstance(currentAccount).removeLoadingFileObserver(this);
         previousWidth = 0;
         if (currentMessageObject.type == 11) {
-            int id = (int) messageObject.getDialogId();
+            long id = messageObject.getDialogId();
             avatarDrawable.setInfo(id, null, null);
             if (currentMessageObject.messageOwner.action instanceof TLRPC.TL_messageActionUserUpdatedPhoto) {
                 imageReceiver.setImage(null, null, avatarDrawable, null, currentMessageObject, 0);
@@ -243,16 +260,17 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
         visiblePartSet = true;
         backgroundHeight = parentH;
         viewTop = visibleTop;
-        if (Theme.hasGradientService()) {
+        if (hasGradientService()) {
             invalidate();
         }
     }
 
     @Override
-    protected void onLongPress() {
+    protected boolean onLongPress() {
         if (delegate != null) {
             delegate.didLongPress(this, lastTouchX, lastTouchY);
         }
+        return true;
     }
 
     @Override
@@ -394,7 +412,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
     private void createLayout(CharSequence text, int width) {
         int maxWidth = width - AndroidUtilities.dp(30);
         invalidatePath = true;
-        textLayout = new StaticLayout(text, Theme.chat_actionTextPaint, maxWidth, Layout.Alignment.ALIGN_CENTER, 1.0f, 0.0f, false);
+        textLayout = new StaticLayout(text, (TextPaint) getThemedPaint(Theme.key_paint_chatActionText), maxWidth, Layout.Alignment.ALIGN_CENTER, 1.0f, 0.0f, false);
         textHeight = 0;
         textWidth = 0;
         try {
@@ -474,14 +492,20 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
             return;
         }
 
+        Paint backgroundPaint = getThemedPaint(Theme.key_paint_chatActionBackground);
+        TextPaint textPaint = (TextPaint) getThemedPaint(Theme.key_paint_chatActionText);
         if (overrideBackground != null) {
-            int color = Theme.getColor(overrideBackground);
-            if (color != overrideColor) {
-                overrideColor = color;
-                overrideColorFilter = new PorterDuffColorFilter(overrideColor, PorterDuff.Mode.MULTIPLY);
+            int color = getThemedColor(overrideBackground);
+            if (overrideBackgroundPaint == null) {
+                overrideBackgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                overrideBackgroundPaint.setColor(color);
+                overrideTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+                overrideTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+                overrideTextPaint.setTextSize(AndroidUtilities.dp(Math.max(16, SharedConfig.fontSize) - 2));
+                overrideTextPaint.setColor(getThemedColor(overrideText));
             }
-            Theme.chat_actionBackgroundPaint.setColor(overrideColor);
-            Theme.chat_actionTextPaint.setColor(Theme.getColor(overrideText));
+            backgroundPaint = overrideBackgroundPaint;
+            textPaint = overrideTextPaint;
         }
         if (invalidatePath) {
             invalidatePath = false;
@@ -615,21 +639,27 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
             ViewGroup parent = (ViewGroup) getParent();
             backgroundHeight = parent.getMeasuredHeight();
         }
-        Theme.applyServiceShaderMatrix(getMeasuredWidth(), backgroundHeight, 0, viewTop + AndroidUtilities.dp(4));
-        canvas.drawPath(backgroundPath, Theme.chat_actionBackgroundPaint);
-        if (Theme.hasGradientService()) {
+        if (themeDelegate != null) {
+            themeDelegate.applyServiceShaderMatrix(getMeasuredWidth(), backgroundHeight, 0, viewTop + AndroidUtilities.dp(4));
+        } else {
+            Theme.applyServiceShaderMatrix(getMeasuredWidth(), backgroundHeight, 0, viewTop + AndroidUtilities.dp(4));
+        }
+        canvas.drawPath(backgroundPath, backgroundPaint);
+        if (hasGradientService()) {
             canvas.drawPath(backgroundPath, Theme.chat_actionBackgroundGradientDarkenPaint);
         }
 
         canvas.save();
         canvas.translate(textXLeft, textY);
+        if (textLayout.getPaint() != textPaint) {
+            buildLayout();
+        }
         textLayout.draw(canvas);
         canvas.restore();
+    }
 
-        if (overrideColorFilter != null) {
-            Theme.chat_actionBackgroundPaint.setColor(Theme.currentColor);
-            Theme.chat_actionTextPaint.setColor(Theme.getColor(Theme.key_chat_serviceText));
-        }
+    protected boolean hasGradientService() {
+        return themeDelegate != null ? themeDelegate.hasGradientService() : Theme.hasGradientService();
     }
 
     @Override
@@ -676,5 +706,23 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
         }
         info.setText(!TextUtils.isEmpty(customText) ? customText : currentMessageObject.messageText);
         info.setEnabled(true);
+    }
+
+    public void setInvalidateColors(boolean invalidate) {
+        if (invalidateColors == invalidate) {
+            return;
+        }
+        invalidateColors = invalidate;
+        invalidate();
+    }
+
+    private int getThemedColor(String key) {
+        Integer color = themeDelegate != null ? themeDelegate.getColor(key) : null;
+        return color != null ? color : Theme.getColor(key);
+    }
+
+    private Paint getThemedPaint(String paintKey) {
+        Paint paint = themeDelegate != null ? themeDelegate.getPaint(paintKey) : null;
+        return paint != null ? paint : Theme.getThemePaint(paintKey);
     }
 }

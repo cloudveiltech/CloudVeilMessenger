@@ -7,7 +7,7 @@ import java.util.ArrayList;
  */
 
 public class SettingsRequest {
-    public int userId;
+    public long userId;
     public String userPhone;
     public String userName;
 

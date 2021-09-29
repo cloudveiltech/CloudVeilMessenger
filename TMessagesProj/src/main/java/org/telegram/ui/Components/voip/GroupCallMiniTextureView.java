@@ -39,6 +39,7 @@ import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
@@ -254,18 +255,20 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
                         if (animateToFullscreen || showingInFullscreen) {
                             size += (AndroidUtilities.dp(10) + AndroidUtilities.dp(39) * parentContainer.progressToFullscreenMode);
                         } else {
-                            size += AndroidUtilities.dp(10) * (1.0f - parentContainer.progressToFullscreenMode);
+                            size += AndroidUtilities.dp(10) * Math.max(1.0f - parentContainer.progressToFullscreenMode, showingAsScrimView || animateToScrimView ? parentContainer.progressToScrimView : 0.0f);
                         }
 
                         int x = (getMeasuredWidth() - size) / 2;
                         float smallProgress;
+                        float smallProgress2;
                         float scrimProgress = (showingAsScrimView || animateToScrimView ? parentContainer.progressToScrimView : 0);
                         if (showingInFullscreen) {
-                            smallProgress = progressToFullscreen;
+                            smallProgress = smallProgress2 = progressToFullscreen;
                         } else {
                             smallProgress = animateToFullscreen ? parentContainer.progressToFullscreenMode : scrimProgress;
+                            smallProgress2 = showingAsScrimView || animateToScrimView ? parentContainer.progressToScrimView : parentContainer.progressToFullscreenMode;
                         }
-                        int y = (int) ((getMeasuredHeight() - size) / 2 - AndroidUtilities.dp(11) - (AndroidUtilities.dp(17) + AndroidUtilities.dp(74) * parentContainer.progressToFullscreenMode) * smallProgress);
+                        int y = (int) ((getMeasuredHeight() - size) / 2 - AndroidUtilities.dp(28) - (AndroidUtilities.dp(17) + AndroidUtilities.dp(74) * (showingInFullscreen || animateToFullscreen ? parentContainer.progressToFullscreenMode : 0.0f)) * smallProgress + AndroidUtilities.dp(17) * smallProgress2);
                         castingScreenDrawable.setBounds(x, y, x + size, y + size);
                         castingScreenDrawable.draw(canvas);
 
@@ -1020,11 +1023,11 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
 
             if (!ChatObject.Call.videoIsActive(participant.participant, participant.presentation, call) || !call.canStreamVideo && participant != call.videoNotAvailableParticipant) {
                 noVideoStubLayout.avatarImageReceiver.setCurrentAccount(currentAccount);
-                int peerId = MessageObject.getPeerId(participant.participant.peer);
+                long peerId = MessageObject.getPeerId(participant.participant.peer);
                 ImageLocation imageLocation;
                 ImageLocation thumbLocation;
                 Object parentObject;
-                if (peerId > 0) {
+                if (DialogObject.isUserDialog(peerId)) {
                     TLRPC.User currentUser = AccountInstance.getInstance(currentAccount).getMessagesController().getUser(peerId);
                     noVideoStubLayout.avatarDrawable.setInfo(currentUser);
                     imageLocation = ImageLocation.getForUser(currentUser, ImageLocation.TYPE_BIG);
@@ -1102,8 +1105,14 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
             }
 
             boolean pausedInternal = false;
-            if (participant.participant.video != null && participant.participant.video.paused) {
-                pausedInternal = true;
+            if (participant.presentation) {
+                if (participant.participant.presentation != null && participant.participant.presentation.paused) {
+                    pausedInternal = true;
+                }
+            } else {
+                if (participant.participant.video != null && participant.participant.video.paused) {
+                    pausedInternal = true;
+                }
             }
             if (videoIsPaused != pausedInternal) {
                 videoIsPaused = pausedInternal;
@@ -1139,6 +1148,8 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
                     VoIPService.getSharedInstance().addRemoteSink(participant.participant, participant.presentation, textureView.renderer, null);
                 }
             }
+
+            updateIconColor(true);
         }
 
         updateInfo();
@@ -1152,7 +1163,7 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
         textureView.setThumb(thumb);
 
         if (thumb == null) {
-            int peerId = MessageObject.getPeerId(participant.participant.peer);
+            long peerId = MessageObject.getPeerId(participant.participant.peer);
 
             if (participant.participant.self && participant.presentation) {
                 imageReceiver.setImageBitmap(new MotionBackgroundDrawable(0xff212E3A, 0xff2B5B4D, 0xff245863, 0xff274558, true));
@@ -1182,8 +1193,8 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
 
         String name = null;
 
-        int peerId = MessageObject.getPeerId(participant.participant.peer);
-        if (peerId > 0) {
+        long peerId = MessageObject.getPeerId(participant.participant.peer);
+        if (DialogObject.isUserDialog(peerId)) {
             TLRPC.User currentUser = AccountInstance.getInstance(currentAccount).getMessagesController().getUser(peerId);
             name = UserObject.getUserName(currentUser);
         } else {
@@ -1459,16 +1470,20 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
                 float v = (float) valueAnimator.getAnimatedValue();
                 lastIconColor = ColorUtils.blendARGB(colorFrom, newColor, v);
                 lastSpeakingFrameColor = ColorUtils.blendARGB(colorFromSpeaking, newSpeakingFrameColor, v);
-                //   micIconView.setColorFilter(new PorterDuffColorFilter(lastIconColor, PorterDuff.Mode.MULTIPLY));
                 speakingPaint.setColor(lastSpeakingFrameColor);
+                if (progressToSpeaking > 0) {
+                    invalidate();
+                }
             });
             colorAnimator.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     animateToColor = lastIconColor = newColor;
                     lastSpeakingFrameColor = newSpeakingFrameColor;
-                    //     micIconView.setColorFilter(new PorterDuffColorFilter(lastIconColor, PorterDuff.Mode.MULTIPLY));
                     speakingPaint.setColor(lastSpeakingFrameColor);
+                    if (progressToSpeaking > 0) {
+                        invalidate();
+                    }
                 }
             });
             colorAnimator.start();
@@ -1692,8 +1707,8 @@ public class GroupCallMiniTextureView extends FrameLayout implements GroupCallSt
     }
 
     public String getName() {
-        int peerId = MessageObject.getPeerId(participant.participant.peer);
-        if (peerId > 0) {
+        long peerId = MessageObject.getPeerId(participant.participant.peer);
+        if (DialogObject.isUserDialog(peerId)) {
             TLRPC.User currentUser = AccountInstance.getInstance(UserConfig.selectedAccount).getMessagesController().getUser(peerId);
             return UserObject.getUserName(currentUser);
         } else {

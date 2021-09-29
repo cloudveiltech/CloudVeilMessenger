@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 public class SmsReceiver extends BroadcastReceiver {
 
     @Override
-    public void onReceive(Context context, Intent intent) { /*
+    public void onReceive(Context context, Intent intent) {/*
         CloudVeil start
         if (intent == null) {
             return;
@@ -48,7 +48,7 @@ public class SmsReceiver extends BroadcastReceiver {
             if (matcher.find()) {
                 String code = matcher.group(0).replace("-", "");
                 if (code.length() >= 3) {
-                    if (preferences != null && hash != null) {
+                    if (hash != null) {
                         preferences.edit().putString("sms_hash_code", hash + "|" + code).commit();
                     }
                     AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.didReceiveSmsCode, code));
@@ -56,8 +56,7 @@ public class SmsReceiver extends BroadcastReceiver {
             }
         } catch (Throwable e) {
             FileLog.e(e);
-        }
-        CloudVeil end
+        }     CloudVeil end
         */
     }
 }

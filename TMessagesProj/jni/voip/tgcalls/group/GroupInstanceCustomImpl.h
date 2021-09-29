@@ -36,11 +36,14 @@ public:
     void setVideoSource(std::function<webrtc::VideoTrackSourceInterface*()> getVideoSource);
     void setAudioOutputDevice(std::string id);
     void setAudioInputDevice(std::string id);
+    void addExternalAudioSamples(std::vector<uint8_t> &&samples);
     
     void addIncomingVideoOutput(std::string const &endpointId, std::weak_ptr<rtc::VideoSinkInterface<webrtc::VideoFrame>> sink);
     
     void setVolume(uint32_t ssrc, double volume);
     void setRequestedVideoChannels(std::vector<VideoChannelDescription> &&requestedVideoChannels);
+
+    void getStats(std::function<void(GroupInstanceStats)> completion);
 
 private:
     std::shared_ptr<Threads> _threads;

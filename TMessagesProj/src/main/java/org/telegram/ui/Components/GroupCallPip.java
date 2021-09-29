@@ -329,7 +329,7 @@ public class GroupCallPip implements NotificationCenter.NotificationCenterDelega
         button = new GroupCallPipButton(context, currentAccount, false);
         windowView.addView(button, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER));
 
-        avatarsImageView = new AvatarsImageView(context);
+        avatarsImageView = new AvatarsImageView(context, true);
         avatarsImageView.setStyle(5);
         avatarsImageView.setCentered(true);
         avatarsImageView.setVisibility(View.GONE);
@@ -680,7 +680,7 @@ public class GroupCallPip implements NotificationCenter.NotificationCenterDelega
                 call = null;
             }
             if (call != null) {
-                int selfId = voIPService.getSelfId();
+                long selfId = voIPService.getSelfId();
                 for (int a = 0, N = call.sortedParticipants.size(), k = 0; k < 2; a++) {
                     if (a < N) {
                         TLRPC.TL_groupCallParticipant participant = call.sortedParticipants.get(a);
