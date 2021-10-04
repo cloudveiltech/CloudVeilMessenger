@@ -5259,8 +5259,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         currentPhotoObject = null;
                     }
 
-                    currentPhotoObjectThumb = null;
-                    currentPhotoObject = null;
                     if (currentPhotoObject != null && currentPhotoObject == currentPhotoObjectThumb) {
                         if (messageObject.type == MessageObject.TYPE_PHOTO) {
                             currentPhotoObjectThumb = null;
