@@ -1,17 +1,27 @@
 package org.cloudveil.messenger.util;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -289,5 +299,109 @@ public class CloudVeilDialogHelper {
             }
         }
         return filtered;
+    }
+
+    public static boolean isBatteryOptimized(final Context context) {
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        String name = context.getPackageName();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return !powerManager.isIgnoringBatteryOptimizations(name);
+        }
+        return false;
+    }
+
+    public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
+            return;
+        }
+        if (!isBatteryOptimized(context)) {
+            return;
+        }
+
+        SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
+        boolean alertEnabled = preferences.getBoolean("checkPowerSavingOnStart", true);
+        if(!alertEnabled) {
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(context.getString(R.string.cloudveil_battery_warning))
+                .setPositiveButton(context.getString(R.string.resolve), (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + context.getPackageName()));
+                    context.startActivity(intent);
+
+                    dialog.dismiss();
+                    fragment.finishFragment();
+                })
+                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> fragment.finishFragment());
+        fragment.showDialog(builder.create());
+    }
+
+    public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        if (tlObject == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.contact), (dialog, which) -> {
+                    dialog.dismiss();
+                    if (onOkRunnable != null) {
+                        onOkRunnable.run();
+                    }
+
+                    sendUnlockRequest(tlObject, fragment.getCurrentAccount());
+                })
+                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
+                    dialog.dismiss();
+                    if (onDismissRunnable != null) {
+                        onDismissRunnable.run();
+                    }
+                })
+                .setOnDismissListener(dialog -> {
+                    if (onDismissRunnable != null) {
+                        onDismissRunnable.run();
+                    }
+                })
+                .setOnBackButtonListener((dialog, which) -> {
+                    if (onDismissRunnable != null) {
+                        onDismissRunnable.run();
+                    }
+                });
+        fragment.showDialog(builder.create(), dialog -> {
+            if (onDismissRunnable != null) {
+                onDismissRunnable.run();
+            }
+        });
+    }
+
+    private static void sendUnlockRequest(TLObject tlObject, int currentAccount) {
+        long currentUserId = UserConfig.getInstance(currentAccount).getCurrentUser().id;
+        long itemId = 0;
+
+
+        if (tlObject instanceof TLRPC.User) {
+            TLRPC.User user = (TLRPC.User) tlObject;
+            itemId = user.id;
+        } else if (tlObject instanceof TLRPC.Chat) {
+            TLRPC.Chat chat = (TLRPC.Chat) tlObject;
+            itemId = chat.id;
+        } else if (tlObject instanceof TLRPC.TL_dialog) {
+            TLRPC.TL_dialog dlg = (TLRPC.TL_dialog) tlObject;
+            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dlg.id);
+            if (chat != null && chat.migrated_to != null) {
+                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(chat.migrated_to.channel_id);
+                if (chat2 != null) {
+                    chat = chat2;
+                }
+            }
+            if (chat != null) {
+                itemId = chat.id;
+            }
+        }
+
+        Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId);
     }
 }

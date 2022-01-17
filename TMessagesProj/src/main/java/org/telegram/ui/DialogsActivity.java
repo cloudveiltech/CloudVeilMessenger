@@ -4960,7 +4960,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         } else if (adapter == searchViewPager.dialogsSearchAdapter) {
                             object = (TLObject) searchViewPager.dialogsSearchAdapter.getItem(position);
                         }
-                        ChatActivity.showWarning(this, object, null, null);
+                        CloudVeilDialogHelper.showWarning(this, object, null, null);
                     }
                     //CloudVeil end
                 }

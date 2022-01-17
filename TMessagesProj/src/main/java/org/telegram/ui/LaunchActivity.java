@@ -2958,7 +2958,7 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                 }
                                 if (!mainFragmentsStack.isEmpty()) {
                                     BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
-                                    ChatActivity.showWarning(fragment, object, null, null);
+                                    CloudVeilDialogHelper.showWarning(fragment, object, null, null);
                                 }
                             }
                             //CloudVeil end

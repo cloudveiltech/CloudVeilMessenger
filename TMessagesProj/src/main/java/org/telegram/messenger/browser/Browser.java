@@ -19,6 +19,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -258,7 +259,11 @@ public class Browser {
                 }
                 uri = Uri.parse("https://" + finalPath);
             }
-            if (allowCustom && SharedConfig.customTabs && !internalUri && !scheme.equals("tel")) {
+
+            //CloudVeil start
+            boolean allowCustomTab = SharedConfig.customTabs || GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
+            if (allowCustom && allowCustomTab && !internalUri && !scheme.equals("tel")) {
+                //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"));

@@ -13020,7 +13020,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
                 }
             } else if (!isDialogAllowed) {
-                showWarning(this, cloudVeilDialogHelper.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+                CloudVeilDialogHelper.showWarning(this, cloudVeilDialogHelper.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
                 return;
             }
         //CloudVeil end
@@ -15753,156 +15753,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
         //CloudVeil end
     }
-
-    //CloudVeil start
-    public static boolean isBatteryOptimized(final Context context) {
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        String name = context.getPackageName();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return !powerManager.isIgnoringBatteryOptimizations(name);
-        }
-        return false;
-    }
-
-    public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
-            return;
-        }
-        if (!isBatteryOptimized(context)) {
-            return;
-        }
-
-        SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
-        boolean alertEnabled = preferences.getBoolean("checkPowerSavingOnStart", true);
-        if(!alertEnabled) {
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(context.getString(R.string.warning))
-                .setMessage(context.getString(R.string.cloudveil_battery_warning))
-                .setPositiveButton(context.getString(R.string.resolve), (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:" + context.getPackageName()));
-                    context.startActivity(intent);
-
-                    dialog.dismiss();
-                    fragment.finishFragment();
-                })
-                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> fragment.finishFragment());
-        fragment.showDialog(builder.create());
-    }
-
-    public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
-        if (tlObject == null) {
-            return;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
-        builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
-                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))
-                .setPositiveButton(fragment.getParentActivity().getString(R.string.contact), (dialog, which) -> {
-                    dialog.dismiss();
-                    if (onOkRunnable != null) {
-                        onOkRunnable.run();
-                    }
-
-                    sendUnlockEmail(tlObject, fragment.getCurrentAccount());
-                })
-                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
-                    dialog.dismiss();
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnDismissListener(dialog -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnBackButtonListener((dialog, which) -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                });
-        fragment.showDialog(builder.create(), dialog -> {
-            if (onDismissRunnable != null) {
-                onDismissRunnable.run();
-            }
-        });
-    }
-
-    private static void sendUnlockEmail(TLObject tlObject, int currentAccount) {
-        String title = "";
-        String userName = "";
-        String type = "";
-        long id = 0;
-
-
-        if (tlObject instanceof TLRPC.User) {
-            type = "user";
-            TLRPC.User user = (TLRPC.User) tlObject;
-            if (user.bot) {
-                type = "bot";
-            }
-            title = user.first_name;
-            userName = user.username;
-            id = user.id;
-        } else if (tlObject instanceof TLRPC.Chat) {
-            type = "group";
-
-            TLRPC.Chat chat = (TLRPC.Chat) tlObject;
-            if (chat instanceof TLRPC.TL_channel) {
-                type = "channel";
-            }
-            title = chat.title;
-            userName = chat.username;
-            id = chat.id;
-        } else if (tlObject instanceof TLRPC.TL_dialog) {
-            //megagroup
-            type = "megagroup";
-
-            TLRPC.TL_dialog dlg = (TLRPC.TL_dialog) tlObject;
-            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dlg.id);
-            if (chat != null && chat.migrated_to != null) {
-                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(chat.migrated_to.channel_id);
-                if (chat2 != null) {
-                    chat = chat2;
-                }
-            }
-            if (chat != null) {
-                boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
-                if (isChannel) {
-                    type = "channel";
-                }
-
-                title = chat.title;
-                userName = chat.username;
-                id = chat.id;
-            }
-        } else {
-            type = "encrypted chat";
-            title = "Encrypted Chat";
-            userName = "Encrypted Chat";
-        }
-
-        Intent intent = new Intent(Intent.ACTION_SENDTO);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setData(Uri.parse("mailto:")); // only email apps should handle this
-        intent.putExtra(Intent.EXTRA_EMAIL, new String[]{"support@cloudveil.org"});
-        intent.putExtra(Intent.EXTRA_SUBJECT, "Unblock request for " + title);
-        intent.putExtra(Intent.EXTRA_TEXT, "User ID: " + UserConfig.getInstance(currentAccount).getCurrentUser().id +
-                "\nConversation ID: " + id +
-                "\nUsername: " + userName +
-                "\nType: " + type +
-                "\nTitle: " + title +
-                "\n\nSent from CloudVeil Messenger for Android");
-
-        // if no email client, we avoid crash
-        Intent chooser = Intent.createChooser(intent, "Send Email Using: ");
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        ApplicationLoader.applicationContext.startActivity(chooser);
-    }
-    //CloudVeil end
 
     private void checkSecretMessageForLocation(MessageObject messageObject) {
         if (messageObject.type != 4 || locationAlertShown || SharedConfig.isSecretMapPreviewSet()) {
@@ -18899,9 +18749,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-            showWarning(this, CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+            CloudVeilDialogHelper.showWarning(this, CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
         } else {
-            showBatteryWarning(this, currentAccount, getParentActivity());
+            CloudVeilDialogHelper.showBatteryWarning(this, currentAccount, getParentActivity());
         }
         //CloudVeil end
 

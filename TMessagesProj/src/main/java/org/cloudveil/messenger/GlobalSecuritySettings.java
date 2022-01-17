@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
 
+import androidx.annotation.NonNull;
+
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 
@@ -188,5 +190,13 @@ public class GlobalSecuritySettings {
             return BuildConfig.MAP_SDK_KEY;
         }
         return v;
+    }
+
+
+    public static boolean isUrlWhileListedForInternalView(@NonNull String url) {
+        if(url.contains("://messenger.cloudveil.org")) {
+            return true;
+        }
+        return false;
     }
 }
