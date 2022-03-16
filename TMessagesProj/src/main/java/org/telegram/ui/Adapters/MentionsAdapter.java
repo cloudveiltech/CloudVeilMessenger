@@ -20,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -235,6 +236,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (documents == null || documents.isEmpty()) {
             return;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.isLockDisableStickers()) {
+            return;
+        }
+        //CloudVeil end
         for (int a = 0, size = documents.size(); a < size; a++) {
             TLRPC.Document document = documents.get(a);
             String key = document.dc_id + "_" + document.id;
@@ -425,6 +431,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         contextUsernameReqid = 0;
         locationProvider.stop();
         if (user != null && user.bot && user.bot_inline_placeholder != null) {
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
             foundContextBot = user;
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();

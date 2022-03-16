@@ -359,7 +359,7 @@ public class ChannelCheckingService extends Service {
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
 
-        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId);
+        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
         if(object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
         } else {

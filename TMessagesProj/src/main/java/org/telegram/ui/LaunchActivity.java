@@ -2951,14 +2951,29 @@ public class LaunchActivity extends Activity implements ActionBarLayout.ActionBa
                                 }
                             } else {
                                 TLObject object = null;
+                                CloudVeilDialogHelper.DialogType type = CloudVeilDialogHelper.DialogType.chat;
                                 if (!res.chats.isEmpty()) {
                                     object = res.chats.get(0);
                                 } else {
                                     object = res.users.get(0);
                                 }
+                                if(object instanceof TLRPC.Chat) {
+                                    TLRPC.Chat chat = (TLRPC.Chat) object;
+                                    type = CloudVeilDialogHelper.DialogType.group;
+                                    if(ChatObject.isChannel(chat)) {
+                                        type = CloudVeilDialogHelper.DialogType.channel;
+                                    }
+                                } else {
+                                    TLRPC.User user = (TLRPC.User) object;
+                                    type = CloudVeilDialogHelper.DialogType.user;
+                                    if(user.bot) {
+                                        type = CloudVeilDialogHelper.DialogType.bot;
+                                    }
+                                }
+
                                 if (!mainFragmentsStack.isEmpty()) {
                                     BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
-                                    CloudVeilDialogHelper.showWarning(fragment, object, null, null);
+                                    CloudVeilDialogHelper.showWarning(fragment, object, type, null, null);
                                 }
                             }
                             //CloudVeil end

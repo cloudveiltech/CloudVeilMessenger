@@ -8,12 +8,14 @@ import android.os.Build;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Pair;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
@@ -32,6 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class CloudVeilDialogHelper {
     private int accountNumber;
+
+    public enum DialogType {
+        channel, group, user, bot, chat
+    }
 
     private static volatile CloudVeilDialogHelper[] Instance = new CloudVeilDialogHelper[UserConfig.MAX_ACCOUNT_COUNT];
 
@@ -125,10 +131,13 @@ public class CloudVeilDialogHelper {
         if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
             return false;
         }
-        return !allowedBots.containsKey(id) || allowedBots.get(id);
+        if(!allowedBots.containsKey(id)) {
+            return false;
+        }
+        return allowedBots.get(id);
     }
 
-    public TLObject getObjectByDialogId(long currentDialogId) {
+    public Pair<TLObject, DialogType> getObjectByDialogId(long currentDialogId) {
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
         TLRPC.EncryptedChat encryptedChat = null;
@@ -147,13 +156,13 @@ public class CloudVeilDialogHelper {
         }
 
         if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
-            return encryptedChat;
+            return new Pair<>(encryptedChat, DialogType.group);
         } else if (chat != null) {
-            return chat;
+            return new Pair<>(chat,  ChatObject.isChannel(chat) ? DialogType.channel : DialogType.group);
         } else if (user != null) {
-            return user;
+            return new Pair<>(encryptedChat, user.bot ? DialogType.bot : DialogType.user);
         }
-        return null;
+        return new Pair<>(null, DialogType.group);
     }
 
 
@@ -178,7 +187,7 @@ public class CloudVeilDialogHelper {
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
 
-        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId);
+        TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
         if (object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
         } else {
@@ -339,14 +348,14 @@ public class CloudVeilDialogHelper {
         fragment.showDialog(builder.create());
     }
 
-    public static void showWarning(BaseFragment fragment, TLObject tlObject, Runnable onOkRunnable, Runnable onDismissRunnable) {
+    public static void showWarning(BaseFragment fragment, TLObject tlObject, DialogType type, Runnable onOkRunnable, Runnable onDismissRunnable) {
         if (tlObject == null) {
             return;
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
-                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden))
-                .setPositiveButton(fragment.getParentActivity().getString(R.string.contact), (dialog, which) -> {
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
                     dialog.dismiss();
                     if (onOkRunnable != null) {
                         onOkRunnable.run();

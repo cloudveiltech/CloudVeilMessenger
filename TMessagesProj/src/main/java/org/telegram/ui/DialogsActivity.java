@@ -4960,7 +4960,33 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         } else if (adapter == searchViewPager.dialogsSearchAdapter) {
                             object = (TLObject) searchViewPager.dialogsSearchAdapter.getItem(position);
                         }
-                        CloudVeilDialogHelper.showWarning(this, object, null, null);
+
+                        CloudVeilDialogHelper.DialogType type = CloudVeilDialogHelper.DialogType.chat;
+
+                        if(object instanceof TLRPC.Chat) {
+                            TLRPC.Chat chat = (TLRPC.Chat) object;
+                            type = CloudVeilDialogHelper.DialogType.group;
+                            if(ChatObject.isChannel(chat)) {
+                                type = CloudVeilDialogHelper.DialogType.channel;
+                            }
+                        } else if(object instanceof TLRPC.User) {
+                            TLRPC.User user = (TLRPC.User) object;
+                            type = CloudVeilDialogHelper.DialogType.user;
+                            if(user.bot) {
+                                type = CloudVeilDialogHelper.DialogType.bot;
+                            }
+                        } else if(object instanceof TLRPC.Dialog) {
+                            TLRPC.Dialog dialog = (TLRPC.Dialog) object;
+                            if(DialogObject.isUserDialog(dialog.id)) {
+                                type = CloudVeilDialogHelper.DialogType.user;
+                            } else if(DialogObject.isChannel(dialog)) {
+                                type = CloudVeilDialogHelper.DialogType.channel;
+                            } else  {
+                                type = CloudVeilDialogHelper.DialogType.group;
+                            }
+                        }
+
+                        CloudVeilDialogHelper.showWarning(this, object, type, null, null);
                     }
                     //CloudVeil end
                 }

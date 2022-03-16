@@ -5503,6 +5503,7 @@ public class MediaDataController extends BaseController {
         if (callback == null) {
             return;
         }
+
         if (TextUtils.isEmpty(keyword) || langCodes == null) {
             callback.run(new ArrayList<>(), null);
             return;

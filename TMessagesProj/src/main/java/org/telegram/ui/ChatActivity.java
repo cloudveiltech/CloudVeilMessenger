@@ -62,6 +62,7 @@ import android.text.TextUtils;
 import android.text.style.CharacterStyle;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.URLSpan;
+import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -13020,7 +13021,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
                 }
             } else if (!isDialogAllowed) {
-                CloudVeilDialogHelper.showWarning(this, cloudVeilDialogHelper.getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+                Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = cloudVeilDialogHelper.getObjectByDialogId(dialog_id);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.first, objectByDialogId.second, this::finishFragment, this::finishFragment);
                 return;
             }
         //CloudVeil end
@@ -15599,7 +15601,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         } else if (id == NotificationCenter.didSetNewWallpapper) {
             if (fragmentView != null) {
                 contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
-                progressView2.invalidate();
+                if(progressView2 != null) {
+                    progressView2.invalidate();
+                }
                 if (emptyView != null) {
                     emptyView.invalidate();
                 }
@@ -18749,7 +18753,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-            CloudVeilDialogHelper.showWarning(this, CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id), this::finishFragment, this::finishFragment);
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+            CloudVeilDialogHelper.showWarning(this, objectByDialogId.first, objectByDialogId.second, this::finishFragment, this::finishFragment);
         } else {
             CloudVeilDialogHelper.showBatteryWarning(this, currentAccount, getParentActivity());
         }

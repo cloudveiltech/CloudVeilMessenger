@@ -261,8 +261,9 @@ public class Browser {
             }
 
             //CloudVeil start
-            boolean allowCustomTab = SharedConfig.customTabs || GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
-            if (allowCustom && allowCustomTab && !internalUri && !scheme.equals("tel")) {
+            boolean forceInternal = GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
+            boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
+            if (allowCustomTab && !internalUri && !scheme.equals("tel")) {
                 //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
@@ -312,7 +313,7 @@ public class Browser {
 
                 }
 
-                if (forceBrowser[0] || allActivities == null || allActivities.isEmpty()) {
+                if (forceBrowser[0] || allActivities == null || allActivities.isEmpty() || /*CloudVeil start*/forceInternal/*CloudVeil end*/) {
                     Intent share = new Intent(ApplicationLoader.applicationContext, ShareBroadcastReceiver.class);
                     share.setAction(Intent.ACTION_SEND);
 
