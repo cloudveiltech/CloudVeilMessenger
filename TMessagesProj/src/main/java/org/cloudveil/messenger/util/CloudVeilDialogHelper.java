@@ -160,7 +160,7 @@ public class CloudVeilDialogHelper {
         } else if (chat != null) {
             return new Pair<>(chat,  ChatObject.isChannel(chat) ? DialogType.channel : DialogType.group);
         } else if (user != null) {
-            return new Pair<>(encryptedChat, user.bot ? DialogType.bot : DialogType.user);
+            return new Pair<>(user, user.bot ? DialogType.bot : DialogType.user);
         }
         return new Pair<>(null, DialogType.group);
     }

@@ -15600,7 +15600,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
         } else if (id == NotificationCenter.didSetNewWallpapper) {
             if (fragmentView != null) {
-                contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
+                if(contentView != null) {
+                    contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
+                }
                 if(progressView2 != null) {
                     progressView2.invalidate();
                 }
@@ -15613,7 +15615,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 if (floatingDateView != null) {
                     floatingDateView.invalidate();
                 }
-                chatListView.invalidateViews();
+                if(chatListView != null) {
+                    chatListView.invalidateViews();
+                }
             }
         } else if (id == NotificationCenter.didApplyNewTheme) {
             if (undoView == null || paused) {

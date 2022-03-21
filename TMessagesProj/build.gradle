@@ -106,7 +106,7 @@ android {
             debuggable true
             jniDebuggable true
             signingConfig signingConfigs.debug
-            applicationIdSuffix ".beta"
+       //     applicationIdSuffix ".beta"
             minifyEnabled false
             shrinkResources false
             multiDexEnabled true
@@ -311,7 +311,7 @@ android {
         }
     }
 
-    defaultConfig.versionCode = 2435
+    defaultConfig.versionCode = 2436
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
