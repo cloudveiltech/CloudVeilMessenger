@@ -1463,7 +1463,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             entity instanceof TLRPC.TL_messageEntityItalic ||
                             entity instanceof TLRPC.TL_messageEntityPre ||
                             entity instanceof TLRPC.TL_messageEntityCode ||
-                            entity instanceof TLRPC.TL_messageEntityTextUrl) {
+                            entity instanceof TLRPC.TL_messageEntityTextUrl ||
+                            entity instanceof TLRPC.TL_messageEntitySpoiler) {
                         entities.add(entity);
                     }
                 }
@@ -1615,7 +1616,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
                 AndroidUtilities.runOnUIThread(() -> {
                     if (bitmapFinal[0] != null && keyFinal[0] != null) {
-                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal[0]), keyFinal[0]);
+                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal[0]), keyFinal[0], false);
                     }
                     sendMessage((TLRPC.TL_document) finalDocument, null, null, peer, replyToMsg, replyToTopMsg, null, null, null, null, notify, scheduleDate, 0, parentObject, sendAnimationData);
                 });
@@ -1882,16 +1883,20 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         newMsg.from_id = peer_id;
                     }
                     newMsg.post = true;
-                } else if (ChatObject.shouldSendAnonymously(chat)) {
-                    newMsg.from_id = peer_id;
-                    if (rank != null) {
-                        newMsg.post_author = rank;
-                        newMsg.flags |= 65536;
-                    }
                 } else {
-                    newMsg.from_id = new TLRPC.TL_peerUser();
-                    newMsg.from_id.user_id = myId;
-                    newMsg.flags |= TLRPC.MESSAGE_FLAG_HAS_FROM_ID;
+                    long fromPeerId = ChatObject.getSendAsPeerId(chat, getMessagesController().getChatFull(-peer), true);
+
+                    if (fromPeerId == myId) {
+                        newMsg.from_id = new TLRPC.TL_peerUser();
+                        newMsg.from_id.user_id = myId;
+                        newMsg.flags |= TLRPC.MESSAGE_FLAG_HAS_FROM_ID;
+                    } else {
+                        newMsg.from_id = getMessagesController().getPeer(fromPeerId);
+                        if (rank != null) {
+                            newMsg.post_author = rank;
+                            newMsg.flags |= 65536;
+                        }
+                    }
                 }
                 if (newMsg.random_id == 0) {
                     newMsg.random_id = getNextRandomId();
@@ -1929,6 +1934,16 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 newMsgObj.wasJustSent = true;
                 objArr.add(newMsgObj);
                 arr.add(newMsg);
+
+                if (msgObj.replyMessageObject != null) {
+                    for (int i = 0; i < messages.size(); i++) {
+                        if (messages.get(i).getId() == msgObj.replyMessageObject.getId()) {
+                            newMsgObj.messageOwner.replyMessage = msgObj.replyMessageObject.messageOwner;
+                            newMsgObj.replyMessageObject = msgObj.replyMessageObject;
+                            break;
+                        }
+                    }
+                }
 
                 putToSendingMessages(newMsg, scheduleDate != 0);
                 boolean differentDialog = false;
@@ -2654,30 +2669,33 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         return voteSendTime.get(pollId, 0L);
     }
 
-    public void sendReaction(MessageObject messageObject, CharSequence reaction, ChatActivity parentFragment) {
+    public void sendReaction(MessageObject messageObject, CharSequence reaction, boolean big, ChatActivity parentFragment, Runnable callback) {
         if (messageObject == null || parentFragment == null) {
             return;
         }
         TLRPC.TL_messages_sendReaction req = new TLRPC.TL_messages_sendReaction();
-        req.peer = getMessagesController().getInputPeer(messageObject.getDialogId());
-        req.msg_id = messageObject.getId();
+        if (messageObject.messageOwner.isThreadMessage && messageObject.messageOwner.fwd_from != null) {
+            req.peer = getMessagesController().getInputPeer(messageObject.getFromChatId());
+            req.msg_id = messageObject.messageOwner.fwd_from.saved_from_msg_id;
+        } else {
+            req.peer = getMessagesController().getInputPeer(messageObject.getDialogId());
+            req.msg_id = messageObject.getId();
+        }
         if (reaction != null) {
             req.reaction = reaction.toString();
             req.flags |= 1;
         }
+        if (big) {
+            req.flags |= 2;
+            req.big = true;
+        }
         getConnectionsManager().sendRequest(req, (response, error) -> {
             if (response != null) {
                 getMessagesController().processUpdates((TLRPC.Updates) response, false);
-            }
-            /*AndroidUtilities.runOnUIThread(new Runnable() {
-                @Override
-                public void run() {
-                    waitingForVote.remove(key);
-                    if (finishRunnable != null) {
-                        finishRunnable.run();
-                    }
+                if (callback != null) {
+                    AndroidUtilities.runOnUIThread(callback);
                 }
-            });*/
+            }
         });
     }
 
@@ -2739,6 +2757,27 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     passwordFragment.needHideProgress();
                     passwordFragment.finishFragment();
                 }
+
+                long uid = messageObject.getFromChatId();
+                if (messageObject.messageOwner.via_bot_id != 0) {
+                    uid = messageObject.messageOwner.via_bot_id;
+                }
+                String name = null;
+                if (uid > 0) {
+                    TLRPC.User user = getMessagesController().getUser(uid);
+                    if (user != null) {
+                        name = ContactsController.formatName(user.first_name, user.last_name);
+                    }
+                } else {
+                    TLRPC.Chat chat = getMessagesController().getChat(-uid);
+                    if (chat != null) {
+                        name = chat.title;
+                    }
+                }
+                if (name == null) {
+                    name = "bot";
+                }
+
                 if (button instanceof TLRPC.TL_keyboardButtonUrlAuth) {
                     if (response instanceof TLRPC.TL_urlAuthResultRequest) {
                         TLRPC.TL_urlAuthResultRequest res = (TLRPC.TL_urlAuthResultRequest) response;
@@ -2765,26 +2804,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     if (!cacheFinal && res.cache_time != 0 && !button.requires_password) {
                         getMessagesStorage().saveBotCache(key, res);
                     }
+
                     if (res.message != null) {
-                        long uid = messageObject.getFromChatId();
-                        if (messageObject.messageOwner.via_bot_id != 0) {
-                            uid = messageObject.messageOwner.via_bot_id;
-                        }
-                        String name = null;
-                        if (uid > 0) {
-                            TLRPC.User user = getMessagesController().getUser(uid);
-                            if (user != null) {
-                                name = ContactsController.formatName(user.first_name, user.last_name);
-                            }
-                        } else {
-                            TLRPC.Chat chat = getMessagesController().getChat(-uid);
-                            if (chat != null) {
-                                name = chat.title;
-                            }
-                        }
-                        if (name == null) {
-                            name = "bot";
-                        }
                         if (res.alert) {
                             if (parentFragment.getParentActivity() == null) {
                                 return;
@@ -2800,10 +2821,6 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     } else if (res.url != null) {
                         if (parentFragment.getParentActivity() == null) {
                             return;
-                        }
-                        long uid = messageObject.getFromChatId();
-                        if (messageObject.messageOwner.via_bot_id != 0) {
-                            uid = messageObject.messageOwner.via_bot_id;
                         }
                         TLRPC.User user = getMessagesController().getUser(uid);
                         boolean verified = user != null && user.verified;
@@ -3019,6 +3036,10 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         request.random_id = random_id != 0 ? random_id : getNextRandomId();
         request.message = "";
         request.media = game;
+        long fromId = ChatObject.getSendAsPeerId(getMessagesController().getChat(peer.chat_id), getMessagesController().getChatFull(peer.chat_id));
+        if (fromId != UserConfig.getInstance(currentAccount).getClientUserId()) {
+            request.send_as = getMessagesController().getInputPeer(fromId);
+        }
         final long newTaskId;
         if (taskId == 0) {
             NativeByteBuffer data = null;
@@ -3124,7 +3145,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         int type = -1;
         boolean isChannel = false;
         boolean forceNoSoundVideo = false;
-        boolean anonymously = false;
+        TLRPC.Peer fromPeer = null;
         String rank = null;
         long linkedToGroup = 0;
         TLRPC.EncryptedChat encryptedChat = null;
@@ -3143,14 +3164,12 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             }
         } else if (sendToPeer instanceof TLRPC.TL_inputPeerChannel) {
             TLRPC.Chat chat = getMessagesController().getChat(sendToPeer.channel_id);
+            TLRPC.ChatFull chatFull = getMessagesController().getChatFull(chat.id);
             isChannel = chat != null && !chat.megagroup;
-            if (isChannel && chat.has_link) {
-                TLRPC.ChatFull chatFull = getMessagesController().getChatFull(chat.id);
-                if (chatFull != null) {
-                    linkedToGroup = chatFull.linked_chat_id;
-                }
+            if (isChannel && chat.has_link && chatFull != null) {
+                linkedToGroup = chatFull.linked_chat_id;
             }
-            anonymously = ChatObject.shouldSendAnonymously(chat);
+            fromPeer = getMessagesController().getPeer(ChatObject.getSendAsPeerId(chat, chatFull, true));
         }
 
         try {
@@ -3378,7 +3397,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     newMsg.media.document = document;
                     if (params != null && params.containsKey("query_id")) {
                         type = 9;
-                    } else if (MessageObject.isVideoDocument(document) || MessageObject.isRoundVideoDocument(document) || videoEditedInfo != null) {
+                    } else if (!MessageObject.isVideoSticker(document) && (MessageObject.isVideoDocument(document) || MessageObject.isRoundVideoDocument(document) || videoEditedInfo != null)) {
                         type = 3;
                     } else if (MessageObject.isVoiceDocument(document)) {
                         type = 8;
@@ -3450,8 +3469,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 if (isChannel && sendToPeer != null) {
                     newMsg.from_id = new TLRPC.TL_peerChannel();
                     newMsg.from_id.channel_id = sendToPeer.channel_id;
-                } else if (anonymously) {
-                    newMsg.from_id = getMessagesController().getPeer(peer);
+                } else if (fromPeer != null) {
+                    newMsg.from_id = fromPeer;
                     if (rank != null) {
                         newMsg.post_author = rank;
                         newMsg.flags |= 65536;
@@ -3661,6 +3680,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     reqSend.silent = newMsg.silent;
                     reqSend.peer = sendToPeer;
                     reqSend.random_id = newMsg.random_id;
+                    if (newMsg.from_id != null) {
+                        reqSend.send_as = getMessagesController().getInputPeer(newMsg.from_id);
+                    }
                     if (newMsg.reply_to != null && newMsg.reply_to.reply_to_msg_id != 0) {
                         reqSend.flags |= 1;
                         reqSend.reply_to_msg_id = newMsg.reply_to.reply_to_msg_id;
@@ -4020,6 +4042,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             request.reply_to_msg_id = newMsg.reply_to.reply_to_msg_id;
                         }
                         request.random_id = newMsg.random_id;
+                        if (newMsg.from_id != null) {
+                            request.send_as = getMessagesController().getInputPeer(newMsg.from_id);
+                        }
                         request.media = inputMedia;
                         request.message = caption;
                         if (entities != null && !entities.isEmpty()) {
@@ -4395,6 +4420,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 TLRPC.TL_messages_sendInlineBotResult reqSend = new TLRPC.TL_messages_sendInlineBotResult();
                 reqSend.peer = sendToPeer;
                 reqSend.random_id = newMsg.random_id;
+                if (newMsg.from_id != null) {
+                    reqSend.send_as = getMessagesController().getInputPeer(newMsg.from_id);
+                }
                 reqSend.hide_via = !params.containsKey("bot");
                 if (newMsg.reply_to != null && newMsg.reply_to.reply_to_msg_id != 0) {
                     reqSend.flags |= 1;
@@ -6741,7 +6769,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 AndroidUtilities.runOnUIThread(() -> {
                     if (finalDocument != null) {
                         if (precahcedThumb[0] != null && precachedKey[0] != null) {
-                            ImageLoader.getInstance().putImageToCache(new BitmapDrawable(precahcedThumb[0]), precachedKey[0]);
+                            ImageLoader.getInstance().putImageToCache(new BitmapDrawable(precahcedThumb[0]), precachedKey[0], false);
                         }
                         accountInstance.getSendMessagesHelper().sendMessage(finalDocument, null, finalPathFinal, dialogId, replyToMsg, replyToTopMsg, result.send_message.message, result.send_message.entities, result.send_message.reply_markup, params, notify, scheduleDate, 0, result, null);
                     } else if (finalPhoto != null) {
@@ -7008,7 +7036,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
                         boolean isWebP = false;
                         if (tempPath != null && info.ttl <= 0 && (tempPath.endsWith(".gif") || (isWebP = tempPath.endsWith(".webp")))) {
-                            if (!isWebP || shouldSendWebPAsSticker(tempPath, null)) {
+                            if (media.size() <= 1 && (!isWebP || shouldSendWebPAsSticker(tempPath, null))) {
                                 continue;
                             } else {
                                 info.forceImage = true;
@@ -7017,7 +7045,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             continue;
                         } else if (tempPath == null && info.uri != null) {
                             if (MediaController.isGif(info.uri) || (isWebP = MediaController.isWebp(info.uri))) {
-                                if (!isWebP || shouldSendWebPAsSticker(null, info.uri)) {
+                                if (media.size() <= 1 && (!isWebP || shouldSendWebPAsSticker(null, info.uri))) {
                                     continue;
                                 } else {
                                     info.forceImage = true;
@@ -7419,7 +7447,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             }
                             AndroidUtilities.runOnUIThread(() -> {
                                 if (thumbFinal != null && thumbKeyFinal != null) {
-                                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(thumbFinal), thumbKeyFinal);
+                                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(thumbFinal), thumbKeyFinal, false);
                                 }
                                 if (editingMessageObject != null) {
                                     accountInstance.getSendMessagesHelper().editMessage(editingMessageObject, null, videoEditedInfo, videoFinal, finalPath, params, false, parentFinal);
@@ -7616,7 +7644,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 }
                                 AndroidUtilities.runOnUIThread(() -> {
                                     if (bitmapFinal[0] != null && keyFinal[0] != null) {
-                                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal[0]), keyFinal[0]);
+                                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal[0]), keyFinal[0], false);
                                     }
                                     if (editingMessageObject != null) {
                                         accountInstance.getSendMessagesHelper().editMessage(editingMessageObject, photoFinal, null, null, null, params, false, parentFinal);
@@ -7873,7 +7901,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             selectedCompression = compressionsCount;
         }
         boolean needCompress = false;
-        if (selectedCompression != compressionsCount - 1 || Math.max(videoEditedInfo.originalWidth, videoEditedInfo.originalHeight) > 1280) {
+        if (selectedCompression != compressionsCount || Math.max(videoEditedInfo.originalWidth, videoEditedInfo.originalHeight) > 1280) {
             needCompress = true;
             switch (selectedCompression) {
                 case 1:
@@ -7899,16 +7927,16 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 videoEditedInfo.resultHeight, videoEditedInfo.resultWidth
         );
 
+
         if (!needCompress) {
             videoEditedInfo.resultWidth = videoEditedInfo.originalWidth;
             videoEditedInfo.resultHeight = videoEditedInfo.originalHeight;
             videoEditedInfo.bitrate = bitrate;
-            videoEditedInfo.estimatedSize = (int) (audioFramesSize + videoDuration / 1000.0f * bitrate / 8);
         } else {
             videoEditedInfo.bitrate = bitrate;
-            videoEditedInfo.estimatedSize = (int) (audioFramesSize + videoFramesSize);
-            videoEditedInfo.estimatedSize += videoEditedInfo.estimatedSize / (32 * 1024) * 16;
         }
+
+        videoEditedInfo.estimatedSize = (int) (audioFramesSize + videoDuration / 1000.0f * bitrate / 8);
         if (videoEditedInfo.estimatedSize == 0) {
             videoEditedInfo.estimatedSize = 1;
         }
@@ -8059,7 +8087,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
                 AndroidUtilities.runOnUIThread(() -> {
                     if (thumbFinal != null && thumbKeyFinal != null) {
-                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(thumbFinal), thumbKeyFinal);
+                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(thumbFinal), thumbKeyFinal, false);
                     }
                     if (editingMessageObject != null) {
                         accountInstance.getSendMessagesHelper().editMessage(editingMessageObject, null, videoEditedInfo, videoFinal, finalPath, params, false, parentFinal);

@@ -31,6 +31,8 @@ import org.telegram.ui.ActionBar.BaseFragment;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CloudVeilDialogHelper {
     private int accountNumber;
@@ -412,5 +414,14 @@ public class CloudVeilDialogHelper {
         }
 
         Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId);
+    }
+
+    private static final Pattern youtubeIdRegex = Pattern.compile("(?:youtube(?:-nocookie)?\\.com/(?:[^/\\n\\s]+/\\S+/|(?:v|e(?:mbed)?)/|\\S*?[?&]v=)|youtu\\.be/)([a-zA-Z0-9_-]{11})");
+    public static boolean isYoutubeUrl(String url) {
+        if(TextUtils.isEmpty(url)) {
+            return false;
+        }
+        Matcher matcher = youtubeIdRegex.matcher(url);
+        return matcher.find();
     }
 }

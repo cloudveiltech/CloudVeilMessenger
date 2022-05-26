@@ -8,24 +8,39 @@
 
 package org.telegram.ui.Components;
 
+import android.graphics.CornerPathEffect;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.os.Build;
-import android.text.StaticLayout;
+import android.text.Layout;
 
 import org.telegram.messenger.AndroidUtilities;
 
+import java.util.ArrayList;
+
 public class LinkPath extends Path {
 
-    private StaticLayout currentLayout;
+    private Layout currentLayout;
     private int currentLine;
     private float lastTop = -1;
     private float heightOffset;
     private boolean useRoundRect;
-    private RectF rect;
     private boolean allowReset = true;
     private int baselineShift;
     private int lineHeight;
+
+    public static int getRadius() {
+        return AndroidUtilities.dp(4);
+    }
+
+    private static CornerPathEffect roundedEffect;
+    private static int roundedEffectRadius;
+    public static CornerPathEffect getRoundedEffect() {
+        if (roundedEffect == null || roundedEffectRadius != getRadius()) {
+            roundedEffect = new CornerPathEffect(roundedEffectRadius = getRadius());
+        }
+        return roundedEffect;
+    }
 
     public LinkPath() {
         super();
@@ -36,7 +51,7 @@ public class LinkPath extends Path {
         useRoundRect = roundRect;
     }
 
-    public void setCurrentLayout(StaticLayout layout, int start, float yOffset) {
+    public void setCurrentLayout(Layout layout, int start, float yOffset) {
         currentLayout = layout;
         currentLine = layout.getLineForOffset(start);
         lastTop = -1;
@@ -102,11 +117,7 @@ public class LinkPath extends Path {
             y += baselineShift;
         }
         if (useRoundRect) {
-            if (rect == null) {
-                rect = new RectF();
-            }
-            rect.set(left - AndroidUtilities.dp(4), y, right + AndroidUtilities.dp(4), y2);
-            super.addRoundRect(rect, AndroidUtilities.dp(4), AndroidUtilities.dp(4), dir);
+            super.addRect(left - getRadius() / 2f, y, right + getRadius() / 2f, y2, dir);
         } else {
             super.addRect(left, y, right, y2, dir);
         }

@@ -21,12 +21,18 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.res.Configuration;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.multidex.MultiDex;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -40,8 +46,6 @@ import org.telegram.ui.Components.ForegroundDetector;
 
 import java.io.File;
 
-import androidx.multidex.MultiDex;
-
 public class ApplicationLoader extends Application {
 
     @SuppressLint("StaticFieldLeak")
@@ -51,6 +55,9 @@ public class ApplicationLoader extends Application {
 
     private static ConnectivityManager connectivityManager;
     private static volatile boolean applicationInited = false;
+    private static volatile  ConnectivityManager.NetworkCallback networkCallback;
+    private static long lastNetworkCheckTypeTime;
+    private static int lastKnownNetworkType = -1;
 
     public static long startTime;
 
@@ -89,7 +96,7 @@ public class ApplicationLoader extends Application {
     }
 
     public static void postInitApplication() {
-        if (applicationInited) {
+        if (applicationInited || applicationContext == null) {
             return;
         }
         applicationInited = true;
@@ -144,6 +151,7 @@ public class ApplicationLoader extends Application {
         }
 
         SharedConfig.loadConfig();
+        SharedPrefsHelper.init(applicationContext);
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) { //TODO improve account
             UserConfig.getInstance(a).loadConfig();
             MessagesController.getInstance(a);
@@ -233,7 +241,7 @@ public class ApplicationLoader extends Application {
         boolean enabled;
         //CloudVeil start
         if (preferences.contains("pushService") || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
-        //CloudVeil end
+            //CloudVeil end
             enabled = preferences.getBoolean("pushService", true);
         } else {
             enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
@@ -328,6 +336,22 @@ public class ApplicationLoader extends Application {
                     connectivityManager = (ConnectivityManager) ApplicationLoader.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE);
                 }
                 currentNetworkInfo = connectivityManager.getActiveNetworkInfo();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    if (networkCallback == null) {
+                        networkCallback = new ConnectivityManager.NetworkCallback() {
+                            @Override
+                            public void onAvailable(@NonNull Network network) {
+                                lastKnownNetworkType = -1;
+                            }
+
+                            @Override
+                            public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities networkCapabilities) {
+                                lastKnownNetworkType = -1;
+                            }
+                        };
+                        connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                    }
+                }
             } catch (Throwable ignore) {
 
             }
@@ -397,11 +421,16 @@ public class ApplicationLoader extends Application {
                 return StatsController.TYPE_MOBILE;
             }
             if (currentNetworkInfo.getType() == ConnectivityManager.TYPE_WIFI || currentNetworkInfo.getType() == ConnectivityManager.TYPE_ETHERNET) {
-                if (connectivityManager.isActiveNetworkMetered()) {
-                    return StatsController.TYPE_MOBILE;
-                } else {
-                    return StatsController.TYPE_WIFI;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && (lastKnownNetworkType == StatsController.TYPE_MOBILE || lastKnownNetworkType == StatsController.TYPE_WIFI) && System.currentTimeMillis() - lastNetworkCheckTypeTime < 5000) {
+                    return lastKnownNetworkType;
                 }
+                if (connectivityManager.isActiveNetworkMetered()) {
+                    lastKnownNetworkType = StatsController.TYPE_MOBILE;
+                } else {
+                    lastKnownNetworkType = StatsController.TYPE_WIFI;
+                }
+                lastNetworkCheckTypeTime = System.currentTimeMillis();
+                return lastKnownNetworkType;
             }
             if (currentNetworkInfo.isRoaming()) {
                 return StatsController.TYPE_ROAMING;

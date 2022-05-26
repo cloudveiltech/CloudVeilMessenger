@@ -245,7 +245,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     onFinishCameraInitRunnables.clear();
                     loadingCameras = false;
                     cameraInitied = false;
-                    if (!withDelay && "APP_PAUSED".equals(e.getMessage())) {
+                    if (!withDelay && "APP_PAUSED".equals(e.getMessage()) && onInitRunnable != null) {
                         AndroidUtilities.runOnUIThread(() -> initCamera(onInitRunnable, true), 1000);
                     }
                 });
@@ -431,7 +431,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             outputStream.getFD().sync();
                             outputStream.close();
                             if (scaled != null) {
-                                ImageLoader.getInstance().putImageToCache(new BitmapDrawable(scaled), key);
+                                ImageLoader.getInstance().putImageToCache(new BitmapDrawable(scaled), key, false);
                             }
                             if (callback != null) {
                                 callback.run();
@@ -447,7 +447,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     outputStream.getFD().sync();
                     outputStream.close();
                     if (bitmap != null) {
-                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmap), key);
+                        ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmap), key, false);
                     }
                 } catch (Exception e) {
                     FileLog.e(e);
@@ -468,7 +468,6 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             return;
         }
         threadPool.execute(() -> {
-
             Camera camera = session.cameraInfo.camera;
             try {
                 //CloudVeil start
@@ -512,6 +511,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         });
     }
 
+
     public void openRound(final CameraSession session, final SurfaceTexture texture, final Runnable callback, final Runnable configureCallback) {
         if (session == null || texture == null) {
             if (BuildVars.LOGS_ENABLED) {
@@ -525,6 +525,10 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("start creating round camera session");
                 }
+                //CloudVeil start
+                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                //CloudVeil end
+
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                 }
@@ -649,7 +653,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                         FileLog.e(e);
                     }
                     camera.unlock();
-                    //camera.stopPreview();
+//                    camera.stopPreview();
                     try {
                         mirrorRecorderVideo = mirror;
                         recorder = new MediaRecorder();
@@ -738,7 +742,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             if (onVideoTakeCallback != null) {
                 String path = cacheFile.getAbsolutePath();
                 if (bitmapFinal != null) {
-                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal), Utilities.MD5(path));
+                    ImageLoader.getInstance().putImageToCache(new BitmapDrawable(bitmapFinal), Utilities.MD5(path), false);
                 }
                 onVideoTakeCallback.onFinishVideoRecording(path, durationFinal);
                 onVideoTakeCallback = null;
@@ -823,8 +827,8 @@ public class CameraController implements MediaRecorder.OnInfoListener {
     }
 
     public static Size chooseOptimalSize(List<Size> choices, int width, int height, Size aspectRatio) {
-        List<Size> bigEnoughWithAspectRatio = new ArrayList<>();
-        List<Size> bigEnough = new ArrayList<>();
+        List<Size> bigEnoughWithAspectRatio = new ArrayList<>(choices.size());
+        List<Size> bigEnough = new ArrayList<>(choices.size());
         int w = aspectRatio.getWidth();
         int h = aspectRatio.getHeight();
         for (int a = 0; a < choices.size(); a++) {

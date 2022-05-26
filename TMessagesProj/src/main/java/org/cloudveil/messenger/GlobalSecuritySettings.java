@@ -5,9 +5,13 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.pm.ShortcutManagerCompat;
 
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
+import org.telegram.messenger.MediaDataController;
+import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.UserConfig;
 
 /**
  * Created by darren on 2017-03-25.
@@ -94,8 +98,13 @@ public class GlobalSecuritySettings {
     }
 
     public static void setLockDisableOthersPhoto(boolean lockDisableOthersPhoto) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putBoolean("disabledOthersPhoto", lockDisableOthersPhoto).apply();
+        boolean oldValue = getLockDisableOthersPhoto();
+        if(oldValue != lockDisableOthersPhoto) {
+            ShortcutManagerCompat.removeAllDynamicShortcuts(ApplicationLoader.applicationContext);
+            MediaDataController.getInstance(UserConfig.selectedAccount).buildShortcuts();
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+            preferences.edit().putBoolean("disabledOthersPhoto", lockDisableOthersPhoto).apply();
+        }
     }
 
     public static boolean getDisabledVideoInlineRecording() {
@@ -162,7 +171,8 @@ public class GlobalSecuritySettings {
     }
 
     public static boolean getIsProfileVideoDisabled() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(),
+                Activity.MODE_PRIVATE);
         boolean res = preferences.getBoolean("isProfileVideoDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_DISABLED);
         return res || getLockDisableOthersPhoto();
     }

@@ -60,6 +60,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Objects;
 
 import androidx.collection.LongSparseArray;
 import androidx.recyclerview.widget.RecyclerView;
@@ -168,6 +169,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     };
 
     public MentionsAdapter(Context context, boolean darkTheme, long did, int threadMessageId, MentionsAdapterDelegate mentionsAdapterDelegate, Theme.ResourcesProvider resourcesProvider) {
+//        setHasStableIds(true);
         this.resourcesProvider = resourcesProvider;
         mContext = context;
         delegate = mentionsAdapterDelegate;
@@ -216,7 +218,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil end
-
         String key = document.dc_id + "_" + document.id;
         if (stickersMap != null && stickersMap.containsKey(key)) {
             return;
@@ -241,6 +242,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil end
+
         for (int a = 0, size = documents.size(); a < size; a++) {
             TLRPC.Document document = documents.get(a);
             String key = document.dc_id + "_" + document.id;
@@ -262,6 +264,41 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             stickersMap.put(key, document);
         }
     }
+
+//    public long getItemIdInternal(int position) {
+//        try {
+//            if (stickers != null) {
+//                return stickers.get(position).sticker.id;
+//            } else if (foundContextBot != null && !inlineMediaEnabled) {
+//                return foundContextBot.id;
+//            } else if (searchResultBotContext != null) {
+//                if (position == 0 && searchResultBotContextSwitch != null) {
+//                    return -1;
+//                }
+//                return searchResultBotContext.get(position - (searchResultBotContextSwitch != null ? 1 : 0)).query_id;
+//            } else if (searchResultUsernames != null) {
+//                TLObject obj = searchResultUsernames.get(position);
+//                if (obj instanceof TLRPC.User) {
+//                    return ((TLRPC.User) obj).id;
+//                } else if (obj instanceof TLRPC.Chat) {
+//                    return ((TLRPC.Chat) obj).id;
+//                }
+//                return obj.hashCode();
+//            } else if (searchResultHashtags != null) {
+//                return searchResultHashtags.get(position).hashCode();
+//            } else if (searchResultCommands != null) {
+//                return searchResultCommands.get(position).hashCode();
+//            } else if (searchResultSuggestions != null) {
+//                return searchResultSuggestions.get(position).emoji.hashCode();
+//            }
+//        } catch (Exception ignore) {}
+//        return 0;
+//    }
+//
+//    @Override
+//    public long getItemId(int position) {
+//        return Objects.hash(getItemIdInternal(position), getItemCount() < 5 ? getItemCount() - position : position);
+//    }
 
     private boolean checkStickerFilesExistAndDownload() {
         if (stickers == null) {
@@ -1036,7 +1073,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                         continue;
                     }
                     //CloudVeil end
-
                     if (!TextUtils.isEmpty(user.username) && (usernameString.length() == 0 || user.username.toLowerCase().startsWith(usernameString))) {
                         newResult.add(user);
                         newResultsHashMap.put(user.id, user);
@@ -1188,7 +1224,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                                             if (searchResultUsernamesMap.indexOfKey(peerId) >= 0 || !isSearchingMentions && peerId == currentUserId) {
                                                 continue;
                                             }
-                                            if (peerId > 0) {
+                                            if (peerId >= 0) {
                                                 TLRPC.User user = messagesController.getUser(peerId);
                                                 if (user == null) {
                                                     return;
@@ -1241,6 +1277,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             String command = result.toString().toLowerCase();
             for (int b = 0; b < botInfo.size(); b++) {
                 TLRPC.BotInfo info = botInfo.valueAt(b);
+
                 //CloudVeil start
                 if(CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(info)) {
                     for (int a = 0; a < info.commands.size(); a++) {

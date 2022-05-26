@@ -1223,6 +1223,7 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
                             public final String[] PREFIXES_14 = {"300", "301", "302", "303", "304", "305", "309", "36", "38", "39"};
                             public final String[] PREFIXES_16 = {
                                     "2221", "2222", "2223", "2224", "2225", "2226", "2227", "2228", "2229",
+                                    "2200", "2201", "2202", "2203", "2204",
                                     "223", "224", "225", "226", "227", "228", "229",
                                     "23", "24", "25", "26",
                                     "270", "271", "2720",
@@ -2154,7 +2155,7 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
                             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                             builder.setTitle(LocaleController.getString("PaymentWarning", R.string.PaymentWarning));
                             builder.setMessage(LocaleController.formatString("PaymentWarningText", R.string.PaymentWarningText, currentBotName, providerName));
-                            builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> showPayAlert(totalPrice[0]));
+                            builder.setPositiveButton(LocaleController.getString("Continue", R.string.Continue), (dialogInterface, i) -> showPayAlert(totalPrice[0]));
                             showDialog(builder.create());
                         } else {
                             showPayAlert(totalPrice[0]);
@@ -2670,7 +2671,7 @@ public class PaymentFormActivity extends BaseFragment implements NotificationCen
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle(LocaleController.getString("PaymentTransactionReview", R.string.PaymentTransactionReview));
         builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("PaymentTransactionMessage2", R.string.PaymentTransactionMessage2, totalPrice, currentBotName, currentItemName)));
-        builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), (dialogInterface, i) -> {
+        builder.setPositiveButton(LocaleController.getString("Continue", R.string.Continue), (dialogInterface, i) -> {
             setDonePressed(true);
             sendData();
         });

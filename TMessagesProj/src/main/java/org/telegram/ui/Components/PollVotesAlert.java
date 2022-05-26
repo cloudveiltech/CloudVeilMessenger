@@ -735,7 +735,7 @@ public class PollVotesAlert extends BottomSheet {
         listView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
         listView.setHorizontalScrollBarEnabled(false);
         listView.setVerticalScrollBarEnabled(false);
-        listView.setSectionsType(2);
+        listView.setSectionsType(RecyclerListView.SECTIONS_TYPE_DATE);
         containerView.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
         listView.setAdapter(listAdapter = new Adapter(context));
         listView.setGlowColor(Theme.getColor(Theme.key_dialogScrollGlow));
@@ -1188,8 +1188,9 @@ public class PollVotesAlert extends BottomSheet {
         }
 
         @Override
-        public int getPositionForScrollProgress(float progress) {
-            return 0;
+        public void getPositionForScrollProgress(RecyclerListView listView, float progress, int[] position) {
+            position[0] = 0;
+            position[1] = 0;
         }
     }
 

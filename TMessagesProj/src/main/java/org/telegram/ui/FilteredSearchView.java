@@ -62,6 +62,7 @@ import org.telegram.ui.Cells.SharedMediaSectionCell;
 import org.telegram.ui.Cells.SharedPhotoVideoCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.BackupImageView;
+import org.telegram.ui.Components.BlurredRecyclerView;
 import org.telegram.ui.Components.ColoredImageSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.EmbedBottomSheet;
@@ -217,11 +218,11 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                             if (view instanceof SharedDocumentCell) {
                                 top += AndroidUtilities.dp(8f);
                             }
-                            final int topOffset = top - object.viewY;
+                            final int topOffset = (int) (top - object.viewY);
                             if (topOffset > view.getHeight()) {
                                 listView.scrollBy(0, -(topOffset + pinnedHeader.getHeight()));
                             } else {
-                                int bottomOffset = object.viewY - listView.getHeight();
+                                int bottomOffset = (int) (object.viewY - listView.getHeight());
                                 if (view instanceof SharedDocumentCell) {
                                     bottomOffset -= AndroidUtilities.dp(8f);
                                 }
@@ -268,7 +269,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
         parentFragment = fragment;
         Context context = parentActivity = fragment.getParentActivity();
         setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        recyclerListView = new RecyclerListView(context) {
+        recyclerListView = new BlurredRecyclerView(context) {
 
             @Override
             protected void dispatchDraw(Canvas canvas) {
@@ -354,7 +355,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
         });
         addView(recyclerListView);
 
-        recyclerListView.setSectionsType(2);
+        recyclerListView.setSectionsType(RecyclerListView.SECTIONS_TYPE_DATE);
         recyclerListView.setOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
@@ -980,7 +981,6 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
             PhotoViewer.getInstance().setParentActivity(parentActivity);
             PhotoViewer.getInstance().openPhoto(messages, index, 0, 0, provider);
             photoViewerClassGuid = PhotoViewer.getInstance().getClassGuid();
-
         } else if (currentSearchFilter.filterType == FiltersView.FILTER_TYPE_MUSIC || currentSearchFilter.filterType == FiltersView.FILTER_TYPE_VOICE) {
             if (view instanceof SharedAudioCell) {
                 ((SharedAudioCell) view).didPressedButton();
@@ -1009,6 +1009,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     AndroidUtilities.openDocument(message, parentActivity, parentFragment);
                 } else if (!cell.isLoading()) {
                     MessageObject messageObject = cell.getMessage();
+                    messageObject.putInDownloadsStore = true;
                     AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(document, messageObject, 0, 0);
                     cell.updateFileExistIcon(true);
                 } else {
@@ -1217,8 +1218,9 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
         }
 
         @Override
-        public int getPositionForScrollProgress(float progress) {
-            return 0;
+        public void getPositionForScrollProgress(RecyclerListView listView, float progress, int[] position) {
+            position[0] = 0;
+            position[1] = 0;
         }
     }
 
@@ -1410,8 +1412,9 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
         }
 
         @Override
-        public int getPositionForScrollProgress(float progress) {
-            return 0;
+        public void getPositionForScrollProgress(RecyclerListView listView, float progress, int[] position) {
+            position[0] = 0;
+            position[1] = 0;
         }
     }
 
@@ -1684,6 +1687,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
     public void setChatPreviewDelegate(SearchViewPager.ChatPreviewDelegate chatPreviewDelegate) {
         this.chatPreviewDelegate = chatPreviewDelegate;
     }
+
 
     public ArrayList<ThemeDescription> getThemeDescriptions() {
         ArrayList<ThemeDescription> arrayList = new ArrayList<>();

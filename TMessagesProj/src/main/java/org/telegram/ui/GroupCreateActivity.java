@@ -354,7 +354,7 @@ public class GroupCreateActivity extends BaseFragment implements NotificationCen
         addToGroup = args.getBoolean("addToGroup", false);
         chatAddType = args.getInt("chatAddType", 0);
         chatId = args.getLong("chatId");
-        channelId = args.getInt("channelId");
+        channelId = args.getLong("channelId");
         if (isAlwaysShare || isNeverShare || addToGroup) {
             maxCount = 0;
         } else {
@@ -668,7 +668,7 @@ public class GroupCreateActivity extends BaseFragment implements NotificationCen
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
 
         listView = new RecyclerListView(context);
-        listView.setFastScrollEnabled();
+        listView.setFastScrollEnabled(RecyclerListView.FastScroll.LETTER_TYPE);
         listView.setEmptyView(emptyView);
         listView.setAdapter(adapter = new GroupCreateAdapter(context));
         listView.setLayoutManager(linearLayoutManager);
@@ -1443,8 +1443,9 @@ public class GroupCreateActivity extends BaseFragment implements NotificationCen
         }
 
         @Override
-        public int getPositionForScrollProgress(float progress) {
-            return (int) (getItemCount() * progress);
+        public void getPositionForScrollProgress(RecyclerListView listView, float progress, int[] position) {
+            position[0] = (int) (getItemCount() * progress);
+            position[1] = 0;
         }
 
         @Override

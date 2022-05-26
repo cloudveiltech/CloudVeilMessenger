@@ -12,6 +12,7 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.SystemClock;
 import android.text.Layout;
 import android.text.Selection;
@@ -44,6 +45,7 @@ import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -171,6 +173,10 @@ public class UndoView extends FrameLayout {
     public final static int ACTION_PIN_DIALOGS = 78;
     public final static int ACTION_UNPIN_DIALOGS = 79;
     public final static int ACTION_EMAIL_COPIED = 80;
+    public final static int ACTION_CLEAR_DATES = 81;
+
+    public final static int ACTION_PREVIEW_MEDIA_DESELECTED = 82;
+    public static int ACTION_RINGTONE_ADDED = 83;
 
     private CharSequence infoText;
     private int hideAnimationType = 1;
@@ -262,7 +268,8 @@ public class UndoView extends FrameLayout {
 
         undoButton = new LinearLayout(context);
         undoButton.setOrientation(LinearLayout.HORIZONTAL);
-        addView(undoButton, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.CENTER_VERTICAL | Gravity.RIGHT, 0, 0, 19, 0));
+        undoButton.setBackground(Theme.createRadSelectorDrawable(getThemedColor(Theme.key_undo_cancelColor) & 0x22ffffff, AndroidUtilities.dp(2), AndroidUtilities.dp(2)));
+        addView(undoButton, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.RIGHT, 0, 0, 11, 0));
         undoButton.setOnClickListener(v -> {
             if (!canUndo()) {
                 return;
@@ -273,14 +280,14 @@ public class UndoView extends FrameLayout {
         undoImageView = new ImageView(context);
         undoImageView.setImageResource(R.drawable.chats_undo);
         undoImageView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_undo_cancelColor), PorterDuff.Mode.MULTIPLY));
-        undoButton.addView(undoImageView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.LEFT));
+        undoButton.addView(undoImageView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.LEFT, 4, 4, 0, 4));
 
         undoTextView = new TextView(context);
         undoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         undoTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         undoTextView.setTextColor(getThemedColor(Theme.key_undo_cancelColor));
         undoTextView.setText(LocaleController.getString("Undo", R.string.Undo));
-        undoButton.addView(undoTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.LEFT, 6, 0, 0, 0));
+        undoButton.addView(undoTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.LEFT, 6, 4, 8, 4));
 
         rect = new RectF(AndroidUtilities.dp(15), AndroidUtilities.dp(15), AndroidUtilities.dp(15 + 18), AndroidUtilities.dp(15 + 18));
 
@@ -321,17 +328,18 @@ public class UndoView extends FrameLayout {
                 currentAction == ACTION_REPORT_SENT || currentAction == ACTION_VOIP_USER_CHANGED || currentAction == ACTION_VOIP_CAN_NOW_SPEAK || currentAction == ACTION_VOIP_RECORDING_STARTED ||
                 currentAction == ACTION_VOIP_RECORDING_FINISHED || currentAction == ACTION_VOIP_SOUND_MUTED || currentAction == ACTION_VOIP_SOUND_UNMUTED || currentAction == ACTION_PAYMENT_SUCCESS ||
                 currentAction == ACTION_VOIP_USER_JOINED || currentAction == ACTION_PIN_DIALOGS || currentAction == ACTION_UNPIN_DIALOGS || currentAction == ACTION_VOIP_VIDEO_RECORDING_STARTED ||
-                currentAction == ACTION_VOIP_VIDEO_RECORDING_FINISHED;
+                currentAction == ACTION_VOIP_VIDEO_RECORDING_FINISHED || currentAction == ACTION_RINGTONE_ADDED;
     }
 
     private boolean hasSubInfo() {
         return currentAction == ACTION_QR_SESSION_ACCEPTED || currentAction == ACTION_PROXIMITY_SET || currentAction == ACTION_ARCHIVE_HIDDEN || currentAction == ACTION_ARCHIVE_HINT || currentAction == ACTION_ARCHIVE_FEW_HINT ||
                 currentAction == ACTION_QUIZ_CORRECT || currentAction == ACTION_QUIZ_INCORRECT ||
-                currentAction == ACTION_REPORT_SENT || currentAction == ACTION_ARCHIVE_PINNED && MessagesController.getInstance(currentAccount).dialogFilters.isEmpty();
+                currentAction == ACTION_REPORT_SENT || currentAction == ACTION_ARCHIVE_PINNED && MessagesController.getInstance(currentAccount).dialogFilters.isEmpty() || currentAction == ACTION_RINGTONE_ADDED;
     }
 
     public boolean isMultilineSubInfo() {
-        return currentAction == ACTION_THEME_CHANGED || currentAction == ACTION_FILTERS_AVAILABLE || currentAction == ACTION_PROXIMITY_SET || currentAction == ACTION_REPORT_SENT;
+        return currentAction == ACTION_THEME_CHANGED || currentAction == ACTION_FILTERS_AVAILABLE || currentAction == ACTION_PROXIMITY_SET || currentAction == ACTION_REPORT_SENT
+                || currentAction == ACTION_RINGTONE_ADDED;
     }
 
     public void setAdditionalTranslationY(float value) {
@@ -373,7 +381,7 @@ public class UndoView extends FrameLayout {
         if (animated != 0) {
             AnimatorSet animatorSet = new AnimatorSet();
             if (animated == 1) {
-                animatorSet.playTogether(ObjectAnimator.ofFloat(this, "enterOffset", (fromTop ? -1.0f : 1.0f) * (AndroidUtilities.dp(8) + undoViewHeight)));
+                animatorSet.playTogether(ObjectAnimator.ofFloat(this, "enterOffset", (fromTop ? -1.0f : 1.0f) * (enterOffsetMargin + undoViewHeight)));
                 animatorSet.setDuration(250);
             } else {
                 animatorSet.playTogether(
@@ -394,7 +402,7 @@ public class UndoView extends FrameLayout {
             });
             animatorSet.start();
         } else {
-            setEnterOffset((fromTop ? -1.0f : 1.0f) * (AndroidUtilities.dp(8) + undoViewHeight));
+            setEnterOffset((fromTop ? -1.0f : 1.0f) * (enterOffsetMargin + undoViewHeight));
             setVisibility(INVISIBLE);
         }
     }
@@ -430,6 +438,9 @@ public class UndoView extends FrameLayout {
     }
 
     public void showWithAction(ArrayList<Long> dialogIds, int action, Object infoObject, Object infoObject2, Runnable actionRunnable, Runnable cancelRunnable) {
+        if (!AndroidUtilities.shouldShowClipboardToast() && currentAction == ACTION_MESSAGE_COPIED || currentAction == ACTION_USERNAME_COPIED || currentAction == ACTION_HASHTAG_COPIED || currentAction == ACTION_TEXT_COPIED || currentAction == ACTION_LINK_COPIED || currentAction == ACTION_PHONE_COPIED || currentAction == ACTION_EMAIL_COPIED || currentAction == ACTION_VOIP_LINK_COPIED) {
+            return;
+        }
         if (currentActionRunnable != null) {
             currentActionRunnable.run();
         }
@@ -466,7 +477,7 @@ public class UndoView extends FrameLayout {
         boolean infoOnly = false;
         boolean reversedPlay = false;
         int reversedPlayEndFrame = 0;
-        if (actionRunnable == null && cancelRunnable == null) {
+        if ((actionRunnable == null && cancelRunnable == null) || action == ACTION_RINGTONE_ADDED) {
             setOnClickListener(view -> hide(false, 1));
             setOnTouchListener(null);
         } else {
@@ -478,12 +489,19 @@ public class UndoView extends FrameLayout {
 
         if (isTooltipAction()) {
             CharSequence infoText;
-            String subInfoText;
+            CharSequence subInfoText;
             int icon;
             int size = 36;
             boolean iconIsDrawable = false;
 
-            if (action == ACTION_REPORT_SENT) {
+            if (action == ACTION_RINGTONE_ADDED) {
+                subinfoTextView.setSingleLine(false);
+                infoText = LocaleController.getString("SoundAdded", R.string.SoundAdded);
+                subInfoText = AndroidUtilities.replaceSingleTag(LocaleController.getString("SoundAddedSubtitle", R.string.SoundAddedSubtitle), actionRunnable);
+                currentActionRunnable = null;
+                icon = R.raw.sound_download;
+                timeLeft = 4000;
+            } else if (action == ACTION_REPORT_SENT) {
                 subinfoTextView.setSingleLine(false);
                 infoText = LocaleController.getString("ReportChatSent", R.string.ReportChatSent);
                 subInfoText = LocaleController.formatString("ReportSentInfo", R.string.ReportSentInfo);
@@ -804,6 +822,11 @@ public class UndoView extends FrameLayout {
                 infoText = this.infoText;
                 subInfoText = null;
                 icon = R.raw.chats_infotip;
+            } else if (action == ACTION_PREVIEW_MEDIA_DESELECTED) {
+                MediaController.PhotoEntry photo = (MediaController.PhotoEntry) infoObject;
+                infoText = photo.isVideo ? LocaleController.getString("AttachMediaVideoDeselected", R.string.AttachMediaVideoDeselected) : LocaleController.getString("AttachMediaPhotoDeselected", R.string.AttachMediaPhotoDeselected);
+                subInfoText = null;
+                icon = 0;
             } else if (action == ACTION_PIN_DIALOGS || action == ACTION_UNPIN_DIALOGS) {
                 int count = (Integer) infoObject;
                 if (action == ACTION_PIN_DIALOGS) {
@@ -892,19 +915,8 @@ public class UndoView extends FrameLayout {
             } else if (action == ACTION_AUTO_DELETE_ON) {
                 TLRPC.User user = (TLRPC.User) infoObject;
                 int ttl = (Integer) infoObject2;
-                String time;
                 subinfoTextView.setSingleLine(false);
-                if (ttl >= 30 * 24 * 60 * 60) {
-                    time = LocaleController.formatPluralString("Months", ttl / (30 * 24 * 60 * 60));
-                } else if (ttl > 24 * 60 * 60) {
-                    time = LocaleController.formatPluralString("Days", ttl / (24 * 60 * 60));
-                } else if (ttl >= 60 * 60) {
-                    time = LocaleController.formatPluralString("Hours", ttl / (60 * 60));
-                } else if (ttl >= 60) {
-                    time = LocaleController.formatPluralString("Minutes", ttl / 60);
-                } else {
-                    time = LocaleController.formatPluralString("Seconds", ttl);
-                }
+                String time = LocaleController.formatTTLString(ttl);
                 infoTextView.setText(LocaleController.formatString("AutoDeleteHintOnText", R.string.AutoDeleteHintOnText, time));
                 leftImageView.setAnimation(R.raw.fire_on, 36, 36);
                 layoutParams.topMargin = AndroidUtilities.dp(9);
@@ -947,6 +959,9 @@ public class UndoView extends FrameLayout {
                 timeLeft = 3000;
                 infoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             } else if (currentAction == ACTION_MESSAGE_COPIED || currentAction == ACTION_USERNAME_COPIED || currentAction == ACTION_HASHTAG_COPIED || currentAction == ACTION_TEXT_COPIED || currentAction == ACTION_LINK_COPIED || currentAction == ACTION_PHONE_COPIED || currentAction == ACTION_EMAIL_COPIED) {
+                if (!AndroidUtilities.shouldShowClipboardToast()) {
+                    return;
+                }
                 int iconRawId = R.raw.copy;
                 if (currentAction == ACTION_EMAIL_COPIED) {
                     infoTextView.setText(LocaleController.getString("EmailCopied", R.string.EmailCopied));
@@ -1252,6 +1267,8 @@ public class UndoView extends FrameLayout {
             leftImageView.setAnimation(R.raw.chats_infotip, 36, 36);
             leftImageView.setProgress(0);
             leftImageView.playAnimation();
+
+            infoTextView.setMovementMethod(new AndroidUtilities.LinkMovementMethodMy());
         } else if (currentAction == ACTION_THEME_CHANGED) {
             infoTextView.setText(LocaleController.getString("ColorThemeChanged", R.string.ColorThemeChanged));
             leftImageView.setImageResource(R.drawable.toast_pallete);
@@ -1299,6 +1316,30 @@ public class UndoView extends FrameLayout {
             leftImageView.setAnimation(R.raw.chats_archived, 36, 36);
             leftImageView.setProgress(0);
             leftImageView.playAnimation();
+        } else if (action == ACTION_PREVIEW_MEDIA_DESELECTED) {
+            layoutParams.leftMargin = AndroidUtilities.dp(58);
+
+            MediaController.PhotoEntry photoEntry = (MediaController.PhotoEntry) infoObject;
+            infoTextView.setText(photoEntry.isVideo ? LocaleController.getString("AttachMediaVideoDeselected", R.string.AttachMediaVideoDeselected) : LocaleController.getString("AttachMediaPhotoDeselected", R.string.AttachMediaPhotoDeselected));
+            undoButton.setVisibility(VISIBLE);
+            infoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            infoTextView.setTypeface(Typeface.DEFAULT);
+            subinfoTextView.setVisibility(GONE);
+
+            avatarImageView.setVisibility(VISIBLE);
+            avatarImageView.setRoundRadius(AndroidUtilities.dp(2));
+            if (photoEntry.thumbPath != null) {
+                avatarImageView.setImage(photoEntry.thumbPath, null, Theme.chat_attachEmptyDrawable);
+            } else if (photoEntry.path != null) {
+                avatarImageView.setOrientation(photoEntry.orientation, true);
+                if (photoEntry.isVideo) {
+                    avatarImageView.setImage("vthumb://" + photoEntry.imageId + ":" + photoEntry.path, null, Theme.chat_attachEmptyDrawable);
+                } else {
+                    avatarImageView.setImage("thumb://" + photoEntry.imageId + ":" + photoEntry.path, null, Theme.chat_attachEmptyDrawable);
+                }
+            } else {
+                avatarImageView.setImageDrawable(Theme.chat_attachEmptyDrawable);
+            }
         } else {
             layoutParams.leftMargin = AndroidUtilities.dp(45);
             layoutParams.topMargin = AndroidUtilities.dp(13);
@@ -1310,7 +1351,7 @@ public class UndoView extends FrameLayout {
             subinfoTextView.setVisibility(GONE);
             leftImageView.setVisibility(GONE);
 
-            if (currentAction == ACTION_CLEAR || currentAction == ACTION_CLEAR_FEW) {
+            if (currentAction == ACTION_CLEAR_DATES || currentAction == ACTION_CLEAR || currentAction == ACTION_CLEAR_FEW) {
                 infoTextView.setText(LocaleController.getString("HistoryClearedUndo", R.string.HistoryClearedUndo));
             } else if (currentAction == ACTION_DELETE_FEW) {
                 infoTextView.setText(LocaleController.getString("ChatsDeletedUndo", R.string.ChatsDeletedUndo));
@@ -1326,8 +1367,10 @@ public class UndoView extends FrameLayout {
                     infoTextView.setText(LocaleController.getString("ChatDeletedUndo", R.string.ChatDeletedUndo));
                 }
             }
-            for (int a = 0; a < dialogIds.size(); a++) {
-                MessagesController.getInstance(currentAccount).addDialogAction(dialogIds.get(a), currentAction == ACTION_CLEAR || currentAction == ACTION_CLEAR_FEW);
+            if (currentAction != ACTION_CLEAR_DATES) {
+                for (int a = 0; a < dialogIds.size(); a++) {
+                    MessagesController.getInstance(currentAccount).addDialogAction(dialogIds.get(a), currentAction == ACTION_CLEAR || currentAction == ACTION_CLEAR_FEW);
+                }
             }
         }
 
@@ -1364,13 +1407,19 @@ public class UndoView extends FrameLayout {
 
         if (getVisibility() != VISIBLE) {
             setVisibility(VISIBLE);
-            setEnterOffset((fromTop ? -1.0f : 1.0f) * (AndroidUtilities.dp(8) + undoViewHeight));
+            setEnterOffset((fromTop ? -1.0f : 1.0f) * (enterOffsetMargin + undoViewHeight));
             AnimatorSet animatorSet = new AnimatorSet();
-            animatorSet.playTogether(ObjectAnimator.ofFloat(this, "enterOffset", (fromTop ? -1.0f : 1.0f) * (AndroidUtilities.dp(8) + undoViewHeight), (fromTop ? 1.0f : -1.0f)));
+            animatorSet.playTogether(ObjectAnimator.ofFloat(this, "enterOffset", (fromTop ? -1.0f : 1.0f) * (enterOffsetMargin + undoViewHeight), (fromTop ? 1.0f : -1.0f)));
             animatorSet.setInterpolator(new DecelerateInterpolator());
             animatorSet.setDuration(180);
             animatorSet.start();
         }
+    }
+
+    private int enterOffsetMargin = AndroidUtilities.dp(8);
+
+    public void setEnterOffsetMargin(int enterOffsetMargin) {
+        this.enterOffsetMargin = enterOffsetMargin;
     }
 
     protected boolean canUndo() {
@@ -1410,7 +1459,7 @@ public class UndoView extends FrameLayout {
         if (additionalTranslationY != 0) {
             canvas.save();
 
-            float bottom = getMeasuredHeight() - enterOffset + AndroidUtilities.dp(9);
+            float bottom = getMeasuredHeight() - enterOffset + enterOffsetMargin + AndroidUtilities.dp(1);
             if (bottom > 0) {
                 canvas.clipRect(0, 0, getMeasuredWidth(), bottom);
                 super.dispatchDraw(canvas);
@@ -1421,7 +1470,7 @@ public class UndoView extends FrameLayout {
             backgroundDrawable.draw(canvas);
         }
 
-        if (currentAction == ACTION_DELETE || currentAction == ACTION_CLEAR || currentAction == ACTION_DELETE_FEW || currentAction == ACTION_CLEAR_FEW) {
+        if (currentAction == ACTION_DELETE || currentAction == ACTION_CLEAR || currentAction == ACTION_DELETE_FEW || currentAction == ACTION_CLEAR_FEW || currentAction == ACTION_CLEAR_DATES) {
             int newSeconds = timeLeft > 0 ? (int) Math.ceil(timeLeft / 1000.0f) : 0;
             if (prevSeconds != newSeconds) {
                 prevSeconds = newSeconds;
@@ -1480,7 +1529,10 @@ public class UndoView extends FrameLayout {
         if (timeLeft <= 0) {
             hide(true, hideAnimationType);
         }
-        invalidate();
+        
+        if (currentAction != ACTION_PREVIEW_MEDIA_DESELECTED) {
+            invalidate();
+        }
     }
 
     @Override
@@ -1515,7 +1567,7 @@ public class UndoView extends FrameLayout {
     }
 
     private void updatePosition() {
-        setTranslationY(enterOffset - additionalTranslationY);
+        setTranslationY(enterOffset - enterOffsetMargin + AndroidUtilities.dp(8) - additionalTranslationY);
         invalidate();
     }
 

@@ -122,6 +122,7 @@ public class ImageLocation {
         if (user == null || user.access_hash == 0 || user.photo == null) {
             return null;
         }
+
         //CloudVeil start
         boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
         if(user != null && user.self) {
@@ -167,6 +168,7 @@ public class ImageLocation {
         if (chat == null || chat.photo == null) {
             return null;
         }
+
         //CloudVeil start
         if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
             return null;
@@ -175,6 +177,7 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil end
+
         if (type == TYPE_STRIPPED) {
             if (chat.photo.stripped_thumb == null) {
                 return null;

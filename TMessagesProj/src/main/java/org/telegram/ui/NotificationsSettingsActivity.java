@@ -26,24 +26,29 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
-import org.telegram.messenger.NotificationsController;
 import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.NotificationsController;
+import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.messenger.FileLog;
-import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.HeaderCell;
@@ -51,8 +56,6 @@ import org.telegram.ui.Cells.NotificationsCheckCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
-import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.AlertsCreator;
@@ -61,9 +64,6 @@ import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.ArrayList;
 import java.util.Map;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 public class NotificationsSettingsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -562,15 +562,15 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 } else {
                     ConnectionsManager.getInstance(currentAccount).setPushConnectionEnabled(false);
                 }
-            }   //CloudVeil start
-            else if(position == checkPowerSavingOnStartRow) {
+                //CloudVeil start
+            } else if(position == checkPowerSavingOnStartRow) {
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 enabled = preferences.getBoolean("checkPowerSavingOnStart", true);
                 SharedPreferences.Editor editor = preferences.edit();
                 editor.putBoolean("checkPowerSavingOnStart", !enabled);
                 editor.commit();
                 //CloudVeil end
-            }else if (position == accountsAllRow) {
+            } else if (position == accountsAllRow) {
                 SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
                 enabled = preferences.getBoolean("AllAccounts", true);
                 SharedPreferences.Editor editor = preferences.edit();
@@ -844,14 +844,7 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                         checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE, null);
                         //CloudVeil end
                      } else if (position == notificationsServiceConnectionRow) {
-                        //CloudVeil start
-                        boolean v = GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE || preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), v, true, true);
-                        checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE, null);
-                    } else if (position == checkPowerSavingOnStartRow) {
-                        boolean v = preferences.getBoolean("checkPowerSavingOnStart", true);
-                        checkCell.setTextAndValueAndCheck(LocaleController.getString("checkPowerSaving", R.string.checkPowerSaving), LocaleController.getString("checkPowerSavingInfo", R.string.checkPowerSavingInfo), v, true, true);
-                        //CloudVeil end
+                        checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection), true, true);
                     } else if (position == badgeNumberShowRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
                     } else if (position == badgeNumberMutedRow) {
@@ -990,9 +983,8 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     position == badgeNumberShowRow || position == inappPriorityRow || position == inchatSoundRow ||
                     position == androidAutoAlertRow || position == accountsAllRow
                     //CloudVeil start
-                    || position == checkPowerSavingOnStartRow
+                    || position == checkPowerSavingOnStartRow) {
                     // Cloudveil end
-            ) {
                 return 1;
             } else if (position == resetNotificationsRow) {
                 return 2;

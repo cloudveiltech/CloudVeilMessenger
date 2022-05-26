@@ -25,8 +25,7 @@ public class CallReceiver extends BroadcastReceiver {
             if (TelephonyManager.EXTRA_STATE_RINGING.equals(phoneState)) {
                 String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.didReceiveCall, PhoneFormat.stripExceptNumbers(phoneNumber));
-            }CloudVeil end
-        */
+            }CloudVeil end   */
         }
     }
 }

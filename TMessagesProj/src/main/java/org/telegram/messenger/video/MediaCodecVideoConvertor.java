@@ -9,19 +9,11 @@ import android.os.Build;
 
 import com.google.android.exoplayer2.util.Log;
 
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
-import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.NotificationsController;
-import org.telegram.messenger.R;
-import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.messenger.VideoEditedInfo;
-import org.telegram.ui.Components.Bulletin;
-import org.telegram.ui.Components.BulletinFactory;
-import org.telegram.ui.LaunchActivity;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -48,6 +40,7 @@ public class MediaCodecVideoConvertor {
 
     public boolean convertVideo(String videoPath, File cacheFile,
                                 int rotationValue, boolean isSecret,
+                                int originalWidth, int originalHeight,
                                 int resultWidth, int resultHeight,
                                 int framerate, int bitrate, int originalBitrate,
                                 long startTime, long endTime, long avatarStartTime,
@@ -57,10 +50,11 @@ public class MediaCodecVideoConvertor {
                                 ArrayList<VideoEditedInfo.MediaEntity> mediaEntities,
                                 boolean isPhoto,
                                 MediaController.CropState cropState,
+                                boolean isRound,
                                 MediaController.VideoConvertorListener callback) {
         this.callback = callback;
-        return convertVideoInternal(videoPath, cacheFile, rotationValue, isSecret,
-                resultWidth, resultHeight, framerate, bitrate, originalBitrate, startTime, endTime, avatarStartTime, duration, needCompress, false, savedFilterState, paintPath, mediaEntities, isPhoto, cropState);
+        return convertVideoInternal(videoPath, cacheFile, rotationValue, isSecret, originalWidth, originalHeight,
+                resultWidth, resultHeight, framerate, bitrate, originalBitrate, startTime, endTime, avatarStartTime, duration, needCompress, false, savedFilterState, paintPath, mediaEntities, isPhoto, cropState, isRound);
     }
 
     public long getLastFrameTimestamp() {
@@ -70,6 +64,7 @@ public class MediaCodecVideoConvertor {
     @TargetApi(18)
     private boolean convertVideoInternal(String videoPath, File cacheFile,
                                          int rotationValue, boolean isSecret,
+                                         int originalWidth, int originalHeight,
                                          int resultWidth, int resultHeight,
                                          int framerate, int bitrate, int originalBitrate,
                                          long startTime, long endTime, long avatarStartTime,
@@ -79,7 +74,8 @@ public class MediaCodecVideoConvertor {
                                          String paintPath,
                                          ArrayList<VideoEditedInfo.MediaEntity> mediaEntities,
                                          boolean isPhoto,
-                                         MediaController.CropState cropState) {
+                                         MediaController.CropState cropState,
+                                         boolean isRound) {
 
         long time = System.currentTimeMillis();
         boolean error = false;
@@ -141,8 +137,8 @@ public class MediaCodecVideoConvertor {
                     MediaFormat outputFormat = MediaFormat.createVideoFormat(MediaController.VIDEO_MIME_TYPE, resultWidth, resultHeight);
                     outputFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
                     outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
-                    outputFormat.setInteger(MediaFormat.KEY_FRAME_RATE, framerate);
-                    outputFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2);
+                    outputFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+                    outputFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 
                     encoder = MediaCodec.createEncoderByType(MediaController.VIDEO_MIME_TYPE);
                     encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -150,7 +146,7 @@ public class MediaCodecVideoConvertor {
                     inputSurface.makeCurrent();
                     encoder.start();
 
-                    outputSurface = new OutputSurface(savedFilterState, videoPath, paintPath, mediaEntities, null, resultWidth, resultHeight, rotationValue, framerate, true);
+                    outputSurface = new OutputSurface(savedFilterState, videoPath, paintPath, mediaEntities, null, resultWidth, resultHeight, originalWidth, originalHeight, rotationValue, framerate, true);
 
                     ByteBuffer[] encoderOutputBuffers = null;
                     ByteBuffer[] encoderInputBuffers = null;
@@ -321,6 +317,7 @@ public class MediaCodecVideoConvertor {
                     AudioRecoder audioRecoder = null;
                     ByteBuffer audioBuffer = null;
                     boolean copyAudioBuffer = true;
+                    long lastFramePts = -1;
 
                     if (videoIndex >= 0) {
                         MediaCodec decoder = null;
@@ -335,6 +332,12 @@ public class MediaCodecVideoConvertor {
                             long additionalPresentationTime = 0;
                             long minPresentationTime = Integer.MIN_VALUE;
                             long frameDelta = 1000 / framerate * 1000;
+                            long frameDeltaFroSkipFrames;
+                            if (framerate < 30) {
+                                frameDeltaFroSkipFrames = 1000 / (framerate + 5) * 1000;
+                            } else {
+                                frameDeltaFroSkipFrames = 1000 / (framerate + 1) * 1000;
+                            }
 
                             extractor.selectTrack(videoIndex);
                             MediaFormat videoFormat = extractor.getTrackFormat(videoIndex);
@@ -405,7 +408,10 @@ public class MediaCodecVideoConvertor {
                             encoder.start();
 
                             decoder = MediaCodec.createDecoderByType(videoFormat.getString(MediaFormat.KEY_MIME));
-                            outputSurface = new OutputSurface(savedFilterState, null, paintPath, mediaEntities, cropState, resultWidth, resultHeight, rotationValue, framerate, false);
+                            outputSurface = new OutputSurface(savedFilterState, null, paintPath, mediaEntities, cropState, resultWidth, resultHeight, originalWidth, originalHeight, rotationValue, framerate, false);
+                            if (!isRound && Math.max(resultHeight, resultHeight) / (float) Math.max(originalHeight, originalWidth) < 0.9f) {
+                                outputSurface.changeFragmentShader(createFragmentShader(originalWidth, originalHeight, resultWidth, resultHeight, true), createFragmentShader(originalWidth, originalHeight, resultWidth, resultHeight, false));
+                            }
                             decoder.configure(videoFormat, outputSurface.getSurface(), null, 0);
                             decoder.start();
 
@@ -681,9 +687,12 @@ public class MediaCodecVideoConvertor {
                                                 inputDone = false;
                                                 decoderDone = false;
                                                 doRender = false;
-                                                info.flags &=~ MediaCodec.BUFFER_FLAG_END_OF_STREAM;
+                                                info.flags &= ~MediaCodec.BUFFER_FLAG_END_OF_STREAM;
                                                 decoder.flush();
                                                 flushed = true;
+                                            }
+                                            if (lastFramePts > 0 && info.presentationTimeUs - lastFramePts < frameDeltaFroSkipFrames && (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
+                                                doRender = false;
                                             }
                                             trueStartTime = avatarStartTime >= 0 ? avatarStartTime : startTime;
                                             if (trueStartTime > 0 && videoTime == -1) {
@@ -708,6 +717,7 @@ public class MediaCodecVideoConvertor {
                                                 decoder.releaseOutputBuffer(decoderStatus, doRender);
                                             }
                                             if (doRender) {
+                                                lastFramePts = info.presentationTimeUs;
                                                 if (avatarStartTime >= 0) {
                                                     minPresentationTime = Math.max(minPresentationTime, info.presentationTimeUs);
                                                 }
@@ -791,9 +801,10 @@ public class MediaCodecVideoConvertor {
 
         if (repeatWithIncreasedTimeout) {
             return convertVideoInternal(videoPath, cacheFile, rotationValue, isSecret,
+                    originalWidth, originalHeight,
                     resultWidth, resultHeight, framerate, bitrate, originalBitrate, startTime, endTime, avatarStartTime, duration,
                     needCompress, true, savedFilterState, paintPath, mediaEntities,
-                    isPhoto, cropState);
+                    isPhoto, cropState, isRound);
         }
 
         long timeLeft = System.currentTimeMillis() - time;
@@ -958,6 +969,63 @@ public class MediaCodecVideoConvertor {
 
     private void checkConversionCanceled() {
         if (callback != null && callback.checkConversionCanceled())
-            throw new RuntimeException("canceled conversion");
+            throw new ConversionCanceledException();
     }
+
+    private static String createFragmentShader(
+            final int srcWidth,
+            final int srcHeight,
+            final int dstWidth,
+            final int dstHeight, boolean external) {
+
+        final float kernelSize = Utilities.clamp((float) (Math.max(srcWidth, srcHeight) / (float) Math.max(dstHeight, dstWidth)) * 0.8f, 2f, 1f);
+        final int kernelRadius = (int) kernelSize;
+        FileLog.d("source size " + srcWidth + "x" + srcHeight + "    dest size " + dstWidth + dstHeight + "   kernelRadius " + kernelRadius);
+        if (external) {
+            return "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "const float kernel = " + kernelRadius + ".0;\n" +
+                    "const float pixelSizeX = 1.0 / " + srcWidth + ".0;\n" +
+                    "const float pixelSizeY = 1.0 / " + srcHeight + ".0;\n" +
+                    "uniform samplerExternalOES sTexture;\n" +
+                    "void main() {\n" +
+                    "vec3 accumulation = vec3(0);\n" +
+                    "vec3 weightsum = vec3(0);\n" +
+                    "for (float x = -kernel; x <= kernel; x++){\n" +
+                    "   for (float y = -kernel; y <= kernel; y++){\n" +
+                    "       accumulation += texture2D(sTexture, vTextureCoord + vec2(x * pixelSizeX, y * pixelSizeY)).xyz;\n" +
+                    "       weightsum += 1.0;\n" +
+                    "   }\n" +
+                    "}\n" +
+                    "gl_FragColor = vec4(accumulation / weightsum, 1.0);\n" +
+                    "}\n";
+        } else {
+            return "precision mediump float;\n" +
+                    "varying vec2 vTextureCoord;\n" +
+                    "const float kernel = " + kernelRadius + ".0;\n" +
+                    "const float pixelSizeX = 1.0 / " + srcHeight + ".0;\n" +
+                    "const float pixelSizeY = 1.0 / " + srcWidth + ".0;\n" +
+                    "uniform sampler2D sTexture;\n" +
+                    "void main() {\n" +
+                    "vec3 accumulation = vec3(0);\n" +
+                    "vec3 weightsum = vec3(0);\n" +
+                    "for (float x = -kernel; x <= kernel; x++){\n" +
+                    "   for (float y = -kernel; y <= kernel; y++){\n" +
+                    "       accumulation += texture2D(sTexture, vTextureCoord + vec2(x * pixelSizeX, y * pixelSizeY)).xyz;\n" +
+                    "       weightsum += 1.0;\n" +
+                    "   }\n" +
+                    "}\n" +
+                    "gl_FragColor = vec4(accumulation / weightsum, 1.0);\n" +
+                    "}\n";
+        }
+    }
+
+    public class ConversionCanceledException extends RuntimeException {
+
+        public ConversionCanceledException() {
+            super("canceled conversion");
+        }
+    }
+
 }

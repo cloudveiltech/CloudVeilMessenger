@@ -1,10 +1,15 @@
 package org.telegram.ui.Cells;
 
+import static com.google.zxing.common.detector.MathUtils.distance;
+import static org.telegram.ui.ActionBar.FloatingToolbar.STYLE_THEME;
+import static org.telegram.ui.ActionBar.Theme.key_chat_inTextSelectionHighlight;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
@@ -32,11 +37,15 @@ import android.view.animation.OvershootInterpolator;
 import android.widget.Magnifier;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LanguageDetector;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
@@ -47,12 +56,9 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ArticleViewer;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.RestrictedLanguagesSelectActivity;
 
 import java.util.ArrayList;
-
-import static com.google.zxing.common.detector.MathUtils.distance;
-import static org.telegram.ui.ActionBar.FloatingToolbar.STYLE_THEME;
-import static org.telegram.ui.ActionBar.Theme.key_chat_inTextSelectionHighlight;
 
 public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.SelectableView> {
 
@@ -73,7 +79,11 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
     private int touchSlop;
     protected PathWithSavedBottom path = new PathWithSavedBottom();
 
+    protected float cornerRadius;
     protected Paint selectionPaint = new Paint();
+    protected Paint selectionHandlePaint = new Paint();
+    protected Path selectionPath = new Path();
+    protected PathCopyTo selectionPathMirror = new PathCopyTo(selectionPath);
 
     protected int capturedX;
     protected int capturedY;
@@ -139,8 +149,8 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
 
                 if (!multiselect) {
                     if (scrollDown) {
-                        if (selectedView.getBottom() - dy < parentView.getMeasuredHeight()) {
-                            dy = selectedView.getBottom() - parentView.getMeasuredHeight();
+                        if (selectedView.getBottom() - dy < parentView.getMeasuredHeight() - getParentBottomPadding()) {
+                            dy = selectedView.getBottom() - parentView.getMeasuredHeight() + getParentBottomPadding();
                         }
                     } else {
                         if (selectedView.getTop() + dy > getParentTopPadding()) {
@@ -254,6 +264,15 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
     public TextSelectionHelper() {
         longpressDelay = ViewConfiguration.getLongPressTimeout();
         touchSlop = ViewConfiguration.get(ApplicationLoader.applicationContext).getScaledTouchSlop();
+        selectionPaint.setPathEffect(new CornerPathEffect(cornerRadius = AndroidUtilities.dp(6)));
+    }
+
+    public interface OnTranslateListener {
+        public void run(CharSequence text, String fromLang, String toLang, Runnable onAlertDismiss);
+    }
+    private OnTranslateListener onTranslateListener = null;
+    public void setOnTranslate(OnTranslateListener listener) {
+        onTranslateListener = listener;
     }
 
     public void setParentView(ViewGroup view) {
@@ -747,7 +766,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                         y -= selectedView.getTop();
                         x -= selectedView.getX();
 
-                        boolean canScrollDown = event.getY() - touchSlop > parentView.getMeasuredHeight() && (multiselect || selectedView.getBottom() > parentView.getMeasuredHeight());
+                        boolean canScrollDown = event.getY() - touchSlop > parentView.getMeasuredHeight() - getParentBottomPadding() && (multiselect || selectedView.getBottom() > parentView.getMeasuredHeight() - getParentBottomPadding());
                         boolean canScrollUp = event.getY() < ((View) parentView.getParent()).getTop() + getParentTopPadding() && (multiselect || selectedView.getTop() < getParentTopPadding());
                         if (canScrollDown || canScrollUp) {
                             if (!scrolling) {
@@ -1212,12 +1231,14 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
     }
 
+    private static final int TRANSLATE = 3;
     private ActionMode.Callback createActionCallback() {
         final ActionMode.Callback callback = new ActionMode.Callback() {
             @Override
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
                 menu.add(Menu.NONE, android.R.id.copy, 0, android.R.string.copy);
                 menu.add(Menu.NONE, android.R.id.selectAll, 1, android.R.string.selectAll);
+                menu.add(Menu.NONE, TRANSLATE, 2, LocaleController.getString("TranslateMessage", R.string.TranslateMessage));
                 return true;
             }
 
@@ -1231,7 +1252,35 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                         menu.getItem(1).setVisible(true);
                     }
                 }
+                if (onTranslateListener != null && LanguageDetector.hasSupport() && getSelectedText() != null) {
+                    LanguageDetector.detectLanguage(getSelectedText().toString(), lng -> {
+                        translateFromLanguage = lng;
+                        updateTranslateButton(menu);
+                    }, err -> {
+                        FileLog.e("mlkit: failed to detect language in selection");
+                        FileLog.e(err);
+                        translateFromLanguage = null;
+                        updateTranslateButton(menu);
+                    });
+                } else {
+                    translateFromLanguage = null;
+                    updateTranslateButton(menu);
+                }
                 return true;
+            }
+
+            private String translateFromLanguage = null;
+            private void updateTranslateButton(Menu menu) {
+                String translateToLanguage = LocaleController.getInstance().getCurrentLocale().getLanguage();
+                menu.getItem(2).setVisible(
+                    onTranslateListener != null && (
+                        (
+                            translateFromLanguage != null &&
+                            (!translateFromLanguage.equals(translateToLanguage) || translateFromLanguage.equals("und")) &&
+                            !RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(translateFromLanguage)
+                        ) || !LanguageDetector.hasSupport()
+                    )
+                );
             }
 
             @Override
@@ -1253,6 +1302,13 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                         hideActions();
                         invalidate();
                         showActions();
+                        return true;
+                    case TRANSLATE:
+                        if (onTranslateListener != null) {
+                            String translateToLanguage = LocaleController.getInstance().getCurrentLocale().getLanguage();
+                            onTranslateListener.run(getSelectedText(), translateFromLanguage, translateToLanguage, () -> showActions());
+                        }
+                        hideActions();
                         return true;
                     default:
                         clear();
@@ -1311,7 +1367,6 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                     if (selectedView != null) {
                         int[] coords = offsetToCord(selectionEnd);
                         x2 = coords[0] + textX;
-
                     }
                     outRect.set(
                             Math.min(x1, x2), y1,
@@ -1328,7 +1383,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         if (!isSelectionMode()) {
             return;
         }
-        CharSequence str = getTextForCopy();
+        CharSequence str = getSelectedText();
         if (str == null) {
             return;
         }
@@ -1342,7 +1397,17 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
     }
 
-    protected CharSequence getTextForCopy() {
+    private void translateText() {
+        if (!isSelectionMode()) {
+            return;
+        }
+        CharSequence str = getSelectedText();
+        if (str == null) {
+            return;
+        }
+    }
+
+    protected CharSequence getSelectedText() {
         CharSequence text = getText(selectedView, false);
         if (text != null) {
             return text.subSequence(selectionStart, selectionEnd);
@@ -1364,11 +1429,13 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         return tmpCoord;
     }
 
+    protected Path tempPath = new Path();
     protected void drawSelection(Canvas canvas, StaticLayout layout, int selectionStart, int selectionEnd) {
+        selectionPath.reset();
         int startLine = layout.getLineForOffset(selectionStart);
         int endLine = layout.getLineForOffset(selectionEnd);
         if (startLine == endLine) {
-            drawLine(canvas, layout, startLine, selectionStart, selectionEnd);
+            drawLine(layout, startLine, selectionStart, selectionEnd);
         } else {
             int end = layout.getLineEnd(startLine);
             if (layout.getParagraphDirection(startLine) != StaticLayout.DIR_RIGHT_TO_LEFT && end > 0) {
@@ -1389,35 +1456,63 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                 int l = Math.min(s, e);
                 int r = Math.max(s, e);
                 if (end > 0 && end < text.length() && !Character.isWhitespace(text.charAt(end - 1))) {
-                    canvas.drawRect(l, layout.getLineTop(startLine), r, layout.getLineBottom(startLine), selectionPaint);
+                    selectionPath.addRect(l, layout.getLineTop(startLine), r, layout.getLineBottom(startLine), Path.Direction.CW);
                 }
             }
-            drawLine(canvas, layout, startLine, selectionStart, end);
-            drawLine(canvas, layout, endLine, layout.getLineStart(endLine), selectionEnd);
+            drawLine(layout, startLine, selectionStart, end);
+            drawLine(layout, endLine, layout.getLineStart(endLine), selectionEnd);
             for (int i = startLine + 1; i < endLine; i++) {
                 int s = (int) layout.getLineLeft(i);
                 int e = (int) layout.getLineRight(i);
                 int l = Math.min(s, e);
                 int r = Math.max(s, e);
 
-                canvas.drawRect(l, layout.getLineTop(i), r, layout.getLineBottom(i), selectionPaint);
+                selectionPath.addRect(l, layout.getLineTop(i) - 1, r, layout.getLineBottom(i) + 1, Path.Direction.CW);
             }
+        }
+        canvas.drawPath(selectionPath, selectionPaint);
+
+        final float R = cornerRadius * 1.9f;
+        float startLeft = layout.getPrimaryHorizontal(selectionStart),
+                endLeft = layout.getPrimaryHorizontal(selectionEnd);
+        float x, b;
+        if (selectionStart + 1 < layout.getLineEnd(startLine) && (startLine == endLine || startLine + 1 == endLine && startLeft > endLeft)) {
+            x = startLeft;
+            b = layout.getLineBottom(startLine);
+            tempPath.reset();
+            tempPath.moveTo(x + R, b);
+            tempPath.lineTo(x, b);
+            tempPath.lineTo(x, b - R);
+            AndroidUtilities.rectTmp.set(x, b - R, x + R, b);
+            tempPath.arcTo(AndroidUtilities.rectTmp, 180, -90);
+            canvas.drawPath(tempPath, selectionHandlePaint);
+        }
+
+        if (layout.getLineStart(endLine) < selectionEnd) {
+            x = endLeft;
+            b = layout.getLineBottom(endLine);
+            tempPath.reset();
+            tempPath.moveTo(x - R, b);
+            tempPath.lineTo(x, b);
+            tempPath.lineTo(x, b - R);
+            AndroidUtilities.rectTmp.set(x - R, b - R, x, b);
+            tempPath.arcTo(AndroidUtilities.rectTmp, 0, 90);
+            canvas.drawPath(tempPath, selectionHandlePaint);
         }
     }
 
-    private void drawLine(Canvas canvas, StaticLayout layout, int line, int start, int end) {
-        layout.getSelectionPath(start, end, path);
-        if (path.lastBottom < layout.getLineBottom(line)) {
-            int lineBottom = layout.getLineBottom(line);
+    private final ScalablePath tempPath2 = new ScalablePath();
+    private void drawLine(StaticLayout layout, int line, int start, int end) {
+        tempPath2.reset();
+        layout.getSelectionPath(start, end, tempPath2);
+        if (tempPath2.lastBottom < layout.getLineBottom(line)) {
             int lineTop = layout.getLineTop(line);
+            int lineBottom = layout.getLineBottom(line);
             float lineH = lineBottom - lineTop;
-            float lineHWithoutSpaсing = path.lastBottom - lineTop;
-            canvas.save();
-            canvas.scale(1f, lineH / lineHWithoutSpaсing, 0, lineTop);
-            canvas.drawPath(path, selectionPaint);
-            canvas.restore();
+            float lineHWithoutSpacing = tempPath2.lastBottom - lineTop;
+            tempPath2.scaleY(lineH / lineHWithoutSpacing, lineTop, selectionPath);
         } else {
-            canvas.drawPath(path, selectionPaint);
+            tempPath2.scaleY(1f, 0, selectionPath);
         }
     }
 
@@ -1584,8 +1679,10 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
                 if (selectionStart != selectionEnd) {
                     if (selectedMessageObject.isOutOwner()) {
                         selectionPaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
+                        selectionHandlePaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
                     } else {
                         selectionPaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
+                        selectionHandlePaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
                     }
                     drawSelection(canvas, block.textLayout, selectionStart, selectionEnd);
                 }
@@ -1768,8 +1865,10 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
             }
             if (isOut) {
                 selectionPaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
+                selectionHandlePaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
             } else {
                 selectionPaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
+                selectionHandlePaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
             }
             drawSelection(canvas, captionLayout, selectionStart, selectionEnd);
         }
@@ -1780,8 +1879,10 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
             }
             if (isOut) {
                 selectionPaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
+                selectionHandlePaint.setColor(getThemedColor(Theme.key_chat_outTextSelectionHighlight));
             } else {
                 selectionPaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
+                selectionHandlePaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
             }
             drawSelection(canvas, layout, selectionStart, selectionEnd);
         }
@@ -2060,6 +2161,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
 
         public void draw(Canvas canvas, ArticleSelectableView view, int i) {
             selectionPaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
+            selectionHandlePaint.setColor(getThemedColor(key_chat_inTextSelectionHighlight));
 
             int position = getAdapterPosition(view);
             if (position < 0) {
@@ -2375,7 +2477,7 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
 
         @Override
-        protected CharSequence getTextForCopy() {
+        protected CharSequence getSelectedText() {
             SpannableStringBuilder stringBuilder = new SpannableStringBuilder();
             for (int i = startViewPosition; i <= endViewPosition; i++) {
                 if (i == startViewPosition) {
@@ -2591,6 +2693,22 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
 
     }
 
+    private static class PathCopyTo extends Path {
+        private Path destination;
+        public PathCopyTo(Path destination) {
+            this.destination = destination;
+        }
+        @Override
+        public void reset() {
+            super.reset();
+        }
+
+        @Override
+        public void addRect(float left, float top, float right, float bottom, @NonNull Direction dir) {
+            this.destination.addRect(left, top, right, bottom, dir);
+        }
+    }
+
     private static class PathWithSavedBottom extends Path {
 
         float lastBottom = 0;
@@ -2610,12 +2728,55 @@ public abstract class TextSelectionHelper<Cell extends TextSelectionHelper.Selec
         }
     }
 
+    private static class ScalablePath extends Path {
+        float lastBottom = 0;
+        private ArrayList<RectF> rects = new ArrayList<>(1);
+        private int rectsCount = 0;
+
+        @Override
+        public void reset() {
+            super.reset();
+            rects.clear();
+            rectsCount = 0;
+            lastBottom = 0;
+        }
+
+        @Override
+        public void addRect(float left, float top, float right, float bottom, Direction dir) {
+            rects.add(new RectF(left, top, right, bottom));
+            rectsCount++;
+            super.addRect(left, top, right, bottom, dir);
+            if (bottom > lastBottom) {
+                lastBottom = bottom;
+            }
+        }
+
+        public void scaleY(float sy, float cy, Path copyTo) {
+            if (copyTo != null) {
+                for (int i = 0; i < rectsCount; ++i) {
+                    RectF rect = rects.get(i);
+                    copyTo.addRect(rect.left, (rect.top - cy) * sy + cy, rect.right, (rect.bottom - cy) * sy + cy, Path.Direction.CW);
+                }
+            } else {
+                super.reset();
+                for (int i = 0; i < rectsCount; ++i) {
+                    RectF rect = rects.get(i);
+                    super.addRect(rect.left, (rect.top - cy) * sy + cy, rect.right, (rect.bottom - cy) * sy + cy, Path.Direction.CW);
+                }
+            }
+        }
+    }
+
     public void setKeyboardSize(int keyboardSize) {
         this.keyboardSize = keyboardSize;
         invalidate();
     }
 
     public int getParentTopPadding() {
+        return 0;
+    }
+
+    public int getParentBottomPadding() {
         return 0;
     }
 

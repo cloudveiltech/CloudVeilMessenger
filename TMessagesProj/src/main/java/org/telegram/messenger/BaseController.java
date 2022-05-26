@@ -33,7 +33,8 @@ public class BaseController {
         return parentAccountInstance.getConnectionsManager();
     }
 
-    protected final LocationController getLocationController() {
+    //CloudVeil - changed visibility
+    public final LocationController getLocationController() {
         return parentAccountInstance.getLocationController();
     }
 
@@ -75,5 +76,9 @@ public class BaseController {
 
     protected final FileRefController getFileRefController() {
         return parentAccountInstance.getFileRefController();
+    }
+
+    protected final MemberRequestsController getMemberRequestsController() {
+        return parentAccountInstance.getMemberRequestsController();
     }
 }

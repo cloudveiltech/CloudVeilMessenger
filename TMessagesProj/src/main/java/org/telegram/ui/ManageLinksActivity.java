@@ -36,6 +36,7 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DocumentObject;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
@@ -50,9 +51,9 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
+import org.telegram.ui.Cells.CreationTextCell;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ManageChatTextCell;
 import org.telegram.ui.Cells.ManageChatUserCell;
@@ -67,9 +68,9 @@ import org.telegram.ui.Components.FlickerLoadingView;
 import org.telegram.ui.Components.InviteLinkBottomSheet;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LinkActionView;
+import org.telegram.ui.Components.RecyclerItemsEnterAnimator;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.TimerParticles;
-import org.telegram.ui.Components.RecyclerItemsEnterAnimator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -325,6 +326,7 @@ public class ManageLinksActivity extends BaseFragment {
 
                 TLRPC.TL_chatInviteExported finalPermanentLink = permanentLink;
                 AndroidUtilities.runOnUIThread(() -> getNotificationCenter().doOnIdle(() -> {
+                    DiffCallback callback = saveListState();
                     linksLoading = false;
                     hasMore = false;
                     if (finalPermanentLink != null) {
@@ -333,12 +335,10 @@ public class ManageLinksActivity extends BaseFragment {
                             info.exported_invite = finalPermanentLink;
                         }
                     }
-                    DiffCallback callback = saveListState();
                     boolean updateByDiffUtils = false;
 
                     if (error == null) {
                         TLRPC.TL_messages_exportedChatInvites invites = (TLRPC.TL_messages_exportedChatInvites) response;
-
 
                         if (revoked) {
                             for (int i = 0; i < invites.invites.size(); i++) {
@@ -547,20 +547,13 @@ public class ManageLinksActivity extends BaseFragment {
         FrameLayout frameLayout = (FrameLayout) fragmentView;
 
 
-        listView = new RecyclerListView(context) {
+        listView = new RecyclerListView(context);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false) {
             @Override
-            protected void dispatchDraw(Canvas canvas) {
-                recyclerItemsEnterAnimator.dispatchDraw();
-                super.dispatchDraw(canvas);
-            }
-
-            @Override
-            protected void onDetachedFromWindow() {
-                super.onDetachedFromWindow();
-                recyclerItemsEnterAnimator.onDetached();
+            public boolean supportsPredictiveItemAnimations() {
+                return false;
             }
         };
-        LinearLayoutManager layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
         listView.setLayoutManager(layoutManager);
         listView.setAdapter(listViewAdapter = new ListAdapter(context));
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -771,7 +764,7 @@ public class ManageLinksActivity extends BaseFragment {
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 case 3:
-                    view = new TextCell(mContext);
+                    view = new CreationTextCell(mContext);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 case 4:
@@ -858,7 +851,7 @@ public class ManageLinksActivity extends BaseFragment {
                     }
                     break;
                 case 3:
-                    TextCell textCell = (TextCell) holder.itemView;
+                    CreationTextCell textCell = (CreationTextCell) holder.itemView;
                     Drawable drawable1 = mContext.getResources().getDrawable(R.drawable.poll_add_circle);
                     Drawable drawable2 = mContext.getResources().getDrawable(R.drawable.poll_add_plus);
                     drawable1.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_switchTrackChecked), PorterDuff.Mode.MULTIPLY));
@@ -977,71 +970,6 @@ public class ManageLinksActivity extends BaseFragment {
             getConnectionsManager().bindRequestToGuid(reqId, classGuid);
         } else {
             revokeLink(invite);
-        }
-    }
-
-    public static class TextCell extends FrameLayout {
-
-        private SimpleTextView textView;
-        private ImageView imageView;
-        boolean divider;
-
-        public TextCell(Context context) {
-            super(context);
-
-            textView = new SimpleTextView(context);
-            textView.setTextSize(16);
-            textView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
-            textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText2));
-            textView.setTag(Theme.key_windowBackgroundWhiteBlueText2);
-            addView(textView);
-
-            imageView = new ImageView(context);
-            imageView.setScaleType(ImageView.ScaleType.CENTER);
-            addView(imageView);
-            setWillNotDraw(false);
-        }
-
-        @Override
-        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            int width = MeasureSpec.getSize(widthMeasureSpec);
-            int height = AndroidUtilities.dp(48);
-
-            textView.measure(MeasureSpec.makeMeasureSpec(width - AndroidUtilities.dp(71 + 23), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(20), MeasureSpec.EXACTLY));
-            imageView.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(50), MeasureSpec.EXACTLY));
-            setMeasuredDimension(width, AndroidUtilities.dp(50));
-        }
-
-        @Override
-        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-            int height = bottom - top;
-            int width = right - left;
-
-            int viewLeft;
-            int viewTop = (height - textView.getTextHeight()) / 2;
-            if (LocaleController.isRTL) {
-                viewLeft = getMeasuredWidth() - textView.getMeasuredWidth() - AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? 70 : 25);
-            } else {
-                viewLeft = AndroidUtilities.dp(imageView.getVisibility() == VISIBLE ? 70 : 25);
-            }
-            textView.layout(viewLeft, viewTop, viewLeft + textView.getMeasuredWidth(), viewTop + textView.getMeasuredHeight());
-
-            viewLeft = !LocaleController.isRTL ? (AndroidUtilities.dp(70) - imageView.getMeasuredWidth()) / 2 : width - imageView.getMeasuredWidth() - AndroidUtilities.dp(25);
-            imageView.layout(viewLeft, 0, viewLeft + imageView.getMeasuredWidth(), imageView.getMeasuredHeight());
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            if (divider) {
-                canvas.drawLine(AndroidUtilities.dp(70), getMeasuredHeight() - 1, getMeasuredWidth() + AndroidUtilities.dp(23), getMeasuredHeight(), Theme.dividerPaint);
-            }
-        }
-
-        public void setTextAndIcon(String text, Drawable icon, boolean divider) {
-            textView.setText(text);
-            imageView.setImageDrawable(icon);
-            this.divider = divider;
         }
     }
 
@@ -1358,18 +1286,22 @@ public class ManageLinksActivity extends BaseFragment {
                 return;
             }
 
-            if (invite.link.startsWith("https://t.me/+")) {
+            if (!TextUtils.isEmpty(invite.title)) {
+                SpannableStringBuilder builder = new SpannableStringBuilder(invite.title);
+                Emoji.replaceEmoji(builder, titleView.getPaint().getFontMetricsInt(), (int) titleView.getPaint().getTextSize(), false);
+                titleView.setText(builder);
+            } else if (invite.link.startsWith("https://t.me/+")) {
                 titleView.setText(invite.link.substring("https://t.me/+".length()));
             } else if (invite.link.startsWith("https://t.me/joinchat/")) {
                 titleView.setText(invite.link.substring("https://t.me/joinchat/".length()));
-            }else if (invite.link.startsWith("https://")) {
+            } else if (invite.link.startsWith("https://")) {
                 titleView.setText(invite.link.substring("https://".length()));
             } else {
                 titleView.setText(invite.link);
             }
 
-            String joinedString;
-            if (invite.usage == 0 && invite.usage_limit == 0) {
+            String joinedString = "";
+            if (invite.usage == 0 && invite.usage_limit == 0 && invite.requested == 0) {
                 joinedString = LocaleController.getString("NoOneJoinedYet", R.string.NoOneJoinedYet);
             } else {
                 if (invite.usage_limit > 0 && invite.usage == 0 && !invite.expired && !invite.revoked) {
@@ -1377,7 +1309,15 @@ public class ManageLinksActivity extends BaseFragment {
                 } else if (invite.usage_limit > 0 && invite.expired && invite.revoked) {
                     joinedString = LocaleController.formatPluralString("PeopleJoined", invite.usage) + ", " + LocaleController.formatPluralString("PeopleJoinedRemaining", (invite.usage_limit - invite.usage));
                 } else {
-                    joinedString = LocaleController.formatPluralString("PeopleJoined", invite.usage);
+                    if (invite.usage > 0) {
+                        joinedString = LocaleController.formatPluralString("PeopleJoined", invite.usage);
+                    }
+                    if (invite.requested > 0) {
+                        if (invite.usage > 0) {
+                            joinedString = joinedString + ", ";
+                        }
+                        joinedString = joinedString + LocaleController.formatPluralString("JoinRequests", invite.requested);
+                    }
                 }
             }
             if (invite.permanent && !invite.revoked) {
@@ -1407,10 +1347,8 @@ public class ManageLinksActivity extends BaseFragment {
                 dotDividerSpan.setTopPadding(AndroidUtilities.dp(1.5f));
                 spannableStringBuilder.append("  .  ").setSpan(dotDividerSpan, spannableStringBuilder.length() - 3, spannableStringBuilder.length() - 2, 0);
 
-
                 long currentTime = System.currentTimeMillis() + timeDif * 1000L;
                 long expireTime = invite.expire_date * 1000L;
-
                 long timeLeft = expireTime - currentTime;
                 if (timeLeft < 0) {
                     timeLeft = 0;
@@ -1496,11 +1434,11 @@ public class ManageLinksActivity extends BaseFragment {
                 AndroidUtilities.runOnUIThread(() -> {
                     DiffCallback callback = saveListState();
                     invites.add(0, (TLRPC.TL_chatInviteExported) response);
-                    updateRecyclerViewAnimated(callback);
                     if (info != null) {
                         info.invitesCount++;
                         getMessagesStorage().saveChatLinksCount(currentChatId, info.invitesCount);
                     }
+                    updateRecyclerViewAnimated(callback);
                 }, 200);
             }
         }
@@ -1690,7 +1628,7 @@ public class ManageLinksActivity extends BaseFragment {
             }
         };
 
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, TextCell.class, LinkActionView.class, LinkCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, CreationTextCell.class, LinkActionView.class, LinkCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
         themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND | ThemeDescription.FLAG_CHECKTAG, null, null, null, null, Theme.key_windowBackgroundGray));
         themeDescriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND | ThemeDescription.FLAG_CHECKTAG, null, null, null, null, Theme.key_windowBackgroundWhite));
 
@@ -1726,9 +1664,9 @@ public class ManageLinksActivity extends BaseFragment {
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CHECKTAG, new Class[]{ManageChatTextCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueButton));
         themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CHECKTAG, new Class[]{ManageChatTextCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueIcon));
 
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueText2));
-        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{TextCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_switchTrackChecked));
-        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{TextCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_checkboxCheck));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{CreationTextCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueText2));
+        themeDescriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_BACKGROUNDFILTER, new Class[]{CreationTextCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_switchTrackChecked));
+        themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{CreationTextCell.class}, new String[]{"imageView"}, null, null, null, Theme.key_checkboxCheck));
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
 
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{LinkCell.class}, new String[]{"titleView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
@@ -1749,6 +1687,9 @@ public class ManageLinksActivity extends BaseFragment {
         super.onTransitionAnimationEnd(isOpen, backward);
         if (isOpen) {
             isOpened = true;
+            if (backward && inviteLinkBottomSheet != null && inviteLinkBottomSheet.isNeedReopen) {
+                inviteLinkBottomSheet.show();
+            }
         }
         NotificationCenter.getInstance(currentAccount).onAnimationFinish(animationIndex);
     }

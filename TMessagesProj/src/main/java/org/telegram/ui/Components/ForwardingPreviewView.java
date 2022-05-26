@@ -47,6 +47,12 @@ import java.util.ArrayList;
 
 public class ForwardingPreviewView extends FrameLayout {
 
+    TLRPC.Peer sendAsPeer;
+    public void setSendAsPeer(TLRPC.Peer defPeer) {
+        sendAsPeer = defPeer;
+        updateMessages();
+    }
+
     public interface ResourcesDelegate extends Theme.ResourcesProvider {
 
         Drawable getWallpaperDrawable();
@@ -108,7 +114,7 @@ public class ForwardingPreviewView extends FrameLayout {
     private final ResourcesDelegate resourcesProvider;
 
     @SuppressLint("ClickableViewAccessibility")
-    public ForwardingPreviewView(@NonNull Context context, ForwardingMessagesParams params, TLRPC.User user, TLRPC.Chat chat, int currentAccount, ResourcesDelegate resourcesProvider) {
+    public ForwardingPreviewView(@NonNull Context context, ForwardingMessagesParams params, TLRPC.User user, TLRPC.Chat chat, int currentAccount, ResourcesDelegate resourcesProvider)  {
         super(context);
         this.currentAccount = currentAccount;
         currentUser = user;
@@ -121,6 +127,14 @@ public class ForwardingPreviewView extends FrameLayout {
             protected Drawable getNewDrawable() {
                 Drawable drawable = resourcesProvider.getWallpaperDrawable();
                 return drawable != null ? drawable : super.getNewDrawable();
+            }
+
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent ev) {
+                if (ev.getY() < currentTopOffset) {
+                    return false;
+                }
+                return super.dispatchTouchEvent(ev);
             }
         };
         chatPreviewContainer.setBackgroundImage(resourcesProvider.getWallpaperDrawable(), resourcesProvider.isWallpaperMotion());
@@ -160,7 +174,7 @@ public class ForwardingPreviewView extends FrameLayout {
                     if ((cell.getCurrentPosition() != null && cell.getCurrentPosition().last) || cell.getTransitionParams().animateBackgroundBoundsInner) {
                         cell.drawTime(canvas, 1f, true);
                     }
-                    if ((cell.getCurrentPosition() != null && cell.getCurrentPosition().last) || cell.getCurrentPosition() == null) {
+                    if (cell.getCurrentPosition() == null || (cell.getCurrentPosition().last || cell.getCurrentMessagesGroup().isDocuments)) {
                         cell.drawCaptionLayout(canvas, false, 1f);
                     }
                     cell.getTransitionParams().recordDrawingStatePreview();
@@ -326,6 +340,7 @@ public class ForwardingPreviewView extends FrameLayout {
                     }
                 }
             }
+
         };
         chatListView.setItemAnimator(itemAnimator = new ChatListItemAnimator(null, chatListView, resourcesProvider) {
 
@@ -770,10 +785,13 @@ public class ForwardingPreviewView extends FrameLayout {
         for (int i = 0; i < forwardingMessagesParams.previewMessages.size(); i++) {
             MessageObject messageObject = forwardingMessagesParams.previewMessages.get(i);
             messageObject.forceUpdate = true;
+            messageObject.sendAsPeer = sendAsPeer;
             if (!forwardingMessagesParams.hideForwardSendersName) {
                 messageObject.messageOwner.flags |= TLRPC.MESSAGE_FLAG_FWD;
+                messageObject.hideSendersName = false;
             } else {
                 messageObject.messageOwner.flags &= ~TLRPC.MESSAGE_FLAG_FWD;
+                messageObject.hideSendersName = true;
             }
             if (forwardingMessagesParams.hideCaption) {
                 messageObject.caption = null;
@@ -961,13 +979,14 @@ public class ForwardingPreviewView extends FrameLayout {
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            ChatMessageCell chatMessageCell = new ChatMessageCell(parent.getContext(), resourcesProvider);
+            ChatMessageCell chatMessageCell = new ChatMessageCell(parent.getContext(), false, resourcesProvider);
             return new RecyclerListView.Holder(chatMessageCell);
         }
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             ChatMessageCell cell = (ChatMessageCell) holder.itemView;
+            cell.setInvalidateSpoilersParent(forwardingMessagesParams.hasSpoilers);
             cell.setParentViewSize(chatListView.getMeasuredWidth(), chatListView.getMeasuredHeight());
             int id = cell.getMessageObject() != null ? cell.getMessageObject().getId() : 0;
             cell.setMessageObject(forwardingMessagesParams.previewMessages.get(position), forwardingMessagesParams.groupedMessagesMap.get(forwardingMessagesParams.previewMessages.get(position).getGroupId()), true, true);

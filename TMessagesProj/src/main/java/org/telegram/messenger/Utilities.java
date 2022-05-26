@@ -14,25 +14,31 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 
+import com.carrotsearch.randomizedtesting.Xoroshiro128PlusRandom;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Utilities {
-
     public static Pattern pattern = Pattern.compile("[\\-0-9]+");
     public static SecureRandom random = new SecureRandom();
+    public static Random fastRandom = new Xoroshiro128PlusRandom(random.nextLong());
 
     public static volatile DispatchQueue stageQueue = new DispatchQueue("stageQueue");
     public static volatile DispatchQueue globalQueue = new DispatchQueue("globalQueue");
     public static volatile DispatchQueue cacheClearQueue = new DispatchQueue("cacheClearQueue");
     public static volatile DispatchQueue searchQueue = new DispatchQueue("searchQueue");
     public static volatile DispatchQueue phoneBookQueue = new DispatchQueue("phoneBookQueue");
+    public static volatile DispatchQueue themeQueue = new DispatchQueue("themeQueue");
+
+    private final static String RANDOM_STRING_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
 
@@ -395,5 +401,21 @@ public class Utilities {
             FileLog.e(e);
         }
         return null;
+    }
+
+    public static float clamp(float value, float top, float bottom) {
+        return Math.max(Math.min(value, top), bottom);
+    }
+
+    public static String generateRandomString() {
+        return generateRandomString(16);
+    }
+
+    public static String generateRandomString(int chars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < chars; i++) {
+            sb.append(RANDOM_STRING_CHARS.charAt(fastRandom.nextInt(RANDOM_STRING_CHARS.length())));
+        }
+        return sb.toString();
     }
 }
