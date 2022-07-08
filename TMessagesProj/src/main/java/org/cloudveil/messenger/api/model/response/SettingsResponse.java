@@ -8,7 +8,7 @@ import java.util.HashMap;
  */
 
 public class SettingsResponse {
-    public class AccessList {
+    public static class AccessList {
         public ArrayList<HashMap<Long, Boolean>> groups;
         public ArrayList<HashMap<Long, Boolean>> bots;
         public ArrayList<HashMap<Long, Boolean>> channels;
@@ -22,10 +22,16 @@ public class SettingsResponse {
         }
     }
 
-    public class GoogleMapsKeys {
+    public static class GoogleMapsKeys {
         public String ios;
         public String android;
         public String desktop;
+    }
+
+    public static class Organization {
+        public int id;
+        public String name;
+        public boolean needChange;
     }
 
     public AccessList access;
@@ -45,4 +51,5 @@ public class SettingsResponse {
     public String disableStickersImage;
     public int profilePhotoLimit;
     public GoogleMapsKeys googleMapsKeys;
+    public Organization organization;
 }

@@ -2009,31 +2009,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         SuggestClearDatabaseBottomSheet.dismissDialog();
     }
 
-    //CloudVeil start
-    private void showPopup(final Context context) {
-        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        if (defaultSharedPreferences.getBoolean("popupShown", false)) {
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(context.getString(R.string.warning))
-                .setMessage(context.getString(R.string.cloudveil_message_warning))
-                .setPositiveButton(context.getString(R.string.OK), (dialog, which) -> {
-                    dialog.dismiss();
-                    setPopupShown();
-                })
-                .setOnDismissListener(dialog -> setPopupShown())
-                .setOnBackButtonListener((dialog, which) -> setPopupShown());
-        showDialog(builder.create(), dialog -> setPopupShown());
-    }
-
-    private void setPopupShown() {
-        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(ApplicationLoader.applicationContext);
-        defaultSharedPreferences.edit().putBoolean("popupShown", true).apply();
-    }
-    //CloudVeil end
-
     @Override
     protected ActionBar createActionBar(Context context) {
         ActionBar actionBar = new ActionBar(context) {
@@ -4446,7 +4421,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     .setNegativeButton(LocaleController.getString("ContactsPermissionAlertNotNow", R.string.ContactsPermissionAlertNotNow), (dialog, which) -> MessagesController.getGlobalNotificationsSettings().edit().putBoolean("askedAboutMiuiLockscreen", true).commit())
                     .create());
         }  else { //Cloudveil start
-            showPopup(getParentActivity());
+            CloudVeilDialogHelper.getInstance(currentAccount).showPopup(this, getParentActivity());
 
             if (GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS && SharedConfig.autoplayGifs) {
                 SharedConfig.toggleAutoplayGifs();

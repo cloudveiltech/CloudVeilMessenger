@@ -202,6 +202,15 @@ public class GlobalSecuritySettings {
         return v;
     }
 
+    public static void setIsOrganisationChangeRequired(boolean isRequired) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isOrganisationChangeRequired", isRequired).apply();
+    }
+
+    public static boolean getIsOrganisationChangeRequired() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isOrganisationChangeRequired", false);
+    }
 
     public static boolean isUrlWhileListedForInternalView(@NonNull String url) {
         if(url.contains("://messenger.cloudveil.org")) {

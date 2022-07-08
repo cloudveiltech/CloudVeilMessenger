@@ -136,7 +136,7 @@ public class ChannelCheckingService extends Service {
 
 
 
-    Runnable checkDataRunnable = () -> sendDataCheckRequest();
+    Runnable checkDataRunnable = this::sendDataCheckRequest;
 
     private void sendDataCheckRequest() {
         UserConfig userConfig = UserConfig.getInstance(accountNumber);
@@ -292,6 +292,11 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
         GlobalSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         GlobalSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
+        if(settingsResponse.organization != null) {
+            GlobalSecuritySettings.setIsOrganisationChangeRequired(settingsResponse.organization.needChange);
+        } else {
+            GlobalSecuritySettings.setIsOrganisationChangeRequired(false);
+        }
         
         if(settingsResponse.googleMapsKeys != null) {
             GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);

@@ -6,8 +6,10 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
@@ -35,7 +37,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CloudVeilDialogHelper {
-    private int accountNumber;
+    private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    private final int accountNumber;
 
     public enum DialogType {
         channel, group, user, bot, chat
@@ -423,5 +426,53 @@ public class CloudVeilDialogHelper {
         }
         Matcher matcher = youtubeIdRegex.matcher(url);
         return matcher.find();
+    }
+
+    public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {
+        if(!GlobalSecuritySettings.getIsOrganisationChangeRequired()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        SharedPreferences preferences = MessagesController.getMainSettings(accountNumber);
+        long lastCheckTime = preferences.getLong("checkOrganizationChangeRequiredTime", 0);
+        if(now - lastCheckTime < ONE_DAY_MS) {
+            return;
+        }
+        preferences.edit().putLong("checkOrganizationChangeRequiredTime", now).apply();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(context.getString(R.string.cloudveil_organisation_change))
+                .setPositiveButton(context.getString(R.string.change), (dialog, which) -> {
+                    long currentUserId = UserConfig.getInstance(accountNumber).getCurrentUser().id;
+                    Browser.openUrl(context, "https://messenger.cloudveil.org/unblock_status/" + currentUserId );
+                    dialog.dismiss();
+                })
+                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> {});
+        fragment.showDialog(builder.create());
+    }
+
+    public void showPopup(BaseFragment fragment, final Context context) {
+        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        if (defaultSharedPreferences.getBoolean("popupShown", false)) {
+            CloudVeilDialogHelper.getInstance(accountNumber).checkOrganizationChangeRequired(fragment, ApplicationLoader.applicationContext);
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(context.getString(R.string.cloudveil_message_warning))
+                .setPositiveButton(context.getString(R.string.OK), (dialog, which) -> {
+                    dialog.dismiss();
+                    setPopupShown();
+                })
+                .setOnDismissListener(dialog -> setPopupShown())
+                .setOnBackButtonListener((dialog, which) -> setPopupShown());
+        fragment.showDialog(builder.create(), dialog -> setPopupShown());
+    }
+
+    private void setPopupShown() {
+        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(ApplicationLoader.applicationContext);
+        defaultSharedPreferences.edit().putBoolean("popupShown", true).apply();
     }
 }
