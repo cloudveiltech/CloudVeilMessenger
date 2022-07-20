@@ -1,5 +1,7 @@
 package org.cloudveil.messenger.api.model.request;
 
+import org.telegram.messenger.BuildConfig;
+
 import java.util.ArrayList;
 
 /**
@@ -10,6 +12,10 @@ public class SettingsRequest {
     public long userId;
     public String userPhone;
     public String userName;
+
+    public String clientOsType = "Android";
+    public String clientVersionName = BuildConfig.VERSION_NAME;
+    public int clientVersionCode = BuildConfig.VERSION_CODE;
 
     public ArrayList<GroupRow> groups = new ArrayList<>();
     public ArrayList<GroupChannelRow> channels = new ArrayList<>();
