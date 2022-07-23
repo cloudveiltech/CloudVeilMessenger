@@ -145,7 +145,9 @@ public class ChannelCheckingService extends Service {
             stopSelf();
             return;
         }
-        if (userConfig.getCurrentUser() == null) {
+
+        TLRPC.User currentUser = userConfig.getCurrentUser();
+        if (currentUser == null) {
             stopForeground(true);
             stopSelf();
             return;
@@ -156,9 +158,10 @@ public class ChannelCheckingService extends Service {
         addInlineBotsToRequest(request);
         addStickersToRequest(request);
 
-        request.userPhone = userConfig.getCurrentUser().phone;
-        request.userId = userConfig.getCurrentUser().id;
-        request.userName = userConfig.getCurrentUser().username;
+        request.userPhone = currentUser.phone;
+        request.userId = currentUser.id;
+        request.userName = currentUser.username;
+        request.clientSessionId = GlobalSecuritySettings.getInstallId(accountNumber);
 
         if (request.isEmpty()) {
             NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);

@@ -16,6 +16,7 @@ public class SettingsRequest {
     public String clientOsType = "Android";
     public String clientVersionName = BuildConfig.VERSION_NAME;
     public int clientVersionCode = BuildConfig.VERSION_CODE;
+    public String clientSessionId;
 
     public ArrayList<GroupRow> groups = new ArrayList<>();
     public ArrayList<GroupChannelRow> channels = new ArrayList<>();

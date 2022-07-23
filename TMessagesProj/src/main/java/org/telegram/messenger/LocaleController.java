@@ -999,7 +999,8 @@ public class LocaleController {
             value = "LOC_ERR:" + key;
         }
         //CloudVeil start
-        return value.replace("Telegram", "CloudVeil Messenger");
+        String appName = ApplicationLoader.applicationContext.getString(R.string.AppName);
+        return value.replace("Telegram", appName);
         //CloudVeil end
     }
 

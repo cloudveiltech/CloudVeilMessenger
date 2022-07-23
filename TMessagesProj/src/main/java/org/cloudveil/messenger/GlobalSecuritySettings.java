@@ -13,6 +13,8 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 
+import java.util.UUID;
+
 /**
  * Created by darren on 2017-03-25.
  */
@@ -217,5 +219,19 @@ public class GlobalSecuritySettings {
             return true;
         }
         return false;
+    }
+
+    public static boolean isVideoPlayingAllowed() {
+        return false;
+    }
+    
+    public static String getInstallId(@NonNull int accountNum) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String id = preferences.getString("installId__" + accountNum, null);
+        if(id == null) {
+            id = UUID.randomUUID().toString();
+        }
+        preferences.edit().putString("installId__" + accountNum, id).apply();
+        return id;
     }
 }

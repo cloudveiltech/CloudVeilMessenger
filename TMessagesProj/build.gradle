@@ -115,6 +115,7 @@ android {
             ndk.debugSymbolLevel = 'FULL'
         }
 
+
         /*debugAsan {
             debuggable true
             jniDebuggable true
@@ -293,7 +294,7 @@ android {
                 abiVersionCode = 8
             }
         }
-        afat {
+        cloudveil {
             ndk {
                 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             }
@@ -309,7 +310,34 @@ android {
             ext {
                 abiVersionCode = 9
             }
+
+            applicationId "org.cloudveil.messenger"
+            buildConfigField "String", "API_HASH", "\"2db8d372e3978a884a38ee57d04d4ee1\""
+            buildConfigField "int", "API_ID", "66408"
         }
+
+        wcma {
+            ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            }
+            sourceSets.debug {
+                manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.release {
+                manifest.srcFile 'config/release/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.standalone {
+                manifest.srcFile 'config/release/AndroidManifest_standalone.xml'
+            }
+            ext {
+                abiVersionCode = 9
+            }
+
+            applicationId "org.test.messenger"
+            buildConfigField "String", "API_HASH", "\"e0023208d2cfd01c7211e97e9f0a8801\""
+            buildConfigField "int", "API_ID", "17544"
+        }
+
     }
 
     defaultConfig.versionCode = 2639
