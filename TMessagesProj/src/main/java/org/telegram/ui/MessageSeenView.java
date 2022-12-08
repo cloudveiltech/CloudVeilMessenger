@@ -10,6 +10,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -29,9 +30,10 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AvatarDrawable;
-import org.telegram.ui.Components.AvatarsDarawable;
+import org.telegram.ui.Components.AvatarsDrawable;
 import org.telegram.ui.Components.AvatarsImageView;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.FlickerLoadingView;
@@ -47,7 +49,7 @@ public class MessageSeenView extends FrameLayout {
     ArrayList<Long> peerIds = new ArrayList<>();
     public ArrayList<TLRPC.User> users = new ArrayList<>();
     AvatarsImageView avatarsImageView;
-    TextView titleView;
+    SimpleTextView titleView;
     ImageView iconView;
     int currentAccount;
     boolean isVoice;
@@ -64,20 +66,16 @@ public class MessageSeenView extends FrameLayout {
         flickerLoadingView.setIsSingleCell(false);
         addView(flickerLoadingView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
 
-        titleView = new TextView(context) {
-            @Override
-            public void setText(CharSequence text, BufferType type) {
-                super.setText(text, type);
-            }
-        };
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-        titleView.setLines(1);
-        titleView.setEllipsize(TextUtils.TruncateAt.END);
+        titleView = new SimpleTextView(context);
+        titleView.setTextSize(16);
+        titleView.setEllipsizeByGradient(true);
+        titleView.setRightPadding(AndroidUtilities.dp(62));
 
-        addView(titleView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, 40, 0, 62, 0));
+        addView(titleView, LayoutHelper.createFrame(0, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, 40, 0, 0, 0));
 
         avatarsImageView = new AvatarsImageView(context, false);
-        avatarsImageView.setStyle(AvatarsDarawable.STYLE_MESSAGE_SEEN);
+        avatarsImageView.setStyle(AvatarsDrawable.STYLE_MESSAGE_SEEN);
+        avatarsImageView.setAvatarsTextSize(AndroidUtilities.dp(22));
         addView(avatarsImageView, LayoutHelper.createFrame(24 + 12 + 12 + 8, LayoutHelper.MATCH_PARENT, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, 0, 0));
 
         titleView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultSubmenuItem));
@@ -194,17 +192,22 @@ public class MessageSeenView extends FrameLayout {
         if (parent != null && parent.getWidth() > 0) {
             widthMeasureSpec = MeasureSpec.makeMeasureSpec(parent.getWidth(), MeasureSpec.EXACTLY);
         }
-        if (flickerLoadingView.getVisibility() == View.VISIBLE) {
-            ignoreLayout = true;
+        ignoreLayout = true;
+        boolean measureFlicker = flickerLoadingView.getVisibility() == View.VISIBLE;
+        titleView.setVisibility(View.GONE);
+        if (measureFlicker) {
             flickerLoadingView.setVisibility(View.GONE);
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        if (measureFlicker) {
             flickerLoadingView.getLayoutParams().width = getMeasuredWidth();
             flickerLoadingView.setVisibility(View.VISIBLE);
-            ignoreLayout = false;
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        } else {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         }
+        titleView.setVisibility(View.VISIBLE);
+        titleView.getLayoutParams().width = getMeasuredWidth() - AndroidUtilities.dp(40);
+        ignoreLayout = false;
+
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     private void updateView() {
@@ -224,12 +227,7 @@ public class MessageSeenView extends FrameLayout {
             avatarsImageView.setTranslationX(0);
         }
 
-        int newRightMargin = AndroidUtilities.dp(users.size() == 0 ? 8 : 62);
-        MarginLayoutParams titleViewMargins = (MarginLayoutParams) titleView.getLayoutParams();
-        if (titleViewMargins.rightMargin != newRightMargin) {
-            titleViewMargins.rightMargin = newRightMargin;
-            titleView.setLayoutParams(titleViewMargins);
-        }
+        titleView.setRightPadding(AndroidUtilities.dp(8 + 24 + Math.min(2, users.size() - 1) * 12 + 6));
 
         avatarsImageView.commitTransition(false);
         if (peerIds.size() == 1 && users.get(0) != null) {
@@ -247,7 +245,19 @@ public class MessageSeenView extends FrameLayout {
     }
 
     public RecyclerListView createListView() {
-        RecyclerListView recyclerListView = new RecyclerListView(getContext());
+        RecyclerListView recyclerListView = new RecyclerListView(getContext()) {
+            @Override
+            protected void onMeasure(int widthSpec, int heightSpec) {
+                int height = MeasureSpec.getSize(heightSpec);
+                int listViewTotalHeight = AndroidUtilities.dp(8) + AndroidUtilities.dp(44) * getAdapter().getItemCount();
+
+                if (listViewTotalHeight > height) {
+                    listViewTotalHeight = height;
+                }
+
+                super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(listViewTotalHeight, MeasureSpec.EXACTLY));
+            }
+        };
         recyclerListView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerListView.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
@@ -305,6 +315,7 @@ public class MessageSeenView extends FrameLayout {
             nameView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
             nameView.setLines(1);
             nameView.setEllipsize(TextUtils.TruncateAt.END);
+            nameView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             addView(nameView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.CENTER_VERTICAL, 59, 0, 13, 0));
 
             nameView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultSubmenuItem));
@@ -322,6 +333,12 @@ public class MessageSeenView extends FrameLayout {
                 avatarImageView.setImage(imageLocation, "50_50", avatarDrawable, user);
                 nameView.setText(ContactsController.formatName(user.first_name, user.last_name));
             }
+        }
+
+        @Override
+        public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+            super.onInitializeAccessibilityNodeInfo(info);
+            info.setText(LocaleController.formatString("AccDescrPersonHasSeen", R.string.AccDescrPersonHasSeen, nameView.getText()));
         }
     }
 }

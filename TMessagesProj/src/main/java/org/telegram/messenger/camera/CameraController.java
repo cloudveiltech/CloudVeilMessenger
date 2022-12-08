@@ -240,7 +240,7 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                     NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.cameraInitied);
                 });
             } catch (Exception e) {
-                FileLog.e(e);
+                FileLog.e(e, !"APP_PAUSED".equals(e.getMessage()));
                 AndroidUtilities.runOnUIThread(() -> {
                     onFinishCameraInitRunnables.clear();
                     loadingCameras = false;
@@ -528,7 +528,6 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                 //CloudVeil start
                 CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                 //CloudVeil end
-
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                 }
@@ -566,7 +565,6 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                 //CloudVeil start
                 CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
                 //CloudVeil end
-
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                 }

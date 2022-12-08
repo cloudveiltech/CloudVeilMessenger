@@ -1,18 +1,22 @@
 package org.telegram.ui.Components;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
-import android.graphics.Region;
-import android.os.Build;
 import android.os.SystemClock;
+import android.text.Layout;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.style.CharacterStyle;
-import android.util.Log;
+import android.text.style.ClickableSpan;
 import android.util.Pair;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.ui.ActionBar.Theme;
@@ -57,7 +61,7 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
     public LinkSpanDrawable(S span, Theme.ResourcesProvider resourcesProvider, float touchX, float touchY, boolean supportsLongPress) {
         mSpan = span;
         mResourcesProvider = resourcesProvider;
-        setColor(getThemedColor(Theme.key_chat_linkSelectBackground));
+        setColor(Theme.getColor(Theme.key_chat_linkSelectBackground, resourcesProvider));
         mTouchX = touchX;
         mTouchY = touchY;
         final long tapTimeout = ViewConfiguration.getTapTimeout();
@@ -197,11 +201,6 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
         }
 
         return pressT < 1f || mReleaseStart >= 0 || (mSupportsLongPress && now - mStart < mLongPressDuration + mDuration);
-    }
-
-    private int getThemedColor(String key) {
-        Integer color = mResourcesProvider != null ? mResourcesProvider.getColor(key) : null;
-        return color != null ? color : Theme.getColor(key);
     }
 
     public static class LinkCollector {
@@ -359,6 +358,136 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
             } else if (tryParent && mParent != null) {
                 mParent.invalidate();
             }
+        }
+    }
+
+    public static class LinksTextView extends TextView {
+        public interface OnLinkPress {
+            public void run(ClickableSpan span);
+        }
+
+        private boolean isCustomLinkCollector;
+        private LinkCollector links;
+        private Theme.ResourcesProvider resourcesProvider;
+
+        private LinkSpanDrawable<ClickableSpan> pressedLink;
+
+        private OnLinkPress onPressListener;
+        private OnLinkPress onLongPressListener;
+
+        private boolean disablePaddingsOffset;
+
+        public LinksTextView(Context context) {
+            this(context, null);
+        }
+
+        public LinksTextView(Context context, Theme.ResourcesProvider resourcesProvider) {
+            super(context);
+            this.isCustomLinkCollector = false;
+            this.links = new LinkCollector(this);
+            this.resourcesProvider = resourcesProvider;
+        }
+
+        public LinksTextView(Context context, LinkCollector customLinkCollector, Theme.ResourcesProvider resourcesProvider) {
+            super(context);
+            this.isCustomLinkCollector = true;
+            this.links = customLinkCollector;
+            this.resourcesProvider = resourcesProvider;
+        }
+
+        public void setDisablePaddingsOffset(boolean disablePaddingsOffset) {
+            this.disablePaddingsOffset = disablePaddingsOffset;
+        }
+
+        public void setOnLinkPressListener(OnLinkPress listener) {
+            onPressListener = listener;
+        }
+
+        public void setOnLinkLongPressListener(OnLinkPress listener) {
+            onLongPressListener = listener;
+        }
+
+        public ClickableSpan hit(int x, int y) {
+            Layout textLayout = getLayout();
+            if (textLayout == null) {
+                return null;
+            }
+            x -= getPaddingLeft();
+            y -= getPaddingTop();
+            final int line = textLayout.getLineForVertical(y);
+            final int off = textLayout.getOffsetForHorizontal(line, x);
+            final float left = getLayout().getLineLeft(line);
+            ClickableSpan span = null;
+            if (left <= x && left + textLayout.getLineWidth(line) >= x && y >= 0 && y <= textLayout.getHeight()) {
+                Spannable buffer = new SpannableString(textLayout.getText());
+                ClickableSpan[] spans = buffer.getSpans(off, off, ClickableSpan.class);
+                if (spans.length != 0 && !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
+                    return spans[0];
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (links != null) {
+                Layout textLayout = getLayout();
+                ClickableSpan span;
+                if ((span = hit((int) event.getX(), (int) event.getY())) != null) {
+                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                        final LinkSpanDrawable link = new LinkSpanDrawable<ClickableSpan>(span, resourcesProvider, event.getX(), event.getY());
+                        pressedLink = link;
+                        links.addLink(pressedLink);
+                        Spannable buffer = new SpannableString(textLayout.getText());
+                        int start = buffer.getSpanStart(pressedLink.getSpan());
+                        int end = buffer.getSpanEnd(pressedLink.getSpan());
+                        LinkPath path = pressedLink.obtainNewPath();
+                        path.setCurrentLayout(textLayout, start, getPaddingTop());
+                        textLayout.getSelectionPath(start, end, path);
+                        AndroidUtilities.runOnUIThread(() -> {
+                            if (onLongPressListener != null && pressedLink == link) {
+                                onLongPressListener.run(span);
+                                pressedLink = null;
+                                links.clear();
+                            }
+                        }, ViewConfiguration.getLongPressTimeout());
+                        return true;
+                    }
+                }
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    links.clear();
+                    if (pressedLink != null && pressedLink.getSpan() == span) {
+                        if (onPressListener != null) {
+                            onPressListener.run(pressedLink.getSpan());
+                        } else if (pressedLink.getSpan() != null) {
+                            pressedLink.getSpan().onClick(this);
+                        }
+                    }
+                    pressedLink = null;
+                    return true;
+                }
+                if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+                    links.clear();
+                    pressedLink = null;
+                    return true;
+                }
+            }
+            return pressedLink != null || super.onTouchEvent(event);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            if (!isCustomLinkCollector) {
+                canvas.save();
+                if (!disablePaddingsOffset) {
+                    canvas.translate(getPaddingLeft(), getPaddingTop());
+                }
+                if (links.draw(canvas)) {
+                    invalidate();
+                }
+                canvas.restore();
+            }
+            super.onDraw(canvas);
         }
     }
 }

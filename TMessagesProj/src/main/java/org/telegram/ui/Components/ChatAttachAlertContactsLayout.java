@@ -22,6 +22,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSmoothScroller;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
@@ -40,10 +44,6 @@ import org.telegram.ui.ActionBar.ThemeDescription;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.LinearSmoothScroller;
-import androidx.recyclerview.widget.RecyclerView;
 
 public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -161,9 +161,11 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
                     } else {
                         statusTextView.setText("");
                         Utilities.globalQueue.postRunnable(() -> {
-                            formattedPhoneNumber = PhoneFormat.getInstance().format("+" + currentUser.phone);
-                            formattedPhoneNumberUser = currentUser;
-                            AndroidUtilities.runOnUIThread(() -> statusTextView.setText(formattedPhoneNumber));
+                            if (currentUser != null) {
+                                formattedPhoneNumber = PhoneFormat.getInstance().format("+" + currentUser.phone);
+                                formattedPhoneNumberUser = currentUser;
+                                AndroidUtilities.runOnUIThread(() -> statusTextView.setText(formattedPhoneNumber));
+                            }
                         });
                     }
                 }
@@ -791,21 +793,22 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
                         }
 
                         int found = 0;
+                        String username;
                         for (String q : search) {
                             if (name2 != null && (name2.startsWith(q) || name2.contains(" " + q)) || tName2 != null && (tName2.startsWith(q) || tName2.contains(" " + q))) {
                                 found = 1;
-                            } else if (contact.user != null && contact.user.username != null && contact.user.username.startsWith(q)) {
+                            } else if (contact.user != null && (username = UserObject.getPublicUsername(contact.user)) != null && username.startsWith(q)) {
                                 found = 2;
                             } else if (name.startsWith(q) || name.contains(" " + q) || tName != null && (tName.startsWith(q) || tName.contains(" " + q))) {
                                 found = 3;
                             }
-                            if (found != 0) {
+                            if (found != 0 && (!contact.phones.isEmpty() || !contact.shortPhones.isEmpty())) {
                                 if (found == 3) {
                                     resultArrayNames.add(AndroidUtilities.generateSearchName(contact.first_name, contact.last_name, q));
                                 } else if (found == 1) {
                                     resultArrayNames.add(AndroidUtilities.generateSearchName(contact.user.first_name, contact.user.last_name, q));
                                 } else {
-                                    resultArrayNames.add(AndroidUtilities.generateSearchName("@" + contact.user.username, null, "@" + q));
+                                    resultArrayNames.add(AndroidUtilities.generateSearchName("@" + UserObject.getPublicUsername(contact.user), null, "@" + q));
                                 }
                                 if (contact.user != null) {
                                     foundUids.put(contact.user.id, 1);
@@ -829,18 +832,19 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
                         }
 
                         int found = 0;
+                        String username;
                         for (String q : search) {
                             if (name.startsWith(q) || name.contains(" " + q) || tName != null && (tName.startsWith(q) || tName.contains(" " + q))) {
                                 found = 1;
-                            } else if (user.username != null && user.username.startsWith(q)) {
+                            } else if ((username = UserObject.getPublicUsername(user)) != null && username.startsWith(q)) {
                                 found = 2;
                             }
 
-                            if (found != 0) {
+                            if (found != 0 && user.phone != null) {
                                 if (found == 1) {
                                     resultArrayNames.add(AndroidUtilities.generateSearchName(user.first_name, user.last_name, q));
                                 } else {
-                                    resultArrayNames.add(AndroidUtilities.generateSearchName("@" + user.username, null, "@" + q));
+                                    resultArrayNames.add(AndroidUtilities.generateSearchName("@" + UserObject.getPublicUsername(user), null, "@" + q));
                                 }
                                 resultArray.add(user);
                                 break;

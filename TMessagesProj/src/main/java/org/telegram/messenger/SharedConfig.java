@@ -19,6 +19,7 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.SparseArray;
+import android.webkit.WebView;
 
 import androidx.annotation.IntDef;
 import androidx.core.content.pm.ShortcutManagerCompat;
@@ -49,6 +50,12 @@ public class SharedConfig {
     })
     public @interface PasscodeType {}
 
+    public final static int SAVE_TO_GALLERY_FLAG_PEER = 1;
+    public final static int SAVE_TO_GALLERY_FLAG_GROUP = 2;
+    public final static int SAVE_TO_GALLERY_FLAG_CHANNELS = 4;
+
+    @PushListenerController.PushType
+    public static int pushType = PushListenerController.PUSH_TYPE_FIREBASE;
     public static String pushString = "";
     public static String pushStringStatus = "";
     public static long pushStringGetTimeStart;
@@ -76,6 +83,7 @@ public class SharedConfig {
     public static boolean useFingerprint = true;
     public static String lastUpdateVersion;
     public static int suggestStickers;
+    public static boolean suggestAnimatedEmoji;
     public static boolean loopStickers;
     public static int keepMedia = 2;
     public static int lastKeepMediaCheckTime;
@@ -88,6 +96,8 @@ public class SharedConfig {
     public static boolean searchMessagesAsListUsed;
     public static boolean stickersReorderingHintUsed;
     public static boolean disableVoiceAudioEffects;
+    public static boolean forceDisableTabletMode;
+    public static boolean useLNavigation;
     private static int lastLocalId = -210000;
 
     public static String storageCacheDir;
@@ -100,12 +110,13 @@ public class SharedConfig {
     private static final Object sync = new Object();
     private static final Object localIdSync = new Object();
 
-    public static boolean saveToGallery;
+    public static int saveToGalleryFlags;
     public static int mapPreviewType = 2;
     public static boolean chatBubbles = Build.VERSION.SDK_INT >= 30;
     public static boolean autoplayGifs = true;
     public static boolean autoplayVideo = true;
     public static boolean raiseToSpeak = false;
+    public static boolean recordViaSco = false;
     public static boolean customTabs = true;
     public static boolean directShare = true;
     public static boolean inappCamera = true;
@@ -121,6 +132,7 @@ public class SharedConfig {
     public static boolean noiseSupression;
     public static boolean noStatusBar = true;
     public static boolean forceRtmpStream;
+    public static boolean debugWebView;
     public static boolean sortContactsByName;
     public static boolean sortFilesByName;
     public static boolean shuffleMusic;
@@ -131,6 +143,7 @@ public class SharedConfig {
     public static boolean allowBigEmoji;
     public static boolean useSystemEmoji;
     public static int fontSize = 16;
+    public static boolean fontSizeIsDefault;
     public static int bubbleRadius = 17;
     public static int ivFontSize = 16;
     public static int messageSeenHintCount;
@@ -140,6 +153,8 @@ public class SharedConfig {
     public static TLRPC.TL_help_appUpdate pendingAppUpdate;
     public static int pendingAppUpdateBuildVersion;
     public static long lastUpdateCheckTime;
+
+    public static boolean hasEmailLogin;
 
     private static int devicePerformanceClass;
 
@@ -153,6 +168,8 @@ public class SharedConfig {
     public static int mediaColumnsCount = 3;
     public static int fastScrollHintCount = 3;
     public static boolean dontAskManageStorage;
+
+    public static boolean isFloatingDebugActive;
 
     static {
         loadConfig();
@@ -216,6 +233,7 @@ public class SharedConfig {
                 editor.putBoolean("useFingerprint", useFingerprint);
                 editor.putBoolean("allowScreenCapture", allowScreenCapture);
                 editor.putString("pushString2", pushString);
+                editor.putInt("pushType", pushType);
                 editor.putBoolean("pushStatSent", pushStatSent);
                 editor.putString("pushAuthKey", pushAuthKey != null ? Base64.encodeToString(pushAuthKey, Base64.DEFAULT) : "");
                 editor.putInt("lastLocalId", lastLocalId);
@@ -245,6 +263,12 @@ public class SharedConfig {
                 }
                 editor.putLong("appUpdateCheckTime", lastUpdateCheckTime);
 
+                editor.apply();
+
+                editor = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Context.MODE_PRIVATE).edit();
+                editor.putBoolean("hasEmailLogin", hasEmailLogin);
+                editor.putBoolean("useLNavigation", useLNavigation);
+                editor.putBoolean("floatingDebugActive", isFloatingDebugActive);
                 editor.apply();
             } catch (Exception e) {
                 FileLog.e(e);
@@ -283,6 +307,7 @@ public class SharedConfig {
             allowScreenCapture = preferences.getBoolean("allowScreenCapture", false);
             lastLocalId = preferences.getInt("lastLocalId", -210000);
             pushString = preferences.getString("pushString2", "");
+            pushType = preferences.getInt("pushType", PushListenerController.PUSH_TYPE_FIREBASE);
             pushStatSent = preferences.getBoolean("pushStatSent", false);
             passportConfigJson = preferences.getString("passportConfigJson", "");
             passportConfigHash = preferences.getInt("passportConfigHash", 0);
@@ -331,7 +356,7 @@ public class SharedConfig {
                     if (updateVersionString == null) {
                         updateVersionString = BuildVars.BUILD_VERSION_STRING;
                     }
-                    if (pendingAppUpdateBuildVersion != updateVersion || pendingAppUpdate.version == null || updateVersionString.compareTo(pendingAppUpdate.version) >= 0) {
+                    if (pendingAppUpdateBuildVersion != updateVersion || pendingAppUpdate.version == null || updateVersionString.compareTo(pendingAppUpdate.version) >= 0 || BuildVars.DEBUG_PRIVATE_VERSION) {
                         pendingAppUpdate = null;
                         AndroidUtilities.runOnUIThread(SharedConfig::saveConfig);
                     }
@@ -341,11 +366,18 @@ public class SharedConfig {
             }
 
             preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-            saveToGallery = preferences.getBoolean("save_gallery", false);
+            boolean saveToGalleryLegacy = preferences.getBoolean("save_gallery", false);
+            if (saveToGalleryLegacy && BuildVars.NO_SCOPED_STORAGE) {
+                saveToGalleryFlags = SAVE_TO_GALLERY_FLAG_PEER + SAVE_TO_GALLERY_FLAG_CHANNELS + SAVE_TO_GALLERY_FLAG_GROUP;
+                preferences.edit().remove("save_gallery").putInt("save_gallery_flags", saveToGalleryFlags).apply();
+            } else {
+                saveToGalleryFlags = preferences.getInt("save_gallery_flags", 0);
+            }
             autoplayGifs = preferences.getBoolean("autoplay_gif", true);
             autoplayVideo = preferences.getBoolean("autoplay_video", true);
             mapPreviewType = preferences.getInt("mapPreviewType", 2);
             raiseToSpeak = preferences.getBoolean("raise_to_speak", false);
+            recordViaSco = preferences.getBoolean("record_via_sco", false);
             customTabs = preferences.getBoolean("custom_tabs", true);
             directShare = preferences.getBoolean("direct_share", true);
             shuffleMusic = preferences.getBoolean("shuffleMusic", false);
@@ -355,6 +387,7 @@ public class SharedConfig {
             roundCamera16to9 = true;//preferences.getBoolean("roundCamera16to9", false);
             repeatMode = preferences.getInt("repeatMode", 0);
             fontSize = preferences.getInt("fons_size", AndroidUtilities.isTablet() ? 18 : 16);
+            fontSizeIsDefault = !preferences.contains("fons_size");
             bubbleRadius = preferences.getInt("bubbleRadius", 17);
             ivFontSize = preferences.getInt("iv_font_size", fontSize);
             allowBigEmoji = preferences.getBoolean("allowBigEmoji", true);
@@ -364,9 +397,11 @@ public class SharedConfig {
             smoothKeyboard = preferences.getBoolean("smoothKeyboard2", true);
             pauseMusicOnRecord = preferences.getBoolean("pauseMusicOnRecord", false);
             chatBlur = preferences.getBoolean("chatBlur", true);
+            forceDisableTabletMode = preferences.getBoolean("forceDisableTabletMode", false);
             streamAllVideo = preferences.getBoolean("streamAllVideo", BuildVars.DEBUG_VERSION);
             streamMkv = preferences.getBoolean("streamMkv", false);
             suggestStickers = preferences.getInt("suggestStickers", 0);
+            suggestAnimatedEmoji = preferences.getBoolean("suggestAnimatedEmoji", true);
             sortContactsByName = preferences.getBoolean("sortContactsByName", false);
             sortFilesByName = preferences.getBoolean("sortFilesByName", false);
             noSoundHintShowed = preferences.getBoolean("noSoundHintShowed", false);
@@ -379,6 +414,7 @@ public class SharedConfig {
             keepMedia = preferences.getInt("keep_media", 2);
             noStatusBar = preferences.getBoolean("noStatusBar", true);
             forceRtmpStream = preferences.getBoolean("forceRtmpStream", false);
+            debugWebView = preferences.getBoolean("debugWebView", false);
             lastKeepMediaCheckTime = preferences.getInt("lastKeepMediaCheckTime", 0);
             lastLogsCheckTime = preferences.getInt("lastLogsCheckTime", 0);
             searchMessagesAsListHintShows = preferences.getInt("searchMessagesAsListHintShows", 0);
@@ -397,11 +433,30 @@ public class SharedConfig {
             mediaColumnsCount = preferences.getInt("mediaColumnsCount", 3);
             fastScrollHintCount = preferences.getInt("fastScrollHintCount", 3);
             dontAskManageStorage = preferences.getBoolean("dontAskManageStorage", false);
+            hasEmailLogin = preferences.getBoolean("hasEmailLogin", false);
+            useLNavigation = preferences.getBoolean("useLNavigation", BuildVars.DEBUG_VERSION);
+            isFloatingDebugActive = preferences.getBoolean("floatingDebugActive", false);
 
             preferences = ApplicationLoader.applicationContext.getSharedPreferences("Notifications", Activity.MODE_PRIVATE);
             showNotificationsForAllAccounts = preferences.getBoolean("AllAccounts", true);
 
             configLoaded = true;
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && debugWebView) {
+                    WebView.setWebContentsDebuggingEnabled(true);
+                }
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        }
+    }
+
+    public static void updateTabletConfig() {
+        if (fontSizeIsDefault) {
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+            fontSize = preferences.getInt("fons_size", AndroidUtilities.isTablet() ? 18 : 16);
+            ivFontSize = preferences.getInt("iv_font_size", fontSize);
         }
     }
 
@@ -615,7 +670,7 @@ public class SharedConfig {
         editor.commit();
     }
 
-    public static void removeScheduledOrNoSuoundHint() {
+    public static void removeScheduledOrNoSoundHint() {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         SharedPreferences.Editor editor = preferences.edit();
         editor.putInt("scheduledOrNoSoundHintShows", 3);
@@ -746,6 +801,17 @@ public class SharedConfig {
         editor.apply();
     }
 
+    public static void toggleDebugWebView() {
+        debugWebView = !debugWebView;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(debugWebView);
+        }
+        SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("debugWebView", debugWebView);
+        editor.apply();
+    }
+
     public static void toggleNoStatusBar() {
         noStatusBar = !noStatusBar;
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -767,6 +833,14 @@ public class SharedConfig {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         SharedPreferences.Editor editor = preferences.edit();
         editor.putBoolean("allowBigEmoji", allowBigEmoji);
+        editor.commit();
+    }
+
+    public static void toggleSuggestAnimatedEmoji() {
+        suggestAnimatedEmoji = !suggestAnimatedEmoji;
+        SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("suggestAnimatedEmoji", suggestAnimatedEmoji);
         editor.commit();
     }
 
@@ -800,12 +874,14 @@ public class SharedConfig {
         editor.commit();
     }
 
-    public static void toggleSaveToGallery() {
-        saveToGallery = !saveToGallery;
+    public static void toggleSaveToGalleryFlag(int flag) {
+        if ((saveToGalleryFlags & flag) != 0) {
+            saveToGalleryFlags &= ~flag;
+        } else {
+            saveToGalleryFlags |= flag;
+        }
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putBoolean("save_gallery", saveToGallery);
-        editor.commit();
+        preferences.edit().putInt("save_gallery_flags", saveToGalleryFlags).apply();
         ImageLoader.getInstance().checkMediaPaths();
         ImageLoader.getInstance().getCacheOutQueue().postRunnable(() -> {
             checkSaveToGalleryFiles();
@@ -967,6 +1043,14 @@ public class SharedConfig {
         editor.commit();
     }
 
+    public static void toggleForceDisableTabletMode() {
+        forceDisableTabletMode = !forceDisableTabletMode;
+        SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("forceDisableTabletMode", forceDisableTabletMode);
+        editor.commit();
+    }
+
     public static void toggleInappCamera() {
         inappCamera = !inappCamera;
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -1095,7 +1179,7 @@ public class SharedConfig {
                 File videoPath = new File(telegramPath, "Telegram Video");
                 videoPath.mkdir();
 
-                if (saveToGallery) {
+                if (saveToGalleryFlags != 0 || !BuildVars.NO_SCOPED_STORAGE) {
                     if (imagePath.isDirectory()) {
                         new File(imagePath, ".nomedia").delete();
                     }
@@ -1195,7 +1279,7 @@ public class SharedConfig {
                 devicePerformanceClass = PERFORMANCE_CLASS_HIGH;
             }
             if (BuildVars.LOGS_ENABLED) {
-                FileLog.d("device performance info (cpu_count = " + cpuCount + ", freq = " + maxCpuFreq + ", memoryClass = " + memoryClass + ", android version " + androidVersion + ")");
+                FileLog.d("device performance info selected_class = " + devicePerformanceClass + " (cpu_count = " + cpuCount + ", freq = " + maxCpuFreq + ", memoryClass = " + memoryClass + ", android version " + androidVersion + ", manufacture " + Build.MANUFACTURER + ")");
             }
         }
 
@@ -1224,6 +1308,7 @@ public class SharedConfig {
     public static boolean canBlurChat() {
         return getDevicePerformanceClass() == PERFORMANCE_CLASS_HIGH;
     }
+
     public static boolean chatBlurEnabled() {
         return canBlurChat() && chatBlur;
     }
@@ -1238,5 +1323,18 @@ public class SharedConfig {
         public static void setLastCheckedBackgroundActivity(long l) {
             prefs.edit().putLong("last_checked", l).apply();
         }
+    }
+
+    private static Boolean animationsEnabled;
+
+    public static void setAnimationsEnabled(boolean b) {
+        animationsEnabled = b;
+    }
+
+    public static boolean animationsEnabled() {
+        if (animationsEnabled == null) {
+            animationsEnabled = MessagesController.getGlobalMainSettings().getBoolean("view_animations", true);
+        }
+        return animationsEnabled;
     }
 }

@@ -162,7 +162,12 @@ public final class HttpLoggingInterceptor implements Interceptor {
                 }
 
                 logger.log("");
-                logger.log(buffer.readString(charset));
+                String logString = buffer.readString(charset);
+                int chunkSize = 200;
+                int chunks = logString.length() / chunkSize + 1;
+                for(int i=0; i<chunks; i++) {
+                    logger.log(logString.substring(i*chunkSize, Math.min((i+1)*chunkSize, logString.length())));
+                }
 
                 endMessage += " (" + requestBody.contentLength() + "-byte body)";
             }

@@ -13,8 +13,6 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
@@ -22,9 +20,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.text.Editable;
-import android.text.Layout;
-import android.text.StaticLayout;
-import android.text.TextPaint;
 import android.text.TextWatcher;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -37,8 +32,12 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -66,19 +65,16 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Cells.UserCell2;
 import org.telegram.ui.Components.AlertsCreator;
+import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.CircularProgressDrawable;
 import org.telegram.ui.Components.CrossfadeDrawable;
-import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-
-import androidx.recyclerview.widget.DefaultItemAnimator;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 public class ChatRightsEditActivity extends BaseFragment {
 
@@ -88,6 +84,7 @@ public class ChatRightsEditActivity extends BaseFragment {
 
     private FrameLayout addBotButtonContainer;
     private FrameLayout addBotButton;
+    private AnimatedTextView addBotButtonText;
     private PollEditTextCell rankEditTextCell;
     private CrossfadeDrawable doneDrawable;
 
@@ -96,6 +93,7 @@ public class ChatRightsEditActivity extends BaseFragment {
     private TLRPC.Chat currentChat;
     private int currentType;
     private boolean isChannel;
+    private boolean isForum;
     private boolean loading = false;
 
     private boolean canEdit;
@@ -124,6 +122,7 @@ public class ChatRightsEditActivity extends BaseFragment {
     private int banUsersRow;
     private int addUsersRow;
     private int pinMessagesRow;
+    private int manageTopicsRow;
     private int rightsShadowRow;
     private int removeAdminRow;
     private int removeAdminShadowRow;
@@ -178,12 +177,36 @@ public class ChatRightsEditActivity extends BaseFragment {
         initialRank = currentRank = rank;
         if (currentChat != null) {
             isChannel = ChatObject.isChannel(currentChat) && !currentChat.megagroup;
+            isForum = ChatObject.isForum(currentChat);
             myAdminRights = currentChat.admin_rights;
         }
         if (myAdminRights == null) {
             myAdminRights = emptyAdminRights(currentType != TYPE_ADD_BOT || (currentChat != null && currentChat.creator));
         }
         if (type == TYPE_ADMIN || type == TYPE_ADD_BOT) {
+            if (type == TYPE_ADD_BOT) {
+                TLRPC.UserFull userFull = getMessagesController().getUserFull(userId);
+                if (userFull != null) {
+                    TLRPC.TL_chatAdminRights botDefaultRights = isChannel ? userFull.bot_broadcast_admin_rights : userFull.bot_group_admin_rights;
+                    if (botDefaultRights != null) {
+                        if (rightsAdmin == null) {
+                            rightsAdmin = botDefaultRights;
+                        } else {
+                            rightsAdmin.ban_users = rightsAdmin.ban_users || botDefaultRights.ban_users;
+                            rightsAdmin.add_admins = rightsAdmin.add_admins || botDefaultRights.add_admins;
+                            rightsAdmin.post_messages = rightsAdmin.post_messages || botDefaultRights.post_messages;
+                            rightsAdmin.pin_messages = rightsAdmin.pin_messages || botDefaultRights.pin_messages;
+                            rightsAdmin.delete_messages = rightsAdmin.delete_messages || botDefaultRights.delete_messages;
+                            rightsAdmin.change_info = rightsAdmin.change_info || botDefaultRights.change_info;
+                            rightsAdmin.anonymous = rightsAdmin.anonymous || botDefaultRights.anonymous;
+                            rightsAdmin.edit_messages = rightsAdmin.edit_messages || botDefaultRights.edit_messages;
+                            rightsAdmin.manage_call = rightsAdmin.manage_call || botDefaultRights.manage_call;
+                            rightsAdmin.manage_topics = rightsAdmin.manage_topics || botDefaultRights.manage_topics;
+                            rightsAdmin.other = rightsAdmin.other || botDefaultRights.other;
+                        }
+                    }
+                }
+            }
             if (rightsAdmin == null) {
                 initialAsAdmin = false;
                 if (type == TYPE_ADD_BOT) {
@@ -201,6 +224,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                     adminRights.ban_users = myAdminRights.ban_users;
                     adminRights.invite_users = myAdminRights.invite_users;
                     adminRights.pin_messages = myAdminRights.pin_messages;
+                    adminRights.manage_topics = myAdminRights.manage_topics;
                     adminRights.other = myAdminRights.other;
                     initialIsSet = false;
                 }
@@ -215,13 +239,14 @@ public class ChatRightsEditActivity extends BaseFragment {
                 adminRights.ban_users = rightsAdmin.ban_users;
                 adminRights.invite_users = rightsAdmin.invite_users;
                 adminRights.pin_messages = rightsAdmin.pin_messages;
+                adminRights.manage_topics = rightsAdmin.manage_topics;
                 adminRights.add_admins = rightsAdmin.add_admins;
                 adminRights.anonymous = rightsAdmin.anonymous;
                 adminRights.other = rightsAdmin.other;
 
                 initialIsSet = adminRights.change_info || adminRights.post_messages || adminRights.edit_messages ||
                         adminRights.delete_messages || adminRights.ban_users || adminRights.invite_users ||
-                        adminRights.pin_messages || adminRights.add_admins || adminRights.manage_call || adminRights.anonymous || adminRights.other;
+                        adminRights.pin_messages || adminRights.add_admins || adminRights.manage_call || adminRights.anonymous || adminRights.manage_topics || adminRights.other;
 
                 if (type == TYPE_ADD_BOT) {
                     asAdmin = isChannel || initialIsSet;
@@ -238,7 +263,8 @@ public class ChatRightsEditActivity extends BaseFragment {
                 defaultBannedRights.view_messages = defaultBannedRights.send_media = defaultBannedRights.send_messages =
                     defaultBannedRights.embed_links = defaultBannedRights.send_stickers = defaultBannedRights.send_gifs =
                     defaultBannedRights.send_games = defaultBannedRights.send_inline = defaultBannedRights.send_polls =
-                    defaultBannedRights.invite_users = defaultBannedRights.change_info = defaultBannedRights.pin_messages = true;
+                    defaultBannedRights.invite_users = defaultBannedRights.change_info = defaultBannedRights.pin_messages =
+                    defaultBannedRights.manage_topics = true;
             }
 
             if (!defaultBannedRights.change_info) {
@@ -254,7 +280,8 @@ public class ChatRightsEditActivity extends BaseFragment {
                 defaultBannedRights.view_messages = defaultBannedRights.send_media = defaultBannedRights.send_messages =
                 defaultBannedRights.embed_links = defaultBannedRights.send_stickers = defaultBannedRights.send_gifs =
                 defaultBannedRights.send_games = defaultBannedRights.send_inline = defaultBannedRights.send_polls =
-                defaultBannedRights.invite_users = defaultBannedRights.change_info = defaultBannedRights.pin_messages = false;
+                defaultBannedRights.invite_users = defaultBannedRights.change_info = defaultBannedRights.pin_messages =
+                defaultBannedRights.manage_topics = false;
             }
 
             bannedRights = new TLRPC.TL_chatBannedRights();
@@ -262,7 +289,8 @@ public class ChatRightsEditActivity extends BaseFragment {
                 bannedRights.view_messages = bannedRights.send_media = bannedRights.send_messages =
                 bannedRights.embed_links = bannedRights.send_stickers = bannedRights.send_gifs =
                 bannedRights.send_games = bannedRights.send_inline = bannedRights.send_polls =
-                bannedRights.invite_users = bannedRights.change_info = bannedRights.pin_messages = false;
+                bannedRights.invite_users = bannedRights.change_info = bannedRights.pin_messages =
+                bannedRights.manage_topics = false;
             } else {
                 bannedRights.view_messages = rightsBanned.view_messages;
                 bannedRights.send_messages = rightsBanned.send_messages;
@@ -277,6 +305,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                 bannedRights.change_info = rightsBanned.change_info;
                 bannedRights.pin_messages = rightsBanned.pin_messages;
                 bannedRights.until_date = rightsBanned.until_date;
+                bannedRights.manage_topics = rightsBanned.manage_topics;
             }
             if (defaultBannedRights.view_messages) {
                 bannedRights.view_messages = true;
@@ -314,6 +343,9 @@ public class ChatRightsEditActivity extends BaseFragment {
             if (defaultBannedRights.pin_messages) {
                 bannedRights.pin_messages = true;
             }
+            if (defaultBannedRights.manage_topics) {
+                bannedRights.manage_topics = true;
+            }
 
             currentBannedRights = ChatObject.getBannedRightsString(bannedRights);
 
@@ -326,7 +358,7 @@ public class ChatRightsEditActivity extends BaseFragment {
         TLRPC.TL_chatAdminRights adminRights = new TLRPC.TL_chatAdminRights();
         adminRights.change_info = adminRights.post_messages = adminRights.edit_messages =
             adminRights.delete_messages = adminRights.ban_users = adminRights.invite_users =
-            adminRights.pin_messages = adminRights.add_admins = adminRights.manage_call = value;
+            adminRights.pin_messages = adminRights.add_admins = adminRights.manage_call = adminRights.manage_topics = value;
         return adminRights;
     }
 
@@ -359,7 +391,9 @@ public class ChatRightsEditActivity extends BaseFragment {
 
         if (canEdit || !isChannel && currentChat.creator && UserObject.isUserSelf(currentUser)) {
             ActionBarMenu menu = actionBar.createMenu();
-            doneDrawable = new CrossfadeDrawable(context.getResources().getDrawable(R.drawable.ic_done), new CircularProgressDrawable(Theme.getColor(Theme.key_actionBarDefaultIcon)));
+            Drawable checkmark = context.getResources().getDrawable(R.drawable.ic_ab_done).mutate();
+            checkmark.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_actionBarDefaultIcon), PorterDuff.Mode.MULTIPLY));
+            doneDrawable = new CrossfadeDrawable(checkmark, new CircularProgressDrawable(Theme.getColor(Theme.key_actionBarDefaultIcon)));
             menu.addItemWithWidth(done_button, 0, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
             menu.getItem(done_button).setIcon(doneDrawable);
         }
@@ -454,6 +488,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                     bannedRights.send_polls = true;
                     bannedRights.invite_users = true;
                     bannedRights.change_info = true;
+                    bannedRights.manage_topics = true;
                     bannedRights.until_date = 0;
                     onDonePressed();
                 }
@@ -649,6 +684,12 @@ public class ChatRightsEditActivity extends BaseFragment {
                     value = adminRights.ban_users = !adminRights.ban_users;
                 } else if (position == startVoiceChatRow) {
                     value = adminRights.manage_call = !adminRights.manage_call;
+                } else if (position == manageTopicsRow) {
+                    if (currentType == TYPE_ADMIN || currentType == TYPE_ADD_BOT) {
+                        value = adminRights.manage_topics = !adminRights.manage_topics;
+                    } else {
+                        value = bannedRights.manage_topics = !bannedRights.manage_topics;
+                    }
                 } else if (position == addUsersRow) {
                     if (currentType == TYPE_ADMIN || currentType == TYPE_ADD_BOT) {
                         value = adminRights.invite_users = !adminRights.invite_users;
@@ -743,15 +784,15 @@ public class ChatRightsEditActivity extends BaseFragment {
     }
 
     private boolean isDefaultAdminRights() {
-        return adminRights.change_info && adminRights.delete_messages && adminRights.ban_users && adminRights.invite_users && adminRights.pin_messages && adminRights.manage_call && !adminRights.add_admins && !adminRights.anonymous ||
-                !adminRights.change_info && !adminRights.delete_messages && !adminRights.ban_users && !adminRights.invite_users && !adminRights.pin_messages && !adminRights.manage_call && !adminRights.add_admins && !adminRights.anonymous;
+        return adminRights.change_info && adminRights.delete_messages && adminRights.ban_users && adminRights.invite_users && adminRights.pin_messages && (!isForum || adminRights.manage_topics) && adminRights.manage_call && !adminRights.add_admins && !adminRights.anonymous ||
+                !adminRights.change_info && !adminRights.delete_messages && !adminRights.ban_users && !adminRights.invite_users && !adminRights.pin_messages && (!isForum || !adminRights.manage_topics) && !adminRights.manage_call && !adminRights.add_admins && !adminRights.anonymous;
     }
 
     private boolean hasAllAdminRights() {
         if (isChannel) {
             return adminRights.change_info && adminRights.post_messages && adminRights.edit_messages && adminRights.delete_messages && adminRights.invite_users && adminRights.add_admins && adminRights.manage_call;
         } else {
-            return adminRights.change_info && adminRights.delete_messages && adminRights.ban_users && adminRights.invite_users && adminRights.pin_messages && adminRights.add_admins && adminRights.manage_call;
+            return adminRights.change_info && adminRights.delete_messages && adminRights.ban_users && adminRights.invite_users && adminRights.pin_messages && adminRights.add_admins && adminRights.manage_call && (!isForum || adminRights.manage_topics);
         }
     }
 
@@ -886,14 +927,18 @@ public class ChatRightsEditActivity extends BaseFragment {
                     TLRPC.TL_account_getPassword getPasswordReq = new TLRPC.TL_account_getPassword();
                     ConnectionsManager.getInstance(currentAccount).sendRequest(getPasswordReq, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
                         if (error2 == null) {
-                            TLRPC.TL_account_password currentPassword = (TLRPC.TL_account_password) response2;
+                            TLRPC.account_Password currentPassword = (TLRPC.account_Password) response2;
                             passwordFragment.setCurrentPasswordInfo(null, currentPassword);
                             TwoStepVerificationActivity.initPasswordNewAlgo(currentPassword);
                             initTransfer(passwordFragment.getNewSrpPassword(), passwordFragment);
                         }
                     }), ConnectionsManager.RequestFlagWithoutLogin);
                 } else if (error.text.equals("CHANNELS_TOO_MUCH")) {
-                    presentFragment(new TooManyCommunitiesActivity(TooManyCommunitiesActivity.TYPE_EDIT));
+                    if (getParentActivity() != null && !AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()) {
+                        showDialog(new LimitReachedBottomSheet(this, getParentActivity(), LimitReachedBottomSheet.TYPE_TO_MANY_COMMUNITIES, currentAccount));
+                    } else {
+                        presentFragment(new TooManyCommunitiesActivity(TooManyCommunitiesActivity.TYPE_EDIT));
+                    }
                 } else {
                     if (passwordFragment != null) {
                         passwordFragment.needHideProgress();
@@ -944,6 +989,7 @@ public class ChatRightsEditActivity extends BaseFragment {
         untilSectionRow = -1;
         untilDateRow = -1;
         addBotButtonRow = -1;
+        manageTopicsRow = -1;
 
         rowCount = 3;
         permissionsStartRow = rowCount;
@@ -968,6 +1014,9 @@ public class ChatRightsEditActivity extends BaseFragment {
                 startVoiceChatRow = rowCount++;
                 addAdminsRow = rowCount++;
                 anonymousRow = rowCount++;
+                if (isForum) {
+                    manageTopicsRow = rowCount++;
+                }
             }
         } else if (currentType == TYPE_BANNED) {
             sendMessagesRow = rowCount++;
@@ -978,6 +1027,9 @@ public class ChatRightsEditActivity extends BaseFragment {
             addUsersRow = rowCount++;
             pinMessagesRow = rowCount++;
             changeInfoRow = rowCount++;
+            if (isForum) {
+                manageTopicsRow = rowCount++;
+            }
             untilSectionRow = rowCount++;
             untilDateRow = rowCount++;
         }
@@ -1060,7 +1112,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                 }
                 RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(rankHeaderRow);
                 if (holder != null) {
-                    AndroidUtilities.shakeView(holder.itemView, 2, 0);
+                    AndroidUtilities.shakeView(holder.itemView);
                 }
                 return;
             }
@@ -1070,7 +1122,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                 adminRights.post_messages = adminRights.edit_messages = false;
             }
             if (!adminRights.change_info && !adminRights.post_messages && !adminRights.edit_messages &&
-                    !adminRights.delete_messages && !adminRights.ban_users && !adminRights.invite_users &&
+                    !adminRights.delete_messages && !adminRights.ban_users && !adminRights.invite_users && (!isForum || !adminRights.manage_topics) &&
                     !adminRights.pin_messages && !adminRights.add_admins && !adminRights.anonymous && !adminRights.manage_call) {
                 adminRights.other = true;
             } else {
@@ -1085,13 +1137,14 @@ public class ChatRightsEditActivity extends BaseFragment {
                 if (delegate != null) {
                     delegate.didSetRights(
                         adminRights.change_info || adminRights.post_messages || adminRights.edit_messages ||
-                        adminRights.delete_messages || adminRights.ban_users || adminRights.invite_users ||
+                        adminRights.delete_messages || adminRights.ban_users || adminRights.invite_users || (isForum && adminRights.manage_topics) ||
                         adminRights.pin_messages || adminRights.add_admins || adminRights.anonymous || adminRights.manage_call ||
                         adminRights.other ? 1 : 0, adminRights, bannedRights, currentRank);
                     finishFragment();
                 }
-            }, () -> {
+            }, err -> {
                 setLoading(false);
+                return true;
             });
         } else if (currentType == TYPE_BANNED) {
             MessagesController.getInstance(currentAccount).setParticipantBannedRole(chatId, currentUser, null, bannedRights, isChannel, getFragmentForAlert(1));
@@ -1148,9 +1201,15 @@ public class ChatRightsEditActivity extends BaseFragment {
                     }
                 };
                 if (asAdmin || initialAsAdmin) {
-                    getMessagesController().setUserAdminRole(currentChat.id, currentUser, asAdmin ? adminRights : emptyAdminRights(false), currentRank, false, this, isAddingNew, asAdmin, botHash, onFinish, () -> setLoading(false));
+                    getMessagesController().setUserAdminRole(currentChat.id, currentUser, asAdmin ? adminRights : emptyAdminRights(false), currentRank, false, this, isAddingNew, asAdmin, botHash, onFinish, err -> {
+                        setLoading(false);
+                        return true;
+                    });
                 } else {
-                    getMessagesController().addUserToChat(currentChat.id, currentUser, 0, botHash, this, true, onFinish, () -> setLoading(false));
+                    getMessagesController().addUserToChat(currentChat.id, currentUser, 0, botHash, this, true, onFinish, err -> {
+                        setLoading(false);
+                        return true;
+                    });
                 }
             });
             showDialog(builder.create());
@@ -1284,6 +1343,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                 if (position == untilSectionRow) return 26;
                 if (position == untilDateRow) return 27;
                 if (position == addBotButtonRow) return 28;
+                if (position == manageTopicsRow) return 29;
                 return 0;
             } else {
                 return super.getItemId(position);
@@ -1327,6 +1387,8 @@ public class ChatRightsEditActivity extends BaseFragment {
                         return myAdminRights.invite_users;
                     } else if (position == pinMessagesRow) {
                         return myAdminRights.pin_messages && (defaultBannedRights == null || defaultBannedRights.pin_messages);
+                    } else if (position == manageTopicsRow) {
+                        return myAdminRights.manage_topics;
                     }
                 }
             }
@@ -1373,69 +1435,15 @@ public class ChatRightsEditActivity extends BaseFragment {
                 case VIEW_TYPE_ADD_BOT_CELL:
                     addBotButtonContainer = new FrameLayout(mContext);
                     addBotButtonContainer.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-                    addBotButton = new FrameLayout(mContext) {
-
-                        private TextPaint textPaint;
-                        private StaticLayout mainText;
-                        private StaticLayout asMemberText;
-                        private StaticLayout asAdminText; {
-                            textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-                            textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-                            textPaint.setTextSize(AndroidUtilities.dp(14));
-                            textPaint.setColor(0xffffffff);
-                            mainText = new StaticLayout(LocaleController.getString("AddBotButton", R.string.AddBotButton) + " ", textPaint, 9999, Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false);
-                            asMemberText = new StaticLayout(LocaleController.getString("AddBotButtonAsMember", R.string.AddBotButtonAsMember), textPaint, 9999, Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false);
-                            asAdminText = new StaticLayout(LocaleController.getString("AddBotButtonAsAdmin", R.string.AddBotButtonAsAdmin), textPaint, 9999, Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false);
-                        }
-
-                        private long lastFrame;
-                        @Override
-                        protected void onDraw(Canvas canvas) {
-                            super.onDraw(canvas);
-
-                            float t = CubicBezierInterpolator.EASE_BOTH.getInterpolation(asAdminT);
-
-                            float mainWidth = mainText.getLineWidth(0);
-                            float asWidth;
-                            if (asAdminT <= 0) {
-                                asWidth = asMemberText.getLineWidth(0);
-                            } else if (asAdminT >= 1) {
-                                asWidth = asAdminText.getLineWidth(0);
-                            } else {
-                                asWidth = AndroidUtilities.lerp(asMemberText.getLineWidth(0), asAdminText.getLineWidth(0), t);
-                            }
-                            float width = mainWidth + asWidth;
-
-                            canvas.save();
-                            canvas.translate((getWidth() - width) / 2, (getHeight() - mainText.getHeight()) / 2);
-                            textPaint.setAlpha(255);
-                            mainText.draw(canvas);
-                            canvas.translate(mainWidth, 0);
-                            if (t <= 0) {
-                                asMemberText.draw(canvas);
-                            } else {
-                                canvas.save();
-                                canvas.translate(0, AndroidUtilities.dp(8) * t);
-                                canvas.scale(1, 1 - 0.2f * t);
-                                textPaint.setAlpha((int) (255 * (1f - t)));
-                                asMemberText.draw(canvas);
-                                canvas.restore();
-                            }
-                            if (t >= 1) {
-                                textPaint.setAlpha(255);
-                                asAdminText.draw(canvas);
-                            } else {
-                                canvas.save();
-                                canvas.translate(0, -AndroidUtilities.dp(8) * (1f - t));
-                                canvas.scale(1, 1 - 0.2f * (1f - t));
-                                textPaint.setAlpha((int) (255 * t));
-                                asAdminText.draw(canvas);
-                                canvas.restore();
-                            }
-                            canvas.restore();
-                        }
-                    };
-                    addBotButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(4), Theme.getColor(Theme.key_featuredStickers_addButton), 0x40ffffff));
+                    addBotButton = new FrameLayout(mContext);
+                    addBotButtonText = new AnimatedTextView(mContext, true, false, false);
+                    addBotButtonText.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+                    addBotButtonText.setTextColor(0xffffffff);
+                    addBotButtonText.setTextSize(AndroidUtilities.dp(14));
+                    addBotButtonText.setGravity(Gravity.CENTER);
+                    addBotButtonText.setText(LocaleController.getString("AddBotButton", R.string.AddBotButton) + " " + (asAdmin ? LocaleController.getString("AddBotButtonAsAdmin", R.string.AddBotButtonAsAdmin) : LocaleController.getString("AddBotButtonAsMember", R.string.AddBotButtonAsMember)));
+                    addBotButton.addView(addBotButtonText, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
+                    addBotButton.setBackground(Theme.AdaptiveRipple.filledRect(Theme.key_featuredStickers_addButton, 4));
                     addBotButton.setOnClickListener(e -> onDonePressed());
                     addBotButtonContainer.addView(addBotButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.FILL, 14, 28, 14, 14));
                     addBotButtonContainer.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1555,7 +1563,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                                 checkCell.setIcon(myAdminRights.change_info || isCreator ? 0 : R.drawable.permission_locked);
                             }
                         } else if (currentType == TYPE_BANNED) {
-                            checkCell.setTextAndCheck(LocaleController.getString("UserRestrictionsChangeInfo", R.string.UserRestrictionsChangeInfo), !bannedRights.change_info && !defaultBannedRights.change_info, false);
+                            checkCell.setTextAndCheck(LocaleController.getString("UserRestrictionsChangeInfo", R.string.UserRestrictionsChangeInfo), !bannedRights.change_info && !defaultBannedRights.change_info, manageTopicsRow != -1);
                             checkCell.setIcon(defaultBannedRights.change_info ? R.drawable.permission_locked : 0);
                         }
                     } else if (position == postMessagesRow) {
@@ -1583,7 +1591,7 @@ public class ChatRightsEditActivity extends BaseFragment {
                             checkCell.setIcon(myAdminRights.add_admins || isCreator ? 0 : R.drawable.permission_locked);
                         }
                     } else if (position == anonymousRow) {
-                        checkCell.setTextAndCheck(LocaleController.getString("EditAdminSendAnonymously", R.string.EditAdminSendAnonymously), asAdminValue && adminRights.anonymous, false);
+                        checkCell.setTextAndCheck(LocaleController.getString("EditAdminSendAnonymously", R.string.EditAdminSendAnonymously), asAdminValue && adminRights.anonymous, manageTopicsRow != -1);
                         if (currentType == TYPE_ADD_BOT) {
                             checkCell.setIcon(myAdminRights.anonymous || isCreator ? 0 : R.drawable.permission_locked);
                         }
@@ -1596,6 +1604,16 @@ public class ChatRightsEditActivity extends BaseFragment {
                         checkCell.setTextAndCheck(LocaleController.getString("StartVoipChatPermission", R.string.StartVoipChatPermission), asAdminValue && adminRights.manage_call, true);
                         if (currentType == TYPE_ADD_BOT) {
                             checkCell.setIcon(myAdminRights.manage_call || isCreator ? 0 : R.drawable.permission_locked);
+                        }
+                    } else if (position == manageTopicsRow) {
+                        if (currentType == TYPE_ADMIN) {
+                            checkCell.setTextAndCheck(LocaleController.getString("ManageTopicsPermission", R.string.ManageTopicsPermission), asAdminValue && adminRights.manage_topics, false);
+                        } else if (currentType == TYPE_BANNED) {
+                            checkCell.setTextAndCheck(LocaleController.getString("CreateTopicsPermission", R.string.CreateTopicsPermission), !bannedRights.manage_topics && !defaultBannedRights.manage_topics, false);
+                            checkCell.setIcon(defaultBannedRights.manage_topics ? R.drawable.permission_locked : 0);
+                        } else if (currentType == TYPE_ADD_BOT) {
+                            checkCell.setTextAndCheck(LocaleController.getString("ManageTopicsPermission", R.string.ManageTopicsPermission), asAdminValue && adminRights.manage_topics, false);
+                            checkCell.setIcon(myAdminRights.manage_topics || isCreator ? 0 : R.drawable.permission_locked);
                         }
                     } else if (position == addUsersRow) {
                         if (currentType == TYPE_ADMIN) {
@@ -1720,7 +1738,7 @@ public class ChatRightsEditActivity extends BaseFragment {
             } else if (position == changeInfoRow || position == postMessagesRow || position == editMesagesRow || position == deleteMessagesRow ||
                     position == addAdminsRow || position == banUsersRow || position == addUsersRow || position == pinMessagesRow ||
                     position == sendMessagesRow || position == sendMediaRow || position == sendStickersRow || position == embedLinksRow ||
-                    position == sendPollsRow || position == anonymousRow || position == startVoiceChatRow || position == manageRow) {
+                    position == sendPollsRow || position == anonymousRow || position == startVoiceChatRow || position == manageRow || position == manageTopicsRow) {
                 return VIEW_TYPE_SWITCH_CELL;
             } else if (position == cantEditInfoRow || position == rankInfoRow) {
                 return VIEW_TYPE_INFO_CELL;
@@ -1790,6 +1808,9 @@ public class ChatRightsEditActivity extends BaseFragment {
                     } else if (childPosition == anonymousRow) {
                         childValue = adminRights.anonymous;
                         childEnabled = myAdminRights.anonymous || (currentChat != null && currentChat.creator);
+                    } else if (childPosition == manageTopicsRow) {
+                        childValue = adminRights.manage_topics;
+                        childEnabled = myAdminRights.manage_topics;
                     }
                     ((TextCheckCell2) child).setChecked(childValue);
                     ((TextCheckCell2) child).setEnabled(childEnabled, animated);
@@ -1806,6 +1827,9 @@ public class ChatRightsEditActivity extends BaseFragment {
 //        }
         listViewAdapter.notifyDataSetChanged();
 
+        if (addBotButtonText != null) {
+            addBotButtonText.setText(LocaleController.getString("AddBotButton", R.string.AddBotButton) + " " + (asAdmin ? LocaleController.getString("AddBotButtonAsAdmin", R.string.AddBotButtonAsAdmin) : LocaleController.getString("AddBotButtonAsMember", R.string.AddBotButtonAsMember)), animated, asAdmin);
+        }
         if (asAdminAnimator != null) {
             asAdminAnimator.cancel();
             asAdminAnimator = null;

@@ -12,18 +12,27 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.text.style.ClickableSpan;
+import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -35,6 +44,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -43,6 +54,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
@@ -59,24 +71,30 @@ import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextBlockCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.AvatarDrawable;
+import org.telegram.ui.Components.BackupImageView;
+import org.telegram.ui.Components.CircularProgressDrawable;
+import org.telegram.ui.Components.CrossfadeDrawable;
+import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.EditTextEmoji;
 import org.telegram.ui.Components.ImageUpdater;
-import org.telegram.ui.Components.BackupImageView;
-import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LinkActionView;
+import org.telegram.ui.Components.LinkSpanDrawable;
+import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
+import org.telegram.ui.Components.TypefaceSpan;
 
 import java.util.ArrayList;
 
 public class ChannelCreateActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, ImageUpdater.ImageUpdaterDelegate {
 
     private View doneButton;
+    private CrossfadeDrawable doneButtonDrawable;
     private EditTextEmoji nameTextView;
-    private AlertDialog progressDialog;
     private ShadowSectionCell sectionCell;
     private BackupImageView avatarImage;
     private View avatarOverlay;
@@ -130,6 +148,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
 
     private boolean createAfterUpload;
     private boolean donePressed;
+    private Integer doneRequestId;
 
     private final static int done_button = 1;
 
@@ -173,6 +192,10 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        if (doneRequestId != null) {
+            ConnectionsManager.getInstance(currentAccount).cancelRequest(doneRequestId, true);
+            doneRequestId = null;
+        }
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.chatDidCreated);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.chatDidFailCreate);
         if (imageUpdater != null) {
@@ -236,6 +259,49 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
         return true;
     }
 
+    private AlertDialog cancelDialog;
+    private void showDoneCancelDialog() {
+        if (cancelDialog != null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
+        builder.setMessage(LocaleController.getString("StopLoading", R.string.StopLoading));
+        builder.setPositiveButton(LocaleController.getString("WaitMore", R.string.WaitMore), null);
+        builder.setNegativeButton(LocaleController.getString("Stop", R.string.Stop), (dialogInterface, i) -> {
+            donePressed = false;
+            createAfterUpload = false;
+            if (doneRequestId != null) {
+                ConnectionsManager.getInstance(currentAccount).cancelRequest(doneRequestId, true);
+                doneRequestId = null;
+            }
+            updateDoneProgress(false);
+            dialogInterface.dismiss();
+        });
+        cancelDialog = builder.show();
+    }
+
+    private Runnable enableDoneLoading = () -> updateDoneProgress(true);
+    private ValueAnimator doneButtonDrawableAnimator;
+    private void updateDoneProgress(boolean loading) {
+        if (!loading) {
+            AndroidUtilities.cancelRunOnUIThread(enableDoneLoading);
+        }
+        if (doneButtonDrawable != null) {
+            if (doneButtonDrawableAnimator != null) {
+                doneButtonDrawableAnimator.cancel();
+            }
+            doneButtonDrawableAnimator = ValueAnimator.ofFloat(doneButtonDrawable.getProgress(), loading ? 1f : 0);
+            doneButtonDrawableAnimator.addUpdateListener(a -> {
+                doneButtonDrawable.setProgress((float) a.getAnimatedValue());
+                doneButtonDrawable.invalidateSelf();
+            });
+            doneButtonDrawableAnimator.setDuration((long) (200 * Math.abs(doneButtonDrawable.getProgress() - (loading ? 1f : 0))));
+            doneButtonDrawableAnimator.setInterpolator(CubicBezierInterpolator.DEFAULT);
+            doneButtonDrawableAnimator.start();
+        }
+    }
+
     @Override
     public View createView(Context context) {
         if (nameTextView != null) {
@@ -249,10 +315,18 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
             @Override
             public void onItemClick(int id) {
                 if (id == -1) {
+                    if (donePressed) {
+                        showDoneCancelDialog();
+                        return;
+                    }
                     finishFragment();
                 } else if (id == done_button) {
                     if (currentStep == 0) {
-                        if (donePressed || getParentActivity() == null) {
+                        if (getParentActivity() == null) {
+                            return;
+                        }
+                        if (donePressed) {
+                            showDoneCancelDialog();
                             return;
                         }
                         if (nameTextView.length() == 0) {
@@ -260,28 +334,16 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                             if (v != null) {
                                 v.vibrate(200);
                             }
-                            AndroidUtilities.shakeView(nameTextView, 2, 0);
+                            AndroidUtilities.shakeView(nameTextView);
                             return;
                         }
                         donePressed = true;
+                        AndroidUtilities.runOnUIThread(enableDoneLoading, 200);
                         if (imageUpdater.isUploadingImage()) {
                             createAfterUpload = true;
-                            progressDialog = new AlertDialog(getParentActivity(), 3);
-                            progressDialog.setOnCancelListener(dialog -> {
-                                createAfterUpload = false;
-                                progressDialog = null;
-                                donePressed = false;
-                            });
-                            progressDialog.show();
                             return;
                         }
-                        final int reqId = MessagesController.getInstance(currentAccount).createChat(nameTextView.getText().toString(), new ArrayList<>(), descriptionTextView.getText().toString(), ChatObject.CHAT_TYPE_CHANNEL, false, null, null, ChannelCreateActivity.this);
-                        progressDialog = new AlertDialog(getParentActivity(), 3);
-                        progressDialog.setOnCancelListener(dialog -> {
-                            ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
-                            donePressed = false;
-                        });
-                        progressDialog.show();
+                        doneRequestId = MessagesController.getInstance(currentAccount).createChat(nameTextView.getText().toString(), new ArrayList<>(), descriptionTextView.getText().toString(), ChatObject.CHAT_TYPE_CHANNEL, false, null, null, ChannelCreateActivity.this);
                     } else if (currentStep == 1) {
                         if (!isPrivate) {
                             if (descriptionTextView.length() == 0) {
@@ -297,10 +359,10 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                                     if (v != null) {
                                         v.vibrate(200);
                                     }
-                                    AndroidUtilities.shakeView(checkTextView, 2, 0);
+                                    AndroidUtilities.shakeView(checkTextView);
                                     return;
                                 } else {
-                                    MessagesController.getInstance(currentAccount).updateChannelUserName(chatId, lastCheckName);
+                                    MessagesController.getInstance(currentAccount).updateChannelUserName(ChannelCreateActivity.this, chatId, lastCheckName, null, null);
                                 }
                             }
                         }
@@ -315,7 +377,10 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
         });
 
         ActionBarMenu menu = actionBar.createMenu();
-        doneButton = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
+        Drawable checkmark = context.getResources().getDrawable(R.drawable.ic_ab_done).mutate();
+        checkmark.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_actionBarDefaultIcon), PorterDuff.Mode.MULTIPLY));
+        doneButtonDrawable = new CrossfadeDrawable(checkmark, new CircularProgressDrawable(Theme.getColor(Theme.key_actionBarDefaultIcon)));
+        doneButton = menu.addItemWithWidth(done_button, doneButtonDrawable, AndroidUtilities.dp(56), LocaleController.getString("Done", R.string.Done));
 
         if (currentStep == 0) {
             actionBar.setTitle(LocaleController.getString("NewChannel", R.string.NewChannel));
@@ -485,6 +550,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                     }
                 }
             };
+            avatarOverlay.setContentDescription(LocaleController.getString("ChatSetPhotoOrVideo", R.string.ChatSetPhotoOrVideo));
             frameLayout.addView(avatarOverlay, LayoutHelper.createFrame(64, 64, Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT), LocaleController.isRTL ? 0 : 16, 12, LocaleController.isRTL ? 16 : 0, 12));
             avatarOverlay.setOnClickListener(view -> {
                 imageUpdater.openMenu(avatar != null, () -> {
@@ -530,8 +596,8 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
             avatarEditor.setAnimation(cameraDrawable);
             avatarEditor.setEnabled(false);
             avatarEditor.setClickable(false);
-            avatarEditor.setPadding(AndroidUtilities.dp(2), 0, 0, AndroidUtilities.dp(1));
-            frameLayout.addView(avatarEditor, LayoutHelper.createFrame(64, 64, Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT), LocaleController.isRTL ? 0 : 16, 12, LocaleController.isRTL ? 16 : 0, 12));
+            avatarEditor.setPadding(AndroidUtilities.dp(0), 0, 0, AndroidUtilities.dp(1));
+            frameLayout.addView(avatarEditor, LayoutHelper.createFrame(64, 64, Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT), LocaleController.isRTL ? 0 : 15, 12, LocaleController.isRTL ? 15 : 0, 12));
 
             avatarProgressView = new RadialProgressView(context);
             avatarProgressView.setSize(AndroidUtilities.dp(30));
@@ -541,7 +607,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
 
             showAvatarProgress(false, false);
 
-            nameTextView = new EditTextEmoji(context, sizeNotifierFrameLayout, this, EditTextEmoji.STYLE_FRAGMENT);
+            nameTextView = new EditTextEmoji(context, sizeNotifierFrameLayout, this, EditTextEmoji.STYLE_FRAGMENT, false);
             nameTextView.setHint(LocaleController.getString("EnterChannelName", R.string.EnterChannelName));
             if (nameToSet != null) {
                 nameTextView.setText(nameToSet);
@@ -637,6 +703,10 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
             radioButtonCell1.setTextAndValue(LocaleController.getString("ChannelPublic", R.string.ChannelPublic), LocaleController.getString("ChannelPublicInfo", R.string.ChannelPublicInfo), false, !isPrivate);
             linearLayout2.addView(radioButtonCell1, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
             radioButtonCell1.setOnClickListener(v -> {
+                if (!canCreatePublic) {
+                    showPremiumIncreaseLimitDialog();
+                    return;
+                }
                 if (!isPrivate) {
                     return;
                 }
@@ -669,7 +739,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
 
             publicContainer = new LinearLayout(context);
             publicContainer.setOrientation(LinearLayout.HORIZONTAL);
-            linkContainer.addView(publicContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 36, 17, 7, 17, 0));
+            linkContainer.addView(publicContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 36, 21, 7, 21, 0));
 
             editText = new EditTextBoldCursor(context);
             editText.setText(MessagesController.getInstance(currentAccount).linkPrefix + "/");
@@ -729,11 +799,50 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
             permanentLinkView.setUsers(0, null);
             privateContainer.addView(permanentLinkView);
 
-            checkTextView = new TextView(context);
+            checkTextView = new LinkSpanDrawable.LinksTextView(context) {
+                @Override
+                public void setText(CharSequence text, BufferType type) {
+                    if (text != null) {
+                        SpannableStringBuilder tagsString = AndroidUtilities.replaceTags(text.toString());
+                        int index = tagsString.toString().indexOf('\n');
+                        if (index >= 0) {
+                            tagsString.replace(index, index + 1, " ");
+                            tagsString.setSpan(new ForegroundColorSpan(getThemedColor(Theme.key_windowBackgroundWhiteRedText4)), 0, index, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        }
+                        TypefaceSpan[] spans = tagsString.getSpans(0, tagsString.length(), TypefaceSpan.class);
+                        final String username = descriptionTextView == null || descriptionTextView.getText() == null ? "" : descriptionTextView.getText().toString();
+                        for (int i = 0; i < spans.length; ++i) {
+                            tagsString.setSpan(
+                                new ClickableSpan() {
+                                    @Override
+                                    public void onClick(@NonNull View view) {
+                                        Browser.openUrl(getContext(), "https://fragment.com/username/" + username);
+                                    }
+
+                                    @Override
+                                    public void updateDrawState(@NonNull TextPaint ds) {
+                                        super.updateDrawState(ds);
+                                        ds.setUnderlineText(false);
+                                    }
+                                },
+                                tagsString.getSpanStart(spans[i]),
+                                tagsString.getSpanEnd(spans[i]),
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            );
+                            tagsString.removeSpan(spans[i]);
+                        }
+                        text = tagsString;
+                    }
+                    super.setText(text, type);
+                }
+            };
+            checkTextView.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteLinkText));
+            checkTextView.setHighlightColor(Theme.getColor(Theme.key_windowBackgroundWhiteLinkSelection));
             checkTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             checkTextView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
             checkTextView.setVisibility(View.GONE);
-            linkContainer.addView(checkTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, 17, 3, 17, 7));
+            checkTextView.setPadding(AndroidUtilities.dp(3), 0, AndroidUtilities.dp(3), 0);
+            linkContainer.addView(checkTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT, 18, 3, 18, 7));
 
             typeInfoCell = new TextInfoPrivacyCell(context);
             typeInfoCell.setBackgroundDrawable(Theme.getThemedDrawable(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
@@ -853,14 +962,15 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                 inputVideoPath = videoPath;
                 videoTimestamp = videoStartTimestamp;
                 if (createAfterUpload) {
-                    try {
-                        if (progressDialog != null && progressDialog.isShowing()) {
-                            progressDialog.dismiss();
-                            progressDialog = null;
+                    if (cancelDialog != null) {
+                        try {
+                            cancelDialog.dismiss();
+                            cancelDialog = null;
+                        } catch (Exception e) {
+                            FileLog.e(e);
                         }
-                    } catch (Exception e) {
-                        FileLog.e(e);
                     }
+                    updateDoneProgress(false);
                     donePressed = false;
                     doneButton.performClick();
                 }
@@ -990,18 +1100,21 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.chatDidFailCreate) {
-            if (progressDialog != null) {
+            if (cancelDialog != null) {
                 try {
-                    progressDialog.dismiss();
+                    cancelDialog.dismiss();
+                    cancelDialog = null;
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
             }
+            updateDoneProgress(false);
             donePressed = false;
         } else if (id == NotificationCenter.chatDidCreated) {
-            if (progressDialog != null) {
+            if (cancelDialog != null) {
                 try {
-                    progressDialog.dismiss();
+                    cancelDialog.dismiss();
+                    cancelDialog = null;
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
@@ -1044,9 +1157,9 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
                         if (channel.megagroup) {
-                            builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("RevokeLinkAlert", R.string.RevokeLinkAlert, MessagesController.getInstance(currentAccount).linkPrefix + "/" + channel.username, channel.title)));
+                            builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("RevokeLinkAlert", R.string.RevokeLinkAlert, MessagesController.getInstance(currentAccount).linkPrefix + "/" + ChatObject.getPublicUsername(channel), channel.title)));
                         } else {
-                            builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("RevokeLinkAlertChannel", R.string.RevokeLinkAlertChannel, MessagesController.getInstance(currentAccount).linkPrefix  + "/" + channel.username, channel.title)));
+                            builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("RevokeLinkAlertChannel", R.string.RevokeLinkAlertChannel, MessagesController.getInstance(currentAccount).linkPrefix  + "/" + ChatObject.getPublicUsername(channel), channel.title)));
                         }
                         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
                         builder.setPositiveButton(LocaleController.getString("RevokeButton", R.string.RevokeButton), (dialogInterface, i) -> {
@@ -1066,7 +1179,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                             }, ConnectionsManager.RequestFlagInvokeAfter);
                         });
                         showDialog(builder.create());
-                    });
+                    }, false, 0);
                     adminedChannelCell.setChannel(res.chats.get(a), a == res.chats.size() - 1);
                     adminedChannelCells.add(adminedChannelCell);
                     adminnedChannelsLayout.addView(adminedChannelCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 72));
@@ -1114,7 +1227,7 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                 }
             }
         }
-        if (name == null || name.length() < 5) {
+        if (name == null || name.length() < 4) {
             checkTextView.setText(LocaleController.getString("LinkInvalidShort", R.string.LinkInvalidShort));
             checkTextView.setTag(Theme.key_windowBackgroundWhiteRedText4);
             checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteRedText4));
@@ -1144,14 +1257,24 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
                         checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGreenText));
                         lastNameAvailable = true;
                     } else {
-                        if (error != null && error.text.equals("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+                        if (error != null && "USERNAME_INVALID".equals(error.text) && req.username.length() == 4) {
+                            checkTextView.setText(LocaleController.getString("UsernameInvalidShort", R.string.UsernameInvalidShort));
+                            checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteRedText4));
+                        } else if (error != null && "USERNAME_PURCHASE_AVAILABLE".equals(error.text)) {
+                            if (req.username.length() == 4) {
+                                checkTextView.setText(LocaleController.getString("UsernameInvalidShortPurchase", R.string.UsernameInvalidShortPurchase));
+                            } else {
+                                checkTextView.setText(LocaleController.getString("UsernameInUsePurchase", R.string.UsernameInUsePurchase));
+                            }
+                            checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText8));
+                        } else if (error != null && "CHANNELS_ADMIN_PUBLIC_TOO_MUCH".equals(error.text)) {
+                            checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteRedText4));
                             canCreatePublic = false;
-                            loadAdminedChannels();
+                            showPremiumIncreaseLimitDialog();
                         } else {
+                            checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteRedText4));
                             checkTextView.setText(LocaleController.getString("LinkInUse", R.string.LinkInUse));
                         }
-                        checkTextView.setTag(Theme.key_windowBackgroundWhiteRedText4);
-                        checkTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteRedText4));
                         lastNameAvailable = false;
                     }
                 }
@@ -1180,6 +1303,19 @@ public class ChannelCreateActivity extends BaseFragment implements NotificationC
         }
         builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), null);
         showDialog(builder.create());
+    }
+
+    private void showPremiumIncreaseLimitDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        LimitReachedBottomSheet limitReachedBottomSheet = new LimitReachedBottomSheet(this, getParentActivity(), LimitReachedBottomSheet.TYPE_PUBLIC_LINKS, currentAccount);
+        limitReachedBottomSheet.parentIsChannel = true;
+        limitReachedBottomSheet.onSuccessRunnable = () -> {
+            canCreatePublic = true;
+            updatePrivatePublic();
+        };
+        showDialog(limitReachedBottomSheet);
     }
 
     @Override

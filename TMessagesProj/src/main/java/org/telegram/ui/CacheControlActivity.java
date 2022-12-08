@@ -38,6 +38,7 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.FilesMigrationService;
 import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
@@ -109,6 +110,8 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
 
     long fragmentCreateTime;
 
+    private boolean updateDatabaseSize;
+
     @Override
     public boolean onFragmentCreate() {
         super.onFragmentCreate();
@@ -131,10 +134,12 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 return;
             }
             documentsSize = getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT), 1);
+            documentsSize += getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES), 1);
             if (canceled) {
                 return;
             }
             musicSize = getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT), 2);
+            musicSize += getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES), 2);
             if (canceled) {
                 return;
             }
@@ -280,8 +285,12 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
         Utilities.globalQueue.postRunnable(() -> {
             boolean imagesCleared = false;
             long clearedSize = 0;
+            boolean allItemsClear = true;
             for (int a = 0; a < 7; a++) {
                 if (clearViewData[a] == null || !clearViewData[a].clear) {
+                    if (clearViewData[a] != null) {
+                        allItemsClear = false;
+                    }
                     continue;
                 }
                 int type = -1;
@@ -335,6 +344,13 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                         Utilities.clearDir(file.getAbsolutePath(), documentsMusicType, Long.MAX_VALUE, false);
                     }
                 }
+                if (type == FileLoader.MEDIA_DIR_DOCUMENT) {
+                    file = FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES);
+                    if (file != null) {
+                        Utilities.clearDir(file.getAbsolutePath(), documentsMusicType, Long.MAX_VALUE, false);
+                    }
+                }
+
                 if (type == FileLoader.MEDIA_DIR_CACHE) {
                     cacheSize = getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_CACHE), documentsMusicType);
                     imagesCleared = true;
@@ -343,8 +359,10 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 } else if (type == FileLoader.MEDIA_DIR_DOCUMENT) {
                     if (documentsMusicType == 1) {
                         documentsSize = getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT), documentsMusicType);
+                        documentsSize += getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES), documentsMusicType);
                     } else {
                         musicSize = getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_DOCUMENT), documentsMusicType);
+                        musicSize += getDirectorySize(FileLoader.checkDirectory(FileLoader.MEDIA_DIR_FILES), documentsMusicType);
                     }
                 } else if (type == FileLoader.MEDIA_DIR_IMAGE) {
                     imagesCleared = true;
@@ -386,6 +404,9 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
             totalDeviceFreeSize = availableBlocks * blockSize;
             long finalClearedSize = clearedSize;
 
+            if (allItemsClear) {
+                FileLoader.getInstance(currentAccount).clearFilePaths();
+            }
             FileLoader.getInstance(currentAccount).checkCurrentDownloadsFiles();
 
             AndroidUtilities.runOnUIThread(() -> {
@@ -404,8 +425,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 getMediaDataController().ringtoneDataStore.checkRingtoneSoundsLoaded();
                 cacheRemovedTooltip.setInfoText(LocaleController.formatString("CacheWasCleared", R.string.CacheWasCleared, AndroidUtilities.formatFileSize(finalClearedSize)));
                 cacheRemovedTooltip.showWithAction(0, UndoView.ACTION_CACHE_WAS_CLEARED, null, null);
-
-                getMediaDataController().loadAttachMenuBots(false, true);
+                MediaDataController.getInstance(currentAccount).chekAllMedia(true);
             });
         });
     }
@@ -455,6 +475,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                         return false;
                     }
                 };
+                bottomSheet.fixNavigationBar();
                 bottomSheet.setAllowNestedScroll(true);
                 bottomSheet.setApplyBottomPadding(false);
                 LinearLayout linearLayout = new LinearLayout(getParentActivity());
@@ -518,7 +539,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                             CheckBoxCell cell = (CheckBoxCell) v;
                             int num = (Integer) cell.getTag();
                             if (enabledCount == 1 && clearViewData[num].clear) {
-                                AndroidUtilities.shakeView(((CheckBoxCell) v).getCheckBoxView(), 2, 0);
+                                AndroidUtilities.shakeView(((CheckBoxCell) v).getCheckBoxView());
                                 return;
                             }
 
@@ -611,6 +632,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
             progressDialog = null;
             if (listAdapter != null) {
                 databaseSize = MessagesStorage.getInstance(currentAccount).getDatabaseSize();
+                updateDatabaseSize = true;
                 listAdapter.notifyDataSetChanged();
             }
         }
@@ -690,7 +712,8 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 case 0:
                     TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
                     if (position == databaseRow) {
-                        textCell.setTextAndValue(LocaleController.getString("ClearLocalDatabase", R.string.ClearLocalDatabase), AndroidUtilities.formatFileSize(databaseSize), false);
+                        textCell.setTextAndValue(LocaleController.getString("ClearLocalDatabase", R.string.ClearLocalDatabase), AndroidUtilities.formatFileSize(databaseSize), updateDatabaseSize, false);
+                        updateDatabaseSize = false;
                     } else if (position == migrateOldFolderRow) {
                         textCell.setTextAndValue(LocaleController.getString("MigrateOldFolder", R.string.MigrateOldFolder), null, false);
                     }
@@ -749,7 +772,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
             }
 
             if (actionTextView != null) {
-                actionTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(4), Theme.getColor(Theme.key_featuredStickers_addButton), Theme.getColor(Theme.key_featuredStickers_addButtonPressed)));
+                actionTextView.setBackground(Theme.AdaptiveRipple.filledRect(Theme.key_featuredStickers_addButton, 4));
             }
         };
         ArrayList<ThemeDescription> arrayList = new ArrayList<>();

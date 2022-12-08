@@ -116,14 +116,26 @@ public class ViewPagerFixed extends FrameLayout {
         fillTabs();
     }
 
+    protected void onTabPageSelected(int position) {
+
+    }
+
     public TabsView createTabsView() {
-        tabsView = new TabsView(getContext());
+        tabsView = new TabsView(getContext()) {
+            @Override
+            public void selectTab(int currentPosition, int nextPosition, float progress) {
+                super.selectTab(currentPosition, nextPosition, progress);
+                onTabPageSelected(progress <= 0.5f ? currentPosition : nextPosition);
+            }
+        };
         tabsView.setDelegate(new TabsView.TabsViewDelegate() {
             @Override
             public void onPageSelected(int page, boolean forward) {
                 animatingForward = forward;
                 nextPosition = page;
                 updateViewForIndex(1);
+
+                onTabPageSelected(page);
 
                 if (forward) {
                     viewPages[1].setTranslationX(viewPages[0].getMeasuredWidth());
@@ -930,7 +942,8 @@ public class ViewPagerFixed extends FrameLayout {
                 }
             };
             ((DefaultItemAnimator) listView.getItemAnimator()).setDelayAnimations(false);
-            listView.setSelectorType(7);
+            listView.setSelectorType(8);
+            listView.setSelectorRadius(6);
             listView.setSelectorDrawableColor(Theme.getColor(selectorColorKey));
             listView.setLayoutManager(layoutManager = new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false) {
                 @Override
@@ -995,6 +1008,18 @@ public class ViewPagerFixed extends FrameLayout {
 
         public boolean isAnimatingIndicator() {
             return animatingIndicator;
+        }
+
+        public int getCurrentPosition() {
+            return currentPosition;
+        }
+
+        public int getPreviousPosition() {
+            return previousPosition;
+        }
+
+        public float getAnimatingIndicatorProgress() {
+            return animatingIndicatorProgress;
         }
 
         public void scrollToTab(int id, int position) {

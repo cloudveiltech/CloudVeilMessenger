@@ -16,7 +16,6 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Vibrator;
 import android.telephony.TelephonyManager;
@@ -118,7 +117,7 @@ public class NewContactActivity extends BaseFragment implements AdapterView.OnIt
                         if (v != null) {
                             v.vibrate(200);
                         }
-                        AndroidUtilities.shakeView(firstNameField, 2, 0);
+                        AndroidUtilities.shakeView(firstNameField);
                         return;
                     }
                     if (codeField.length() == 0) {
@@ -126,7 +125,7 @@ public class NewContactActivity extends BaseFragment implements AdapterView.OnIt
                         if (v != null) {
                             v.vibrate(200);
                         }
-                        AndroidUtilities.shakeView(codeField, 2, 0);
+                        AndroidUtilities.shakeView(codeField);
                         return;
                     }
                     if (phoneField.length() == 0) {
@@ -134,7 +133,7 @@ public class NewContactActivity extends BaseFragment implements AdapterView.OnIt
                         if (v != null) {
                             v.vibrate(200);
                         }
-                        AndroidUtilities.shakeView(phoneField, 2, 0);
+                        AndroidUtilities.shakeView(phoneField);
                         return;
                     }
                     donePressed = true;
@@ -188,7 +187,7 @@ public class NewContactActivity extends BaseFragment implements AdapterView.OnIt
         avatarDrawable.setInfo(5, "", "");
 
         ActionBarMenu menu = actionBar.createMenu();
-        editDoneItem = menu.addItemWithWidth(done_button, R.drawable.ic_done, AndroidUtilities.dp(56));
+        editDoneItem = menu.addItemWithWidth(done_button, R.drawable.ic_ab_done, AndroidUtilities.dp(56));
         editDoneItem.setContentDescription(LocaleController.getString("Done", R.string.Done));
 
         editDoneItemProgress = new ContextProgressView(context, 1);

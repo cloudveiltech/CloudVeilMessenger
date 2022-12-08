@@ -18,6 +18,10 @@ import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
+import androidx.collection.LongSparseArray;
+
+import com.google.android.exoplayer2.util.Log;
+
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AvatarDrawable;
@@ -25,8 +29,6 @@ import org.telegram.ui.EditWidgetActivity;
 
 import java.io.File;
 import java.util.ArrayList;
-
-import androidx.collection.LongSparseArray;
 
 public class ContactsWidgetService extends RemoteViewsService {
     @Override
@@ -135,7 +137,7 @@ class ContactsRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactor
                 try {
                     Bitmap bitmap = null;
                     if (photoPath != null) {
-                        File path = FileLoader.getPathToAttach(photoPath, true);
+                        File path = FileLoader.getInstance(UserConfig.selectedAccount).getPathToAttach(photoPath, true);
                         bitmap = BitmapFactory.decodeFile(path.toString());
                     }
 
@@ -200,6 +202,8 @@ class ContactsRemoteViewsFactory implements RemoteViewsService.RemoteViewsFactor
                     extras.putLong("chatId", -id);
                 }
                 extras.putInt("currentAccount", accountInstance.getCurrentAccount());
+
+                Log.d("kek", "kek " + name);
 
                 Intent fillInIntent = new Intent();
                 fillInIntent.putExtras(extras);

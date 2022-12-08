@@ -15,6 +15,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.ImageFormat;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -33,6 +35,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
+import android.util.Log;
 import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -75,9 +78,9 @@ import org.telegram.messenger.camera.CameraSession;
 import org.telegram.messenger.camera.CameraView;
 import org.telegram.messenger.camera.Size;
 import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.ActionBarLayout;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
+import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Components.AnimationProperties;
@@ -107,6 +110,7 @@ public class CameraScanActivity extends BaseFragment {
     private ImageView flashButton;
     private AnimatorSet flashAnimator;
     private float backShadowAlpha = .5f;
+    protected boolean shownAsBottomSheet = false;
 
     private SpringAnimation qrAppearing = null;
     private float qrAppearingValue = 0;
@@ -123,7 +127,7 @@ public class CameraScanActivity extends BaseFragment {
     private int recognizeIndex = 0;
     private String recognizedText;
 
-    private int sps; // samples per second (already when recognized)
+    private int sps; // samples per second (when already recognized)
 
     private boolean qrLoading = false;
     private boolean qrLoaded = false;
@@ -153,15 +157,15 @@ public class CameraScanActivity extends BaseFragment {
         }
     }
 
-    public static ActionBarLayout[] showAsSheet(BaseFragment parentFragment, boolean gallery, int type, CameraScanActivityDelegate cameraDelegate) {
+    public static INavigationLayout[] showAsSheet(BaseFragment parentFragment, boolean gallery, int type, CameraScanActivityDelegate cameraDelegate) {
         if (parentFragment == null || parentFragment.getParentActivity() == null) {
             return null;
         }
-        ActionBarLayout[] actionBarLayout = new ActionBarLayout[]{new ActionBarLayout(parentFragment.getParentActivity())};
+        INavigationLayout[] actionBarLayout = new INavigationLayout[]{INavigationLayout.newLayout(parentFragment.getParentActivity())};
         BottomSheet bottomSheet = new BottomSheet(parentFragment.getParentActivity(), false) {
             CameraScanActivity fragment;
             {
-                actionBarLayout[0].init(new ArrayList<>());
+                actionBarLayout[0].setFragmentStack(new ArrayList<>());
                 fragment = new CameraScanActivity(type) {
                     @Override
                     public void finishFragment() {
@@ -173,12 +177,13 @@ public class CameraScanActivity extends BaseFragment {
                         dismiss();
                     }
                 };
+                fragment.shownAsBottomSheet = true;
                 fragment.needGalleryButton = gallery;
                 actionBarLayout[0].addFragmentToStack(fragment);
                 actionBarLayout[0].showLastFragment();
-                actionBarLayout[0].setPadding(backgroundPaddingLeft, 0, backgroundPaddingLeft, 0);
+                actionBarLayout[0].getView().setPadding(backgroundPaddingLeft, 0, backgroundPaddingLeft, 0);
                 fragment.setDelegate(cameraDelegate);
-                containerView = actionBarLayout[0];
+                containerView = actionBarLayout[0].getView();
                 setApplyBottomPadding(false);
                 setApplyBottomPadding(false);
                 setOnDismissListener(dialog -> fragment.onFragmentDestroy());
@@ -191,7 +196,7 @@ public class CameraScanActivity extends BaseFragment {
 
             @Override
             public void onBackPressed() {
-                if (actionBarLayout[0] == null || actionBarLayout[0].fragmentsStack.size() <= 1) {
+                if (actionBarLayout[0] == null || actionBarLayout[0].getFragmentStack().size() <= 1) {
                     super.onBackPressed();
                 } else {
                     actionBarLayout[0].onBackPressed();
@@ -206,9 +211,8 @@ public class CameraScanActivity extends BaseFragment {
         };
         bottomSheet.setUseLightStatusBar(false);
         AndroidUtilities.setLightNavigationBar(bottomSheet.getWindow(), false);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            bottomSheet.getWindow().setNavigationBarColor(0xff000000);
-        }
+        AndroidUtilities.setNavigationBarColor(bottomSheet.getWindow(), 0xff000000, false);
+        bottomSheet.setUseLightStatusBar(false);
         bottomSheet.getWindow().addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         bottomSheet.show();
         return actionBarLayout;
@@ -252,8 +256,15 @@ public class CameraScanActivity extends BaseFragment {
     @Override
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setItemsColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), false);
-        actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarWhiteSelector), false);
+        if (shownAsBottomSheet) {
+            actionBar.setItemsColor(0xffffffff, false);
+            actionBar.setItemsBackgroundColor(0xffffffff, false);
+            actionBar.setTitleColor(0xffffffff);
+        } else {
+            actionBar.setItemsColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), false);
+            actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarWhiteSelector), false);
+            actionBar.setTitleColor(Theme.getColor(Theme.key_actionBarDefaultTitle));
+        }
         actionBar.setCastShadows(false);
         if (!AndroidUtilities.isTablet() && !isQr()) {
             actionBar.showActionModeTop();
@@ -423,7 +434,7 @@ public class CameraScanActivity extends BaseFragment {
         fragmentView = viewGroup;
 
         if (currentType == TYPE_QR || currentType == TYPE_QR_LOGIN) {
-            fragmentView.postDelayed(this::initCameraView, 350);
+            fragmentView.postDelayed(this::initCameraView, 450);
         } else {
             initCameraView();
         }
@@ -880,6 +891,11 @@ public class CameraScanActivity extends BaseFragment {
         public void run() {
             if (cameraView != null && !recognized && cameraView.getCameraSession() != null) {
                 handler.post(() -> {
+                    try {
+                        cameraView.focusToPoint(cameraView.getWidth() / 2, cameraView.getHeight() / 2, false);
+                    } catch (Exception ignore) {
+
+                    }
                     if (cameraView != null) {
                         processShot(cameraView.getTextureView().getBitmap());
                     }
@@ -1003,6 +1019,52 @@ public class CameraScanActivity extends BaseFragment {
         }
     }
 
+    private Bitmap invert(Bitmap bitmap) {
+        int height = bitmap.getHeight();
+        int width = bitmap.getWidth();
+
+        Bitmap newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(newBitmap);
+        Paint paint = new Paint();
+
+        ColorMatrix matrixGrayscale = new ColorMatrix();
+        matrixGrayscale.setSaturation(0);
+        ColorMatrix matrixInvert = new ColorMatrix();
+        matrixInvert.set(new float[] {
+            -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
+            0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
+            0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+        });
+        matrixInvert.preConcat(matrixGrayscale);
+        paint.setColorFilter(new ColorMatrixColorFilter(matrixInvert));
+        canvas.drawBitmap(bitmap, 0, 0, paint);
+        return newBitmap;
+    }
+
+    private Bitmap monochrome(Bitmap bitmap, int threshold) {
+        int height = bitmap.getHeight();
+        int width = bitmap.getWidth();
+
+        Bitmap newBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(newBitmap);
+        Paint paint = new Paint();
+
+        paint.setColorFilter(new ColorMatrixColorFilter(createThresholdMatrix(threshold)));
+        canvas.drawBitmap(bitmap, 0, 0, paint);
+
+        return newBitmap;
+    }
+    public static ColorMatrix createThresholdMatrix(int threshold) {
+        ColorMatrix matrix = new ColorMatrix(new float[] {
+            85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+            85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+            85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+            0f, 0f, 0f, 1f, 0f
+        });
+        return matrix;
+    }
+
     private class QrResult {
         String text;
         RectF bounds;
@@ -1043,6 +1105,60 @@ public class CameraScanActivity extends BaseFragment {
                             maxY = Math.max(maxY, point.y);
                         }
                         bounds.set(minX, minY, maxX, maxY);
+                    }
+                } else if (bitmap != null) {
+                    Bitmap inverted = invert(bitmap);
+                    bitmap.recycle();
+                    frame = new Frame.Builder().setBitmap(inverted).build();
+                    width = inverted.getWidth();
+                    height = inverted.getHeight();
+                    codes = visionQrReader.detect(frame);
+                    if (codes != null && codes.size() > 0) {
+                        Barcode code = codes.valueAt(0);
+                        text = code.rawValue;
+                        if (code.cornerPoints == null || code.cornerPoints.length == 0) {
+                            bounds = null;
+                        } else {
+                            float minX = Float.MAX_VALUE,
+                                    maxX = Float.MIN_VALUE,
+                                    minY = Float.MAX_VALUE,
+                                    maxY = Float.MIN_VALUE;
+                            for (Point point : code.cornerPoints) {
+                                minX = Math.min(minX, point.x);
+                                maxX = Math.max(maxX, point.x);
+                                minY = Math.min(minY, point.y);
+                                maxY = Math.max(maxY, point.y);
+                            }
+                            bounds.set(minX, minY, maxX, maxY);
+                        }
+                    } else {
+                        Bitmap monochrome = monochrome(inverted, 90);
+                        inverted.recycle();
+                        frame = new Frame.Builder().setBitmap(monochrome).build();
+                        width = inverted.getWidth();
+                        height = inverted.getHeight();
+                        codes = visionQrReader.detect(frame);
+                        if (codes != null && codes.size() > 0) {
+                            Barcode code = codes.valueAt(0);
+                            text = code.rawValue;
+                            if (code.cornerPoints == null || code.cornerPoints.length == 0) {
+                                bounds = null;
+                            } else {
+                                float minX = Float.MAX_VALUE,
+                                        maxX = Float.MIN_VALUE,
+                                        minY = Float.MAX_VALUE,
+                                        maxY = Float.MIN_VALUE;
+                                for (Point point : code.cornerPoints) {
+                                    minX = Math.min(minX, point.x);
+                                    maxX = Math.max(maxX, point.x);
+                                    minY = Math.min(minY, point.y);
+                                    maxY = Math.max(maxY, point.y);
+                                }
+                                bounds.set(minX, minY, maxX, maxY);
+                            }
+                        } else {
+                            text = null;
+                        }
                     }
                 } else {
                     text = null;

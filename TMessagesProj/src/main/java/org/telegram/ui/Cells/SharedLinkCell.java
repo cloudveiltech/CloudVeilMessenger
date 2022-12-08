@@ -11,6 +11,7 @@ package org.telegram.ui.Cells;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
@@ -171,16 +172,22 @@ public class SharedLinkCell extends FrameLayout {
     private int fromInfoLayoutY = AndroidUtilities.dp(30);
     private StaticLayout fromInfoLayout;
 
+    private Theme.ResourcesProvider resourcesProvider;
     private int viewType;
     public final static int VIEW_TYPE_DEFAULT = 0;
     public final static int VIEW_TYPE_GLOBAL_SEARCH = 1;
 
     public SharedLinkCell(Context context) {
-        this(context, VIEW_TYPE_DEFAULT);
+        this(context, VIEW_TYPE_DEFAULT, null);
     }
 
     public SharedLinkCell(Context context, int viewType) {
+        this(context, viewType, null);
+    }
+
+    public SharedLinkCell(Context context, int viewType, Theme.ResourcesProvider resourcesProvider) {
         super(context);
+        this.resourcesProvider = resourcesProvider;
         this.viewType = viewType;
         setFocusable(true);
 
@@ -189,7 +196,7 @@ public class SharedLinkCell extends FrameLayout {
 
         titleTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         titleTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        titleTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        titleTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
 
         descriptionTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
@@ -199,9 +206,9 @@ public class SharedLinkCell extends FrameLayout {
         setWillNotDraw(false);
         linkImageView = new ImageReceiver(this);
         linkImageView.setRoundRadius(AndroidUtilities.dp(4));
-        letterDrawable = new LetterDrawable();
+        letterDrawable = new LetterDrawable(resourcesProvider, LetterDrawable.STYLE_DEFAULT);
 
-        checkBox = new CheckBox2(context, 21);
+        checkBox = new CheckBox2(context, 21, resourcesProvider);
         checkBox.setVisibility(INVISIBLE);
         checkBox.setColor(null, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
         checkBox.setDrawUnchecked(false);
@@ -742,10 +749,12 @@ public class SharedLinkCell extends FrameLayout {
         checkBox.setChecked(checked, animated);
     }
 
+    private Paint urlPaint;
+
     @Override
     protected void onDraw(Canvas canvas) {
         if (viewType == VIEW_TYPE_GLOBAL_SEARCH) {
-            description2TextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
+            description2TextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3, resourcesProvider));
         }
         if (dateLayout != null) {
             canvas.save();
@@ -765,30 +774,30 @@ public class SharedLinkCell extends FrameLayout {
         }
 
         if (captionLayout != null) {
-            captionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            captionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             canvas.save();
             canvas.translate(AndroidUtilities.dp(LocaleController.isRTL ? 8 : AndroidUtilities.leftBaseline), captionY);
             captionLayout.draw(canvas);
             canvas.restore();
         }
         if (descriptionLayout != null) {
-            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             canvas.save();
             canvas.translate(AndroidUtilities.dp(LocaleController.isRTL ? 8 : AndroidUtilities.leftBaseline), descriptionY);
-            SpoilerEffect.renderWithRipple(this, false, descriptionTextPaint.getColor(), -AndroidUtilities.dp(2), patchedDescriptionLayout, descriptionLayout, descriptionLayoutSpoilers, canvas);
+            SpoilerEffect.renderWithRipple(this, false, descriptionTextPaint.getColor(), -AndroidUtilities.dp(2), patchedDescriptionLayout, descriptionLayout, descriptionLayoutSpoilers, canvas, false);
             canvas.restore();
         }
 
         if (descriptionLayout2 != null) {
-            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             canvas.save();
             canvas.translate(AndroidUtilities.dp(LocaleController.isRTL ? 8 : AndroidUtilities.leftBaseline), description2Y);
-            SpoilerEffect.renderWithRipple(this, false, descriptionTextPaint.getColor(), -AndroidUtilities.dp(2), patchedDescriptionLayout2, descriptionLayout2, descriptionLayout2Spoilers, canvas);
+            SpoilerEffect.renderWithRipple(this, false, descriptionTextPaint.getColor(), -AndroidUtilities.dp(2), patchedDescriptionLayout2, descriptionLayout2, descriptionLayout2Spoilers, canvas, false);
             canvas.restore();
         }
 
         if (!linkLayout.isEmpty()) {
-            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteLinkText));
+            descriptionTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteLinkText, resourcesProvider));
             int offset = 0;
             for (int a = 0; a < linkLayout.size(); a++) {
                 StaticLayout layout = linkLayout.get(a);
@@ -804,10 +813,15 @@ public class SharedLinkCell extends FrameLayout {
                             path.addRect(b.left, b.top, b.right, b.bottom, Path.Direction.CW);
                         }
                     }
+                    if (urlPaint == null) {
+                        urlPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                        urlPaint.setPathEffect(new CornerPathEffect(AndroidUtilities.dp(4)));
+                    }
+                    urlPaint.setColor(Theme.getColor(Theme.key_chat_linkSelectBackground, resourcesProvider));
                     canvas.save();
                     canvas.clipPath(path, Region.Op.DIFFERENCE);
                     if (pressedLink == a) {
-                        canvas.drawPath(urlPath, Theme.linkSelectionPaint);
+                        canvas.drawPath(urlPath, urlPaint);
                     }
                     layout.draw(canvas);
                     canvas.restore();
@@ -820,7 +834,7 @@ public class SharedLinkCell extends FrameLayout {
                     canvas.clipPath(path);
 
                     if (pressedLink == a) {
-                        canvas.drawPath(urlPath, Theme.linkSelectionPaint);
+                        canvas.drawPath(urlPath, urlPaint);
                     }
                     layout.draw(canvas);
                     canvas.restore();

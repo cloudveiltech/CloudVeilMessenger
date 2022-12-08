@@ -140,7 +140,7 @@ public class ChannelCheckingService extends Service {
 
     private void sendDataCheckRequest() {
         UserConfig userConfig = UserConfig.getInstance(accountNumber);
-        if (userConfig == null) {
+        if (userConfig == null || !userConfig.isConfigLoaded()) {
             stopForeground(true);
             stopSelf();
             return;
@@ -154,14 +154,15 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsRequest request = new SettingsRequest();
-        addDialogsToRequest(request);
-        addInlineBotsToRequest(request);
-        addStickersToRequest(request);
 
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
         request.userName = currentUser.username;
         request.clientSessionId = GlobalSecuritySettings.getInstallId(accountNumber);
+
+        addDialogsToRequest(request);
+        addInlineBotsToRequest(request);
+        addStickersToRequest(request);
 
         if (request.isEmpty()) {
             NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
@@ -178,7 +179,7 @@ public class ChannelCheckingService extends Service {
             Log.d("CloudVeil", "cached response");
         }
         boolean forceCache = firstCall || !ApplicationLoader.isNetworkOnline() || cacheIsFreshEnough;
-        if (cached != null && forceCache) {
+        if (cached != null && forceCache && additionalDialogId == 0) {
             processResponse(cached);
             firstCall = false;
             cachedResponseCalled = true;
@@ -193,7 +194,7 @@ public class ChannelCheckingService extends Service {
 
         NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
         lastServerCallTime = System.currentTimeMillis();
-        Log.d("CloudVeil", "not cached response");
+
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
 

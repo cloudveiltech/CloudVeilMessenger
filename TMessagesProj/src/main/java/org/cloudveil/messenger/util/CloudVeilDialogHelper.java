@@ -30,6 +30,7 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ChatActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -366,7 +367,7 @@ public class CloudVeilDialogHelper {
                         onOkRunnable.run();
                     }
 
-                    sendUnlockRequest(tlObject, fragment.getCurrentAccount());
+                    sendUnlockRequest(tlObject, fragment.getCurrentAccount(), fragment);
                 })
                 .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
                     dialog.dismiss();
@@ -391,7 +392,7 @@ public class CloudVeilDialogHelper {
         });
     }
 
-    private static void sendUnlockRequest(TLObject tlObject, int currentAccount) {
+    private static void sendUnlockRequest(TLObject tlObject, int currentAccount, BaseFragment fragment) {
         long currentUserId = UserConfig.getInstance(currentAccount).getCurrentUser().id;
         long itemId = 0;
 
@@ -416,7 +417,7 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId);
+        Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId, fragment);
     }
 
     private static final Pattern youtubeIdRegex = Pattern.compile("(?:youtube(?:-nocookie)?\\.com/(?:[^/\\n\\s]+/\\S+/|(?:v|e(?:mbed)?)/|\\S*?[?&]v=)|youtu\\.be/)([a-zA-Z0-9_-]{11})");
@@ -445,7 +446,7 @@ public class CloudVeilDialogHelper {
                 .setMessage(context.getString(R.string.cloudveil_organisation_change))
                 .setPositiveButton(context.getString(R.string.change), (dialog, which) -> {
                     long currentUserId = UserConfig.getInstance(accountNumber).getCurrentUser().id;
-                    Browser.openUrl(context, "https://messenger.cloudveil.org/unblock_status/" + currentUserId );
+                    Browser.openUrl(context, "https://messenger.cloudveil.org/unblock_status/" + currentUserId, fragment);
                     dialog.dismiss();
                 })
                 .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> {});

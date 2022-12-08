@@ -222,7 +222,7 @@ public class GlobalSecuritySettings {
     }
 
     public static boolean isVideoPlayingAllowed() {
-        return false;
+        return true;
     }
     
     public static String getInstallId(@NonNull int accountNum) {

@@ -24,7 +24,6 @@ import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.hardware.Camera;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
@@ -42,7 +41,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.Surface;
@@ -150,6 +148,8 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
 
     private FloatBuffer vertexBuffer;
     private FloatBuffer textureBuffer;
+
+    private final static int audioSampleRate = 44100;
 
     public void setRecordFile(File generateVideoPath) {
         recordFile = generateVideoPath;
@@ -415,8 +415,8 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
         int photoMaxHeight;
         if (initialFrontface) {
             aspectRatio = new Size(16, 9);
-            photoMaxWidth = wantedWidth = 480;
-            photoMaxHeight = wantedHeight = 270;
+            photoMaxWidth = wantedWidth = 1280;
+            photoMaxHeight = wantedHeight = 720;
         } else {
             if (Math.abs(screenSize - size4to3) < 0.1f) {
                 aspectRatio = new Size(4, 3);
@@ -546,7 +546,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
         return x;
     }
 
-    public void focusToPoint(int x, int y) {
+    public void focusToPoint(int x, int y, boolean visible) {
         Rect focusRect = calculateTapArea(x, y, 1f);
         Rect meteringRect = calculateTapArea(x, y, 1.5f);
 
@@ -554,13 +554,19 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
             cameraSession.focusToRect(focusRect, meteringRect);
         }
 
-        focusProgress = 0.0f;
-        innerAlpha = 1.0f;
-        outerAlpha = 1.0f;
-        cx = x;
-        cy = y;
-        lastDrawTime = System.currentTimeMillis();
-        invalidate();
+        if (visible) {
+            focusProgress = 0.0f;
+            innerAlpha = 1.0f;
+            outerAlpha = 1.0f;
+            cx = x;
+            cy = y;
+            lastDrawTime = System.currentTimeMillis();
+            invalidate();
+        }
+    }
+
+    public void focusToPoint(int x, int y) {
+        focusToPoint(x, y, true);
     }
 
     public void setZoom(float value) {
@@ -1298,7 +1304,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
                         }
                         buffer.offset[a] = audioPresentationTimeUs;
                         buffer.read[a] = readResult;
-                        int bufferDurationUs = 1000000 * readResult / 44100 / 2;
+                        int bufferDurationUs = 1000000 * readResult / audioSampleRate / 2;
                         audioPresentationTimeUs += bufferDurationUs;
                     }
                     if (buffer.results >= 0 || buffer.last) {
@@ -1676,7 +1682,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
 
         private void prepareEncoder() {
             try {
-                int recordBufferSize = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                int recordBufferSize = AudioRecord.getMinBufferSize(audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
                 if (recordBufferSize <= 0) {
                     recordBufferSize = 3584;
                 }
@@ -1687,7 +1693,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
                 for (int a = 0; a < 3; a++) {
                     buffers.add(new InstantCameraView.AudioBufferInfo());
                 }
-                audioRecorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, 44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+                audioRecorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
                 audioRecorder.startRecording();
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("CameraView " + "initied audio record with channels " + audioRecorder.getChannelCount() + " sample rate = " + audioRecorder.getSampleRate() + " bufferSize = " + bufferSize);
@@ -1701,7 +1707,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
 
                 MediaFormat audioFormat = new MediaFormat();
                 audioFormat.setString(MediaFormat.KEY_MIME, AUDIO_MIME_TYPE);
-                audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
+                audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, audioSampleRate);
                 audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
                 audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, 32000);
                 audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 2048 * InstantCameraView.AudioBufferInfo.MAX_SAMPLES);

@@ -27,7 +27,6 @@ import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.CustomTabsCopyReceiver;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.ShareBroadcastReceiver;
@@ -44,12 +43,15 @@ import org.telegram.messenger.support.customtabsclient.shared.ServiceConnectionC
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.WebviewActivity;
 
 import java.lang.ref.WeakReference;
 import java.net.URLEncoder;
 import java.util.List;
+import java.util.regex.Matcher;
 
 public class Browser {
 
@@ -153,6 +155,20 @@ public class Browser {
         openUrl(context, Uri.parse(url), true);
     }
 
+    //CloudVeil start
+    public static void openUrl(Context context, String url, BaseFragment fragment) {
+        if (url == null) {
+            return;
+        }
+        openUrl(context, Uri.parse(url), true, false, fragment);
+    }
+
+    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph) {
+        openUrl(context, uri, allowCustom, tryTelegraph, null);
+    }
+    //CloudVeil end
+
+
     public static void openUrl(Context context, Uri uri) {
         openUrl(context, uri, true);
     }
@@ -179,18 +195,42 @@ public class Browser {
         if (equals) {
             return url.equals("telegra.ph") || url.equals("te.legra.ph") || url.equals("graph.org");
         }
-        return url.matches("^(https" + (forceHttps ? "" : "?") + "://)?(te\\.?legra\\.ph|graph\\.org).*"); // telegra.ph, te.legra.ph, graph.org
+        return url.matches("^(https" + (forceHttps ? "" : "?") + "://)?(te\\.?legra\\.ph|graph\\.org)(/.*|$)"); // telegra.ph, te.legra.ph, graph.org
+    }
+
+    public static String extractUsername(String link) {
+        if (link == null || TextUtils.isEmpty(link)) {
+            return null;
+        }
+        if (link.startsWith("@")) {
+            return link.substring(1);
+        }
+        if (link.startsWith("t.me/")) {
+            return link.substring(5);
+        }
+        if (link.startsWith("http://t.me/")) {
+            return link.substring(12);
+        }
+        if (link.startsWith("https://t.me/")) {
+            return link.substring(13);
+        }
+        Matcher prefixMatcher = LaunchActivity.PREFIX_T_ME_PATTERN.matcher(link);
+        if (prefixMatcher.find()) {
+            return prefixMatcher.group(1);
+        }
+        return null;
     }
 
     public static boolean urlMustNotHaveConfirmation(String url) {
         return (
             isTelegraphUrl(url, false, true) ||
-            url.matches("^(https://)?t\\.me/iv\\??.*") || // t.me/iv?
-            url.matches("^(https://)?telegram\\.org/(blog|tour)/?.*") // telegram.org/blog, telegram.org/tour
+            url.matches("^(https://)?t\\.me/iv\\??(/.*|$)") || // t.me/iv?
+            url.matches("^(https://)?telegram\\.org/(blog|tour)(/.*|$)") || // telegram.org/blog, telegram.org/tour
+            url.matches("^(https://)?fragment\\.com(/.*|$)") // fragment.com
         );
     }
 
-    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph) {
+    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, BaseFragment baseFragment) {
         if (context == null || uri == null) {
             return;
         }
@@ -274,7 +314,7 @@ public class Browser {
             boolean forceInternal = GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
             boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
             if (allowCustomTab && !internalUri && !scheme.equals("tel")) {
-                //CloudVeil end
+            //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"));
@@ -327,14 +367,14 @@ public class Browser {
                     Intent share = new Intent(ApplicationLoader.applicationContext, ShareBroadcastReceiver.class);
                     share.setAction(Intent.ACTION_SEND);
 
-                    PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
+                    PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
                     CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession());
                     builder.addMenuItem(LocaleController.getString("CopyLink", R.string.CopyLink), copy);
 
                     builder.setToolbarColor(Theme.getColor(Theme.key_actionBarBrowser));
                     builder.setShowTitle(true);
-                    builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.abc_ic_menu_share_mtrl_alpha), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, 0), true);
+                    builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
                     CustomTabsIntent intent = builder.build();
                     intent.setUseNewTask();
                     intent.launchUrl(context, uri);
@@ -352,9 +392,18 @@ public class Browser {
             }
             intent.putExtra(android.provider.Browser.EXTRA_CREATE_NEW_TAB, true);
             intent.putExtra(android.provider.Browser.EXTRA_APPLICATION_ID, context.getPackageName());
-            context.startActivity(intent);
+            if (internalUri && context instanceof LaunchActivity) {
+                ((LaunchActivity) context).onNewIntent(intent);
+            } else {
+                context.startActivity(intent);
+            }
         } catch (Exception e) {
             FileLog.e(e);
+            //CloudVeil start
+            if(baseFragment != null) {
+                baseFragment.presentFragment(new WebviewActivity(uri.toString(), "organisation", "organisation", "", null));
+            }
+            //CloudVeil end
         }
     }
 
@@ -388,6 +437,15 @@ public class Browser {
     public static boolean isInternalUri(Uri uri, boolean all, boolean[] forceBrowser) {
         String host = uri.getHost();
         host = host != null ? host.toLowerCase() : "";
+
+        Matcher prefixMatcher = LaunchActivity.PREFIX_T_ME_PATTERN.matcher(host);
+        if (prefixMatcher.find()) {
+            uri = Uri.parse("https://t.me/" + prefixMatcher.group(1) + (TextUtils.isEmpty(uri.getPath()) ? "" : "/" + uri.getPath()) + (TextUtils.isEmpty(uri.getQuery()) ? "" : "?" + uri.getQuery()));
+
+            host = uri.getHost();
+            host = host != null ? host.toLowerCase() : "";
+        }
+
         if ("ton".equals(uri.getScheme())) {
             try {
                 Intent viewIntent = new Intent(Intent.ACTION_VIEW, uri);

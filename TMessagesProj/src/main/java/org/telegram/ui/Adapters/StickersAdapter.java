@@ -12,14 +12,16 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
+import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.FileLoader;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.EmojiReplacementCell;
@@ -28,8 +30,6 @@ import org.telegram.ui.Components.RecyclerListView;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import androidx.recyclerview.widget.RecyclerView;
 
 public class StickersAdapter extends RecyclerListView.SelectionAdapter implements NotificationCenter.NotificationCenterDelegate {
 
@@ -102,7 +102,7 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
                 notifyDataSetChanged();
                 delegate.needChangePanelVisibility(visible = !param.isEmpty());
             }
-        });
+        }, true);
         if (keywordResults == null || keywordResults.isEmpty()) {
             AndroidUtilities.runOnUIThread(searchRunnable, 1000);
         } else {
@@ -137,9 +137,9 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
             TLRPC.Document animatedSticker = MediaDataController.getInstance(currentAccount).getEmojiAnimatedSticker(emoji);
             if (animatedSticker != null) {
                 ArrayList<TLRPC.TL_messages_stickerSet> sets = MediaDataController.getInstance(currentAccount).getStickerSets(MediaDataController.TYPE_EMOJI);
-                File f = FileLoader.getPathToAttach(animatedSticker, true);
+                File f = FileLoader.getInstance(currentAccount).getPathToAttach(animatedSticker, true);
                 if (!f.exists()) {
-                    FileLoader.getInstance(currentAccount).loadFile(ImageLocation.getForDocument(animatedSticker), sets.get(0), null, 1, 1);
+                    FileLoader.getInstance(currentAccount).loadFile(ImageLocation.getForDocument(animatedSticker), sets.get(0), null, FileLoader.PRIORITY_NORMAL, 1);
                 }
             }
         }
