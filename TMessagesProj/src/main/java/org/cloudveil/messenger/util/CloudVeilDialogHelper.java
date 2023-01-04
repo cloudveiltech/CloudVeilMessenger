@@ -354,10 +354,7 @@ public class CloudVeilDialogHelper {
         fragment.showDialog(builder.create());
     }
 
-    public static void showWarning(BaseFragment fragment, TLObject tlObject, DialogType type, Runnable onOkRunnable, Runnable onDismissRunnable) {
-        if (tlObject == null) {
-            return;
-        }
+    public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
@@ -367,7 +364,7 @@ public class CloudVeilDialogHelper {
                         onOkRunnable.run();
                     }
 
-                    sendUnlockRequest(tlObject, fragment.getCurrentAccount(), fragment);
+                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
                 })
                 .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
                     dialog.dismiss();
@@ -392,31 +389,8 @@ public class CloudVeilDialogHelper {
         });
     }
 
-    private static void sendUnlockRequest(TLObject tlObject, int currentAccount, BaseFragment fragment) {
+    private static void sendUnlockRequest(long itemId, int currentAccount, BaseFragment fragment) {
         long currentUserId = UserConfig.getInstance(currentAccount).getCurrentUser().id;
-        long itemId = 0;
-
-
-        if (tlObject instanceof TLRPC.User) {
-            TLRPC.User user = (TLRPC.User) tlObject;
-            itemId = user.id;
-        } else if (tlObject instanceof TLRPC.Chat) {
-            TLRPC.Chat chat = (TLRPC.Chat) tlObject;
-            itemId = chat.id;
-        } else if (tlObject instanceof TLRPC.TL_dialog) {
-            TLRPC.TL_dialog dlg = (TLRPC.TL_dialog) tlObject;
-            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dlg.id);
-            if (chat != null && chat.migrated_to != null) {
-                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(chat.migrated_to.channel_id);
-                if (chat2 != null) {
-                    chat = chat2;
-                }
-            }
-            if (chat != null) {
-                itemId = chat.id;
-            }
-        }
-
         Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId, fragment);
     }
 

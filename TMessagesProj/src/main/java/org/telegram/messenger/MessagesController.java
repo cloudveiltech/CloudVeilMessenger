@@ -16497,7 +16497,7 @@ public class MessagesController extends BaseController implements NotificationCe
         if (chat != null) {
             long dialogId = chat.id > 0 ? -chat.id : chat.id;
             if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
-                CloudVeilDialogHelper.showWarning(fragment, chat, CloudVeilDialogHelper.DialogType.group, null, null);
+                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.group, dialogId,null, null);
                 return;
             } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
                 CloudVeilDialogHelper.openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
@@ -16505,7 +16505,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         } else if (user != null) {
             if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
-                CloudVeilDialogHelper.showWarning(fragment, user, CloudVeilDialogHelper.DialogType.user, null, null);
+                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.user, user.id, null, null);
                 return;
             } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
                 CloudVeilDialogHelper.openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);

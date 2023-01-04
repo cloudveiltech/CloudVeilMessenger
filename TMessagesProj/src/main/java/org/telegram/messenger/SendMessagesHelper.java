@@ -70,7 +70,6 @@ import org.telegram.ui.Components.Point;
 import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
 import org.telegram.ui.Components.Reactions.ReactionsUtils;
-import org.telegram.ui.PaymentFormActivity;
 import org.telegram.ui.TwoStepVerificationActivity;
 import org.telegram.ui.TwoStepVerificationSetupActivity;
 
@@ -113,7 +112,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
     public static boolean checkUpdateStickersOrder(CharSequence text) {
         if (text instanceof Spannable) {
-            AnimatedEmojiSpan[] spans = ((Spannable)text).getSpans(0, text.length(), AnimatedEmojiSpan.class);
+            AnimatedEmojiSpan[] spans = ((Spannable) text).getSpans(0, text.length(), AnimatedEmojiSpan.class);
             for (int i = 0; i < spans.length; i++) {
                 if (spans[i].fromEmojiKeyboard) {
                     return true;
@@ -189,7 +188,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 uploadSet.remove(path);
             }
         }
-        
+
         private void addUploadProgress(String path, long sz, float progress) {
             uploadProgresses.put(path, progress);
             uploadSize.put(path, sz);
@@ -524,6 +523,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
         public interface LocationProviderDelegate {
             void onLocationAcquired(Location location);
+
             void onUnableLocationAcquire();
         }
 
@@ -671,7 +671,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         public boolean performMediaUpload;
 
         public boolean retriedToSend;
-        
+
         public int topMessageId;
 
         public TLRPC.InputMedia inputUploadMedia;
@@ -765,7 +765,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     processSentMessage(obj.getId());
                     removeFromUploadingMessages(obj.getId(), scheduled);
                 }
-                delayedMessages.remove( "group_" + groupId);
+                delayedMessages.remove("group_" + groupId);
             } else {
                 getMessagesStorage().markMessageAsSendError(obj.messageOwner, obj.scheduled);
                 obj.messageOwner.send_state = MessageObject.MESSAGE_SEND_STATE_SEND_ERROR;
@@ -778,6 +778,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     }
 
     private static volatile SendMessagesHelper[] Instance = new SendMessagesHelper[UserConfig.MAX_ACCOUNT_COUNT];
+
     public static SendMessagesHelper getInstance(int num) {
         SendMessagesHelper localInstance = Instance[num];
         if (localInstance == null) {
@@ -1235,7 +1236,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if (object.messageOwner.entities != null) {
             object.messageOwner.flags |= 128;
         } else {
-            object.messageOwner.flags &=~ 128;
+            object.messageOwner.flags &= ~128;
         }
 
         object.previousMedia = null;
@@ -1900,7 +1901,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         newMsg.flags |= 64;
                     } else {
                         msgObj.messageOwner.reply_markup = null;
-                        newMsg.flags &=~ 64;
+                        newMsg.flags &= ~64;
                     }
                 }
                 if (!newMsg.entities.isEmpty()) {
@@ -2353,7 +2354,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             newMsg.entities = messageObject.editingMessageEntities;
                             newMsg.flags |= 128;
                         } else if (!TextUtils.equals(oldMessge, newMsg.message)) {
-                            newMsg.flags &=~ 128;
+                            newMsg.flags &= ~128;
                         }
                     } else {
                         if (messageObject.editingMessageEntities != null) {
@@ -2366,7 +2367,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 newMsg.entities = entities;
                                 newMsg.flags |= 128;
                             } else if (!TextUtils.equals(oldMessge, newMsg.message)) {
-                                newMsg.flags &=~ 128;
+                                newMsg.flags &= ~128;
                             }
                         }
                         messageObject.generateCaption();
@@ -2793,7 +2794,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             MediaDataController.getInstance(currentAccount).recentReactions.add(0, ReactionsUtils.toTLReaction(addedReaction));
         }
         if (visibleReactions != null && !visibleReactions.isEmpty()) {
-            for (int i = 0; i < visibleReactions.size(); i++ ) {
+            for (int i = 0; i < visibleReactions.size(); i++) {
                 ReactionsLayoutInBubble.VisibleReaction visibleReaction = visibleReactions.get(i);
                 if (visibleReaction.documentId != 0) {
                     TLRPC.TL_reactionCustomEmoji reactionCustomEmoji = new TLRPC.TL_reactionCustomEmoji();
@@ -3123,7 +3124,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 req.msg_id = messageObject.getId();
                 req.game = button instanceof TLRPC.TL_keyboardButtonGame;
                 if (button.requires_password) {
-                    req.password = req.password = srp != null ? srp : new TLRPC.TL_inputCheckPasswordEmpty();;
+                    req.password = req.password = srp != null ? srp : new TLRPC.TL_inputCheckPasswordEmpty();
+                    ;
                     req.flags |= 4;
                 }
                 if (button.data != null) {
@@ -3247,10 +3249,10 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
 
         //CloudVeil start
-        if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer)) {
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer)) {
             return;
         }
-        if(message != null) {
+        if (message != null) {
             boolean isBotCommand = message.startsWith("/") && message.contains("@");
             if (isBotCommand) {
                 String botName = message.split("@")[1].split(" ")[0].trim().replace("/", "");
@@ -3335,9 +3337,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         }
                         type = 2;
                     } else if (
-                        retryMessageObject.type == MessageObject.TYPE_VIDEO ||
-                        retryMessageObject.type == MessageObject.TYPE_ROUND_VIDEO ||
-                        retryMessageObject.videoEditedInfo != null
+                            retryMessageObject.type == MessageObject.TYPE_VIDEO ||
+                                    retryMessageObject.type == MessageObject.TYPE_ROUND_VIDEO ||
+                                    retryMessageObject.videoEditedInfo != null
                     ) {
                         type = 3;
                         document = (TLRPC.TL_document) newMsg.media.document;
@@ -3357,11 +3359,11 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         user.id = newMsg.media.user_id;
                         type = 6;
                     } else if (
-                        retryMessageObject.type == MessageObject.TYPE_GIF ||
-                        retryMessageObject.type == MessageObject.TYPE_FILE ||
-                        retryMessageObject.type == MessageObject.TYPE_STICKER ||
-                        retryMessageObject.type == MessageObject.TYPE_MUSIC ||
-                        retryMessageObject.type == MessageObject.TYPE_ANIMATED_STICKER
+                            retryMessageObject.type == MessageObject.TYPE_GIF ||
+                                    retryMessageObject.type == MessageObject.TYPE_FILE ||
+                                    retryMessageObject.type == MessageObject.TYPE_STICKER ||
+                                    retryMessageObject.type == MessageObject.TYPE_MUSIC ||
+                                    retryMessageObject.type == MessageObject.TYPE_ANIMATED_STICKER
                     ) {
                         document = (TLRPC.TL_document) newMsg.media.document;
                         type = 7;
@@ -6515,7 +6517,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             try {
 
                 AssetFileDescriptor assetFileDescriptor = ApplicationLoader.applicationContext.getContentResolver().openAssetFileDescriptor(uri, "r", null);
-                if (assetFileDescriptor != null ) {
+                if (assetFileDescriptor != null) {
                     len = assetFileDescriptor.getLength();
                 }
                 Cursor cursor = ApplicationLoader.applicationContext.getContentResolver().query(uri, new String[]{OpenableColumns.SIZE}, null, null, null);
@@ -6597,7 +6599,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
                 final TLRPC.TL_document documentFinal = document;
                 final String parentFinal = parentObject;
-                final CharSequence[] text = new CharSequence[] { caption };
+                final CharSequence[] text = new CharSequence[]{caption};
                 final ArrayList<TLRPC.MessageEntity> entities = a == 0 ? accountInstance.getMediaDataController().getEntities(text, true) : null;
                 final String captionFinal = a == 0 ? text[0].toString() : null;
                 final HashMap<String, String> params = new HashMap<>();
@@ -7145,7 +7147,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     bitmap = ImageLoader.loadBitmap(path, uri, 800, 800, true);
                 }
                 if (!bigExists) {
-                    TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(bigSize, bitmap, Bitmap.CompressFormat.JPEG, true, AndroidUtilities.getPhotoSize(), AndroidUtilities.getPhotoSize(), 80, false, 101, 101,false);
+                    TLRPC.PhotoSize size = ImageLoader.scaleAndSaveImage(bigSize, bitmap, Bitmap.CompressFormat.JPEG, true, AndroidUtilities.getPhotoSize(), AndroidUtilities.getPhotoSize(), 80, false, 101, 101, false);
                     if (size != bigSize) {
                         photo.sizes.add(0, size);
                     }
@@ -7518,7 +7520,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             if (groupMediaFinal) {
                                 mediaCount++;
                                 params.put("groupId", "" + groupId);
-                                if (mediaCount == 10 || a == count -1) {
+                                if (mediaCount == 10 || a == count - 1) {
                                     params.put("final", "1");
                                     lastGroupId = 0;
                                 }
@@ -7685,7 +7687,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             if (!muted && groupMediaFinal) {
                                 mediaCount++;
                                 params.put("groupId", "" + groupId);
-                                if (mediaCount == 10 || a == count -1) {
+                                if (mediaCount == 10 || a == count - 1) {
                                     params.put("final", "1");
                                     lastGroupId = 0;
                                 }
@@ -8011,7 +8013,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
     public static Bitmap createVideoThumbnail(String filePath, int kind) {
         float size;
-        if (kind == MediaStore.Video.Thumbnails.FULL_SCREEN_KIND)  {
+        if (kind == MediaStore.Video.Thumbnails.FULL_SCREEN_KIND) {
             size = 1920;
         } else if (kind == MediaStore.Video.Thumbnails.MICRO_KIND) {
             size = 96;

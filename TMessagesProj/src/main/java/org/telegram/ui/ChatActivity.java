@@ -14866,7 +14866,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
             } else if (!isDialogAllowed) {
                 Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = cloudVeilDialogHelper.getObjectByDialogId(dialog_id);
-                CloudVeilDialogHelper.showWarning(this, objectByDialogId.first, objectByDialogId.second, this::finishFragment, this::finishFragment);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
                 return;
             }
             //CloudVeil end
@@ -21510,7 +21510,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
-            CloudVeilDialogHelper.showWarning(this, objectByDialogId.first, objectByDialogId.second, this::finishFragment, this::finishFragment);
+            CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
         } else {
             CloudVeilDialogHelper.showBatteryWarning(this, currentAccount, getParentActivity());
         }

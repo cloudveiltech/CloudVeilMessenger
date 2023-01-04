@@ -5756,7 +5756,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     }
 
-                    CloudVeilDialogHelper.showWarning(this, object, type, null, null);
+                    CloudVeilDialogHelper.showWarning(this, type, dialogId, null, null);
                 }
                 //CloudVeil end
             }
