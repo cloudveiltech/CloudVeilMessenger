@@ -47,6 +47,7 @@ import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Base64;
+import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.util.TypedValue;
@@ -3720,10 +3721,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             //CloudVeil start check link pressed before opening dialog
                             if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                                 openUncheckedDialog(dialog_id, () ->  runLinkRequest(intentAccount, username, group, sticker,
-                                emoji, botUser, botChat, botChannel, botChatAdminParams, message, hasUrl, messageId, channelId,
-                                threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken,
-                                wallPaper, inputInvoiceSlug, theme, voicechat,
-                                livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose));
+                                emoji, botUser, botChat, botChannel,
+                                botChatAdminParams, message, hasUrl, messageId,
+                                channelId, threadId, commentId, game,
+                                auth, lang, unsupportedUrl, code,
+                                loginToken, wallPaper, inputInvoiceSlug, theme,
+                                voicechat, livestream, state, videoTimestamp,
+                                setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose));
                             } else if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                                 BaseFragment lastFragment = !mainFragmentsStack.isEmpty() && voicechat == null ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
                                 if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
@@ -3832,6 +3836,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         }
                                         hideProgressDialog = false;
                                     }
+                                }
+                            } else {
+                                if (!LaunchActivity.this.isFinishing()) {
+                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+                                    CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialog_id, null, null);
                                 }
                             }
                             //CloudVeil end

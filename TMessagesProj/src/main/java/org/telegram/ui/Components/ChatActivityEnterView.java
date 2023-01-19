@@ -3935,9 +3935,13 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
         } else {
             allowStickers = false;
         }
+        if(!GlobalSecuritySettings.isLockDisableGifs()) {
+            allowGifs = needGifs;
+        } else {
+            allowGifs = false;
+        }
         //CloudVeil end
         allowAnimatedEmoji = needAnimatedEmoji;
-        allowGifs = needGifs;
         if (emojiView != null) {
             emojiView.setAllow(allowStickers, allowGifs, true);
         }

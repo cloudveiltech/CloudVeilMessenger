@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import org.telegram.messenger.ApplicationLoader;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Set;
 
 import io.sentry.protocol.App;
@@ -44,6 +45,14 @@ public class SettingsRequest {
         public long id;
         public String title;
         public String userName;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Row row = (Row) o;
+            return id == row.id;
+        }
     }
 
     public static int getAppVersionCode() {
@@ -101,5 +110,24 @@ public class SettingsRequest {
             }
         }
         rows.add(data);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SettingsRequest that = (SettingsRequest) o;
+        return userId == that.userId &&
+                Objects.equals(clientSessionId, that.clientSessionId) &&
+                groups.equals(that.groups) &&
+                channels.equals(that.channels) &&
+                bots.equals(that.bots) &&
+                stickers.equals(that.stickers) &&
+                users.equals(that.users);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userId);
     }
 }

@@ -67,6 +67,7 @@ public class ChannelCheckingService extends Service {
     private static boolean firstCall = true;
     private int accountNumber = 0;
     private static long lastServerCallTime = 0;
+    private static SettingsRequest cachedRequest;
 
     @Nullable
     @Override
@@ -154,6 +155,7 @@ public class ChannelCheckingService extends Service {
         }
 
         final SettingsRequest request = new SettingsRequest();
+        boolean hasAdditionalDialog = additionalDialogId != 0;
 
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
@@ -179,11 +181,16 @@ public class ChannelCheckingService extends Service {
             Log.d("CloudVeil", "cached response");
         }
         boolean forceCache = firstCall || !ApplicationLoader.isNetworkOnline() || cacheIsFreshEnough;
-        if (cached != null && forceCache && additionalDialogId == 0) {
-            processResponse(cached);
-            firstCall = false;
-            cachedResponseCalled = true;
+        if(request.equals(cachedRequest)) {
+            Log.d("CloudVeil", "requests are equal");
+            if (cached != null && forceCache && !hasAdditionalDialog) {
+                processResponse(cached);
+                firstCall = false;
+                cachedResponseCalled = true;
+            }
         }
+        cachedRequest = request;
+
         if (!ApplicationLoader.isNetworkOnline() || (cachedResponseCalled && cacheIsFreshEnough)) {
             stopForeground(true);
             stopSelf();
@@ -200,10 +207,10 @@ public class ChannelCheckingService extends Service {
 
                 observeOn(AndroidSchedulers.mainThread()).
                 subscribe(settingsResponse -> {
+                    saveToCache(settingsResponse);
                     processResponse(settingsResponse);
                     freeSubscription();
 
-                    saveToCache(settingsResponse);
                     stopForeground(true);
                     stopSelf();
                 }, throwable -> {
