@@ -2373,6 +2373,15 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 if (area || area2) {
                     if (area) {
                         buttonPressed = 1;
+
+                        //CloudVeil start
+                        if(MediaController.getInstance().isAudioTrackPlaying()) {
+                            buttonPressed = 0;
+                            playSoundEffect(SoundEffectConstants.CLICK);
+                            didPressButton(true, false);
+                            invalidate();
+                        }
+                        //CloudVeil end
                     } else {
                         miniButtonPressed = 1;
                     }
@@ -2411,6 +2420,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
             }
         }
+
         return result;
     }
 
@@ -2615,12 +2625,6 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (currentMessageObject == null || !delegate.canPerformActions() || animationRunning) {
             checkTextSelection(event);
             return super.onTouchEvent(event);
-        }
-        //CloudVeil - hack for pause button not working
-        if(MediaController.getInstance().isAudioTrackPlaying()) {
-            if(event.getAction() == MotionEvent.ACTION_CANCEL) {
-                event.setAction(MotionEvent.ACTION_UP);
-            }
         }
 
         if (checkTextSelection(event)) {

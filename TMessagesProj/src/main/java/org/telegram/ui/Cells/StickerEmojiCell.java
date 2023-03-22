@@ -143,7 +143,7 @@ public class StickerEmojiCell extends FrameLayout implements NotificationCenter.
     public void setSticker(TLRPC.Document document, SendMessagesHelper.ImportingSticker path, Object parent, String emoji, boolean showEmoji) {
         currentEmoji = emoji;
         //CloudVeil start
-        if (!GlobalSecuritySettings.isLockDisableStickers()) {
+        if (GlobalSecuritySettings.isLockDisableStickers()) {
             return;
         }
         //CloudVeil end

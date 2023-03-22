@@ -305,6 +305,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
         if(settingsResponse.organization != null) {
             GlobalSecuritySettings.setIsOrganisationChangeRequired(settingsResponse.organization.needChange);
+            GlobalSecuritySettings.setAboutUsUrl(settingsResponse.organization.aboutUrl);
         } else {
             GlobalSecuritySettings.setIsOrganisationChangeRequired(false);
         }

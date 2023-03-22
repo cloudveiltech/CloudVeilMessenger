@@ -1325,6 +1325,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         this.allowAnimatedEmoji = needAnimatedEmoji;
         this.resourcesProvider = resourcesProvider;
 
+        //CloudVeil start
+        needGif = !GlobalSecuritySettings.isLockDisableGifs() && needGif;
+        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        //CloudVeil end
+
         int color = getThemedColor(Theme.key_chat_emojiBottomPanelIcon);
         color = Color.argb(30, Color.red(color), Color.green(color), Color.blue(color));
 
@@ -2185,7 +2190,9 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                             emojiTabs.select(0);
                         }
                     } else if (item == 1) {
-                        gifGridView.smoothScrollToPosition(1);
+                        if(gifGridView != null) {
+                            gifGridView.smoothScrollToPosition(1);
+                        }
                     } else {
                         stickersGridView.smoothScrollToPosition(1);
                     }
@@ -2300,7 +2307,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                     } else {
                         currentField = stickersSearchField;
                     }
+                    if(currentField == null) {
+                        return;
+                    }
                     String currentFieldText = currentField.searchEditText.getText().toString();
+
                     for (int a = 0; a < 3; a++) {
                         SearchField field;
                         if (a == 0) {
@@ -4947,7 +4958,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 if (thumb == null ||  stickerSet.set.gifs) {
                     thumb = document;
                 }
-                stickersTab.addStickerTab(thumb, document, stickerSet).setContentDescription(stickerSet.set.title + ", " + LocaleController.getString("AccDescrStickerSet", R.string.AccDescrStickerSet));
+                //CloudVeil Start
+                if(MediaDataController.getInstance(currentAccount).isStickerAllowed(stickerSet)) {
+                    stickersTab.addStickerTab(thumb, document, stickerSet).setContentDescription(stickerSet.set.title + ", " + LocaleController.getString("AccDescrStickerSet", R.string.AccDescrStickerSet));
+                }
+                //CloudVeil end
             }
         }
         stickersTab.commitUpdate();
@@ -5820,6 +5835,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         @Override
         public int getItemCount() {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableStickers()) {
+                return 0;
+            }
+            //CloudVeil end
             return totalItems != 0 ? totalItems + 1 : 0;
         }
 
@@ -6132,9 +6152,15 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 } else {
                     key = null;
                     pack = packs.get(a);
+                    //CloudVeil start
+                    if(pack != null && !MediaDataController.getInstance(currentAccount).isStickerAllowed(pack)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     documents = pack.documents;
                     packStartPosition.put(pack, totalItems);
                 }
+
                 if (a == groupStickerPackNum) {
                     groupStickerPackPosition = totalItems;
                     if (documents.isEmpty()) {
@@ -7098,6 +7124,9 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         public Drawable getPageIconDrawable(int position) {
+            if(GlobalSecuritySettings.isLockDisableGifs() && position == 1) {
+                position = tabIcons.length - 1;
+            }
             return tabIcons[position];
         }
 
@@ -7856,8 +7885,18 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                                 if (newStickers != null && !newStickers.isEmpty()) {
                                     clear();
                                     if (!emojiStickers.containsKey(newStickers)) {
-                                        emojiStickers.put(newStickers, emoji);
-                                        emojiArrays.add(newStickers);
+                                        //CloudVeil start
+                                        ArrayList<TLRPC.Document> newStickersFiltered = new ArrayList<TLRPC.Document>();
+                                        for(TLRPC.Document doc : newStickers) {
+                                            if(MediaDataController.getInstance(currentAccount).isStickerAllowed(doc)) {
+                                                newStickersFiltered.add(doc);
+                                            }
+                                        }
+                                        if(!newStickersFiltered.isEmpty()) {
+                                            emojiStickers.put(newStickersFiltered, emoji);
+                                            emojiArrays.add(newStickersFiltered);
+                                        }
+                                        //CloudVeil end
                                         added = true;
                                     }
                                 }
@@ -7873,6 +7912,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 int index;
                 for (int a = 0, size = local.size(); a < size; a++) {
                     TLRPC.TL_messages_stickerSet set = local.get(a);
+                    //CloudVeil start
+                    if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     if ((index = AndroidUtilities.indexOfIgnoreCase(set.set.title, searchQuery)) >= 0) {
                         if (index == 0 || set.set.title.charAt(index - 1) == ' ') {
                             clear();
@@ -7891,6 +7935,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 MessagesController.getInstance(currentAccount).filterPremiumStickers(local);
                 for (int a = 0, size = local.size(); a < size; a++) {
                     TLRPC.TL_messages_stickerSet set = local.get(a);
+                    //CloudVeil start
+                    if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     if ((index = AndroidUtilities.indexOfIgnoreCase(set.set.title, searchQuery)) >= 0) {
                         if (index == 0 || set.set.title.charAt(index - 1) == ' ') {
                             clear();
@@ -7921,7 +7970,13 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                                     stickersGridView.setAdapter(stickersSearchGridAdapter);
                                 }
                                 TLRPC.TL_messages_foundStickerSets res = (TLRPC.TL_messages_foundStickerSets) response;
-                                serverPacks.addAll(res.sets);
+                                //CloudVeil start
+                                for(TLRPC.StickerSetCovered pack : res.sets) {
+                                    if (MediaDataController.getInstance(currentAccount).isStickerAllowed(pack.set.id)) {
+                                        serverPacks.add(pack);
+                                    }
+                                }
+                                //CloudVeil end
                                 notifyDataSetChanged();
                             }
                         });

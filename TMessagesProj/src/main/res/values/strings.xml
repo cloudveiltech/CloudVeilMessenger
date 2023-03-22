@@ -5803,5 +5803,6 @@
     <string name="checkPowerSaving">Enable battery optimization alert</string>
     <string name="checkPowerSavingInfo">Check battery optimization setting on app start</string>
     <string name="cloudveil_organisation_change">Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.</string>
+    <string name="about_us">About Us</string>
     <!--CloudVeil end-->
 </resources>

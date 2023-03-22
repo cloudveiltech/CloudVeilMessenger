@@ -204,6 +204,20 @@ public class GlobalSecuritySettings {
         return v;
     }
 
+    public static void setAboutUsUrl(String url) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if(url == null || url.isEmpty()) {
+            preferences.edit().remove("aboutUsUrl").apply();
+        } else {
+            preferences.edit().putString("aboutUsUrl", url).apply();
+        }
+    }
+
+    public static String getAboutUsUrl() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getString("aboutUsUrl", "");
+    }
+
     public static void setIsOrganisationChangeRequired(boolean isRequired) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("isOrganisationChangeRequired", isRequired).apply();

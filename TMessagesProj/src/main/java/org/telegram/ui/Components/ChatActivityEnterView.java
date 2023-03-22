@@ -3919,6 +3919,11 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
     }
 
     public void setAllowStickersAndGifs(boolean needAnimatedEmoji, boolean needStickers, boolean needGifs, boolean waitingForKeyboardOpen) {
+        //CloudVeil start
+        needGifs = !GlobalSecuritySettings.isLockDisableGifs() && needGifs;
+        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        //CloudVeil end
+
         if ((allowStickers != needStickers || allowGifs != needGifs) && emojiView != null) {
             if (emojiViewVisible && !waitingForKeyboardOpen) {
                 removeEmojiViewAfterAnimation = true;
@@ -3929,18 +3934,10 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                 }
             }
         }
-        //CloudVeil start
-        if (!GlobalSecuritySettings.isLockDisableStickers()) {
-            allowStickers = needStickers;
-        } else {
-            allowStickers = false;
-        }
-        if(!GlobalSecuritySettings.isLockDisableGifs()) {
-            allowGifs = needGifs;
-        } else {
-            allowGifs = false;
-        }
-        //CloudVeil end
+
+        allowStickers = needStickers;
+        allowGifs = needGifs;
+
         allowAnimatedEmoji = needAnimatedEmoji;
         if (emojiView != null) {
             emojiView.setAllow(allowStickers, allowGifs, true);
@@ -8034,7 +8031,9 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                 if (currentPage == 1) {
                     nextIcon = ChatActivityEnterViewAnimatedIconView.State.STICKER;
                 } else {
-                    nextIcon = ChatActivityEnterViewAnimatedIconView.State.GIF;
+                    //CloudVeil start
+                    nextIcon = GlobalSecuritySettings.isLockDisableGifs() ? ChatActivityEnterViewAnimatedIconView.State.SMILE : ChatActivityEnterViewAnimatedIconView.State.GIF;
+                    //CloudVeil end
                 }
             }
         }
