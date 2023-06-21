@@ -27,7 +27,8 @@
     <string name="WrongNumberFormat">Wrong format</string>
     <string name="ShortNumberInfo">The number you provided is too short for **%1$s**:\n\n**%2$s**\n\nPlease enter the correct number including your country code.</string>
     <string name="EditNumber">Edit number</string>
-    <string name="DidNotGetTheCodeInfo">If you didn\'t get the code by SMS or call, please check your **cellular data settings** and phone number:\n\n**%1$s**\n\nYour remaining options are to try another number or to contact Telegram Support. Tap **Help** to send us the technical details so that we can identify the problem.</string>
+    <string name="DidNotGetTheCodeInfo">
+        If you didn\'t get the code by SMS or call, please check your **cellular data settings** and phone number:\n\n**%1$s**\n\nYour remaining options are to try another number or to contact Telegram Support. Tap **Help** to send us the technical details so that we can identify the problem.</string>
     <string name="DidNotGetTheCodeHelpButton">Help</string>
     <string name="DidNotGetTheCodeEditNumberButton">Edit number</string>
     <!--code enter view-->
@@ -5804,5 +5805,16 @@
     <string name="checkPowerSavingInfo">Check battery optimization setting on app start</string>
     <string name="cloudveil_organisation_change">Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.</string>
     <string name="about_us">About Us</string>
+    <string name="sms_code_note_title">How can I receive the code?</string>
+
+    <string name="sms_code_alert_title">Sorry</string>
+    <string name="sms_code_alert_body"><![CDATA[
+        <b>Starting from February 2023 follow the steps below to receive the code:</b><br/><br/>
+        1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.<br/>
+        2. Open CloudVeil Messenger.<br/>
+        3. Enter the code that you will receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.
+    ]]>
+    </string>
+
     <!--CloudVeil end-->
 </resources>

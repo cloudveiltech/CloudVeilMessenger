@@ -43,6 +43,7 @@ import android.os.Bundle;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.TelephonyManager;
 import android.text.Editable;
+import android.text.Html;
 import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -2834,6 +2835,9 @@ public class LoginActivity extends BaseFragment {
         private FrameLayout bottomContainer;
         private ViewSwitcher errorViewSwitcher;
         private TextView problemText;
+        //CloudVeil start
+        private TextView codeNoteText;
+        //CloudVeil end
         private FrameLayout problemFrame;
         private TextView wrongCode;
 
@@ -3026,6 +3030,28 @@ public class LoginActivity extends BaseFragment {
                 codeFieldContainer.setVisibility(GONE);
             }
 
+
+            //CloudVeil start
+            codeNoteText = new TextView(context);
+            codeNoteText.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
+            codeNoteText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+            codeNoteText.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
+            codeNoteText.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(4), AndroidUtilities.dp(8), AndroidUtilities.dp(4));
+            codeNoteText.setText(context.getString(R.string.sms_code_note_title));
+            codeNoteText.setBackground(context.getResources().getDrawable(R.drawable.button_blue_bg));
+            addView(codeNoteText, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 12, 0, 0));
+            codeNoteText.setOnClickListener(v -> {
+                if (nextPressed) {
+                    return;
+                }
+                new AlertDialog.Builder(context)
+                        .setTitle(LocaleController.getString(R.string.sms_code_alert_title))
+                        .setMessage(Html.fromHtml(context.getString(R.string.sms_code_alert_body)))
+                        .setPositiveButton(LocaleController.getString(R.string.Close), null)
+                        .show();
+            });
+            //CloudVeil end
+
             problemFrame = new FrameLayout(context);
 
             timeText = new TextView(context);
@@ -3088,7 +3114,6 @@ public class LoginActivity extends BaseFragment {
             problemText.setPadding(0, AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4));
             problemFrame.addView(problemText, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
             errorViewSwitcher.addView(problemFrame);
-
             wrongCode = new TextView(context);
             wrongCode.setText(LocaleController.getString("WrongCode", R.string.WrongCode));
             wrongCode.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
