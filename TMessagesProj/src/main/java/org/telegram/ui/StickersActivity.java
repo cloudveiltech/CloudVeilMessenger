@@ -554,7 +554,15 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
             }
             newList = frozenEmojiPacks;
         } else {
-            newList = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType)));
+            //CloudVeil start
+            List<TLRPC.TL_messages_stickerSet> newnewList = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType)));
+            newList = new ArrayList<TLRPC.TL_messages_stickerSet>();
+            for(TLRPC.TL_messages_stickerSet set : newnewList) {
+                if(MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                    newList.add(set);
+                }
+            }
+            //CloudVeil end
         }
 
 
@@ -902,12 +910,24 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
 
         public void setStickerSets(List<TLRPC.TL_messages_stickerSet> stickerSets) {
             this.stickerSets.clear();
-            this.stickerSets.addAll(stickerSets);
+            //CloudVeil start
+            for(TLRPC.TL_messages_stickerSet set : stickerSets) {
+                if(currentType == MediaDataController.TYPE_EMOJIPACKS || MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                    this.stickerSets.add(set);
+                }
+            }
+            //CloudVeil end
         }
 
         public void setFeaturedStickerSets(List<TLRPC.StickerSetCovered> featuredStickerSets) {
             this.featuredStickerSets.clear();
-            this.featuredStickerSets.addAll(featuredStickerSets);
+            //CloudVeil start
+            for(TLRPC.StickerSetCovered pack : featuredStickerSets) {
+                if(currentType == MediaDataController.TYPE_EMOJIPACKS || MediaDataController.getInstance(currentAccount).isStickerAllowed(pack.set.id)) {
+                    this.featuredStickerSets.add(pack);
+                }
+            }
+            //CloudVeil end
         }
 
         @Override

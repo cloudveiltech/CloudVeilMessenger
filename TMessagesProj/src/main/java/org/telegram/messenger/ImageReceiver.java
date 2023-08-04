@@ -30,6 +30,7 @@ import android.view.View;
 
 import androidx.annotation.Keep;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.AnimatedFileDrawable;
@@ -403,7 +404,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         if (object instanceof TLRPC.User) {
             TLRPC.User user = (TLRPC.User) object;
             isPremium = user.premium;
-            if (user.photo != null) {
+            //CloudVeil start
+            if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                //CloudVeil end
                 strippedBitmap = user.photo.strippedBitmap;
                 hasStripped = user.photo.stripped_thumb != null;
                 if (vectorType == VectorAvatarThumbDrawable.TYPE_STATIC) {
@@ -445,7 +448,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             }
         } else if (object instanceof TLRPC.Chat) {
             TLRPC.Chat chat = (TLRPC.Chat) object;
-            if (chat.photo != null) {
+            //CloudVeil start
+            if (chat.photo != null&& !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            //CloudVeil end
                 strippedBitmap = chat.photo.strippedBitmap;
                 hasStripped = chat.photo.stripped_thumb != null;
             }

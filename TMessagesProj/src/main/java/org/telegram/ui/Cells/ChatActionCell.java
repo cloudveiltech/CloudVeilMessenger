@@ -36,6 +36,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -602,7 +603,9 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
                     }
                 }
                 TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 640);
-                if (photoSize != null) {
+                //CloudVeil start
+                if (photoSize != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                    //CloudVeil end
                     TLRPC.Photo photo = messageObject.messageOwner.action.photo;
                     TLRPC.VideoSize videoSize = null;
                     if (!photo.video_sizes.isEmpty() && SharedConfig.isAutoplayGifs()) {

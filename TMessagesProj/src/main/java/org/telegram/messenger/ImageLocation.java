@@ -1,5 +1,6 @@
 package org.telegram.messenger;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
@@ -134,6 +135,20 @@ public class ImageLocation {
         if (user == null || user.access_hash == 0 || user.photo == null) {
             return null;
         }
+
+        //CloudVeil start
+        boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
+        if(user != null && user.self) {
+            allowPhoto = !GlobalSecuritySettings.getLockDisableOwnPhoto();
+        }
+        if(allowPhoto && user.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+            allowPhoto = false;
+        }
+        if(!allowPhoto) {
+            return null;
+        }
+        //CloudVeil end
+
         if (type == TYPE_VIDEO_BIG || type == TYPE_VIDEO_SMALL) {
             int currentAccount = UserConfig.selectedAccount;
             if (MessagesController.getInstance(currentAccount).isPremiumUser(user) && user.photo.has_video) {
@@ -189,6 +204,16 @@ public class ImageLocation {
         if (chat == null || chat.photo == null) {
             return null;
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            return null;
+        }
+        if(chat.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+            return null;
+        }
+        //CloudVeil end
+
         if (type == TYPE_STRIPPED) {
             if (chat.photo.stripped_thumb == null) {
                 return null;

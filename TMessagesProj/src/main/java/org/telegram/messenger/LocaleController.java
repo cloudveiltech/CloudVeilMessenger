@@ -1077,7 +1077,10 @@ public class LocaleController {
         if (value == null) {
             value = "LOC_ERR:" + key;
         }
-        return value;
+        //CloudVeil start
+        String appName = ApplicationLoader.applicationContext.getString(R.string.AppName);
+        return value.replace("Telegram", appName);
+        //CloudVeil end
     }
 
     public static String getServerString(String key) {
@@ -1210,6 +1213,10 @@ public class LocaleController {
                     }
                 }
             }
+
+            //CloudVeil start
+            value = value.replace("Telegram", "CloudVeil Messenger");
+            //CloudVeil end
 
             if (getInstance().currentLocale != null) {
                 return String.format(getInstance().currentLocale, value, args);

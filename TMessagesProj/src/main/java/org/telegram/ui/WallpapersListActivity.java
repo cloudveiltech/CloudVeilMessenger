@@ -645,55 +645,56 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             }
         });
 
-        if (currentType == TYPE_ALL) {
-            ActionBarMenu menu = actionBar.createMenu();
-            searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
-                @Override
-                public void onSearchExpand() {
-                    listView.setAdapter(searchAdapter);
-                    listView.invalidate();
-                }
-
-                @Override
-                public void onSearchCollapse() {
-                    listView.setAdapter(listAdapter);
-                    listView.invalidate();
-                    searchAdapter.processSearch(null, true);
-                    searchItem.setSearchFieldCaption(null);
-                    onCaptionCleared();
-                }
-
-                @Override
-                public void onTextChanged(EditText editText) {
-                    searchAdapter.processSearch(editText.getText().toString(), false);
-                }
-
-                @Override
-                public void onCaptionCleared() {
-                    searchAdapter.clearColor();
-                    searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
-                }
-            });
-            searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
-
-            final ActionBarMenu actionMode = actionBar.createActionMode(false, null);
-            actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
-            actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
-            actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSelector), true);
-
-            selectedMessagesCountTextView = new NumberTextView(actionMode.getContext());
-            selectedMessagesCountTextView.setTextSize(18);
-            selectedMessagesCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-            selectedMessagesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultIcon));
-            selectedMessagesCountTextView.setOnTouchListener((v, event) -> true);
-            actionMode.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 65, 0, 0, 0));
-
-            actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.msg_forward, AndroidUtilities.dp(54), LocaleController.getString("Forward", R.string.Forward)));
-            actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, AndroidUtilities.dp(54), LocaleController.getString("Delete", R.string.Delete)));
-
-            selectedWallPapers.clear();
-        }
-
+        // CloudVeil start remove background search
+        //if (currentType == TYPE_ALL) {
+        //    ActionBarMenu menu = actionBar.createMenu();
+        //    searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+        //        @Override
+        //        public void onSearchExpand() {
+        //            listView.setAdapter(searchAdapter);
+        //            listView.invalidate();
+        //        }
+        //
+        //        @Override
+        //        public void onSearchCollapse() {
+        //            listView.setAdapter(listAdapter);
+        //            listView.invalidate();
+        //            searchAdapter.processSearch(null, true);
+        //            searchItem.setSearchFieldCaption(null);
+        //            onCaptionCleared();
+        //        }
+        //
+        //        @Override
+        //        public void onTextChanged(EditText editText) {
+        //            searchAdapter.processSearch(editText.getText().toString(), false);
+        //        }
+        //
+        //        @Override
+        //        public void onCaptionCleared() {
+        //            searchAdapter.clearColor();
+        //            searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
+        //        }
+        //    });
+        //    searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
+        //
+        //    final ActionBarMenu actionMode = actionBar.createActionMode(false, null);
+        //    actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
+        //    actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
+        //    actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSelector), true);
+        //
+        //    selectedMessagesCountTextView = new NumberTextView(actionMode.getContext());
+        //    selectedMessagesCountTextView.setTextSize(18);
+        //    selectedMessagesCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        //    selectedMessagesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultIcon));
+        //    selectedMessagesCountTextView.setOnTouchListener((v, event) -> true);
+        //    actionMode.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 65, 0, 0, 0));
+        //
+        //    actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.msg_forward, AndroidUtilities.dp(54), LocaleController.getString("Forward", R.string.Forward)));
+        //    actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, AndroidUtilities.dp(54), LocaleController.getString("Delete", R.string.Delete)));
+        //
+        //    selectedWallPapers.clear();
+        //}
+        // CloudVeil end
         fragmentView = new FrameLayout(context);
 
         FrameLayout frameLayout = (FrameLayout) fragmentView;

@@ -20,6 +20,7 @@ import android.view.animation.AccelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DocumentObject;
 import org.telegram.messenger.Emoji;
@@ -145,6 +146,11 @@ public class StickerEmojiCell extends FrameLayout implements NotificationCenter.
 
     public void setSticker(TLRPC.Document document, SendMessagesHelper.ImportingSticker path, Object parent, String emoji, boolean showEmoji) {
         currentEmoji = emoji;
+        //CloudVeil start
+        if (GlobalSecuritySettings.isLockDisableStickers()) {
+            return;
+        }
+        //CloudVeil end
         isPremiumSticker = MessageObject.isPremiumSticker(document);
         drawInParentView = false;
         imageView.setColorFilter(null);

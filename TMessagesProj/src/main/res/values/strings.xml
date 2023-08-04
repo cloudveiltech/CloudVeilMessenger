@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="AppName">Telegram</string>
-    <string name="AppNameBeta">Telegram Beta</string>
+    <string name="AppName">CloudVeil Messenger</string>
+    <string name="AppNameBeta">CloudVeil Messenger Beta</string>
     <string name="LanguageName">English</string>
     <string name="English">English</string>
     <string name="LanguageNameInEnglish">English</string>
@@ -6151,6 +6151,34 @@
     <string name="SelectChatsForDisableAutoDelete2_many">will remove the self-destruct timer</string>
     <string name="SelectChatsForDisableAutoDelete2_other">will remove the self-destruct timer</string>
     <string name="DisableAutoDeleteTimer">Disable Auto-Delete</string>
+    <!--CloudVeil Start-->
+    <string name="cloudveil_message_warning">CloudVeil Messenger uses a server based system to control access to Bots, Channels, and Groups and other policy rules. This is used to block unacceptable content. Your Telegram id and list of channels, bots, and groups will be sent to our system to allow this to work. We do not have access to your messages themselves.</string>
+    <string name="cloudveil_battery_warning">Your phone is optimizing battery life for this app. Click resolve and then ALLOW the request.</string>
+    <string name="warning">Warning</string>
+    <string name="cloudveil_message_dialog_forbidden">This %1$s is blocked by server policy. Please fill out the form to request it be unblocked.</string>
+    <string name="cloudveil_hidden_for_protection">Content blocked for your protection.</string>
+    <string name="cloudveil_disabled_for_protection">This is disabled for your protection.</string>
+    <string name="continue_label">Continue</string>
+    <string name="cancel">Cancel</string>
+    <string name="resolve">Resolve</string>
+    <string name="change">Change</string>
+    <string name="fetching_data">Fetching data</string>
+    <string name="checkPowerSaving">Enable battery optimization alert</string>
+    <string name="checkPowerSavingInfo">Check battery optimization setting on app start</string>
+    <string name="cloudveil_organisation_change">Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.</string>
+    <string name="about_us">About Us</string>
+    <string name="sms_code_note_title">How can I receive the code?</string>
+
+    <string name="sms_code_alert_title">Sorry</string>
+    <string name="sms_code_alert_body"><![CDATA[
+        <b>Starting from February 2023 follow the steps below to receive the code:</b><br/><br/>
+        1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.<br/>
+        2. Open CloudVeil Messenger.<br/>
+        3. Enter the code that you will receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.
+    ]]>
+    </string>
+
+    <!--CloudVeil end-->
     <string name="PhotoEditorDraw">Draw</string>
     <string name="PhotoEditorSticker">Sticker</string>
     <string name="PhotoEditorText">Text</string>

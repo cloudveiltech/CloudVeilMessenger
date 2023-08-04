@@ -1238,6 +1238,15 @@ public class MessageObject {
         eventId = eid;
         wasUnread = !messageOwner.out && messageOwner.unread;
 
+        //CloudVeil start replace sticker with emoji
+        if(messageOwner.media != null && (isStickerMessage(message) || isAnimatedStickerDocument(message.media.document, true))) {
+            if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(messageOwner.media.document)) {
+                messageOwner.message = getStickerChar();
+                messageOwner.media = new TLRPC.TL_messageMediaEmpty();
+            }
+        }
+        //CloudVeil end
+
         if (message.replyMessage != null) {
             replyMessageObject = new MessageObject(currentAccount, message.replyMessage, null, users, chats, sUsers, sChats, false, checkMediaExists, eid);
         }

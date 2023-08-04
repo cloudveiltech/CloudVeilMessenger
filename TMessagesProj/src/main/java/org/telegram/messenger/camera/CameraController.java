@@ -23,6 +23,7 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 
+import org.cloudveil.messenger.util.CameraUtil;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.Bitmaps;
@@ -487,6 +488,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         threadPool.execute(() -> {
             Camera camera = session.cameraInfo.camera;
             try {
+                //CloudVeil start
+                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                //CloudVeil end
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                     camera.setErrorCallback(getErrorListener(session));
@@ -509,6 +513,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         threadPool.execute(() -> {
             Camera camera = session.cameraInfo.camera;
             try {
+                //CloudVeil start
+                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                //CloudVeil end
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                     camera.setErrorCallback(getErrorListener(session));
@@ -538,6 +545,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("start creating round camera session");
                 }
+                //CloudVeil start
+                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                //CloudVeil end
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                 }
@@ -572,6 +582,9 @@ public class CameraController implements MediaRecorder.OnInfoListener {
         threadPool.execute(() -> {
             Camera camera = session.cameraInfo.camera;
             try {
+                //CloudVeil start
+                CameraUtil.guardCameraEnabled(ApplicationLoader.applicationContext);
+                //CloudVeil end
                 if (camera == null) {
                     camera = session.cameraInfo.camera = Camera.open(session.cameraInfo.cameraId);
                 }

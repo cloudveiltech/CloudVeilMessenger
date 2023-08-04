@@ -37,6 +37,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.util.Consumer;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLiteException;
@@ -107,7 +109,8 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public ArrayList<TLRPC.RecentMeUrl> hintDialogs = new ArrayList<>();
     public SparseArray<ArrayList<TLRPC.Dialog>> dialogsByFolder = new SparseArray<>();
-    protected ArrayList<TLRPC.Dialog> allDialogs = new ArrayList<>();
+    //CloudVeil - changed visibiliity
+    public ArrayList<TLRPC.Dialog> allDialogs = new ArrayList<>();
     public ArrayList<TLRPC.Dialog> dialogsForward = new ArrayList<>();
     public ArrayList<TLRPC.Dialog> dialogsServerOnly = new ArrayList<>();
     public ArrayList<TLRPC.Dialog> dialogsCanAddUsers = new ArrayList<>();
@@ -2337,8 +2340,10 @@ public class MessagesController extends BaseController implements NotificationCe
                     if (value.value instanceof TLRPC.TL_jsonBool) {
                         TLRPC.TL_jsonBool bool = (TLRPC.TL_jsonBool) value.value;
                         if (bool.value != keepAliveService) {
-                            keepAliveService = bool.value;
+                            //CloudVeil start
+                            keepAliveService = bool.value || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE;
                             editor.putBoolean("keepAliveService", keepAliveService);
+                            //CloudVeil end
                             changed = true;
                             keelAliveChanged = true;
                         }
@@ -2346,12 +2351,12 @@ public class MessagesController extends BaseController implements NotificationCe
                     break;
                 }
                 case "qr_login_camera": {
-                    if (value.value instanceof TLRPC.TL_jsonBool) {
-                        TLRPC.TL_jsonBool bool = (TLRPC.TL_jsonBool) value.value;
+                            if (value.value instanceof TLRPC.TL_jsonBool) {
+                                TLRPC.TL_jsonBool bool = (TLRPC.TL_jsonBool) value.value;
                         if (bool.value != qrLoginCamera) {
                             qrLoginCamera = bool.value;
                             editor.putBoolean("qrLoginCamera", qrLoginCamera);
-                            changed = true;
+                                    changed = true;
                         }
                     }
                     break;
@@ -4751,7 +4756,8 @@ public class MessagesController extends BaseController implements NotificationCe
         loadedFullChats.clear();
     }
 
-    private void reloadDialogsReadValue(ArrayList<TLRPC.Dialog> dialogs, long did) {
+    //Cloudveil set to public
+    public void reloadDialogsReadValue(ArrayList<TLRPC.Dialog> dialogs, long did) {
         if (did == 0 && (dialogs == null || dialogs.isEmpty())) {
             return;
         }
@@ -17514,6 +17520,29 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
         }
+
+        //CloudVeil start
+        if (chat != null) {
+            long dialogId = chat.id > 0 ? -chat.id : chat.id;
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
+                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.group, dialogId,null, null);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
+                CloudVeilDialogHelper.openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
+                return;
+            }
+        } else if (user != null) {
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
+                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.user, user.id, null, null);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
+                CloudVeilDialogHelper.openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);
+                return;
+            }
+        }
+        CloudVeilDialogHelper.dismissProgress();
+        //CloudVeil end
+
         if (reason != null) {
             showCantOpenAlert(fragment, reason);
         } else {

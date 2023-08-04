@@ -24,6 +24,8 @@ import android.widget.TextView;
 import androidx.collection.LongSparseArray;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
@@ -228,6 +230,13 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (document == null) {
             return;
         }
+
+        //CloudVeil start
+        if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(document)) {
+            return;
+        }
+        //CloudVeil end
+
         String key = document.dc_id + "_" + document.id;
         if (stickersMap != null && stickersMap.containsKey(key)) {
             return;
@@ -251,6 +260,12 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (documents == null || documents.isEmpty()) {
             return;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.isLockDisableStickers()) {
+            return;
+        }
+        //CloudVeil end
+
         for (int a = 0, size = documents.size(); a < size; a++) {
             TLRPC.Document document = documents.get(a);
             String key = document.dc_id + "_" + document.id;
@@ -511,6 +526,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         contextUsernameReqid = 0;
         locationProvider.stop();
         if (user != null && user.bot && user.bot_inline_placeholder != null) {
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
             foundContextBot = user;
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();
@@ -557,6 +577,12 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             foundContextBot = null;
             inlineMediaEnabled = true;
         }
+        //CloudVeil start
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
+            foundContextBot = null;
+        }
+        //CloudVeil end
+
         if (foundContextBot == null) {
             noUserName = true;
         } else {
@@ -571,6 +597,14 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (foundContextBot != null && foundContextBot.username != null && foundContextBot.username.equals(username) && searchingContextQuery != null && searchingContextQuery.equals(query)) {
             return;
         }
+
+        //CloudVeil start
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
+            foundContextBot = null;
+            return;
+        }
+        //CloudVeil end
+
         if (foundContextBot != null) {
             if (!inlineMediaEnabled && username != null && query != null) {
                 return;
@@ -1107,6 +1141,13 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     if (user == null) {
                         continue;
                     }
+
+                    //CloudVeil start
+                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                        continue;
+                    }
+                    //CloudVeil end
+
                     String username = UserObject.getPublicUsername(user);
                     if (!TextUtils.isEmpty(username) && (usernameString.length() == 0 || username.toLowerCase().startsWith(usernameString))) {
                         newResult.add(user);
@@ -1383,14 +1424,18 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             String command = result.toString().toLowerCase();
             for (int b = 0; b < botInfo.size(); b++) {
                 TLRPC.BotInfo info = botInfo.valueAt(b);
-                for (int a = 0; a < info.commands.size(); a++) {
-                    TLRPC.TL_botCommand botCommand = info.commands.get(a);
-                    if (botCommand != null && botCommand.command != null && botCommand.command.startsWith(command)) {
-                        newResult.add("/" + botCommand.command);
-                        newResultHelp.add(botCommand.description);
-                        newResultUsers.add(messagesController.getUser(info.user_id));
+                //CloudVeil start
+                if(CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(info)) {
+                    for (int a = 0; a < info.commands.size(); a++) {
+                        TLRPC.TL_botCommand botCommand = info.commands.get(a);
+                        if (botCommand != null && botCommand.command != null && botCommand.command.startsWith(command)) {
+                            newResult.add("/" + botCommand.command);
+                            newResultHelp.add(botCommand.description);
+                            newResultUsers.add(messagesController.getUser(info.user_id));
+                        }
                     }
                 }
+                //CloudVeil end
             }
             searchResultHashtags = null;
             stickers = null;

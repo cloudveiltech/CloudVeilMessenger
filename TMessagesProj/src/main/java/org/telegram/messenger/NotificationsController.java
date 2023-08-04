@@ -67,6 +67,10 @@ import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.graphics.drawable.IconCompat;
 
+import com.google.android.exoplayer2.util.Log;
+
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -1036,21 +1040,25 @@ public class NotificationsController extends BaseController {
                     if (!hasScheduled) {
                         hasScheduled = messageObject.messageOwner.from_scheduled;
                     }
-                    delayedPushMessages.add(messageObject);
-                    appendMessage(messageObject);
-                    if (mid != 0) {
-                        if (sparseArray == null) {
-                            sparseArray = new SparseArray<>();
-                            pushMessagesDict.put(did, sparseArray);
+                    //CloudVeil start
+                    if(CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                        delayedPushMessages.add(messageObject);
+                        appendMessage(messageObject);
+                        if (mid != 0) {
+                            if (sparseArray == null) {
+                                sparseArray = new SparseArray<>();
+                                pushMessagesDict.put(did, sparseArray);
+                            }
+                            sparseArray.put(mid, messageObject);
+                        } else if (randomId != 0) {
+                            fcmRandomMessagesDict.put(randomId, messageObject);
                         }
-                        sparseArray.put(mid, messageObject);
-                    } else if (randomId != 0) {
-                        fcmRandomMessagesDict.put(randomId, messageObject);
+                        if (originalDialogId != dialogId) {
+                            Integer current = pushDialogsOverrideMention.get(originalDialogId);
+                            pushDialogsOverrideMention.put(originalDialogId, current == null ? 1 : current + 1);
+                        }
                     }
-                    if (originalDialogId != dialogId) {
-                        Integer current = pushDialogsOverrideMention.get(originalDialogId);
-                        pushDialogsOverrideMention.put(originalDialogId, current == null ? 1 : current + 1);
-                    }
+                    //CloudVeil end
                 }
                 if (messageObject.isReactionPush) {
                     SparseBooleanArray sparseBooleanArray = new SparseBooleanArray();
@@ -4078,6 +4086,12 @@ public class NotificationsController extends BaseController {
                             }
                         }
                     }
+
+                    //CloudVeil start
+                    if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                        photoPath = null;
+                    }
+                    //CloudVeil end
                 }
             } else {
                 if (pushDialogs.size() == 1 && dialog_id != globalSecretChatId) {
@@ -4568,6 +4582,12 @@ public class NotificationsController extends BaseController {
                 photoPath = null;
                 canReply = false;
             }
+
+            //CloudVeil start
+            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                photoPath = null;
+            }
+            //CloudVeil end
 
             if (photoPath != null) {
                 avatalFile = getFileLoader().getPathToAttach(photoPath, true);

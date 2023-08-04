@@ -83,6 +83,9 @@ import androidx.recyclerview.widget.LinearSmoothScrollerCustom;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.ViewPager;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -2612,6 +2615,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
             NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetPasscode);
             NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.appUpdateAvailable);
+
+            //CloudVeil start
+            getNotificationCenter().addObserver(this, NotificationCenter.filterDialogsReady);
+            getNotificationCenter().addObserver(this, NotificationCenter.stickersDidLoad);
+            //CloudVeil end
         }
         getNotificationCenter().addObserver(this, NotificationCenter.messagesDeleted);
 
@@ -2745,6 +2753,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             getNotificationCenter().removeObserver(this, NotificationCenter.forceImportContactsStart);
             getNotificationCenter().removeObserver(this, NotificationCenter.userEmojiStatusUpdated);
             getNotificationCenter().removeObserver(this, NotificationCenter.currentUserPremiumStatusChanged);
+
+            //CloudVeil start
+            getNotificationCenter().removeObserver(this, NotificationCenter.filterDialogsReady);
+            getNotificationCenter().removeObserver(this, NotificationCenter.stickersDidLoad);
+            //CloudVeil end
 
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.didSetPasscode);
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.appUpdateAvailable);
@@ -6474,7 +6487,19 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     })
                     .setNegativeButton(LocaleController.getString("ContactsPermissionAlertNotNow", R.string.ContactsPermissionAlertNotNow), (dialog, which) -> MessagesController.getGlobalNotificationsSettings().edit().putBoolean("askedAboutMiuiLockscreen", true).commit())
                     .create());
+        } else { //Cloudveil start
+            CloudVeilDialogHelper.getInstance(currentAccount).showPopup(this, getParentActivity());
+
+            if (GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS && SharedConfig.isAutoplayGifs()) {
+                SharedConfig.toggleAutoplayGifs();
+            }
+            if (GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER && SharedConfig.customTabs) {
+                SharedConfig.toggleCustomTabs();
+            }
         }
+
+        MediaDataController.getInstance(currentAccount).loadStickers(MediaDataController.TYPE_IMAGE, true, false);
+        //Cloudveil end
         showFiltersHint();
         if (viewPages != null) {
             for (int a = 0; a < viewPages.length; a++) {
@@ -7482,46 +7507,85 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(new ChatActivity(args));
                 }
             } else {
-                slowedReloadAfterDialogClick = true;
-                if (getMessagesController().checkCanOpenChat(args, DialogsActivity.this)) {
-                    TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
-                    if (chat != null && chat.forum && topicId == 0) {
-                        if (!LiteMode.isEnabled(LiteMode.FLAG_CHAT_FORUM_TWOCOLUMN)) {
-                            presentFragment(new TopicsFragment(args));
-                        } else {
-                            if (!canOpenInRightSlidingView) {
+                //CloudVeil start
+                if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                    slowedReloadAfterDialogClick = true;
+                    if (getMessagesController().checkCanOpenChat(args, DialogsActivity.this)) {
+                        TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
+                        if (chat != null && chat.forum && topicId == 0) {
+                            if (!LiteMode.isEnabled(LiteMode.FLAG_CHAT_FORUM_TWOCOLUMN)) {
                                 presentFragment(new TopicsFragment(args));
-                            } else if (!searching) {
-                                if (rightSlidingDialogContainer.currentFragment != null && ((TopicsFragment) rightSlidingDialogContainer.currentFragment).getDialogId() == dialogId) {
-                                    rightSlidingDialogContainer.finishPreview();
-                                } else {
-                                    viewPages[0].listView.prepareSelectorForAnimation();
-                                    TopicsFragment topicsFragment = new TopicsFragment(args);
-                                    topicsFragment.parentDialogsActivity = this;
-                                    rightSlidingDialogContainer.presentFragment(getParentLayout(), topicsFragment);
+                            } else {
+                                if (!canOpenInRightSlidingView) {
+                                    presentFragment(new TopicsFragment(args));
+                                } else if (!searching) {
+                                    if (rightSlidingDialogContainer.currentFragment != null && ((TopicsFragment) rightSlidingDialogContainer.currentFragment).getDialogId() == dialogId) {
+                                        rightSlidingDialogContainer.finishPreview();
+                                    } else {
+                                        viewPages[0].listView.prepareSelectorForAnimation();
+                                        TopicsFragment topicsFragment = new TopicsFragment(args);
+                                        topicsFragment.parentDialogsActivity = this;
+                                        rightSlidingDialogContainer.presentFragment(getParentLayout(), topicsFragment);
+                                    }
+                                    searchViewPager.updateTabs();
                                 }
-                                searchViewPager.updateTabs();
                             }
-                        }
-                    } else {
-                        ChatActivity chatActivity = new ChatActivity(args);
-                        if (topicId != 0) {
-                            ForumUtilities.applyTopic(chatActivity, MessagesStorage.TopicKey.of(dialogId, topicId));
-                        }
-                        if (adapter instanceof DialogsAdapter && DialogObject.isUserDialog(dialogId) && (getMessagesController().dialogs_dict.get(dialogId) == null)) {
-                            TLRPC.Document sticker = getMediaDataController().getGreetingsSticker();
-                            if (sticker != null) {
-                                chatActivity.setPreloadedSticker(sticker, true);
+                        } else {
+                            ChatActivity chatActivity = new ChatActivity(args);
+                            if (topicId != 0) {
+                                ForumUtilities.applyTopic(chatActivity, MessagesStorage.TopicKey.of(dialogId, topicId));
                             }
-                        }
-                        if (AndroidUtilities.isTablet()) {
-                            if (rightSlidingDialogContainer.currentFragment != null) {
-                                rightSlidingDialogContainer.finishPreview();
+                            if (adapter instanceof DialogsAdapter && DialogObject.isUserDialog(dialogId) && (getMessagesController().dialogs_dict.get(dialogId) == null)) {
+                                TLRPC.Document sticker = getMediaDataController().getGreetingsSticker();
+                                if (sticker != null) {
+                                    chatActivity.setPreloadedSticker(sticker, true);
+                                }
                             }
+                            if (AndroidUtilities.isTablet()) {
+                                if (rightSlidingDialogContainer.currentFragment != null) {
+                                    rightSlidingDialogContainer.finishPreview();
+                                }
+                            }
+                            presentFragment(chatActivity);
                         }
-                        presentFragment(chatActivity);
                     }
+                } else {
+                    TLObject object = null;
+                    if (adapter instanceof DialogsAdapter) {
+                        DialogsAdapter dialogsAdapter = (DialogsAdapter) adapter;
+                        object = dialogsAdapter.getItem(position);
+                    } else if (adapter == searchViewPager.dialogsSearchAdapter) {
+                        object = (TLObject) searchViewPager.dialogsSearchAdapter.getItem(position);
+                    }
+
+                    CloudVeilDialogHelper.DialogType type = CloudVeilDialogHelper.DialogType.chat;
+
+                    if(object instanceof TLRPC.Chat) {
+                        TLRPC.Chat chat = (TLRPC.Chat) object;
+                        type = CloudVeilDialogHelper.DialogType.group;
+                        if(ChatObject.isChannel(chat)) {
+                            type = CloudVeilDialogHelper.DialogType.channel;
+                        }
+                    } else if(object instanceof TLRPC.User) {
+                        TLRPC.User user = (TLRPC.User) object;
+                        type = CloudVeilDialogHelper.DialogType.user;
+                        if(user.bot) {
+                            type = CloudVeilDialogHelper.DialogType.bot;
+                        }
+                    } else if(object instanceof TLRPC.Dialog) {
+                        TLRPC.Dialog dialog = (TLRPC.Dialog) object;
+                        if(DialogObject.isUserDialog(dialog.id)) {
+                            type = CloudVeilDialogHelper.DialogType.user;
+                        } else if(DialogObject.isChannel(dialog)) {
+                            type = CloudVeilDialogHelper.DialogType.channel;
+                        } else  {
+                            type = CloudVeilDialogHelper.DialogType.group;
+                        }
+                    }
+
+                    CloudVeilDialogHelper.showWarning(this, type, dialogId, null, null);
                 }
+                //CloudVeil end
             }
         }
     }
@@ -9701,7 +9765,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @SuppressWarnings("unchecked")
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
-        if (id == NotificationCenter.dialogsNeedReload) {
+        //CloudVeil start
+        if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoad) {
+            ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
+        }
+
+        if (id == NotificationCenter.filterDialogsReady) {
+            //CloudVeil end
             if (viewPages == null || dialogsListFrozen) {
                 return;
             }

@@ -33,11 +33,13 @@ public class BaseController {
         return parentAccountInstance.getMediaDataController();
     }
 
-    protected final ConnectionsManager getConnectionsManager() {
+    //CloudVeil - changed visibility
+    public final ConnectionsManager getConnectionsManager() {
         return parentAccountInstance.getConnectionsManager();
     }
 
-    protected final LocationController getLocationController() {
+    //CloudVeil - changed visibility
+    public final LocationController getLocationController() {
         return parentAccountInstance.getLocationController();
     }
 

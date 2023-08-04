@@ -95,6 +95,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -476,6 +477,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int questionRow;
     private int faqRow;
     private int policyRow;
+    //CloudVeil start
+    private int aboutUsRow;
+    //CloudVeil end
     private int helpSectionCell;
     private int debugHeaderRow;
     private int sendLogsRow;
@@ -576,10 +580,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             TLRPC.FileLocation photoBig = null;
             if (userId != 0) {
+                //CloudVeil start
+                boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
+                if (userId == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
+                    allowPhoto = UserConfig.getInstance(currentAccount).getCurrentUser().id == userId && !GlobalSecuritySettings.getLockDisableOwnPhoto();
+                }
+
                 TLRPC.User user = getMessagesController().getUser(userId);
-                if (user != null && user.photo != null && user.photo.photo_big != null) {
+                if (user != null && user.photo != null && user.photo.photo_big != null && allowPhoto) {
                     photoBig = user.photo.photo_big;
                 }
+                //CloudVeil end
             } else if (chatId != 0) {
                 TLRPC.Chat chat = getMessagesController().getChat(chatId);
                 if (chat != null && chat.photo != null && chat.photo.photo_big != null) {
@@ -2106,6 +2117,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else if (id == gift_premium) {
                     showDialog(new GiftPremiumBottomSheet(ProfileActivity.this, getMessagesController().getUser(userId)));
                 } else if (id == start_secret_chat) {
+                    //CloudVeil start
+                    if (GlobalSecuritySettings.isDisabledSecretChat()) {
+                        return;
+                    }
+                    //CloudVeil end
                     AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity(), resourcesProvider);
                     builder.setTitle(LocaleController.getString("AreYouSureSecretChatTitle", R.string.AreYouSureSecretChatTitle));
                     builder.setMessage(LocaleController.getString("AreYouSureSecretChat", R.string.AreYouSureSecretChat));
@@ -3334,11 +3350,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } else if (position == devicesRow) {
                 presentFragment(new SessionsActivity(0));
             } else if (position == questionRow) {
-                showDialog(AlertsCreator.createSupportAlert(ProfileActivity.this, resourcesProvider));
+                //CloudVeil start
+                MessagesController.getInstance(currentAccount).openByUserName("cloudveilbot", ProfileActivity.this, 0);
+                //CloudVeil end
             } else if (position == faqRow) {
                 Browser.openUrl(getParentActivity(), LocaleController.getString("TelegramFaqUrl", R.string.TelegramFaqUrl));
             } else if (position == policyRow) {
                 Browser.openUrl(getParentActivity(), LocaleController.getString("PrivacyPolicyUrl", R.string.PrivacyPolicyUrl));
+            }//CloudVeil start
+            else if (position == aboutUsRow) {
+                Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getAboutUsUrl());
+                //CloudVeil end
             } else if (position == sendLogsRow) {
                 sendLogs(getParentActivity(), false);
             } else if (position == sendLastLogsRow) {
@@ -3365,9 +3387,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             } else if (position == setUsernameRow) {
                 presentFragment(new ChangeUsernameActivity());
             } else if (position == bioRow) {
-                if (userInfo != null) {
-                    presentFragment(new ChangeBioActivity());
+                //CloudVeil start
+                if (!GlobalSecuritySettings.getLockDisableOwnBio()) {
+                    if (userInfo != null) {
+                        presentFragment(new ChangeBioActivity());
+                    }
                 }
+                //CloudVeil end
             } else if (position == numberRow) {
                 presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_CHANGE_PHONE_NUMBER));
             } else if (position == setAvatarRow) {
@@ -3926,6 +3952,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (avatarBig != null) {
                 return;
             }
+            //CloudVeil start
+            if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+                return;
+            }
+            //CloudVeil end
             if (isTopic && !getMessagesController().premiumLocked) {
                 ArrayList<TLRPC.TL_forumTopic> topics = getMessagesController().getTopicsController().getTopics(chatId);
                 if (topics != null) {
@@ -4214,6 +4245,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             onWriteButtonClick();
         });
+        //CloudVeil start
+        if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            writeButton.setVisibility(View.GONE);
+        }
+        //CloudVeil end
         needLayout(false);
 
         if (scrollTo != -1) {
@@ -4254,6 +4290,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 sharedMediaLayout.setPinnedToTop(sharedMediaLayout.getY() == 0);
             }
         });
+        //CloudVeil start
+        if (userId == 0 && chatId != 0) {
+            if (GlobalSecuritySettings.getLockDisableOthersPhoto() && writeButton != null) {
+                writeButton.setVisibility(View.GONE);
+            }
+        }
+        //CloudVeil end
 
         undoView = new UndoView(context, null, false, resourcesProvider);
         frameLayout.addView(undoView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT, 8, 0, 8, 8));
@@ -4646,6 +4689,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void openAvatar() {
+        //CloudVeil start
+        if (userId == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
+            if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+                return;
+            }
+        }
+        if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            return;
+        }
+        //CloudVeil end
+
         if (listView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING) {
             return;
         }
@@ -4656,6 +4710,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user.photo.dc_id != 0) {
                     user.photo.photo_big.dc_id = user.photo.dc_id;
                 }
+                //CloudVeil start
+                if (user.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+                    return;
+                }
+                //CloudVeil end
                 PhotoViewer.getInstance().openPhoto(user.photo.photo_big, provider);
             }
         } else if (chatId != 0) {
@@ -4671,6 +4730,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else {
                     videoLocation = null;
                 }
+
+                //CloudVeil start
+                if (videoLocation != null && (GlobalSecuritySettings.getIsProfileVideoDisabled() || !GlobalSecuritySettings.isVideoPlayingAllowed())) {
+                    return;
+                }
+                //CloudVeil end
                 PhotoViewer.getInstance().openPhotoWithVideo(chat.photo.photo_big, videoLocation, provider);
             }
         }
@@ -7105,6 +7170,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         clearLogsRow = -1;
         switchBackendRow = -1;
         versionRow = -1;
+        //CloudVeil start
+        aboutUsRow = -1;
+        //CloudVeil end
 
         sendMessageRow = -1;
         reportRow = -1;
@@ -7209,6 +7277,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 questionRow = rowCount++;
                 faqRow = rowCount++;
                 policyRow = rowCount++;
+                //CloudVeil start
+                if(!GlobalSecuritySettings.getAboutUsUrl().isEmpty()) {
+                    aboutUsRow = rowCount++;
+                }
+                //CloudVeil end
                 if (BuildVars.LOGS_ENABLED || BuildVars.DEBUG_PRIVATE_VERSION) {
                     helpSectionCell = rowCount++;
                     debugHeaderRow = rowCount++;
@@ -7231,7 +7304,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (!isBot && (hasPhone || !hasInfo)) {
                     phoneRow = rowCount++;
                 }
-                if (userInfo != null && !TextUtils.isEmpty(userInfo.about)) {
+                //CLoudVeil start
+                if (userInfo != null && !TextUtils.isEmpty(userInfo.about) && !GlobalSecuritySettings.getLockDisableOthersBio()) {
+                    //CloudVeil end
                     userInfoRow = rowCount++;
                 }
                 if (user != null && username != null) {
@@ -7948,7 +8023,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
 
             TLRPC.FileLocation photoBig = null;
-            if (chat.photo != null && !isTopic) {
+            //CloudVeil start
+            if (chat.photo != null && !isTopic && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                //CloudVeil end
                 photoBig = chat.photo.photo_big;
             }
 
@@ -8071,7 +8148,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (!user.premium && !BuildVars.IS_BILLING_UNAVAILABLE && !user.self && userInfo != null && !getMessagesController().premiumLocked && !userInfo.premium_gifts.isEmpty()) {
                         otherItem.addSubItem(gift_premium, R.drawable.msg_gift_premium, LocaleController.getString(R.string.GiftPremium));
                     }
-                    otherItem.addSubItem(start_secret_chat, R.drawable.msg_secret, LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat));
+                    //CloudVeil Start
+                    if (!GlobalSecuritySettings.isDisabledSecretChat()) {
+                        otherItem.addSubItem(start_secret_chat, R.drawable.msg_secret, LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat));
+                    }
+                    //CloudVeil end
                 }
                 if (!isBot && getContactsController().contactsDict.get(userId) != null) {
                     otherItem.addSubItem(add_shortcut, R.drawable.msg_home, LocaleController.getString("AddShortcut", R.string.AddShortcut));
@@ -9374,6 +9455,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         textCell.setTextAndIcon(LocaleController.getString("TelegramFAQ", R.string.TelegramFAQ), R.drawable.msg2_help, true);
                     } else if (position == policyRow) {
                         textCell.setTextAndIcon(LocaleController.getString("PrivacyPolicy", R.string.PrivacyPolicy), R.drawable.msg2_policy, false);
+                        //CloudVeil start
+                    } else if (position == aboutUsRow) {
+                        textCell.setTextAndIcon(LocaleController.getString("AboutUs", R.string.about_us), R.drawable.msg_language, false);
+                        //CloudVeil end
                     } else if (position == sendLogsRow) {
                         textCell.setText(LocaleController.getString("DebugSendLogs", R.string.DebugSendLogs), true);
                     } else if (position == sendLastLogsRow) {
@@ -9644,7 +9729,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     position == questionRow || position == devicesRow || position == filtersRow || position == stickersRow ||
                     position == faqRow || position == policyRow || position == sendLogsRow || position == sendLastLogsRow ||
                     position == clearLogsRow || position == switchBackendRow || position == setAvatarRow || position == addToGroupButtonRow ||
-                    position == addToContactsRow || position == liteModeRow) {
+                    position == addToContactsRow || position == liteModeRow /*CloudVeil start*/|| position == aboutUsRow /*CloudVeil end*/) {
                 return VIEW_TYPE_TEXT;
             } else if (position == notificationsDividerRow) {
                 return VIEW_TYPE_DIVIDER;
@@ -10073,7 +10158,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 new SearchResult(405, LocaleController.getString(R.string.ShowTranslateButton), LocaleController.getString(R.string.Language), R.drawable.msg2_language, () -> presentFragment(new LanguageSelectActivity())),
                 MessagesController.getInstance(currentAccount).getTranslateController().isContextTranslateEnabled() ? new SearchResult(406, LocaleController.getString(R.string.DoNotTranslate), LocaleController.getString(R.string.Language), R.drawable.msg2_language, () -> presentFragment(new LanguageSelectActivity())) : null,
 
-                new SearchResult(402, LocaleController.getString("AskAQuestion", R.string.AskAQuestion), LocaleController.getString("SettingsHelp", R.string.SettingsHelp), R.drawable.msg2_help, () -> showDialog(AlertsCreator.createSupportAlert(ProfileActivity.this, null))),
+                //CloudVeil start
+                new SearchResult(402, LocaleController.getString("AskAQuestion", R.string.AskAQuestion), LocaleController.getString("SettingsHelp", R.string.SettingsHelp), R.drawable.msg_help, () -> MessagesController.getInstance(currentAccount).openByUserName("cloudveilbot", ProfileActivity.this, 0)),
+                //CloudVeil end
                 new SearchResult(403, LocaleController.getString("TelegramFAQ", R.string.TelegramFAQ), LocaleController.getString("SettingsHelp", R.string.SettingsHelp), R.drawable.msg2_help, () -> Browser.openUrl(getParentActivity(), LocaleController.getString("TelegramFaqUrl", R.string.TelegramFaqUrl))),
                 new SearchResult(404, LocaleController.getString("PrivacyPolicy", R.string.PrivacyPolicy), LocaleController.getString("SettingsHelp", R.string.SettingsHelp), R.drawable.msg2_help, () -> Browser.openUrl(getParentActivity(), LocaleController.getString("PrivacyPolicyUrl", R.string.PrivacyPolicyUrl))),
             };
@@ -10838,6 +10925,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, questionRow, sparseIntArray);
             put(++pointer, faqRow, sparseIntArray);
             put(++pointer, policyRow, sparseIntArray);
+            //CloudVeil start
+            put(++pointer, aboutUsRow, sparseIntArray);
+            //CloudVeil end
             put(++pointer, helpSectionCell, sparseIntArray);
             put(++pointer, debugHeaderRow, sparseIntArray);
             put(++pointer, sendLogsRow, sparseIntArray);

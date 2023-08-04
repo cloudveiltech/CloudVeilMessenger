@@ -126,6 +126,7 @@ import com.google.android.gms.auth.api.phone.SmsRetriever;
 import com.google.android.gms.auth.api.phone.SmsRetrieverClient;
 import com.google.android.gms.tasks.Task;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.messenger.utils.CustomHtml;
@@ -2261,7 +2262,8 @@ public class AndroidUtilities {
                 return String.format(Locale.US, "https://static-maps.yandex.ru/1.x/?ll=%.6f,%.6f&z=%d&size=%d,%d&l=map&scale=%d&lang=%s", lon, lat, zoom, width * scale, height * scale, scale, lang);
             }
         } else {
-            String k = MessagesController.getInstance(account).mapKey;
+            //Cloudveil changed key
+            String k = GlobalSecuritySettings.getGoogleMapsKey();
             if (!TextUtils.isEmpty(k)) {
                 if (marker) {
                     return String.format(Locale.US, "https://maps.googleapis.com/maps/api/staticmap?center=%.6f,%.6f&zoom=%d&size=%dx%d&maptype=roadmap&scale=%d&markers=color:red%%7Csize:mid%%7C%.6f,%.6f&sensor=false&key=%s", lat, lon, zoom, width, height, scale, lat, lon, k);

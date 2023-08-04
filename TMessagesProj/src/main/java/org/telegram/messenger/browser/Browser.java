@@ -19,6 +19,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -43,8 +44,10 @@ import org.telegram.messenger.support.customtabsclient.shared.ServiceConnectionC
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
+import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.WebviewActivity;
 
 import java.lang.ref.WeakReference;
 import java.net.URLEncoder;
@@ -153,6 +156,19 @@ public class Browser {
         openUrl(context, Uri.parse(url), true);
     }
 
+    //CloudVeil start
+    public static void openUrl(Context context, String url, BaseFragment fragment) {
+        if (url == null) {
+            return;
+        }
+        openUrl(context, Uri.parse(url), true, false, false, null, fragment);
+    }
+
+    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading) {
+        openUrl(context, uri, allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, null);
+    }
+    //CloudVeil end
+
     public static void openUrl(Context context, Uri uri) {
         openUrl(context, uri, true);
     }
@@ -241,10 +257,10 @@ public class Browser {
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null);
     }
 
-    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading) {
+    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
         if (context == null || uri == null) {
             return;
         }
@@ -330,7 +346,11 @@ public class Browser {
                 }
                 uri = Uri.parse("https://" + finalPath);
             }
-            if (allowCustom && SharedConfig.customTabs && !internalUri && !scheme.equals("tel")) {
+            //CloudVeil start
+            boolean forceInternal = GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
+            boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
+            if (allowCustomTab && !internalUri && !scheme.equals("tel")) {
+            //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"));
@@ -423,6 +443,11 @@ public class Browser {
             }
         } catch (Exception e) {
             FileLog.e(e);
+            //CloudVeil start
+            if(baseFragment != null) {
+                baseFragment.presentFragment(new WebviewActivity(uri.toString(), "organisation", "organisation", "", null));
+            }
+            //CloudVeil end
         }
     }
 

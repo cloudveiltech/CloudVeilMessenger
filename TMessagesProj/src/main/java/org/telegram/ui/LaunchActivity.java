@@ -39,6 +39,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Parcelable;
 import android.os.StatFs;
 import android.os.StrictMode;
@@ -52,6 +53,7 @@ import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 import android.util.Base64;
 import android.util.Log;
+import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.util.TypedValue;
@@ -88,6 +90,9 @@ import com.google.firebase.appindexing.Action;
 import com.google.firebase.appindexing.FirebaseUserActions;
 import com.google.firebase.appindexing.builders.AssistActionBuilder;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -540,14 +545,18 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     presentFragment(new GroupCreateActivity(args));
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 3) {
-                    Bundle args = new Bundle();
-                    args.putBoolean("onlyUsers", true);
-                    args.putBoolean("destroyAfterSelect", true);
-                    args.putBoolean("createSecretChat", true);
-                    args.putBoolean("allowBots", false);
-                    args.putBoolean("allowSelf", false);
-                    presentFragment(new ContactsActivity(args));
-                    drawerLayoutContainer.closeDrawer(false);
+                    //CloudVeil Start
+                    if (!GlobalSecuritySettings.isDisabledSecretChat()) {
+                        Bundle args = new Bundle();
+                        args.putBoolean("onlyUsers", true);
+                        args.putBoolean("destroyAfterSelect", true);
+                        args.putBoolean("createSecretChat", true);
+                        args.putBoolean("allowBots", false);
+                        args.putBoolean("allowSelf", false);
+                        presentFragment(new ContactsActivity(args));
+                        drawerLayoutContainer.closeDrawer(false);
+                    }
+                    //CloudVeil End
                 } else if (id == 4) {
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                     if (!BuildVars.DEBUG_VERSION && preferences.getBoolean("channel_intro", false)) {
@@ -4065,117 +4074,136 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             if (setAsAttachBot != null) {
                                 args.putString("attach_bot_start_command", setAsAttachBot);
                             }
-                            BaseFragment lastFragment = !mainFragmentsStack.isEmpty() && voicechat == null ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
-                            if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
-                                final boolean sameDialogId = lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id;
-                                if (isBot && sameDialogId) {
-                                    ((ChatActivity) lastFragment).setBotUser(botUser);
-                                } else if (attachMenuBotToOpen != null && sameDialogId) {
-                                    ((ChatActivity) lastFragment).openAttachBotLayout(attachMenuBotToOpen);
-                                } else {
-                                    TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialog_id);
-                                    if (chat != null && chat.forum) {
-                                        Integer topicId = threadId;
-                                        if (topicId == null) {
-                                            topicId = messageId;
-                                        }
-                                        if (topicId != null && topicId != 0) {
-                                            openForumFromLink(dialog_id, topicId, messageId, () -> {
-                                                try {
-                                                    dismissLoading.run();
-                                                } catch (Exception e) {
-                                                    FileLog.e(e);
-                                                }
-                                            });
-                                        } else {
-                                            Bundle bundle = new Bundle();
-                                            bundle.putLong("chat_id", -dialog_id);
-                                            presentFragment(new TopicsFragment(bundle));
-                                            try {
-                                                dismissLoading.run();
-                                            } catch (Exception e) {
-                                                FileLog.e(e);
-                                            }
-                                        }
+                            //CloudVeil start check link pressed before opening dialog
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+                                openUncheckedDialog(dialog_id, () ->  runLinkRequest(intentAccount, username, group, sticker,
+                                emoji, botUser, botChat, botChannel,
+                                botChatAdminParams, message, null, null, hasUrl, messageId,
+                                channelId, threadId, commentId, game,
+                                auth, lang, unsupportedUrl, code,
+                                loginToken, wallPaper, inputInvoiceSlug, theme,
+                                voicechat, livestream, state, videoTimestamp,
+                                setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, "", "", null, false, 0));
+                            } else if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                                BaseFragment lastFragment = !mainFragmentsStack.isEmpty() && voicechat == null ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
+                                if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
+                                    final boolean sameDialogId = lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id;
+                                    if (isBot && sameDialogId) {
+                                        ((ChatActivity) lastFragment).setBotUser(botUser);
+                                    } else if (attachMenuBotToOpen != null && sameDialogId) {
+                                        ((ChatActivity) lastFragment).openAttachBotLayout(attachMenuBotToOpen);
                                     } else {
-                                        MessagesController.getInstance(intentAccount).ensureMessagesLoaded(dialog_id, messageId == null ? 0 : messageId, new MessagesController.MessagesLoadedCallback() {
-                                            @Override
-                                            public void onMessagesLoaded(boolean fromCache) {
-                                                try {
-                                                    dismissLoading.run();
-                                                } catch (Exception e) {
-                                                    FileLog.e(e);
-                                                }
-                                                if (!LaunchActivity.this.isFinishing()) {
-                                                    BaseFragment voipLastFragment;
-                                                    if (livestream == null || !(lastFragment instanceof ChatActivity) || ((ChatActivity) lastFragment).getDialogId() != dialog_id) {
-                                                        if (lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id && messageId == null) {
-                                                            ChatActivity chatActivity = (ChatActivity) lastFragment;
-                                                            ViewGroup v = chatActivity.getChatListView();
-                                                            AndroidUtilities.shakeViewSpring(v, 5);
-                                                            BotWebViewVibrationEffect.APP_ERROR.vibrate();
-
-                                                            v = chatActivity.getChatActivityEnterView();
-                                                            for (int i = 0; i < v.getChildCount(); i++) {
-                                                                AndroidUtilities.shakeViewSpring(v.getChildAt(i), 5);
-                                                            }
-                                                            v = chatActivity.getActionBar();
-                                                            for (int i = 0; i < v.getChildCount(); i++) {
-                                                                AndroidUtilities.shakeViewSpring(v.getChildAt(i), 5);
-                                                            }
-                                                            voipLastFragment = lastFragment;
-                                                        } else {
-                                                            ChatActivity fragment = new ChatActivity(args);
-                                                            actionBarLayout.presentFragment(fragment);
-                                                            voipLastFragment = fragment;
-                                                        }
-                                                    } else {
-                                                        voipLastFragment = lastFragment;
+                                        TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialog_id);
+                                        if (chat != null && chat.forum) {
+                                            Integer topicId = threadId;
+                                            if (topicId == null) {
+                                                topicId = messageId;
+                                            }
+                                            if (topicId != null && topicId != 0) {
+                                                openForumFromLink(dialog_id, topicId, messageId, () -> {
+                                                    try {
+                                                        dismissLoading.run();
+                                                    } catch (Exception e) {
+                                                        FileLog.e(e);
                                                     }
+                                                });
+                                            } else {
+                                                Bundle bundle = new Bundle();
+                                                bundle.putLong("chat_id", -dialog_id);
+                                                presentFragment(new TopicsFragment(bundle));
+                                                    try {
+                                                        dismissLoading.run();
+	                                                } catch (Exception e) {
+	                                                    FileLog.e(e);
+	                                                }
+	                                        }
+                                        } else {
+                                            MessagesController.getInstance(intentAccount).ensureMessagesLoaded(dialog_id, messageId == null ? 0 : messageId, new MessagesController.MessagesLoadedCallback() {
+                                                @Override
+                                                public void onMessagesLoaded(boolean fromCache) {
+                                                    try {
+                                                        dismissLoading.run();
+                                                    } catch (Exception e) {
+                                                        FileLog.e(e);
+                                                    }
+                                                    if (!LaunchActivity.this.isFinishing()) {
+                                                        BaseFragment voipLastFragment;
+                                                        if (livestream == null || !(lastFragment instanceof ChatActivity) || ((ChatActivity) lastFragment).getDialogId() != dialog_id) {
+                                                            if (lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == dialog_id && messageId == null) {
+                                                                ChatActivity chatActivity = (ChatActivity) lastFragment;
+                                                                ViewGroup v = chatActivity.getChatListView();
+                                                                AndroidUtilities.shakeViewSpring(v, 5);
+                                                                BotWebViewVibrationEffect.APP_ERROR.vibrate();
 
-                                                    AndroidUtilities.runOnUIThread(() -> {
-                                                        if (livestream != null) {
-                                                            AccountInstance accountInstance = AccountInstance.getInstance(currentAccount);
-                                                            ChatObject.Call cachedCall = accountInstance.getMessagesController().getGroupCall(-dialog_id, false);
-                                                            if (cachedCall != null) {
-                                                                VoIPHelper.startCall(accountInstance.getMessagesController().getChat(-dialog_id), accountInstance.getMessagesController().getInputPeer(dialog_id), null, false, cachedCall == null || !cachedCall.call.rtmp_stream, LaunchActivity.this, voipLastFragment, accountInstance);
+                                                                v = chatActivity.getChatActivityEnterView();
+                                                                for (int i = 0; i < v.getChildCount(); i++) {
+                                                                    AndroidUtilities.shakeViewSpring(v.getChildAt(i), 5);
+                                                                }
+                                                                v = chatActivity.getActionBar();
+                                                                for (int i = 0; i < v.getChildCount(); i++) {
+                                                                    AndroidUtilities.shakeViewSpring(v.getChildAt(i), 5);
+                                                                }
+                                                                voipLastFragment = lastFragment;
                                                             } else {
-                                                                TLRPC.ChatFull chatFull = accountInstance.getMessagesController().getChatFull(-dialog_id);
-                                                                if (chatFull != null) {
-                                                                    if (chatFull.call == null) {
-                                                                        if (voipLastFragment.getParentActivity() != null) {
-                                                                            BulletinFactory.of(voipLastFragment).createSimpleBulletin(R.raw.linkbroken, LocaleController.getString("InviteExpired", R.string.InviteExpired)).show();
+                                                                ChatActivity fragment = new ChatActivity(args);
+                                                                actionBarLayout.presentFragment(fragment);
+                                                                voipLastFragment = fragment;
+                                                            }
+                                                        } else {
+                                                            voipLastFragment = lastFragment;
+                                                        }
+
+                                                        AndroidUtilities.runOnUIThread(() -> {
+                                                            if (livestream != null) {
+                                                                AccountInstance accountInstance = AccountInstance.getInstance(currentAccount);
+                                                                ChatObject.Call cachedCall = accountInstance.getMessagesController().getGroupCall(-dialog_id, false);
+                                                                if (cachedCall != null) {
+                                                                    VoIPHelper.startCall(accountInstance.getMessagesController().getChat(-dialog_id), accountInstance.getMessagesController().getInputPeer(dialog_id), null, false, cachedCall == null || !cachedCall.call.rtmp_stream, LaunchActivity.this, voipLastFragment, accountInstance);
+                                                                } else {
+                                                                    TLRPC.ChatFull chatFull = accountInstance.getMessagesController().getChatFull(-dialog_id);
+                                                                    if (chatFull != null) {
+                                                                        if (chatFull.call == null) {
+                                                                            if (voipLastFragment.getParentActivity() != null) {
+                                                                                BulletinFactory.of(voipLastFragment).createSimpleBulletin(R.raw.linkbroken, LocaleController.getString("InviteExpired", R.string.InviteExpired)).show();
+                                                                            }
+                                                                        } else {
+                                                                            accountInstance.getMessagesController().getGroupCall(-dialog_id, true, () -> AndroidUtilities.runOnUIThread(() -> {
+                                                                                ChatObject.Call call = accountInstance.getMessagesController().getGroupCall(-dialog_id, false);
+                                                                                VoIPHelper.startCall(accountInstance.getMessagesController().getChat(-dialog_id), accountInstance.getMessagesController().getInputPeer(dialog_id), null, false, call == null || !call.call.rtmp_stream, LaunchActivity.this, voipLastFragment, accountInstance);
+                                                                            }));
                                                                         }
-                                                                    } else {
-                                                                        accountInstance.getMessagesController().getGroupCall(-dialog_id, true, () -> AndroidUtilities.runOnUIThread(() -> {
-                                                                            ChatObject.Call call = accountInstance.getMessagesController().getGroupCall(-dialog_id, false);
-                                                                            VoIPHelper.startCall(accountInstance.getMessagesController().getChat(-dialog_id), accountInstance.getMessagesController().getInputPeer(dialog_id), null, false, call == null || !call.call.rtmp_stream, LaunchActivity.this, voipLastFragment, accountInstance);
-                                                                        }));
                                                                     }
                                                                 }
                                                             }
-                                                        }
-                                                    }, 150);
+                                                        }, 150);
+                                                    }
                                                 }
-                                            }
 
-                                            @Override
-                                            public void onError() {
-                                                if (!LaunchActivity.this.isFinishing()) {
-                                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
-                                                    AlertsCreator.showSimpleAlert(fragment, LocaleController.getString("JoinToGroupErrorNotExist", R.string.JoinToGroupErrorNotExist));
-                                                }
-                                                try {
-                                                    dismissLoading.run();
-                                                } catch (Exception e) {
-                                                    FileLog.e(e);
-                                                }
-                                            }
-                                        });
+	                                            @Override
+	                                            public void onError() {
+	                                                if (!LaunchActivity.this.isFinishing()) {
+	                                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+	                                                    AlertsCreator.showSimpleAlert(fragment, LocaleController.getString("JoinToGroupErrorNotExist", R.string.JoinToGroupErrorNotExist));
+	                                                }
+	                                                try {
+                                                       dismissLoading.run();
+	                                                } catch (Exception e) {
+	                                                    FileLog.e(e);
+	                                                }
+											    }
+                                            });
+                                        }
+                                        hideProgressDialog = false;
                                     }
-                                    hideProgressDialog = false;
+                                }
+                            } else {
+                                if (!LaunchActivity.this.isFinishing()) {
+                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+                                    CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialog_id, null, null);
                                 }
                             }
+                            //CloudVeil end
                         }
                     } else {
                         try {
@@ -4722,6 +4750,45 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             } catch (Exception ignore) {}
         }
     }
+
+    //CloudVeil start
+    private static ReopenDialogAfterCheckDelegate delegateInstance;
+    private static AlertDialog progressDialog;
+
+    private static class ReopenDialogAfterCheckDelegate implements NotificationCenter.NotificationCenterDelegate {
+        private Handler h = new Handler();
+        private Runnable runnable;
+
+        ReopenDialogAfterCheckDelegate(Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public void didReceivedNotification(int id, int account, Object... args) {
+            h.removeCallbacks(runnable);
+            h.postDelayed(runnable, 200);
+
+            NotificationCenter.getInstance(account).removeObserver(this, NotificationCenter.filterDialogsReady);
+            delegateInstance = null;
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+            progressDialog = null;
+        }
+    }
+
+
+    private void openUncheckedDialog(long dialogId, Runnable runnable) {
+        if (progressDialog != null) {
+            progressDialog.dismiss();
+        }
+        delegateInstance = new ReopenDialogAfterCheckDelegate(runnable);
+        progressDialog = new AlertDialog(this, 3);
+        NotificationCenter.getInstance(currentAccount).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
+        ChannelCheckingService.startDataChecking(currentAccount, dialogId, this);
+        progressDialog.show();
+    }
+    //CloudVeil end
 
     private void openForumFromLink(long dialogId, int topicId, Integer messageId, Runnable onOpened) {
         if (messageId == null) {

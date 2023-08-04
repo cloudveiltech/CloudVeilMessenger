@@ -47,6 +47,8 @@ import androidx.core.graphics.drawable.IconCompat;
 
 import com.android.billingclient.api.ProductDetails;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLiteException;
@@ -93,6 +95,11 @@ import java.util.regex.Pattern;
 
 @SuppressWarnings("unchecked")
 public class MediaDataController extends BaseController {
+    //CloudVeil start
+    private static final long STICKERSET_NOT_FOUND = -1;
+    private static final long STICKER_ID_NOT_LOADED = -2;
+    //CloudVeil end
+
     public final static String ATTACH_MENU_BOT_ANIMATED_ICON_KEY = "android_animated",
             ATTACH_MENU_BOT_STATIC_ICON_KEY = "default_static",
             ATTACH_MENU_BOT_PLACEHOLDER_STATIC_KEY = "placeholder_static",
@@ -273,6 +280,11 @@ public class MediaDataController extends BaseController {
     private boolean loadingFeaturedStickers[] = new boolean[2];
     private boolean featuredStickersLoaded[] = new boolean[2];
 
+    //CloudVeil start
+    public ConcurrentHashMap<Long, Boolean> allowedStickerSets = new ConcurrentHashMap<>();//Cl
+    public ArrayList<TLRPC.TL_messages_stickerSet> newStickerSets = new ArrayList<>();
+    //CloudVeil end
+
     private TLRPC.Document greetingsSticker;
     public final RingtoneDataStore ringtoneDataStore;
     public final ArrayList<ChatThemeBottomSheet.ChatThemeItem> defaultEmojiThemes = new ArrayList<>();
@@ -362,6 +374,95 @@ public class MediaDataController extends BaseController {
     public boolean areStickersLoaded(int type) {
         return stickersLoaded[type];
     }
+
+    //CloudVeil Start
+    public int getStickersSetTypesCount() {
+        return stickerSets.length;
+    }
+
+    public boolean isStickerAllowed(TLRPC.Document doc) {
+        if (doc == null) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        if (id == STICKERSET_NOT_FOUND) {
+            return true;
+        }
+        if (id == STICKER_ID_NOT_LOADED) {
+            return false;
+        }
+        return isStickerAllowed(id);
+    }
+
+    public boolean isStickerAllowed(TLRPC.TL_messages_stickerSet stickerSet) {
+        return isStickerAllowed(stickerSet.set.id);
+    }
+
+    public boolean isStickerAllowed(long id) {
+        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.containsKey(id) && allowedStickerSets.get(id);
+    }
+
+    public ArrayList<TLRPC.Document> getRecentStickers(int type) {
+        ArrayList<TLRPC.Document> stickers = new ArrayList<>();
+        for (TLRPC.Document doc : recentStickers[type]) {
+            if (isStickerAllowed(doc)) {
+                stickers.add(doc);
+            }
+        }
+        return new ArrayList<>(stickers.subList(0, Math.min(stickers.size(), 20)));
+    }
+
+    public ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
+        return recentStickers[type];
+    }
+
+    public void loadStickerSetAndSendToServer(TLRPC.InputStickerSet inputStickerSet) {
+        TLRPC.TL_messages_stickerSet stickerSet = null;
+
+        if (inputStickerSet.short_name != null) {
+            stickerSet = getStickerSetByName(inputStickerSet.short_name);
+        }
+        if (stickerSet == null) {
+            stickerSet = getStickerSetById(inputStickerSet.id);
+        }
+        for (TLRPC.TL_messages_stickerSet s : newStickerSets) {
+            if (s.set.id == inputStickerSet.id) {
+                return;
+            }
+        }
+        if (stickerSet == null) {
+            TLRPC.TL_messages_getStickerSet req = new TLRPC.TL_messages_getStickerSet();
+            req.stickerset = inputStickerSet;
+            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
+                TLRPC.TL_messages_stickerSet stickerSet1 = (TLRPC.TL_messages_stickerSet) response;
+
+                for (TLRPC.TL_messages_stickerSet s : newStickerSets) {
+                    if (s.set.id == stickerSet1.set.id) {
+                        return;
+                    }
+                }
+                newStickerSets.add(stickerSet1);
+                ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
+            });
+        }
+    }
+
+    public boolean isStickerSetKnown(TLRPC.Document doc) {
+        if (doc == null) {
+            return true;
+        }
+        if (GlobalSecuritySettings.isLockDisableStickers()) {
+            return true;
+        }
+        long id = getStickerSetId(doc);
+        return allowedStickerSets.containsKey(id);
+    }
+
+
+    public boolean isStickerAllowed(TLRPC.InputStickerSet inputStickerSet) {
+        return isStickerAllowed(inputStickerSet.id);
+    }
+    //CloudVeil end
 
     public void checkStickers(int type) {
         if (!loadingStickers[type] && (!stickersLoaded[type] || Math.abs(System.currentTimeMillis() / 1000 - loadDate[type]) >= 60 * 60)) {
@@ -802,17 +903,18 @@ public class MediaDataController extends BaseController {
         }
     }
 
-    public ArrayList<TLRPC.Document> getRecentStickers(int type) {
-        ArrayList<TLRPC.Document> arrayList = recentStickers[type];
-        if (type == TYPE_PREMIUM_STICKERS) {
-            return new ArrayList<>(recentStickers[type]);
-        }
-        return new ArrayList<>(arrayList.subList(0, Math.min(arrayList.size(), 20)));
-    }
-
-    public ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
-        return recentStickers[type];
-    }
+    // Cloudveil Removed
+    //public ArrayList<TLRPC.Document> getRecentStickers(int type) {
+    //    ArrayList<TLRPC.Document> arrayList = recentStickers[type];
+    //    if (type == TYPE_PREMIUM_STICKERS) {
+    //        return new ArrayList<>(recentStickers[type]);
+    //    }
+    //    return new ArrayList<>(arrayList.subList(0, Math.min(arrayList.size(), 20)));
+    //}
+    //
+    //public ArrayList<TLRPC.Document> getRecentStickersNoCopy(int type) {
+    //    return recentStickers[type];
+    //}
 
     public boolean isStickerInFavorites(TLRPC.Document document) {
         if (document == null) {
@@ -1421,9 +1523,22 @@ public class MediaDataController extends BaseController {
         return stickersByIds[type];
     }
 
-    public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+    //CloudVeil start
+    public ArrayList<TLRPC.StickerSetCovered>getFeaturedStickerSetsUnfiltered() {
         return featuredStickerSets[0];
     }
+
+    public ArrayList<TLRPC.StickerSetCovered> getFeaturedStickerSets() {
+        ArrayList<TLRPC.StickerSetCovered> res = new ArrayList<>();
+
+        for(TLRPC.StickerSetCovered covered : featuredStickerSets[0]) {
+            if (isStickerAllowed(covered.set.id)) {
+                res.add(covered);
+            }
+        }
+        return res;
+    }
+    //CloudVeil end
 
     public ArrayList<TLRPC.StickerSetCovered> getFeaturedEmojiSets() {
         return featuredStickerSets[1];
@@ -4400,7 +4515,9 @@ public class MediaDataController extends BaseController {
                     shortcutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
                     Bitmap bitmap = null;
-                    if (photo != null) {
+                    //CloudVeil start
+                    if (photo != null && GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                    //CloudVeil end
                         try {
                             File path = getFileLoader().getPathToAttach(photo, true);
                             bitmap = BitmapFactory.decodeFile(path.toString());

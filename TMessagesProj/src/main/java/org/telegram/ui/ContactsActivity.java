@@ -57,6 +57,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -200,6 +201,13 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
         if (!createSecretChat && !returnAsResult) {
             sortByName = SharedConfig.sortContactsByName;
         }
+
+        // Cloudveil Start
+        allowBots = !GlobalSecuritySettings.LOCK_DISABLE_BOTS;
+        if (GlobalSecuritySettings.isDisabledSecretChat()) {
+            createSecretChat = false;
+        }
+        //CloudVeil End
 
         getContactsController().checkInviteText();
         getContactsController().reloadContactsStatusesMaybe();
@@ -358,6 +366,10 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
         } catch (Throwable e) {
             hasGps = false;
         }
+        //CloudVeil start
+        hasGps = false;
+        //CloudVeil end
+
         listViewAdapter = new ContactsAdapter(context, this, onlyUsers ? 1 : 0, needPhonebook, ignoreUsers, inviteViaLink, hasGps) {
             @Override
             public void notifyDataSetChanged() {
@@ -538,7 +550,8 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
                                 presentFragment(new ActionIntroActivity(ActionIntroActivity.ACTION_TYPE_NEARBY_LOCATION_ENABLED));
                                 return;
                             }
-                            presentFragment(new PeopleNearbyActivity());
+                            //CloudVeil blocked
+                            //presentFragment(new PeopleNearbyActivity());
                         }
                     } else if (inviteViaLink != 0) {
                         if (row == 0) {

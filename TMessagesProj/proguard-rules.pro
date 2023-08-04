@@ -3,6 +3,9 @@
 -keepclassmembernames class * {
     @com.google.android.gms.common.annotation.KeepName *;
 }
+#cloudveil start
+-keep class  org.cloudveil.messenger.* { *; }
+#cloudveil end
 -keep class org.webrtc.* { *; }
 -keep class org.webrtc.audio.* { *; }
 -keep class org.webrtc.voiceengine.* { *; }

@@ -34,6 +34,7 @@ import androidx.multidex.MultiDex;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -276,7 +277,19 @@ public class ApplicationLoader extends Application {
         }
 
         applicationHandler = new Handler(applicationContext.getMainLooper());
-
+        //CloudVeil start
+        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+        SharedPreferences.Editor edit = preferences.edit();
+        if (edit != null) {
+            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
+                edit.putBoolean("pushConnection", true);
+            }
+            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+                edit.putBoolean("pushService", true);
+            }
+            edit.commit();
+        }
+        //CloudVeil end
         AndroidUtilities.runOnUIThread(ApplicationLoader::startPushService);
 
         LauncherIconController.tryFixLauncherIconIfNeeded();
@@ -286,7 +299,9 @@ public class ApplicationLoader extends Application {
     public static void startPushService() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled;
-        if (preferences.contains("pushService")) {
+        //CloudVeil start
+        if (preferences.contains("pushService") || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+        //CloudVeil end
             enabled = preferences.getBoolean("pushService", true);
         } else {
             enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);

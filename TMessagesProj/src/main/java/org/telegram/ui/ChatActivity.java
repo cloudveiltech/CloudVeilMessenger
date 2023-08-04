@@ -115,6 +115,9 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.zxing.common.detector.MathUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -10171,6 +10174,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (chatActivityEnterView == null || chatActivityEnterView.getVisibility() != View.VISIBLE) {
             return false;
         }
+        //CloudVeil Start
+        if (GlobalSecuritySettings.isLockDisableGifs()) {
+            return false;
+        }
+        //CloudVeil End
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         if (preferences.getBoolean("gifhint", false)) {
             return false;
@@ -13830,6 +13838,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 if (!inPreviewMode) {
                     chatActivityEnterView.setVisibility(View.VISIBLE);
                 }
+                //CloudVeil start
+                int oldTtl = currentEncryptedChat.ttl;
+                currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
+                if (oldTtl != currentEncryptedChat.ttl) {
+                    SecretChatHelper.getInstance(currentAccount).sendTTLMessage(currentEncryptedChat, null);
+                    MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(currentEncryptedChat);
+                }
+                //CloudVeil end
             }
             checkRaiseSensors();
             checkActionBarMenu(false);
@@ -15167,7 +15183,21 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     @Override
     public void didReceivedNotification(int id, int account, final Object... args) {
-        if (id == NotificationCenter.messagesDidLoad) {
+        //CloudVeil start
+        if (id == NotificationCenter.filterDialogsReady) {
+            CloudVeilDialogHelper cloudVeilDialogHelper = CloudVeilDialogHelper.getInstance(currentAccount);
+            boolean isDialogAllowed = cloudVeilDialogHelper.isDialogIdAllowed(dialog_id);
+            if (cloudVeilDialogHelper.isDialogCheckedOnServer(dialog_id) && isDialogAllowed) {
+                if(chatAdapter != null) {
+                    getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
+                }
+            } else if (!isDialogAllowed) {
+                Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = cloudVeilDialogHelper.getObjectByDialogId(dialog_id);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+                return;
+            }
+            //CloudVeil end
+        } else if (id == NotificationCenter.messagesDidLoad) {
             int guid = (Integer) args[10];
             if (guid != classGuid) {
                 return;
@@ -16846,14 +16876,19 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     for (int a = 0; a < chatInfo.participants.participants.size(); a++) {
                         TLRPC.ChatParticipant participant = chatInfo.participants.participants.get(a);
                         TLRPC.User user = getMessagesController().getUser(participant.user_id);
-                        if (user != null && user.bot) {
-                            URLSpanBotCommand.enabled = true;
-                            botsCount++;
-                            if (!isThreadChat()) {
-                                hasBotsCommands = true;
+
+                        //CloudVeil start
+                        if(CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                            if (user != null && user.bot) {
+                                URLSpanBotCommand.enabled = true;
+                                botsCount++;
+                                if (!isThreadChat()) {
+                                    hasBotsCommands = true;
+                                }
+                                getMediaDataController().loadBotInfo(user.id, -chatInfo.id, true, classGuid);
                             }
-                            getMediaDataController().loadBotInfo(user.id, -chatInfo.id, true, classGuid);
                         }
+                        //CloudVeil end
                     }
                     if (chatListView != null) {
                         chatListView.invalidateViews();
@@ -17690,9 +17725,13 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (classGuid == guid || guid == 0) {
                 TLRPC.BotInfo info = (TLRPC.BotInfo) args[0];
                 if (currentEncryptedChat == null) {
-                    if (!info.commands.isEmpty() && !ChatObject.isChannel(currentChat) && !isThreadChat()) {
-                        hasBotsCommands = true;
+                    //CloudVeil start
+                    if (CloudVeilDialogHelper.getInstance(currentAccount).isBotAllowed(info)) {
+                        if (!info.commands.isEmpty() && !ChatObject.isChannel(currentChat) && !isThreadChat()) {
+                            hasBotsCommands = true;
+                        }
                     }
+                    //CloudVeil end
                     if (info.user_id == 0 && currentUser != null) {
                         info.user_id = currentUser.id;
                     }
@@ -18320,6 +18359,17 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             updateTopPanel(true);
             updateTranslateItemVisibility();
         }
+
+        //CloudVeil start
+        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+            messages = CloudVeilDialogHelper.getInstance(currentAccount).filterMessages(messages);
+        } else {
+            ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
+        }
+        if (chatAdapter != null && getParentActivity() != null) {
+            getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);
+        }
+        //CloudVeil end
     }
 
     private int getScrollingOffsetForView(View v) {
@@ -22422,7 +22472,14 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     @Override
     public void onResume() {
         super.onResume();
-        checkShowBlur(false);
+        //CloudVeil start
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+            CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+        } else {
+            CloudVeilDialogHelper.showBatteryWarning(this, currentAccount, getParentActivity());
+        }
+        //CloudVeil end
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
             ImportingAlert alert = new ImportingAlert(getParentActivity(), null, this, themeDelegate);
@@ -24888,7 +24945,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (undoView != null) {
                 undoView.hide(true, 1);
             }
-            if (chatActivityEnterView != null && chatActivityEnterView.getEditField() != null) {
+            if (chatActivityEnterView != null) {
                 chatActivityEnterView.getEditField().setAllowDrawCursor(false);
             }
             return true;
@@ -24903,6 +24960,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         View item = actionMode.getItem(delete);
         if (item != null) {
             item.setVisibility(View.VISIBLE);
+            //CloudVeil start
+            if (GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+                item.setVisibility(View.GONE);
+            }
+            //CloudVeil end
         }
         createBottomMessagesActionButtons();
         bottomMessagesActionContainer.setVisibility(View.VISIBLE);

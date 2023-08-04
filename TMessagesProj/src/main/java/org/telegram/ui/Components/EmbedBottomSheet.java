@@ -230,8 +230,9 @@ public class EmbedBottomSheet extends BottomSheet {
         }
         String youtubeId = message != null && message.messageOwner.media != null && message.messageOwner.media.webpage != null ? WebPlayerView.getYouTubeVideoId(url) : null;
         if (youtubeId != null) {
-            PhotoViewer.getInstance().setParentActivity(fragment);
-            PhotoViewer.getInstance().openPhoto(message, seekTime, null, 0, 0, 0, photoViewerProvider);
+            //CloudVeil start openUrl
+            Browser.openUrl(fragment.getParentActivity(), url);
+            //CloudVeil end
         } else {
             EmbedBottomSheet sheet = new EmbedBottomSheet(fragment.getParentActivity(), title, description, originalUrl, url, w, h, seekTime);
             sheet.setCalcMandatoryInsets(keyboardVisible);

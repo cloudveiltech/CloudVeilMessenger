@@ -102,6 +102,8 @@ import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.ChatListItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -4555,6 +4557,11 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
     }
 
     public void setAllowStickersAndGifs(boolean needAnimatedEmoji, boolean needStickers, boolean needGifs, boolean waitingForKeyboardOpen) {
+        //CloudVeil start
+        needGifs = !GlobalSecuritySettings.isLockDisableGifs() && needGifs;
+        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        //CloudVeil end
+
         if ((allowStickers != needStickers || allowGifs != needGifs) && emojiView != null) {
             if (emojiViewVisible && !waitingForKeyboardOpen) {
                 removeEmojiViewAfterAnimation = true;
@@ -5133,6 +5140,11 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
         if (!SharedConfig.inappCamera) {
             hasRecordVideo = false;
         }
+        //CloudVeil start
+        if (GlobalSecuritySettings.getDisabledVideoInlineRecording()) {
+            hasRecordVideo = false;
+        }
+        //CloudVeil end
         boolean currentModeVideo = false;
         if (hasRecordVideo) {
             if (SharedConfig.hasCameraCache) {
@@ -7325,6 +7337,13 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
         if (longPress) {
             String text = messageEditText.getText().toString();
             TLRPC.User user = messageObject != null && DialogObject.isChatDialog(dialog_id) ? accountInstance.getMessagesController().getUser(messageObject.messageOwner.from_id.user_id) : null;
+
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
+
             if ((botCount != 1 || username) && user != null && user.bot && !command.contains("@")) {
                 text = String.format(Locale.US, "%s@%s", command, UserObject.getPublicUsername(user)) + " " + text.replaceFirst("^/[a-zA-Z@\\d_]{1,255}(\\s|$)", "");
             } else {
@@ -7349,6 +7368,12 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
             }
             TLRPC.User user = messageObject != null && DialogObject.isChatDialog(dialog_id) ? accountInstance.getMessagesController().getUser(messageObject.messageOwner.from_id.user_id) : null;
             SendMessagesHelper.SendMessageParams sendMessageParams;
+            //CloudVeil start
+            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                return;
+            }
+            //CloudVeil end
+
             if ((botCount != 1 || username) && user != null && user.bot && !command.contains("@")) {
                 sendMessageParams = SendMessagesHelper.SendMessageParams.of(String.format(Locale.US, "%s@%s", command, UserObject.getPublicUsername(user)), dialog_id, replyingMessageObject, getThreadMessage(), null, false, null, null, null, true, 0, null, false);
             } else {
@@ -8186,7 +8211,20 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
     }
 
     public void setButtons(MessageObject messageObject) {
-        setButtons(messageObject, true);
+        //CloudVeil start
+        if(CloudVeilDialogHelper.getInstance(currentAccount).isMessageAllowed(messageObject)) {
+            setButtons(messageObject, true);
+        } else {
+            hasBotCommands = false;
+            updateBotButton(false);
+            if(botButton != null) {
+                botButton.setVisibility(GONE);
+            }
+            if(botKeyboardView != null) {
+                botKeyboardView.setVisibility(GONE);
+            }
+        }
+        //CloudVeil end
     }
 
     public void setButtons(MessageObject messageObject, boolean openKeyboard) {
@@ -8718,11 +8756,15 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                 if (fragment == null || parentActivity == null) {
                     return;
                 }
-                if (stickerSet != null) {
-                    inputStickerSet = new TLRPC.TL_inputStickerSetID();
-                    inputStickerSet.access_hash = stickerSet.access_hash;
-                    inputStickerSet.id = stickerSet.id;
+                //CloudVeil start
+                if (!GlobalSecuritySettings.isLockDisableStickers()) {
+                    if (stickerSet != null) {
+                        inputStickerSet = new TLRPC.TL_inputStickerSetID();
+                        inputStickerSet.access_hash = stickerSet.access_hash;
+                        inputStickerSet.id = stickerSet.id;
+                    }
                 }
+                //CloudVeil end
                 fragment.showDialog(new StickersAlert(parentActivity, fragment, inputStickerSet, null, ChatActivityEnterView.this, resourcesProvider));
             }
 
@@ -9239,7 +9281,9 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                 if (currentPage == 1) {
                     nextIcon = ChatActivityEnterViewAnimatedIconView.State.STICKER;
                 } else {
-                    nextIcon = ChatActivityEnterViewAnimatedIconView.State.GIF;
+                    //CloudVeil start
+                    nextIcon = GlobalSecuritySettings.isLockDisableGifs() ? ChatActivityEnterViewAnimatedIconView.State.SMILE : ChatActivityEnterViewAnimatedIconView.State.GIF;
+                    //CloudVeil end
                 }
             }
         }

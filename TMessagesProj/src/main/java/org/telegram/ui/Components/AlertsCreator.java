@@ -63,6 +63,7 @@ import androidx.annotation.RawRes;
 import androidx.annotation.RequiresApi;
 import androidx.core.util.Consumer;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -1601,6 +1602,11 @@ public class AlertsCreator {
         if (fragment == null || fragment.getParentActivity() == null || (chat == null && user == null)) {
             return;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+            return;
+        }
+        //CloudVeil end
         int account = fragment.getCurrentAccount();
 
         Context context = fragment.getParentActivity();
@@ -4897,45 +4903,47 @@ public class AlertsCreator {
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     public static AlertDialog.Builder createBackgroundLocationPermissionDialog(Activity activity, TLRPC.User selfUser, Runnable cancelRunnable, Theme.ResourcesProvider resourcesProvider) {
-        if (activity == null || Build.VERSION.SDK_INT < 29) {
-            return null;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
-        String svg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_map_dark : R.raw.permission_map);
-        String pinSvg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_pin_dark : R.raw.permission_pin);
-        FrameLayout frameLayout = new FrameLayout(activity);
-        frameLayout.setClipToOutline(true);
-        frameLayout.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-                outline.setRoundRect(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight() + AndroidUtilities.dp(6), AndroidUtilities.dp(6));
-            }
-        });
-
-        View background = new View(activity);
-        background.setBackground(SvgHelper.getDrawable(svg));
-        frameLayout.addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 0, 0, 0, 0));
-
-        View pin = new View(activity);
-        pin.setBackground(SvgHelper.getDrawable(pinSvg));
-        frameLayout.addView(pin, LayoutHelper.createFrame(60, 82, Gravity.CENTER, 0, 0, 0, 0));
-
-        BackupImageView imageView = new BackupImageView(activity);
-        imageView.setRoundRadius(AndroidUtilities.dp(26));
-        imageView.setForUserOrChat(selfUser, new AvatarDrawable(selfUser));
-        frameLayout.addView(imageView, LayoutHelper.createFrame(52, 52, Gravity.CENTER, 0, 0, 0, 11));
-
-        builder.setTopView(frameLayout);
-        float aspectRatio = 354f / 936f;
-        builder.setTopViewAspectRatio(aspectRatio);
-        builder.setMessage(AndroidUtilities.replaceTags(LocaleController.getString(R.string.PermissionBackgroundLocation)));
-        builder.setPositiveButton(LocaleController.getString(R.string.Continue), (dialog, which) -> {
-            if (activity.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                activity.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 30);
-            }
-        });
-        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), ((dialog, which) -> cancelRunnable.run()));
-        return builder;
+    // CloudVeil disabled
+        return null;
+    //    if (activity == null || Build.VERSION.SDK_INT < 29) {
+    //        return null;
+    //    }
+    //    AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
+    //    String svg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_map_dark : R.raw.permission_map);
+    //    String pinSvg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_pin_dark : R.raw.permission_pin);
+    //    FrameLayout frameLayout = new FrameLayout(activity);
+    //    frameLayout.setClipToOutline(true);
+    //    frameLayout.setOutlineProvider(new ViewOutlineProvider() {
+    //        @Override
+    //        public void getOutline(View view, Outline outline) {
+    //            outline.setRoundRect(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight() + AndroidUtilities.dp(6), AndroidUtilities.dp(6));
+    //        }
+    //    });
+    //
+    //    View background = new View(activity);
+    //    background.setBackground(SvgHelper.getDrawable(svg));
+    //    frameLayout.addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 0, 0, 0, 0));
+    //
+    //    View pin = new View(activity);
+    //    pin.setBackground(SvgHelper.getDrawable(pinSvg));
+    //    frameLayout.addView(pin, LayoutHelper.createFrame(60, 82, Gravity.CENTER, 0, 0, 0, 0));
+    //
+    //    BackupImageView imageView = new BackupImageView(activity);
+    //    imageView.setRoundRadius(AndroidUtilities.dp(26));
+    //    imageView.setForUserOrChat(selfUser, new AvatarDrawable(selfUser));
+    //    frameLayout.addView(imageView, LayoutHelper.createFrame(52, 52, Gravity.CENTER, 0, 0, 0, 11));
+    //
+    //    builder.setTopView(frameLayout);
+    //    float aspectRatio = 354f / 936f;
+    //    builder.setTopViewAspectRatio(aspectRatio);
+    //    builder.setMessage(AndroidUtilities.replaceTags(LocaleController.getString(R.string.PermissionBackgroundLocation)));
+    //    builder.setPositiveButton(LocaleController.getString(R.string.Continue), (dialog, which) -> {
+    //        if (activity.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+    //            activity.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 30);
+    //        }
+    //    });
+    //    builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), ((dialog, which) -> cancelRunnable.run()));
+    //    return builder;
     }
 
     public static AlertDialog.Builder createGigagroupConvertAlert(Activity activity, DialogInterface.OnClickListener onProcess, DialogInterface.OnClickListener onCancel) {
@@ -5287,8 +5295,32 @@ public class AlertsCreator {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
         builder.setTitle(LocaleController.getString("MessageLifetime", R.string.MessageLifetime));
         final NumberPicker numberPicker = new NumberPicker(context);
-        numberPicker.setMinValue(0);
+        //CloudVeil start
+        int ttls[] = new int[] {
+                0,
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                30, 60, 60*60, 60*60*24, 60*60*24*7
+        };
+
+        int serverMinLength = GlobalSecuritySettings.getMinSecretChatTtl();
+        int minValue = 0;
+        int minLength = 0;
+        for(int i=0; i<ttls.length; i++) {
+            if(ttls[i] >= serverMinLength) {
+                minValue = i;
+                minLength = ttls[i];
+                break;
+            }
+        }
+
+        numberPicker.setMinValue(minValue);
         numberPicker.setMaxValue(20);
+
+        if(encryptedChat.ttl < minLength) {
+            encryptedChat.ttl = minLength;
+        }
+        //CloudVeil end
+
         if (encryptedChat.ttl > 0 && encryptedChat.ttl < 16) {
             numberPicker.setValue(encryptedChat.ttl);
         } else if (encryptedChat.ttl == 30) {
@@ -5322,6 +5354,11 @@ public class AlertsCreator {
             }
             return "";
         });
+
+        //CloudVeil start
+        final int actualMinLength = minLength;
+        //CloudVeil end
+
         builder.setView(numberPicker);
         builder.setNegativeButton(LocaleController.getString("Done", R.string.Done), (dialog, which) -> {
             int oldValue = encryptedChat.ttl;
@@ -5339,6 +5376,11 @@ public class AlertsCreator {
             } else if (which == 20) {
                 encryptedChat.ttl = 60 * 60 * 24 * 7;
             }
+            //CloudVeil start
+            if(encryptedChat.ttl < actualMinLength) {
+                encryptedChat.ttl = actualMinLength;
+            }
+            //CloudVeil end
             if (oldValue != encryptedChat.ttl) {
                 SecretChatHelper.getInstance(UserConfig.selectedAccount).sendTTLMessage(encryptedChat, null);
                 MessagesStorage.getInstance(UserConfig.selectedAccount).updateEncryptedChatTTL(encryptedChat);

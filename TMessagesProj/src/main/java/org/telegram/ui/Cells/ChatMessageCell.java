@@ -80,6 +80,8 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.math.MathUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -1969,7 +1971,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                             }
                         } else {
                             TLRPC.WebPage webPage = MessageObject.getMedia(currentMessageObject.messageOwner).webpage;
-                            if (webPage != null && !TextUtils.isEmpty(webPage.embed_url)) {
+                            //CloudVeil Start
+                            boolean isYoutube = !GlobalSecuritySettings.LOCK_DISABLE_YOUTUBE_VIDEO && (webPage != null && CloudVeilDialogHelper.isYoutubeUrl(webPage.embed_url));
+                            if (webPage != null && !TextUtils.isEmpty(webPage.embed_url) && isYoutube) {
+                            //CloudVeil End
                                 delegate.needOpenWebView(currentMessageObject, webPage.embed_url, webPage.site_name, webPage.title, webPage.url, webPage.embed_width, webPage.embed_height);
                             } else if (buttonState == -1 || buttonState == 3) {
                                 delegate.didPressImage(this, lastTouchX, lastTouchY);
@@ -4618,6 +4623,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 hasGamePreview = MessageObject.getMedia(messageObject.messageOwner) instanceof TLRPC.TL_messageMediaGame && MessageObject.getMedia(messageObject.messageOwner).game instanceof TLRPC.TL_game;
                 hasInvoicePreview = MessageObject.getMedia(messageObject.messageOwner) instanceof TLRPC.TL_messageMediaInvoice;
                 hasLinkPreview = !messageObject.isRestrictedMessage && MessageObject.getMedia(messageObject.messageOwner) instanceof TLRPC.TL_messageMediaWebPage && MessageObject.getMedia(messageObject.messageOwner).webpage instanceof TLRPC.TL_webPage;
+                //CloudVeil start
+                hasLinkPreview = hasLinkPreview && !GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+                //CloudVeil end
                 TLRPC.WebPage webpage = hasLinkPreview ? MessageObject.getMedia(messageObject.messageOwner).webpage : null;
                 if (messageObject.isStoryMention()) {
                     hasLinkPreview = true;
@@ -6694,25 +6702,45 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     }
                     photoParentObject = messageObject.photoThumbsObject;
                     Drawable thumb = null;
-                    if (messageObject.isDice()) {
-                        filter = String.format(Locale.US, "%d_%d_dice_%s_%s", w, h, messageObject.getDiceEmoji(), messageObject.toString());
-                        photoImage.setAutoRepeat(2);
-                        String emoji = currentMessageObject.getDiceEmoji();
-                        TLRPC.TL_messages_stickerSet stickerSet = MediaDataController.getInstance(currentAccount).getStickerSetByEmojiOrName(emoji);
-                        if (stickerSet != null) {
-                            if (stickerSet.documents.size() > 0) {
-                                int value = currentMessageObject.getDiceValue();
-                                if (value <= 0) {
-                                    TLRPC.Document document = stickerSet.documents.get(0);
-                                    if ("\uD83C\uDFB0".equals(emoji)) {
-                                        currentPhotoObjectThumb = null;
-                                    } else {
-                                        currentPhotoObjectThumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 40);
+                    //CloudVeil start
+                    if (messageObject!= null &&
+                            messageObject.messageOwner != null &&
+                            messageObject.messageOwner.media != null &&
+                            messageObject.messageOwner.media.document != null
+                            && !MediaDataController.getInstance(currentAccount).isStickerAllowed(messageObject.messageOwner.media.document)
+                            && !TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
+                        photoImage.setImage(ImageLocation.getForPath(GlobalSecuritySettings.getBlockedImageUrl()),
+                                String.format(Locale.US, "%d_%d", photoWidth, photoHeight),
+                                null,
+                                null,
+                                null,
+                                0,
+                                "png",
+                                messageObject,
+                                1);
+                        if (!MediaDataController.getInstance(currentAccount).isStickerSetKnown(messageObject.messageOwner.media.document)) {
+                            MediaDataController.getInstance(currentAccount).loadStickerSetAndSendToServer(messageObject.getInputStickerSet());
+                        }
+                    } else {
+                        if (messageObject.isDice()) {
+                            filter = String.format(Locale.US, "%d_%d_dice_%s_%s", w, h, messageObject.getDiceEmoji(), messageObject.toString());
+                            photoImage.setAutoRepeat(2);
+                            String emoji = currentMessageObject.getDiceEmoji();
+                            TLRPC.TL_messages_stickerSet stickerSet = MediaDataController.getInstance(currentAccount).getStickerSetByEmojiOrName(emoji);
+                            if (stickerSet != null) {
+                                if (stickerSet.documents.size() > 0) {
+                                    int value = currentMessageObject.getDiceValue();
+                                    if (value <= 0) {
+                                        TLRPC.Document document = stickerSet.documents.get(0);
+                                        if ("\uD83C\uDFB0".equals(emoji)) {
+                                            currentPhotoObjectThumb = null;
+                                        } else {
+                                            currentPhotoObjectThumb = FileLoader.getClosestPhotoSizeWithSize(document.thumbs, 40);
+                                        }
+                                        photoParentObject = document;
                                     }
-                                    photoParentObject = document;
                                 }
                             }
-                        }
                     } else if (messageObject.isAnimatedEmoji()) {
                         if (!LiteMode.isEnabled(LiteMode.FLAG_ANIMATED_EMOJI_CHAT)) {
                             filter = String.format(Locale.US, "%d_%d_nr_messageId=%d" + messageObject.emojiAnimatedStickerColor, w, h, messageObject.stableId);
@@ -6727,75 +6755,77 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         } else {
                             filter = String.format(Locale.US, "%d_%d_nr_messageId=%d" + messageObject.emojiAnimatedStickerColor, w, h, messageObject.stableId);
                             if (MessageObject.isAnimatedEmoji(messageObject.emojiAnimatedSticker)) {
-                                photoImage.setAutoRepeat(1);
-                            } else {
-                                photoImage.setAutoRepeat(shouldRepeatSticker ? 2 : 3);
+                                    photoImage.setAutoRepeat(1);
+                                } else {
+                                    photoImage.setAutoRepeat(shouldRepeatSticker ? 2 : 3);
+                                }
+                                parentObject = MessageObject.getInputStickerSet(messageObject.emojiAnimatedSticker);
+                                if (messageObject.emojiAnimatedStickerId != null) {
+                                    photoImage.setCrossfadeWithOldImage(true);
+                                }
                             }
-                            parentObject = MessageObject.getInputStickerSet(messageObject.emojiAnimatedSticker);
-                            if (messageObject.emojiAnimatedStickerId != null) {
-                                photoImage.setCrossfadeWithOldImage(true);
-                            }
+                        } else if (SharedConfig.loopStickers() || (isWebpSticker && !messageObject.isVideoSticker())) {
+                            filter = String.format(Locale.US, "%d_%d", w, h);
+                            photoImage.setAutoRepeat(1);
+                        } else {
+                            filter = String.format(Locale.US, "%d_%d_nr_messageId=%d", w, h, messageObject.stableId);
+                            photoImage.setAutoRepeat(shouldRepeatSticker ? 2 : 3);
                         }
-                    } else if (SharedConfig.loopStickers() || (isWebpSticker && !messageObject.isVideoSticker())) {
-                        filter = String.format(Locale.US, "%d_%d", w, h);
-                        photoImage.setAutoRepeat(1);
-                    } else {
-                        filter = String.format(Locale.US, "%d_%d_nr_messageId=%d", w, h, messageObject.stableId);
-                        photoImage.setAutoRepeat(shouldRepeatSticker ? 2 : 3);
-                    }
-                    documentAttachType = DOCUMENT_ATTACH_TYPE_STICKER;
-                    availableTimeWidth = photoWidth - AndroidUtilities.dp(14);
-                    backgroundWidth = photoWidth + AndroidUtilities.dp(12);
+                        documentAttachType = DOCUMENT_ATTACH_TYPE_STICKER;
+                        availableTimeWidth = photoWidth - AndroidUtilities.dp(14);
+                        backgroundWidth = photoWidth + AndroidUtilities.dp(12);
 
-                    photoImage.setRoundRadius(0);
-                    canChangeRadius = false;
-                    if (!messageObject.isOutOwner() && MessageObject.isPremiumSticker(messageObject.getDocument())) {
-                        flipImage = true;
-                    }
-                    if (messageObject.getDocument() != null) {
-                        if (messageObject.isVideoSticker()) {
-                            if (!loopStickers()) {
-                                photoImage.animatedFileDrawableRepeatMaxCount = 1;
+                        photoImage.setRoundRadius(0);
+                        canChangeRadius = false;
+                        if (!messageObject.isOutOwner() && MessageObject.isPremiumSticker(messageObject.getDocument())) {
+                            flipImage = true;
+                        }
+                        if (messageObject.getDocument() != null) {
+                            if (messageObject.isVideoSticker()) {
+                                if (!loopStickers()) {
+                                    photoImage.animatedFileDrawableRepeatMaxCount = 1;
+                                }
+                                photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), ImageLoader.AUTOPLAY_FILTER,
+                                        null, null,
+                                        messageObject.pathThumb,
+                                        messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
+                            } else if (messageObject.pathThumb != null) {
+                                photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), filter,
+                                        messageObject.pathThumb,
+                                        messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
+                            } else if (messageObject.attachPathExists) {
+                                photoImage.setImage(ImageLocation.getForPath(messageObject.messageOwner.attachPath), filter,
+                                        ImageLocation.getForObject(currentPhotoObjectThumb, photoParentObject), "b1", thumb != null ? thumb : currentPhotoObjectThumbStripped,
+                                        messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
+                            } else if (messageObject.getDocument().id != 0) {
+                                photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), filter,
+                                        ImageLocation.getForObject(currentPhotoObjectThumb, photoParentObject), "b1", thumb != null ? thumb : currentPhotoObjectThumbStripped,
+                                        messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
+                            } else {
+                                photoImage.setImage(null, null, thumb, null, messageObject, 0);
                             }
-                            photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), ImageLoader.AUTOPLAY_FILTER,
-                                    null, null,
-                                    messageObject.pathThumb,
-                                    messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
-                        } else if (messageObject.pathThumb != null) {
-                            photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), filter,
-                                    messageObject.pathThumb,
-                                    messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
-                        } else if (messageObject.attachPathExists) {
-                            photoImage.setImage(ImageLocation.getForPath(messageObject.messageOwner.attachPath), filter,
-                                    ImageLocation.getForObject(currentPhotoObjectThumb, photoParentObject), "b1", thumb != null ? thumb : currentPhotoObjectThumbStripped,
-                                    messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
-                        } else if (messageObject.getDocument().id != 0) {
-                            photoImage.setImage(ImageLocation.getForDocument(messageObject.getDocument()), filter,
-                                    ImageLocation.getForObject(currentPhotoObjectThumb, photoParentObject), "b1", thumb != null ? thumb : currentPhotoObjectThumbStripped,
-                                    messageObject.getDocument().size, isWebpSticker ? "webp" : null, parentObject, 1);
                         } else {
                             photoImage.setImage(null, null, thumb, null, messageObject, 0);
                         }
-                    } else {
-                        photoImage.setImage(null, null, thumb, null, messageObject, 0);
-                    }
-                    if (!reactionsLayoutInBubble.isSmall) {
-                        reactionsLayoutInBubble.measure(maxWidth, currentMessageObject.isOutOwner() && (currentMessageObject.isAnimatedEmoji() || currentMessageObject.isAnyKindOfSticker()) ? Gravity.RIGHT : Gravity.LEFT);
-                        reactionsLayoutInBubble.drawServiceShaderBackground = 1f;
-                        reactionsLayoutInBubble.totalHeight = reactionsLayoutInBubble.height + AndroidUtilities.dp(8);
-                        additionHeight += reactionsLayoutInBubble.totalHeight;
-                        if (!currentMessageObject.isAnimatedEmoji()) {
-                            reactionsLayoutInBubble.positionOffsetY += AndroidUtilities.dp(4);
+                        if (!reactionsLayoutInBubble.isSmall) {
+                            reactionsLayoutInBubble.measure(maxWidth, currentMessageObject.isOutOwner() && (currentMessageObject.isAnimatedEmoji() || currentMessageObject.isAnyKindOfSticker()) ? Gravity.RIGHT : Gravity.LEFT);
+                            reactionsLayoutInBubble.drawServiceShaderBackground = 1f;
+                            reactionsLayoutInBubble.totalHeight = reactionsLayoutInBubble.height + AndroidUtilities.dp(8);
+                            additionHeight += reactionsLayoutInBubble.totalHeight;
+                            if (!currentMessageObject.isAnimatedEmoji()) {
+                                reactionsLayoutInBubble.positionOffsetY += AndroidUtilities.dp(4);
+                            }
+                        }
+
+                        if (blurredPhotoImage.getBitmap() != null) {
+                            blurredPhotoImage.getBitmap().recycle();
+                            blurredPhotoImage.setImageBitmap((Bitmap) null);
+                        }
+                        if (photoImage.getBitmap() != null && !photoImage.getBitmap().isRecycled() && currentMessageObject.hasMediaSpoilers() && !currentMessageObject.isMediaSpoilersRevealed) {
+                            blurredPhotoImage.setImageBitmap(Utilities.stackBlurBitmapMax(photoImage.getBitmap()));
                         }
                     }
-
-                    if (blurredPhotoImage.getBitmap() != null) {
-                        blurredPhotoImage.getBitmap().recycle();
-                        blurredPhotoImage.setImageBitmap((Bitmap) null);
-                    }
-                    if (photoImage.getBitmap() != null && !photoImage.getBitmap().isRecycled() && currentMessageObject.hasMediaSpoilers() && !currentMessageObject.isMediaSpoilersRevealed) {
-                        blurredPhotoImage.setImageBitmap(Utilities.stackBlurBitmapMax(photoImage.getBitmap()));
-                    }
+                    //CloudVeil end
                 } else {
                     currentPhotoObject = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, AndroidUtilities.getPhotoSize());
                     photoParentObject = messageObject.photoThumbsObject;

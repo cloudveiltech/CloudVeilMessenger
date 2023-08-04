@@ -40,6 +40,7 @@ import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedEmojiDrawable;
@@ -607,12 +608,9 @@ public class SharedLinkCell extends FrameLayout {
                                 }
                             } else if (linkPreviewPressed) {
                                 try {
-                                    TLRPC.WebPage webPage = pressedLinkIndex == 0 && message.messageOwner.media != null ? message.messageOwner.media.webpage : null;
-                                    if (webPage != null && webPage.embed_url != null && webPage.embed_url.length() != 0) {
-                                        delegate.needOpenWebView(webPage, message);
-                                    } else {
-                                        delegate.onLinkPress(links.get(pressedLinkIndex).toString(), false);
-                                    }
+                                    //CloudVeil start
+                                    Browser.openUrl(getContext(), pressedLink.obtainNewPath().toString());
+                                    //CloudVeil end
                                 } catch (Exception e) {
                                     FileLog.e(e);
                                 }

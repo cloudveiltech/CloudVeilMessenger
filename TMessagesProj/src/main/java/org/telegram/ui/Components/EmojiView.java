@@ -90,6 +90,7 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -1460,6 +1461,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         this.allowAnimatedEmoji = needAnimatedEmoji;
         this.resourcesProvider = resourcesProvider;
 
+        //CloudVeil start
+        needGif = !GlobalSecuritySettings.isLockDisableGifs() && needGif;
+        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        //CloudVeil end
+
         int color = getThemedColor(Theme.key_chat_emojiBottomPanelIcon);
         color = Color.argb(30, Color.red(color), Color.green(color), Color.blue(color));
 
@@ -2436,7 +2442,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                             emojiTabs.select(0);
                         }
                     } else if (item == 1) {
-                        gifGridView.smoothScrollToPosition(0);
+                        //CloudVeil start
+                        if(gifGridView != null) {
+                            gifGridView.smoothScrollToPosition(0);
+                        }
+                        //CloudVeil end
                     } else {
                         stickersGridView.smoothScrollToPosition(1);
                     }
@@ -2553,6 +2563,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                     } else {
                         currentField = stickersSearchField;
                     }
+                    //CloudVeil start
+                    if(currentField == null) {
+                        return;
+                    }
+                    //CloudVeil end
                     String currentFieldText = currentField.searchEditText.getText().toString();
                     for (int a = 0; a < 3; a++) {
                         SearchField field;
@@ -5285,7 +5300,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 if (thumb == null || stickerSet.set.gifs) {
                     thumb = document;
                 }
-                stickersTab.addStickerTab(thumb, document, stickerSet).setContentDescription(stickerSet.set.title + ", " + LocaleController.getString("AccDescrStickerSet", R.string.AccDescrStickerSet));
+                //CloudVeil Start
+                if(MediaDataController.getInstance(currentAccount).isStickerAllowed(stickerSet)) {
+                    stickersTab.addStickerTab(thumb, document, stickerSet).setContentDescription(stickerSet.set.title + ", " + LocaleController.getString("AccDescrStickerSet", R.string.AccDescrStickerSet));
+                }
+                //CloudVeil end
             }
         }
         stickersTab.commitUpdate();
@@ -6228,6 +6247,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         @Override
         public int getItemCount() {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableStickers()) {
+                return 0;
+            }
+            //CloudVeil end
             return totalItems != 0 ? totalItems + 1 : 0;
         }
 
@@ -6543,6 +6567,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 } else {
                     key = null;
                     pack = packs.get(a);
+                    //CloudVeil start
+                    if(pack != null && !MediaDataController.getInstance(currentAccount).isStickerAllowed(pack)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     documents = pack.documents;
                     packStartPosition.put(pack, totalItems);
                 }
@@ -7632,8 +7661,13 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         public Drawable getPageIconDrawable(int position) {
+            ////CloudVeil start
+            //if(GlobalSecuritySettings.isLockDisableGifs() && position == 1) {
+            //    position = tabIcons.length - 1;
+            //}
+            ////CloudVeil end
+            //return tabIcons[position];
             return null;
-//            return tabIcons[position];
         }
 
         public CharSequence getPageTitle(int position) {
@@ -7732,11 +7766,22 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         @Override
         public int getItemCount() {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return 0;
+            }
+            //CloudVeil end
             return itemsCount;
         }
 
         @Override
         public int getItemViewType(int position) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return 0;
+            }
+            //CloudVeil end
+
             if (position == 0 && addSearch) {
                 return 1; // search field
             } else if (withRecent && position == trendingSectionItem) {
@@ -7899,6 +7944,12 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         public void search(String text, boolean delay) {
+            //CloudVeil start
+            if(GlobalSecuritySettings.isLockDisableGifs()) {
+                return;
+            }
+            //CloudVeil end
+
             if (withRecent) {
                 return;
             }
@@ -8407,8 +8458,18 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                             ArrayList<TLRPC.Document> newStickers = allStickers.get(emoji);
                             if (newStickers != null && !newStickers.isEmpty()) {
                                 if (!emojiStickers.containsKey(newStickers)) {
-                                    emojiStickers.put(newStickers, emoji);
-                                    emojiArrays.add(newStickers);
+                                    //CloudVeil start
+                                    ArrayList<TLRPC.Document> newStickersFiltered = new ArrayList<TLRPC.Document>();
+                                    for(TLRPC.Document doc : newStickers) {
+                                        if(MediaDataController.getInstance(currentAccount).isStickerAllowed(doc)) {
+                                            newStickersFiltered.add(doc);
+                                        }
+                                    }
+                                    if(!newStickersFiltered.isEmpty()) {
+                                        emojiStickers.put(newStickersFiltered, emoji);
+                                        emojiArrays.add(newStickersFiltered);
+                                    }
+                                    //CloudVeil end
                                 }
                             }
                         }
@@ -8425,6 +8486,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 int index;
                 for (int a = 0, size = local.size(); a < size; a++) {
                     TLRPC.TL_messages_stickerSet set = local.get(a);
+                    //CloudVeil start
+                    if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     if ((index = AndroidUtilities.indexOfIgnoreCase(set.set.title, searchQuery)) >= 0) {
                         if (index == 0 || set.set.title.charAt(index - 1) == ' ') {
                             localPacks.add(set);
@@ -8441,6 +8507,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 MessagesController.getInstance(currentAccount).filterPremiumStickers(local);
                 for (int a = 0, size = local.size(); a < size; a++) {
                     TLRPC.TL_messages_stickerSet set = local.get(a);
+                    //CloudVeil start
+                    if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(set)) {
+                        continue;
+                    }
+                    //CloudVeil end
                     if ((index = AndroidUtilities.indexOfIgnoreCase(set.set.title, searchQuery)) >= 0) {
                         if (index == 0 || set.set.title.charAt(index - 1) == ' ') {
                             localPacks.add(set);

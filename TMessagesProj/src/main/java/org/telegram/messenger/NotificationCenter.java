@@ -291,6 +291,10 @@ public class NotificationCenter {
 
     public static boolean alreadyLogged;
 
+    //CloudVeil start
+    public static final int filterDialogsReady = totalEvents++;
+    //CloudVeil end
+
     private SparseArray<ArrayList<NotificationCenterDelegate>> observers = new SparseArray<>();
     private SparseArray<ArrayList<NotificationCenterDelegate>> removeAfterBroadcast = new SparseArray<>();
     private SparseArray<ArrayList<NotificationCenterDelegate>> addAfterBroadcast = new SparseArray<>();

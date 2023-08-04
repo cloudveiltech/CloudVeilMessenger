@@ -4,3 +4,5 @@ build/
 obj/
 *.iml
 local.properties
+TMessagesProj/.externalNativeBuild
+.cxx

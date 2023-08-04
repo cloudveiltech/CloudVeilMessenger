@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
@@ -142,6 +143,12 @@ public class StickersAdapter extends RecyclerListView.SelectionAdapter implement
                 }
             }
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.isLockDisableStickers()) {
+            return;
+        }
+        //CloudVeil end
 
         if (visible && (keywordResults == null || keywordResults.isEmpty())) {
             visible = false;

@@ -29,6 +29,7 @@ import android.widget.Toast;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
@@ -131,6 +132,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
     private int resetSectionRow;
     private int resetNotificationsRow;
     private int resetNotificationsSectionRow;
+    //Cloudveil start
+    private int checkPowerSavingOnStartRow;
+    //Cloudveil end
     private int rowCount = 0;
 
     private boolean updateVibrate;
@@ -190,6 +194,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
         otherSectionRow = rowCount++;
         notificationsServiceRow = rowCount++;
         notificationsServiceConnectionRow = rowCount++;
+        //CloudVeil start
+        checkPowerSavingOnStartRow = rowCount++;
+        //CloudVeil end
         androidAutoAlertRow = -1;
         repeatRow = rowCount++;
         resetSection2Row = rowCount++;
@@ -654,13 +661,22 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                 SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
                 enabled = preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection);
                 SharedPreferences.Editor editor = preferences.edit();
-                editor.putBoolean("pushConnection", !enabled);
+                //CLoudVeil start
+                editor.putBoolean("pushConnection", !enabled || GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE);
+                //CloudVeil end
                 editor.commit();
                 if (!enabled) {
                     ConnectionsManager.getInstance(currentAccount).setPushConnectionEnabled(true);
                 } else {
                     ConnectionsManager.getInstance(currentAccount).setPushConnectionEnabled(false);
-                }
+                } //CloudVeil start
+            } else if(position == checkPowerSavingOnStartRow) {
+                SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
+                enabled = preferences.getBoolean("checkPowerSavingOnStart", true);
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putBoolean("checkPowerSavingOnStart", !enabled);
+                editor.commit();
+                //CloudVeil end
             } else if (position == accountsAllRow) {
                 SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
                 enabled = preferences.getBoolean("AllAccounts", true);
@@ -946,8 +962,12 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     } else if (position == androidAutoAlertRow) {
                         checkCell.setTextAndCheck("Android Auto", preferences.getBoolean("EnableAutoNotifications", false), true);
                     } else if (position == notificationsServiceRow) {
+                        //CloudVeil start
+                        boolean v = GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE || preferences.getBoolean("pushService", getMessagesController().keepAliveService);
                         checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsService", R.string.NotificationsService), LocaleController.getString("NotificationsServiceInfo", R.string.NotificationsServiceInfo), preferences.getBoolean("pushService", getMessagesController().keepAliveService), true, true);
-                    } else if (position == notificationsServiceConnectionRow) {
+                        checkCell.setEnabled(!GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE, null);
+                        //CloudVeil end
+                        } else if (position == notificationsServiceConnectionRow) {
                         checkCell.setTextAndValueAndCheck(LocaleController.getString("NotificationsServiceConnection", R.string.NotificationsServiceConnection), LocaleController.getString("NotificationsServiceConnectionInfo", R.string.NotificationsServiceConnectionInfo), preferences.getBoolean("pushConnection", getMessagesController().backgroundConnection), true, true);
                     } else if (position == badgeNumberShowRow) {
                         checkCell.setTextAndCheck(LocaleController.getString("BadgeNumberShow", R.string.BadgeNumberShow), getNotificationsController().showBadgeNumber, true);
@@ -1109,7 +1129,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
                     position == inappPreviewRow || position == contactJoinedRow || position == pinnedMessageRow ||
                     position == notificationsServiceRow || position == badgeNumberMutedRow || position == badgeNumberMessagesRow ||
                     position == badgeNumberShowRow || position == inappPriorityRow || position == inchatSoundRow ||
-                    position == androidAutoAlertRow || position == accountsAllRow) {
+                    position == androidAutoAlertRow || position == accountsAllRow   //CloudVeil start
+                    || position == checkPowerSavingOnStartRow) {
+                // Cloudveil end
                 return 1;
             } else if (position == resetNotificationsRow) {
                 return 2;

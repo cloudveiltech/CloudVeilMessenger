@@ -48,6 +48,7 @@ import androidx.collection.LongSparseArray;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
@@ -2683,6 +2684,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         if (message != null) {
                             lastSendState = message.messageOwner.send_state;
                         }
+                        //CloudVeil start
+                        if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                            unreadCount = 0;
+                        }
+                        //CloudVeil end
                     }
                 } else {
                     unreadCount = 0;
@@ -2797,6 +2803,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                             markUnread = dialog.unread_mark;
                             reactionMentionCount = newReactionCout;
                             continueUpdate = true;
+                            //CloudVeil start
+                            if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog.id)) {
+                                unreadCount = 0;
+                            }
+                            //CloudVeil end
                         }
                     }
                 }

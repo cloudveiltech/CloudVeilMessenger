@@ -133,6 +133,7 @@ import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -14175,6 +14176,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             return false;
         }
 
+        //CloudVeil start
+        if(messageObject != null && messageObject.isVideo() && !GlobalSecuritySettings.isVideoPlayingAllowed()) {
+            return false;
+        }
+        //CloudVeil end
         final PlaceProviderObject object = provider.getPlaceForPhoto(messageObject, fileLocation, index, true);
         lastInsets = null;
         WindowManager wm = (WindowManager) parentActivity.getSystemService(Context.WINDOW_SERVICE);

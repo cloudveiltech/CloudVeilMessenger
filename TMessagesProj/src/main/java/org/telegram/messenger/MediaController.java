@@ -140,6 +140,15 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         long pcmOffset;
     }
 
+    //CloudVeil start
+    public boolean isAudioTrackPlaying() {
+        if (audioPlayer == null && videoPlayer == null || playingMessageObject == null) {
+            return false;
+        }
+        return !isPaused && !downloadingCurrentMessage;
+    }
+    //CloudVeil end
+
     private static final String[] projectionPhotos = {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.BUCKET_ID,

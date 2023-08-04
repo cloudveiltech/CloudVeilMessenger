@@ -26,6 +26,7 @@ import android.os.Build;
 import android.util.Log;
 import android.view.View;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimatedFileDrawableStream;
 import org.telegram.messenger.DispatchQueue;
@@ -723,6 +724,12 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
         if (isRunning || parents.size() == 0 && !ignoreNoParent) {
             return;
         }
+        //CloudVeil start
+        if(!GlobalSecuritySettings.isVideoPlayingAllowed()) {
+            return;
+        }
+        //CloudVeil end
+
         isRunning = true;
         scheduleNextGetFrame();
         AndroidUtilities.runOnUIThread(mStartTask);

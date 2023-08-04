@@ -47,6 +47,7 @@ import androidx.annotation.UiThread;
 import androidx.collection.LongSparseArray;
 import androidx.core.view.inputmethod.InputContentInfoCompat;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.json.JSONObject;
 import org.telegram.messenger.audioinfo.AudioInfo;
 import org.telegram.messenger.support.SparseLongArray;
@@ -3038,13 +3039,15 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         AlertsCreator.showOpenUrlAlert(parentFragment, button.url, false, true);
                     }
                 } else if (button instanceof TLRPC.TL_keyboardButtonBuy) {
-                    if (response instanceof TLRPC.TL_payments_paymentForm) {
-                        final TLRPC.TL_payments_paymentForm form = (TLRPC.TL_payments_paymentForm) response;
-                        getMessagesController().putUsers(form.users, false);
-                        parentFragment.presentFragment(new PaymentFormActivity(form, messageObject, parentFragment));
-                    } else if (response instanceof TLRPC.TL_payments_paymentReceipt) {
-                        parentFragment.presentFragment(new PaymentFormActivity((TLRPC.TL_payments_paymentReceipt) response));
-                    }
+                    //CloudVeil start
+                    AlertDialog.Builder builder = new AlertDialog.Builder(parentFragment.getParentActivity());
+                    builder.setTitle(parentFragment.getParentActivity().getString(R.string.warning))
+                            .setMessage(parentFragment.getParentActivity().getString(R.string.cloudveil_disabled_for_protection))
+                            .setPositiveButton(parentFragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
+
+                    parentFragment.showDialog(builder.create(), dialog -> {
+                    });
+                    //CloudVeil end
                 } else {
                     TLRPC.TL_messages_botCallbackAnswer res = (TLRPC.TL_messages_botCallbackAnswer) response;
                     if (!cacheFinal && res.cache_time != 0 && !button.requires_password) {
@@ -3353,6 +3356,27 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if (message == null && caption == null) {
             caption = "";
         }
+
+        //CloudVeil start
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer)) {
+            return;
+        }
+        if (message != null) {
+            boolean isBotCommand = message.startsWith("/") && message.contains("@");
+            if (isBotCommand) {
+                String botName = message.split("@")[1].split(" ")[0].trim().replace("/", "");
+                if (botName.length() > 0) {
+                    TLObject userOrChat = getMessagesController().getUserOrChat(botName);
+                    if (userOrChat instanceof TLRPC.User) {
+                        TLRPC.User botUser = (TLRPC.User) userOrChat;
+                        if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(botUser)) {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        //CloudVeil end
 
         String originalPath = null;
         if (params != null && params.containsKey("originalPath")) {
