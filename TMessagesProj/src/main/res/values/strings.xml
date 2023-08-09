@@ -6167,16 +6167,16 @@
     <string name="checkPowerSavingInfo">Check battery optimization setting on app start</string>
     <string name="cloudveil_organisation_change">Please Select Your Organization. It is important that you select your correct church organization so that your app works as expected. Unblock requests will NOT work correctly if you select the wrong group. This one-time step is required to allow organizations more flexibility in supporting their own members and is based off of church membership.</string>
     <string name="about_us">About Us</string>
-    <string name="sms_code_note_title">How can I receive the code?</string>
 
-    <string name="sms_code_alert_title">Sorry</string>
+    <string name="sms_code_note_title">How can I receive the code?</string>
     <string name="sms_code_alert_body"><![CDATA[
-        <b>Starting from February 2023 follow the steps below to receive the code:</b><br/><br/>
-        1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.<br/>
-        2. Open CloudVeil Messenger.<br/>
-        3. Enter the code that you will receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.
+    <b>Use the following steps to receive the code.</b><br/><br/>
+    1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.<br/>
+    2. Open CloudVeil Messenger and restart the login process.<br/>
+    3. Enter the code that you receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.
     ]]>
     </string>
+
 
     <!--CloudVeil end-->
     <string name="PhotoEditorDraw">Draw</string>

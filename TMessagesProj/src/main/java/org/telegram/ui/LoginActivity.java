@@ -3459,7 +3459,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     return;
                 }
                 new AlertDialog.Builder(context)
-                        .setTitle(LocaleController.getString(R.string.sms_code_alert_title))
+                        .setTitle(LocaleController.getString(R.string.sms_code_note_title))
                         .setMessage(Html.fromHtml(context.getString(R.string.sms_code_alert_body)))
                         .setPositiveButton(LocaleController.getString(R.string.Close), null)
                         .show();
