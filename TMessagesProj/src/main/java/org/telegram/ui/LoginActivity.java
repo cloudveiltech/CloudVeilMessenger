@@ -3045,7 +3045,6 @@ public class LoginActivity extends BaseFragment {
                     return;
                 }
                 new AlertDialog.Builder(context)
-                        .setTitle(LocaleController.getString(R.string.sms_code_alert_title))
                         .setMessage(Html.fromHtml(context.getString(R.string.sms_code_alert_body)))
                         .setPositiveButton(LocaleController.getString(R.string.Close), null)
                         .show();
