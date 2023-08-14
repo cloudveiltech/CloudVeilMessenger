@@ -31,6 +31,8 @@ import android.view.View;
 
 import androidx.annotation.Keep;
 
+import com.google.android.exoplayer2.util.Log;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -75,6 +77,12 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
     public Drawable getMediaDrawable() {
         return currentMediaDrawable;
+    }
+
+    public void updateStaticDrawableThump(Bitmap bitmap) {
+        staticThumbShader = null;
+        roundPaint.setShader(null);
+        setStaticDrawable(new BitmapDrawable(bitmap));
     }
 
     public interface ImageReceiverDelegate {

@@ -482,7 +482,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
 
     public AnimatedFileDrawable(File file, boolean createDecoder, long streamSize, int streamLoadingPriority, TLRPC.Document document, ImageLocation location, Object parentObject, long seekTo, int account, boolean preview, int w, int h, BitmapsCache.CacheOptions cacheOptions) {
         path = file;
-        PRERENDER_FRAME = SharedConfig.deviceIsAboveAverage() && limitFps;
+        PRERENDER_FRAME = SharedConfig.deviceIsAboveAverage();
         streamFileSize = streamSize;
         this.streamLoadingPriority = streamLoadingPriority;
         currentAccount = account;
@@ -519,8 +519,8 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
 
     public void setIsWebmSticker(boolean b) {
         isWebmSticker = b;
-        PRERENDER_FRAME = false;
         if (isWebmSticker) {
+            PRERENDER_FRAME = false;
             useSharedQueue = true;
         }
     }
@@ -724,6 +724,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
     @Override
     protected void finalize() throws Throwable {
         try {
+            secondParentViews.clear();
             recycle();
         } finally {
             super.finalize();
