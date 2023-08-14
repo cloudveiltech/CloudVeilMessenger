@@ -11,6 +11,7 @@ import androidx.collection.LongSparseArray;
 
 import com.google.android.exoplayer2.util.Consumer;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -187,15 +188,30 @@ public class StoriesController {
     }
 
     public boolean hasStories(long dialogId) {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return false;
+        }
+        //CloudVeil end
         TLRPC.TL_userStories stories = allStoriesMap.get(dialogId);
         return stories != null && !stories.stories.isEmpty();
     }
 
     public boolean hasStories() {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return false;
+        }
+        //CloudVeil end
         return (dialogListStories != null && dialogListStories.size() > 0) || hasSelfStories();
     }
 
     public void loadStories() {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return;
+        }
+        //CloudVeil end
         if (firstLoad) {
             loadingFromDatabase = true;
             storiesStorage.getAllStories(allStories -> {
@@ -278,6 +294,11 @@ public class StoriesController {
     }
 
     private void loadFromServer(boolean hidden) {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return;
+        }
+        //CloudVeil end
         if ((hidden && loadingFromServerHidden) || (!hidden && loadingFromServer) || loadingFromDatabase) {
             return;
         }
@@ -1107,6 +1128,11 @@ public class StoriesController {
     }
 
     public ArrayList<TLRPC.TL_userStories> getHiddenList() {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return new ArrayList<TLRPC.TL_userStories>();
+        }
+        //CloudVeil end
         return hiddenListStories;
     }
 

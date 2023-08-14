@@ -4630,11 +4630,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 for (int a = 0; a < 2; ++a) {
                     if (emojiStatusDrawable[a] != null) {
-                        if (documentId == null) {
+                       if (documentId == null) {
                             emojiStatusDrawable[a].set(getPremiumCrossfadeDrawable(), true);
-                        } else {
+                       } else {
                             emojiStatusDrawable[a].set(documentId, true);
-                        }
+                       }
                     }
                 }
                 if (documentId != null) {

@@ -19,6 +19,7 @@ import android.widget.TextView;
 
 import androidx.core.graphics.ColorUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLoader;
@@ -725,6 +726,11 @@ public class StoriesUtilities {
     }
 
     public static boolean isExpired(int currentAccount, TLRPC.StoryItem newStory) {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return true;
+        }
+        //CloudVeil end
         return ConnectionsManager.getInstance(currentAccount).getCurrentTime() > newStory.expire_date;
     }
 

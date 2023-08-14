@@ -46,6 +46,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 
 import org.checkerframework.checker.units.qual.Angle;
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BotWebViewVibrationEffect;
 import org.telegram.messenger.ContactsController;
@@ -507,6 +508,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
             floatingButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_chats_actionIcon), PorterDuff.Mode.MULTIPLY));
             floatingButton.setImageResource(R.drawable.story_camera);
             floatingButtonContainer.setContentDescription(LocaleController.getString("AccDescrCaptureStory", R.string.AccDescrCaptureStory));
+
 //            if (Build.VERSION.SDK_INT >= 21) {
 //                StateListAnimator animator = new StateListAnimator();
 //                animator.addState(new int[]{android.R.attr.state_pressed}, ObjectAnimator.ofFloat(floatingButtonContainer, View.TRANSLATION_Z, AndroidUtilities.dp(2), AndroidUtilities.dp(4)).setDuration(200));
@@ -614,7 +616,9 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
 
             @Override
             protected boolean includeStories() {
-                return type == TYPE_STORIES;
+                //CloudVeil start
+                return !GlobalSecuritySettings.LOCK_DISABLE_STORIES && type == TYPE_STORIES;
+                //CloudVeil end
             }
 
             @Override

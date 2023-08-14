@@ -45,6 +45,7 @@ public class SettingsResponse {
     public boolean disableProfilePhoto;
     public boolean disableProfilePhotoChange;
     public boolean disableStickers;
+    public boolean disableEmojiStatus;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
     public boolean disableProfileVideo;

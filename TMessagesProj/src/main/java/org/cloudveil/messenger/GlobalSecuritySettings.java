@@ -28,11 +28,13 @@ public class GlobalSecuritySettings {
     public static final boolean LOCK_DISABLE_IN_APP_BROWSER = true;
     public static final boolean LOCK_DISABLE_AUTOPLAY_GIFS = true;
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
+    public static final boolean LOCK_DISABLE_STORIES = true;
 
     private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
     private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_DISABLED = false;
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED = false;
+    private static final boolean DEFAULT_IS_EMOJI_STATUS_DISABLED = true;
     private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
@@ -177,6 +179,18 @@ public class GlobalSecuritySettings {
                 Activity.MODE_PRIVATE);
         boolean res = preferences.getBoolean("isProfileVideoDisabled", GlobalSecuritySettings.DEFAULT_IS_PROFILE_VIDEO_DISABLED);
         return res || getLockDisableOthersPhoto();
+    }
+
+    public static void setIsEmojiStatusDisabled(boolean isEmojiStatusDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isEmojiStatusDisabled", isEmojiStatusDisabled).apply();
+    }
+
+    public static boolean getIsEmojiStatusDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(),
+                Activity.MODE_PRIVATE);
+        boolean res = preferences.getBoolean("isEmojiStatusDisabled", GlobalSecuritySettings.DEFAULT_IS_EMOJI_STATUS_DISABLED);
+        return res;
     }
 
     public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {

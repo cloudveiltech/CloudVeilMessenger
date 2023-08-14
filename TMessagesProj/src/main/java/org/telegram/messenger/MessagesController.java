@@ -4345,6 +4345,13 @@ public class MessagesController extends BaseController implements NotificationCe
         if (user == null) {
             return false;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.getIsEmojiStatusDisabled()) {
+            user.emoji_status = new TLRPC.TL_emojiStatusEmpty();
+        }
+
+        user.stories_unavailable = GlobalSecuritySettings.LOCK_DISABLE_STORIES;
+        //CloudVeil end
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
         if (oldUser == user && !force) {
@@ -18213,6 +18220,11 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public boolean storiesEnabled() {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return false;
+        }
+        //CloudVeil end
         switch (storiesPosting) {
             case "premium":
                 return getUserConfig().isPremium();

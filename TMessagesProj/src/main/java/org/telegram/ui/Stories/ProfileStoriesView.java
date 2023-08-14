@@ -30,6 +30,7 @@ import androidx.core.graphics.ColorUtils;
 
 import com.google.zxing.common.detector.MathUtils;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
@@ -159,6 +160,11 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
     }
 
     private void updateStories(boolean animated, boolean asUpdate) {
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return;
+        }
+        //CloudVeil end
         final boolean me = userId == UserConfig.getInstance(currentAccount).getClientUserId();
         TLRPC.TL_userStories userFullStories = userFull != null && !me ? userFull.stories : null;
         TLRPC.TL_userStories stateStories = MessagesController.getInstance(currentAccount).getStoriesController().getStories(userId);

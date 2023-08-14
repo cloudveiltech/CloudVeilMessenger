@@ -78,6 +78,7 @@ import androidx.exifinterface.media.ExifInterface;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import org.checkerframework.checker.units.qual.A;
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -355,6 +356,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         if (isShown) {
             return;
         }
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return;
+        }
+        //CloudVeil end
 
         prepareClosing = false;
 //        privacySelectorHintOpened = false;

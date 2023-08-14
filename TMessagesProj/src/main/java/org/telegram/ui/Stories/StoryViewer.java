@@ -45,6 +45,7 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.BuildVars;
@@ -302,6 +303,12 @@ public class StoryViewer {
         if (isShowing) {
             return;
         }
+
+        //CloudVeil start
+        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+            return;
+        }
+        //CloudVeil end
         ATTACH_TO_FRAGMENT = !AndroidUtilities.isTablet();
         USE_SURFACE_VIEW = SharedConfig.useSurfaceInStories && ATTACH_TO_FRAGMENT;
         messageId = storyItem == null ? 0 : storyItem.messageId;
