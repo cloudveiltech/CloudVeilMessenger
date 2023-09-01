@@ -76,6 +76,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -6403,6 +6404,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onResume() {
         super.onResume();
+
+        //CloudVeil start - asking for notification permissions. Probably would be dropped next build
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            int notificationPermission = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS);
+            if (notificationPermission != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getParentActivity(), new String[] {Manifest.permission.POST_NOTIFICATIONS}, 0);
+            }
+        }
+        //CloudVEil end
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
         }
