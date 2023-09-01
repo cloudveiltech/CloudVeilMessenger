@@ -2134,7 +2134,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
             dialog_id = -chatId;
             if (ChatObject.isChannel(currentChat)) {
-                if (ChatObject.isNotInChat(currentChat)) {
+                if (ChatObject.isNotInChat(currentChat) && !isThreadChat() && !isInScheduleMode()) {
                     waitingForGetDifference = true;
                     getMessagesController().startShortPoll(currentChat, classGuid, false, isGettingDifference -> {
                         waitingForGetDifference = isGettingDifference;
@@ -7215,7 +7215,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     private void createTopPanel() {
-        if (topChatPanelView != null || getContext() == null) {
+        if (contentView == null || topChatPanelView != null || getContext() == null) {
             return;
         }
 
@@ -7398,6 +7398,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 args.putBoolean("addContact", true);
                 ContactAddActivity activity = new ContactAddActivity(args);
                 activity.setDelegate(() -> {
+                    if (undoView != null || getContext() == null) {
+                        return;
+                    }
                     createUndoView();
                     undoView.showWithAction(dialog_id, UndoView.ACTION_CONTACT_ADDED, currentUser);
                 });
@@ -10460,13 +10463,21 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 FileLog.e(e);
             }
         } else if (which == attach_gallery) {
-            if (Build.VERSION.SDK_INT >= 23 && getParentActivity().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                try {
-                    getParentActivity().requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
-                } catch (Throwable ignore) {
-
+            final Activity activity = getParentActivity();
+            if (Build.VERSION.SDK_INT >= 33) {
+                if (activity.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                    try {
+                        getParentActivity().requestPermissions(new String[]{Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
+                    } catch (Throwable ignore) {}
+                    return;
                 }
-                return;
+            } else if (Build.VERSION.SDK_INT >= 23) {
+                if (activity.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    try {
+                        getParentActivity().requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
+                    } catch (Throwable ignore) {}
+                    return;
+                }
             }
             boolean allowGifs;
             if (ChatObject.isChannel(currentChat) && currentChat.banned_rights != null && currentChat.banned_rights.send_gifs) {
@@ -15639,7 +15650,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 Collections.reverse(messArr);
             }
             if (currentEncryptedChat == null) {
-                getMediaDataController().loadReplyMessagesForMessages(messArr, dialog_id, chatMode == MODE_SCHEDULED, 0, null);
+                getMediaDataController().loadReplyMessagesForMessages(messArr, dialog_id, chatMode == MODE_SCHEDULED, 0, null, classGuid);
             }
             int approximateHeightSum = 0;
             if (!chatWasReset && (load_type == 2 || load_type == 1) && messArr.isEmpty() && !isCache) {
@@ -16790,7 +16801,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 ArrayList<MessageObject> messArr = new ArrayList<>();
                 messArr.add(obj);
                 if (currentEncryptedChat == null) {
-                    getMediaDataController().loadReplyMessagesForMessages(messArr, dialog_id, chatMode == MODE_SCHEDULED, 0, null);
+                    getMediaDataController().loadReplyMessagesForMessages(messArr, dialog_id, chatMode == MODE_SCHEDULED, 0, null, classGuid);
                 }
                 if (chatAdapter != null) {
                     chatAdapter.updateRowWithMessageObject(obj, false, false);
@@ -17593,7 +17604,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     }
                     boolean updated = false;
                     if (arrayList != null) {
-                        getMediaDataController().loadReplyMessagesForMessages(arrayList, dialog_id, false, 0, null);
+                        getMediaDataController().loadReplyMessagesForMessages(arrayList, dialog_id, false, 0, null, classGuid);
                     }
                     for (int a = 0, N = ids.size(); a < N; a++) {
                         Integer mid = ids.get(a);
@@ -17686,7 +17697,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             }
                             loadingPinnedMessages.remove(message.getId());
                         }
-                        getMediaDataController().loadReplyMessagesForMessages(arrayList, dialog_id, false, 0, null);
+                        getMediaDataController().loadReplyMessagesForMessages(arrayList, dialog_id, false, 0, null, classGuid);
                         updateMessagesVisiblePart(false);
                     } else {
                         pinnedMessageIds.clear();
@@ -18036,7 +18047,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 totalPinnedMessagesCount = (Integer) args[3];
                 pinnedEndReached = (Boolean) args[4];
 
-                getMediaDataController().loadReplyMessagesForMessages(new ArrayList<>(pinnedMessageObjects.values()), dialog_id, false, 0, null);
+                getMediaDataController().loadReplyMessagesForMessages(new ArrayList<>(pinnedMessageObjects.values()), dialog_id, false, 0, null, classGuid);
 
                 if (!inMenuMode && !loadingPinnedMessagesList && totalPinnedMessagesCount == 0 && !pinnedEndReached) {
                     getMediaDataController().loadPinnedMessages(dialog_id, 0, fallbackId);
@@ -20281,6 +20292,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
         flagSecure.detach();
+
+        super.onBecomeFullyHidden();
     }
 
     public void saveKeyboardPositionBeforeTransition() {
@@ -23208,6 +23221,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     private CharSequence getMessageCaption(MessageObject messageObject, MessageObject.GroupedMessages group, int[] msgId) {
+        if (messageObject == null) {
+            return null;
+        }
         String restrictionReason = MessagesController.getRestrictionReason(messageObject.messageOwner.restriction_reason);
         if (!TextUtils.isEmpty(restrictionReason)) {
             return restrictionReason;
@@ -26745,6 +26761,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     private void runCloseInstantCameraAnimation() {
+        if (instantCameraView == null) {
+            return;
+        }
         instantCameraView.cancelBlur();
 
         final InstantCameraView.InstantViewCameraContainer cameraContainer = instantCameraView.getCameraContainer();
