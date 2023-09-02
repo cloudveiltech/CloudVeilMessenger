@@ -27952,6 +27952,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     @Override
                     public void didClickImage(ChatActionCell cell) {
                         MessageObject message = cell.getMessageObject();
+                        //CloudVeil start
+                        if(message.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto && GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                            return;
+                        }
+                        //CloudVeil end
                         PhotoViewer.getInstance().setParentActivity(ChatActivity.this, themeDelegate);
                         TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(message.photoThumbs, 640);
                         TLRPC.VideoSize videoSize = null;
