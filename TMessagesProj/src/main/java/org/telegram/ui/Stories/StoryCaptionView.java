@@ -488,7 +488,7 @@ public class StoryCaptionView extends NestedScrollView {
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(0, 1f);
         valueAnimator.addUpdateListener(animation -> {
             float value = (float) animation.getAnimatedValue();
-            final float toScrollY = (captionContainer.getBottom() - getMeasuredHeight());
+            final float toScrollY = Math.min(getMeasuredHeight() - blackoutBottomOffset - AndroidUtilities.dp(64), captionContainer.getBottom() - getMeasuredHeight());
             setScrollY((int) AndroidUtilities.lerp(fromScrollY, toScrollY, value));
             captionTextview.progressToExpand = AndroidUtilities.lerp(fromP, toP, value);
             captionTextview.invalidate();
@@ -552,6 +552,7 @@ public class StoryCaptionView extends NestedScrollView {
 
         private final PorterDuffColorFilter emojiColorFilter;
 
+        boolean shouldCollapse;
         TextPaint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         TextPaint showMorePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         private final Paint xRefPaint = new Paint();
@@ -594,7 +595,7 @@ public class StoryCaptionView extends NestedScrollView {
                 }
                 final Layout layout = fullLayout;
                 final int lineCount = layout.getLineCount();
-                if (lineCount <= 3) {
+                if (!shouldCollapse) {
                     return height - (verticalPadding * 2 + textHeight);
                 }
                 int i = Math.min(3, lineCount);
@@ -649,7 +650,15 @@ public class StoryCaptionView extends NestedScrollView {
                 fullLayout = makeTextLayout(textPaint, text, width);
                 textHeight = fullLayout.getHeight();
                 float space = textPaint.measureText(" ");
-                if (fullLayout.getLineCount() > 3) {
+                shouldCollapse = fullLayout.getLineCount() > 3;
+                if (shouldCollapse && fullLayout.getLineCount() == 4) {
+                    int start = fullLayout.getLineStart(2);
+                    int end = fullLayout.getLineEnd(2);
+                    if (TextUtils.getTrimmedLength(text.subSequence(start, end)) == 0) {
+                        shouldCollapse = false;
+                    }
+                }
+                if (shouldCollapse) {
                     float collapsedY = fullLayout.getLineTop(2) + fullLayout.getTopPadding();
                     if (this == state[0]) {
                         String showMoreText = LocaleController.getString("ShowMore", R.string.ShowMore);
@@ -1032,7 +1041,7 @@ public class StoryCaptionView extends NestedScrollView {
             } else {
                 state[0].setup(text);
                 state[0].translating = translating;
-                invalidate();
+            invalidate();
                 updateT = 0;
             }
         }

@@ -2536,7 +2536,7 @@ public class SelectAnimatedEmojiDialog extends FrameLayout implements Notificati
             addButtonView.addView(addButtonTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
             addView(addButtonView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
-            premiumButtonView = new PremiumButtonView(getContext(), false);
+            premiumButtonView = new PremiumButtonView(getContext(), false, resourcesProvider);
             premiumButtonView.setIcon(R.raw.unlock_icon);
             addView(premiumButtonView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         }
@@ -4442,7 +4442,7 @@ public class SelectAnimatedEmojiDialog extends FrameLayout implements Notificati
 
                 @Override
                 protected boolean isTabIconsAnimationEnabled(boolean loaded) {
-                    return LiteMode.isEnabled(LiteMode.FLAG_ANIMATED_EMOJI_KEYBOARD) && (!loaded || type == TYPE_AVATAR_CONSTRUCTOR);
+                    return LiteMode.isEnabled(LiteMode.FLAG_ANIMATED_EMOJI_KEYBOARD) || type == TYPE_AVATAR_CONSTRUCTOR;
                 }
             };
             categoriesListView.setShownButtonsAtStart(type == TYPE_AVATAR_CONSTRUCTOR ? 6.5f : 4.5f);
