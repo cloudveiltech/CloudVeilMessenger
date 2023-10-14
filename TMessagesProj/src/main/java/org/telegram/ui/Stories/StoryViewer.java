@@ -318,7 +318,7 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
         }
 
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

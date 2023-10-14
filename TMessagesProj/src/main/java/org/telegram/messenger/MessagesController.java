@@ -4477,7 +4477,7 @@ public class MessagesController extends BaseController implements NotificationCe
             user.emoji_status = new TLRPC.TL_emojiStatusEmpty();
         }
 
-        user.stories_unavailable = GlobalSecuritySettings.LOCK_DISABLE_STORIES;
+        user.stories_unavailable = GlobalSecuritySettings.getIsDisableStories();
         //CloudVeil end
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
         TLRPC.User oldUser = users.get(user.id);
@@ -18411,7 +18411,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public boolean storiesEnabled() {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end

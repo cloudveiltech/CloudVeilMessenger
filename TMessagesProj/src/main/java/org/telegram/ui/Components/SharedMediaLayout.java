@@ -2548,7 +2548,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
     protected boolean includeStories() {
         //CloudVeil start
-        return !GlobalSecuritySettings.LOCK_DISABLE_STORIES;
+        return !GlobalSecuritySettings.getIsDisableStories();
         //CloudVeil end
     }
 

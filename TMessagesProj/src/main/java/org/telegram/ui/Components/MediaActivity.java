@@ -617,7 +617,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
             @Override
             protected boolean includeStories() {
                 //CloudVeil start
-                return !GlobalSecuritySettings.LOCK_DISABLE_STORIES && type == TYPE_STORIES;
+                return !GlobalSecuritySettings.getIsDisableStories() && type == TYPE_STORIES;
                 //CloudVeil end
             }
 

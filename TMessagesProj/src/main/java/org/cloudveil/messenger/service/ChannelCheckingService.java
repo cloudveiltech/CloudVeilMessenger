@@ -304,6 +304,7 @@ public class ChannelCheckingService extends Service {
         GlobalSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         GlobalSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
         GlobalSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
+        GlobalSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
 
         if(settingsResponse.organization != null) {
             GlobalSecuritySettings.setIsOrganisationChangeRequired(settingsResponse.organization.needChange);

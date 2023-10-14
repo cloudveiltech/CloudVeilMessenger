@@ -8131,7 +8131,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     //CloudVeil start
-    public boolean storiesEnabled = !GlobalSecuritySettings.LOCK_DISABLE_STORIES;
+    public boolean storiesEnabled = !GlobalSecuritySettings.getIsDisableStories();
     //CloudVeil end
     private void updateStoriesPosting() {
         final boolean storiesEnabled = getMessagesController().storiesEnabled();

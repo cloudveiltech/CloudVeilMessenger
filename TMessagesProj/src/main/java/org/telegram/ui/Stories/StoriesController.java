@@ -224,7 +224,7 @@ public class StoriesController {
 
     public boolean hasStories(long dialogId) {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end
@@ -234,7 +234,7 @@ public class StoriesController {
 
     public boolean hasStories() {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end
@@ -243,7 +243,7 @@ public class StoriesController {
 
     public void loadStories() {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end
@@ -330,7 +330,7 @@ public class StoriesController {
 
     private void loadFromServer(boolean hidden) {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end
@@ -1172,7 +1172,7 @@ public class StoriesController {
 
     public ArrayList<TLRPC.TL_userStories> getHiddenList() {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return new ArrayList<TLRPC.TL_userStories>();
         }
         //CloudVeil end

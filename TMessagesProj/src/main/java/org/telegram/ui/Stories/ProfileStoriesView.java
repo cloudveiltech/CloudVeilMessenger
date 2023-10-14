@@ -161,7 +161,7 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
 
     private void updateStories(boolean animated, boolean asUpdate) {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

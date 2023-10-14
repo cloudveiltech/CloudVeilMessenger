@@ -28,7 +28,6 @@ public class GlobalSecuritySettings {
     public static final boolean LOCK_DISABLE_IN_APP_BROWSER = true;
     public static final boolean LOCK_DISABLE_AUTOPLAY_GIFS = true;
     public static final boolean LOCK_DISABLE_GLOBAL_SEARCH = true;
-    public static final boolean LOCK_DISABLE_STORIES = true;
 
     private static final boolean DEFAULT_LOCK_DISABLE_STICKERS = false;
     private static final boolean DEFAULT_LOCK_DISABLE_GIFS = true;
@@ -44,6 +43,7 @@ public class GlobalSecuritySettings {
     private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_BIO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_OTHERS_PHOTO = true;
     private static final boolean DEFAULT_LOCK_DISABLE_INLINE_VIDEO = true;
+    private static final boolean DEFAULT_LOCK_DISABLE_STORIES = true;
 
     public static boolean isDisabledSecretChat() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
@@ -261,5 +261,16 @@ public class GlobalSecuritySettings {
         }
         preferences.edit().putString("installId__" + accountNum, id).apply();
         return id;
+    }
+
+    public static void setIsDisableStories(boolean isStoriesDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isStoriesDisabled", isStoriesDisabled).apply();
+    }
+
+    public static boolean getIsDisableStories() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        boolean res = preferences.getBoolean("isStoriesDisabled", GlobalSecuritySettings.DEFAULT_LOCK_DISABLE_STORIES);
+        return res;
     }
 }

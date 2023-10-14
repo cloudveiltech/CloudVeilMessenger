@@ -370,7 +370,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

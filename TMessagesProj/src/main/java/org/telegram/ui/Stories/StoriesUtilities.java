@@ -811,7 +811,7 @@ public class StoriesUtilities {
 
     public static boolean isExpired(int currentAccount, TLRPC.StoryItem storyItem) {
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_STORIES) {
+        if(GlobalSecuritySettings.getIsDisableStories()) {
             return true;
         }
         //CloudVeil end
