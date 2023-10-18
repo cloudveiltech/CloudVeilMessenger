@@ -10,6 +10,8 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.Layout;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -18,12 +20,16 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.Paint.Views.EditTextOutline;
+import org.telegram.ui.Components.Paint.Views.PaintTextOptionsView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -162,6 +168,7 @@ public class PaintingOverlay extends FrameLayout {
                 View child = null;
                 if (entity.type == 0) {
                     BackupImageView imageView = new BackupImageView(getContext());
+                    imageView.setLayerNum(8);
                     imageView.setAspectFit(true);
                     ImageReceiver imageReceiver = imageView.getImageReceiver();
                     if (isVideo) {
@@ -199,9 +206,45 @@ public class PaintingOverlay extends FrameLayout {
                     editText.setBackgroundColor(Color.TRANSPARENT);
                     editText.setPadding(AndroidUtilities.dp(7), AndroidUtilities.dp(7), AndroidUtilities.dp(7), AndroidUtilities.dp(7));
                     editText.setTextSize(TypedValue.COMPLEX_UNIT_PX, entity.fontSize);
-                    editText.setText(entity.text);
-                    editText.setTypeface(null, Typeface.BOLD);
+                    editText.setTypeface(entity.textTypeface.getTypeface());
+                    SpannableString text = new SpannableString(Emoji.replaceEmoji(entity.text, editText.getPaint().getFontMetricsInt(), (int) (editText.getTextSize() * .8f), false));
+                    for (VideoEditedInfo.EmojiEntity e : entity.entities) {
+                        text.setSpan(new AnimatedEmojiSpan(e.document_id, editText.getPaint().getFontMetricsInt()), e.offset, e.offset + e.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
+                    editText.setText(text);
                     editText.setGravity(Gravity.CENTER);
+
+                    int gravity;
+                    switch (entity.textAlign) {
+                        default:
+                        case PaintTextOptionsView.ALIGN_LEFT:
+                            gravity = Gravity.LEFT | Gravity.CENTER_VERTICAL;
+                            break;
+                        case PaintTextOptionsView.ALIGN_CENTER:
+                            gravity = Gravity.CENTER;
+                            break;
+                        case PaintTextOptionsView.ALIGN_RIGHT:
+                            gravity = Gravity.RIGHT | Gravity.CENTER_VERTICAL;
+                            break;
+                    }
+
+                    editText.setGravity(gravity);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                        int textAlign;
+                        switch (entity.textAlign) {
+                            default:
+                            case PaintTextOptionsView.ALIGN_LEFT:
+                                textAlign = LocaleController.isRTL ? View.TEXT_ALIGNMENT_TEXT_END : View.TEXT_ALIGNMENT_TEXT_START;
+                                break;
+                            case PaintTextOptionsView.ALIGN_CENTER:
+                                textAlign = View.TEXT_ALIGNMENT_CENTER;
+                                break;
+                            case PaintTextOptionsView.ALIGN_RIGHT:
+                                textAlign = LocaleController.isRTL ? View.TEXT_ALIGNMENT_TEXT_START : View.TEXT_ALIGNMENT_TEXT_END;
+                                break;
+                        }
+                        editText.setTextAlignment(textAlign);
+                    }
                     editText.setHorizontallyScrolling(false);
                     editText.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI);
                     editText.setFocusableInTouchMode(true);
@@ -210,22 +253,22 @@ public class PaintingOverlay extends FrameLayout {
                     if (Build.VERSION.SDK_INT >= 23) {
                         editText.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE);
                     }
-                    if ((entity.subType & 1) != 0) {
-                        editText.setTextColor(0xffffffff);
-                        editText.setStrokeColor(entity.color);
-                        editText.setFrameColor(0);
-                        editText.setShadowLayer(0, 0, 0, 0);
-                    } else if ((entity.subType & 4) != 0) {
-                        editText.setTextColor(0xff000000);
-                        editText.setStrokeColor(0);
+                    editText.setShadowLayer(0, 0, 0, 0);
+                    int textColor = entity.color;
+                    if (entity.subType == 0) {
                         editText.setFrameColor(entity.color);
-                        editText.setShadowLayer(0, 0, 0, 0);
+                        textColor = AndroidUtilities.computePerceivedBrightness(entity.color) >= .721f ? Color.BLACK : Color.WHITE;
+                    } else if (entity.subType == 1) {
+                        editText.setFrameColor(AndroidUtilities.computePerceivedBrightness(entity.color) >= .25f ? 0x99000000 : 0x99ffffff);
+                    } else if (entity.subType == 2) {
+                        editText.setFrameColor(AndroidUtilities.computePerceivedBrightness(entity.color) >= .25f ? Color.BLACK : Color.WHITE);
                     } else {
-                        editText.setTextColor(entity.color);
-                        editText.setStrokeColor(0);
                         editText.setFrameColor(0);
-                        editText.setShadowLayer(5, 0, 1, 0x66000000);
                     }
+                    editText.setTextColor(textColor);
+                    editText.setCursorColor(textColor);
+                    editText.setHandlesColor(textColor);
+                    editText.setHighlightColor(Theme.multAlpha(textColor, .4f));
                     entity.view = child = editText;
                 }
                 if (child != null) {

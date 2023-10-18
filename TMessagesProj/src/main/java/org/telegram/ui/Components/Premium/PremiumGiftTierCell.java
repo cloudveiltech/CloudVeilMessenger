@@ -40,8 +40,8 @@ public class PremiumGiftTierCell extends ViewGroup {
     protected GiftPremiumBottomSheet.GiftTier tier;
     protected TextView discountView;
 
-    private String colorKey1 = Theme.key_windowBackgroundWhite;
-    private String colorKey2 = Theme.key_windowBackgroundGray;
+    private int colorKey1 = Theme.key_windowBackgroundWhite;
+    private int colorKey2 = Theme.key_windowBackgroundGray;
     private int gradientWidth;
     private LinearGradient gradient;
     private Paint paint = new Paint();
@@ -161,8 +161,8 @@ public class PremiumGiftTierCell extends ViewGroup {
         rect.bottom = rect.top + v.getMeasuredHeight();
         if (LocaleController.isRTL) {
             int right = rect.right;
-            rect.right = rect.left;
-            rect.left = right;
+            rect.right = getWidth() - rect.left;
+            rect.left = getWidth() - right;
         }
         v.layout(AndroidUtilities.rectTmp2.left, AndroidUtilities.rectTmp2.top, AndroidUtilities.rectTmp2.right, AndroidUtilities.rectTmp2.bottom);
     }

@@ -22,6 +22,10 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -44,10 +48,6 @@ import org.telegram.ui.Cells.GroupCreateUserCell;
 import org.telegram.ui.Cells.ShareDialogCell;
 
 import java.util.ArrayList;
-
-import androidx.core.widget.NestedScrollView;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 public class JoinCallAlert extends BottomSheet {
 
@@ -122,7 +122,7 @@ public class JoinCallAlert extends BottomSheet {
 
             background = new View(context);
             if (hasBackground) {
-                background.setBackground(Theme.AdaptiveRipple.filledRect(Theme.key_featuredStickers_addButton, 4));
+                background.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_featuredStickers_addButton, 4));
             }
             addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 0, 16, withoutBackground ? 0 : 16, 16, 16));
 
@@ -202,7 +202,7 @@ public class JoinCallAlert extends BottomSheet {
             callback.run(cachedChats.size() == 1);
             return;
         }
-        final AlertDialog progressDialog = new AlertDialog(context, 3);
+        final AlertDialog progressDialog = new AlertDialog(context, AlertDialog.ALERT_TYPE_SPINNER);
         TLRPC.TL_phone_getGroupCallJoinAs req = new TLRPC.TL_phone_getGroupCallJoinAs();
         req.peer = accountInstance.getMessagesController().getInputPeer(did);
         int reqId = accountInstance.getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
@@ -242,7 +242,7 @@ public class JoinCallAlert extends BottomSheet {
                 showAlert(context, did, cachedChats, fragment, type, scheduledPeer, delegate);
             }
         } else {
-            final AlertDialog progressDialog = new AlertDialog(context, 3);
+            final AlertDialog progressDialog = new AlertDialog(context, AlertDialog.ALERT_TYPE_SPINNER);
             TLRPC.TL_phone_getGroupCallJoinAs req = new TLRPC.TL_phone_getGroupCallJoinAs();
             req.peer = accountInstance.getMessagesController().getInputPeer(did);
             int reqId = accountInstance.getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
@@ -277,6 +277,10 @@ public class JoinCallAlert extends BottomSheet {
     }
 
     private static void showAlert(Context context, long dialogId, ArrayList<TLRPC.Peer> peers, BaseFragment fragment, int type, TLRPC.Peer scheduledPeer, JoinCallAlertDelegate delegate) {
+        if (type == TYPE_CREATE) {
+            CreateGroupCallBottomSheet.show(peers, fragment, dialogId, delegate);
+            return;
+        }
         JoinCallAlert alert = new JoinCallAlert(context, dialogId, peers, type, scheduledPeer, delegate);
         if (fragment != null) {
             if (fragment.getParentActivity() != null) {
@@ -698,7 +702,7 @@ public class JoinCallAlert extends BottomSheet {
                 view = new ShareDialogCell(context, ShareDialogCell.TYPE_CREATE, null);
                 view.setLayoutParams(new RecyclerView.LayoutParams(AndroidUtilities.dp(80), AndroidUtilities.dp(100)));
             } else {
-                view = new GroupCreateUserCell(context, 2, 0, false, currentType == TYPE_DISPLAY);
+                view = new GroupCreateUserCell(context, 2, 0, false, currentType == TYPE_DISPLAY, null);
             }
             return new RecyclerListView.Holder(view);
         }

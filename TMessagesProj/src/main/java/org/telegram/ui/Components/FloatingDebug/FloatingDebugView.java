@@ -50,6 +50,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.BlurSettingsBottomSheet;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Components.AnimationProperties;
 import org.telegram.ui.Components.CombinedDrawable;
@@ -57,6 +58,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SeekBarView;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.ProfileActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -482,6 +484,18 @@ public class FloatingDebugView extends FrameLayout implements NotificationCenter
 
     private List<FloatingDebugController.DebugItem> getBuiltInDebugItems() {
         List<FloatingDebugController.DebugItem> items = new ArrayList<>();
+
+        items.add(new FloatingDebugController.DebugItem("Theme"));
+        items.add(new FloatingDebugController.DebugItem("Draw action bar shadow", () -> {
+            SharedConfig.drawActionBarShadow = !SharedConfig.drawActionBarShadow;
+            SharedConfig.saveDebugConfig();
+            AndroidUtilities.forEachViews(LaunchActivity.instance.drawerLayoutContainer.getRootView(), View::invalidate);
+        }));
+        items.add(new FloatingDebugController.DebugItem("Show blur settings", () -> {
+            BlurSettingsBottomSheet.show(LaunchActivity.getLastFragment());
+            showBigMenu(false);
+        }));
+
         items.add(new FloatingDebugController.DebugItem(LocaleController.getString(R.string.DebugGeneral)));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             items.add(new FloatingDebugController.DebugItem(LocaleController.getString(SharedConfig.debugWebView ? R.string.DebugMenuDisableWebViewDebug : R.string.DebugMenuEnableWebViewDebug), ()->{
@@ -489,13 +503,6 @@ public class FloatingDebugView extends FrameLayout implements NotificationCenter
                 Toast.makeText(getContext(), LocaleController.getString(SharedConfig.debugWebView ? R.string.DebugMenuWebViewDebugEnabled : R.string.DebugMenuWebViewDebugDisabled), Toast.LENGTH_SHORT).show();
             }));
         }
-        items.add(new FloatingDebugController.DebugItem(LocaleController.getString(SharedConfig.useLNavigation ? R.string.AltNavigationDisable : R.string.AltNavigationEnable), () -> {
-            SharedConfig.useLNavigation = !SharedConfig.useLNavigation;
-            SharedConfig.saveConfig();
-            if (getContext() instanceof Activity) {
-                ((Activity) getContext()).recreate();
-            }
-        }));
         items.add(new FloatingDebugController.DebugItem(Theme.isCurrentThemeDark() ? "Switch to day theme" : "Switch to dark theme", () -> {
             boolean toDark;
 
@@ -527,6 +534,7 @@ public class FloatingDebugView extends FrameLayout implements NotificationCenter
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.needSetDayNightTheme, finalThemeInfo, true, null, -1);
             }, 200);
         }));
+        items.add(new FloatingDebugController.DebugItem(LocaleController.getString(R.string.DebugSendLogs), () -> ProfileActivity.sendLogs((Activity) getContext(), false)));
         return items;
     }
 

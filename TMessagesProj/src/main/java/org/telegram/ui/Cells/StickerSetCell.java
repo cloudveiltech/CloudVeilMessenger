@@ -33,10 +33,11 @@ import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DocumentObject;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
+import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
-import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
@@ -50,10 +51,7 @@ import org.telegram.ui.Components.Easings;
 import org.telegram.ui.Components.ForegroundColorSpanThemable;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.Premium.PremiumButtonView;
-import org.telegram.ui.Components.Premium.PremiumFeatureBottomSheet;
 import org.telegram.ui.Components.RadialProgressView;
-import org.telegram.ui.LaunchActivity;
-import org.telegram.ui.PremiumPreviewFragment;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -94,12 +92,7 @@ public class StickerSetCell extends FrameLayout {
         imageView.setLayerNum(1);
         addView(imageView, LayoutHelper.createFrame(40, 40, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 13, 9, LocaleController.isRTL ? 13 : 0, 0));
 
-        if (option == 2) {
-            progressView = new RadialProgressView(getContext());
-            progressView.setProgressColor(Theme.getColor(Theme.key_dialogProgressCircle));
-            progressView.setSize(AndroidUtilities.dp(30));
-            addView(progressView, LayoutHelper.createFrame(48, 48, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 12, 5, LocaleController.isRTL ? 12 : 0, 0));
-        } else if (option != 0) {
+        if (option != 0) {
             optionsButton = new ImageView(context);
             optionsButton.setFocusable(false);
             optionsButton.setScaleType(ImageView.ScaleType.CENTER);
@@ -121,7 +114,7 @@ public class StickerSetCell extends FrameLayout {
                 addView(reorderButton, LayoutHelper.createFrameRelatively(58, 58, Gravity.END));
 
                 checkBox = new CheckBox2(context, 21);
-                checkBox.setColor(null, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
+                checkBox.setColor(-1, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
                 checkBox.setDrawUnchecked(false);
                 checkBox.setDrawBackgroundAsArc(3);
                 addView(checkBox, LayoutHelper.createFrameRelatively(24, 24, Gravity.START, 34, 30, 0, 0));
@@ -156,7 +149,7 @@ public class StickerSetCell extends FrameLayout {
         removeButtonView.setOnClickListener(e -> onRemoveButtonClick());
         sideButtons.addView(removeButtonView, LayoutHelper.createFrameRelatively(LayoutHelper.WRAP_CONTENT, 32, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL, 0, -2, 0, 0));
 
-        premiumButtonView = new PremiumButtonView(context, AndroidUtilities.dp(4), false);
+        premiumButtonView = new PremiumButtonView(context, AndroidUtilities.dp(4), false, resourcesProvider);
         premiumButtonView.setIcon(R.raw.unlock_icon);
         premiumButtonView.setButton(LocaleController.getString("Unlock", R.string.Unlock), e -> onPremiumButtonClick());
         try {
@@ -182,7 +175,14 @@ public class StickerSetCell extends FrameLayout {
             }
         });
 
-        textView = new TextView(context);
+        textView = new TextView(context) {
+            @Override
+            public void setText(CharSequence text, BufferType type) {
+                text = Emoji.replaceEmoji(text, getPaint().getFontMetricsInt(), AndroidUtilities.dp(14), false);
+                super.setText(text, type);
+            }
+        };
+        NotificationCenter.listenEmojiLoading(textView);
         textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
@@ -300,6 +300,7 @@ public class StickerSetCell extends FrameLayout {
         emojis = set.set.emojis;
         sideButtons.setVisibility(emojis ? View.VISIBLE : View.GONE);
         optionsButton.setVisibility(emojis ? View.GONE : View.VISIBLE);
+        imageView.setColorFilter(null);
 
         ArrayList<TLRPC.Document> documents = set.documents;
         if (documents != null && !documents.isEmpty()) {
@@ -316,6 +317,7 @@ public class StickerSetCell extends FrameLayout {
             if (sticker == null) {
                 sticker = documents.get(0);
             }
+            final boolean lite = !LiteMode.isEnabled(LiteMode.FLAG_ANIMATED_STICKERS_KEYBOARD);
             TLObject object = FileLoader.getClosestPhotoSizeWithSize(set.set.thumbs, 90);
             if (object == null) {
                 object = sticker;
@@ -331,16 +333,21 @@ public class StickerSetCell extends FrameLayout {
                 imageLocation = ImageLocation.getForSticker(thumb, sticker, set.set.thumb_version);
             }
 
+            boolean allowPlay = LiteMode.isEnabled(emojis ? LiteMode.FLAG_ANIMATED_EMOJI_KEYBOARD : LiteMode.FLAG_ANIMATED_STICKERS_KEYBOARD);
+            String filter = "50_50" + (!allowPlay ? "_firstframe" : "");
             if (object instanceof TLRPC.Document && MessageObject.isAnimatedStickerDocument(sticker, true) || MessageObject.isVideoSticker(sticker)) {
                 if (svgThumb != null) {
-                    imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", svgThumb, 0, set);
+                    imageView.setImage(ImageLocation.getForDocument(sticker), filter, svgThumb, 0, set);
                 } else {
-                    imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", imageLocation, null, 0, set);
+                    imageView.setImage(ImageLocation.getForDocument(sticker), filter, imageLocation, null, 0, set);
+                }
+                if (MessageObject.isTextColorEmoji(sticker)) {
+                    imageView.setColorFilter(Theme.getAnimatedEmojiColorFilter(null));
                 }
             } else if (imageLocation != null && imageLocation.imageType == FileLoader.IMAGE_TYPE_LOTTIE) {
-                imageView.setImage(imageLocation, "50_50", "tgs", svgThumb, set);
+                imageView.setImage(imageLocation, filter, "tgs", svgThumb, set);
             } else {
-                imageView.setImage(imageLocation, "50_50", "webp", svgThumb, set);
+                imageView.setImage(imageLocation, filter, "webp", svgThumb, set);
             }
         } else {
             valueTextView.setText(LocaleController.formatPluralString(set.set.emojis ? "EmojiCount" : "Stickers", 0));
@@ -540,7 +547,7 @@ public class StickerSetCell extends FrameLayout {
 
     public void updateRightMargin() {
         sideButtons.measure(MeasureSpec.makeMeasureSpec(999999, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(58), MeasureSpec.EXACTLY));
-        final int margin = sideButtons.getMeasuredWidth();
+        final int margin = AndroidUtilities.dp(26) + sideButtons.getMeasuredWidth();
         if (LocaleController.isRTL) {
             ((MarginLayoutParams) textView.getLayoutParams()).leftMargin = margin;
             ((MarginLayoutParams) valueTextView.getLayoutParams()).leftMargin = margin;

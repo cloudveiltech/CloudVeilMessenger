@@ -110,6 +110,10 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
         default void onOpenInPressed() {
 
         }
+
+        default boolean canFinishFragment() {
+            return true;
+        }
     }
 
     public interface PhotoPickerActivitySearchDelegate {
@@ -192,9 +196,9 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
     private PhotoPickerActivityDelegate delegate;
     private PhotoPickerActivitySearchDelegate searchDelegate;
 
-    private final String dialogBackgroundKey;
-    private final String textKey;
-    private final String selectorKey;
+    private final int dialogBackgroundKey;
+    private final int textKey;
+    private final int selectorKey;
 
     private PhotoViewer.PhotoViewerProvider provider = new PhotoViewer.EmptyPhotoViewerProvider() {
         @Override
@@ -233,7 +237,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                     if (photoEntry.thumbPath != null) {
                         imageView.setImage(photoEntry.thumbPath, null, Theme.chat_attachEmptyDrawable);
                     } else if (photoEntry.path != null) {
-                        imageView.setOrientation(photoEntry.orientation, true);
+                        imageView.setOrientation(photoEntry.orientation, photoEntry.invert, true);
                         if (photoEntry.isVideo) {
                             imageView.setImage("vthumb://" + photoEntry.imageId + ":" + photoEntry.path, null, Theme.chat_attachEmptyDrawable);
                         } else {
@@ -629,7 +633,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                 setMeasuredDimension(widthSize, heightSize);
 
                 int kbHeight = measureKeyboardHeight();
-                int keyboardSize = SharedConfig.smoothKeyboard ? 0 : kbHeight;
+                int keyboardSize = 0;
                 if (keyboardSize <= AndroidUtilities.dp(20)) {
                     if (!AndroidUtilities.isInMultiwindow && commentTextView != null && frameLayout2.getParent() == this) {
                         heightSize -= commentTextView.getEmojiPadding();
@@ -642,7 +646,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                     ignoreLayout = false;
                 }
 
-                if (SharedConfig.smoothKeyboard && commentTextView != null && commentTextView.isPopupShowing()) {
+                if (commentTextView != null && commentTextView.isPopupShowing()) {
                     fragmentView.setTranslationY(0);
                     listView.setTranslationY(0);
                     emptyView.setTranslationY(0);
@@ -683,7 +687,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                 }
                 final int count = getChildCount();
 
-                int keyboardSize = SharedConfig.smoothKeyboard ? 0 : measureKeyboardHeight();
+                int keyboardSize = 0;
                 int paddingBottom = commentTextView != null && frameLayout2.getParent() == this && keyboardSize <= AndroidUtilities.dp(20) && !AndroidUtilities.isInMultiwindow && !AndroidUtilities.isTablet() ? commentTextView.getEmojiPadding() : 0;
                 setBottomClip(paddingBottom);
 
@@ -811,7 +815,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                     showDialog(dialog);
                     TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
                     if (button != null) {
-                        button.setTextColor(Theme.getColor(Theme.key_dialogTextRed2));
+                        button.setTextColor(Theme.getColor(Theme.key_text_RedBold));
                     }
                     return;
                 }
@@ -1275,7 +1279,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
                 initialSearchString = null;
                 processSearch(searchItem.getSearchField());
             }
-            getParentActivity().getWindow().setSoftInputMode(SharedConfig.smoothKeyboard ? WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN : WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            getParentActivity().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
         }
     }
 
@@ -1287,7 +1291,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.closeChats) {
-            removeSelfFromStack();
+            removeSelfFromStack(true);
         }
     }
 
@@ -1757,7 +1761,7 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
         applyCaption();
         sendPressed = true;
         delegate.actionButtonPressed(false, notify, scheduleDate);
-        if (selectPhotoType != PhotoAlbumPickerActivity.SELECT_TYPE_WALLPAPER) {
+        if (selectPhotoType != PhotoAlbumPickerActivity.SELECT_TYPE_WALLPAPER && (delegate == null || delegate.canFinishFragment())) {
             finishFragment();
         }
     }
@@ -1983,5 +1987,10 @@ public class PhotoPickerActivity extends BaseFragment implements NotificationCen
         themeDescriptions.add(new ThemeDescription(listView, 0, new Class[]{View.class}, null, null, null, Theme.key_chat_attachPhotoBackground));
 
         return themeDescriptions;
+    }
+
+    @Override
+    public boolean isLightStatusBar() {
+        return AndroidUtilities.computePerceivedBrightness(Theme.getColor(Theme.key_windowBackgroundGray)) > 0.721f;
     }
 }

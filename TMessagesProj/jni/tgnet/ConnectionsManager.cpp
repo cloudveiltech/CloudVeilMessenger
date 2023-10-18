@@ -297,7 +297,7 @@ void ConnectionsManager::select() {
                 sendPing(datacenter, false);
             }
             if (abs((int32_t) (now / 1000) - lastDcUpdateTime) >= DC_UPDATE_TIME) {
-                updateDcSettings(0, false);
+                updateDcSettings(0, false, false);
             }
             processRequestQueue(0, 0);
         } else if (!datacenter->isHandshakingAny()) {
@@ -405,6 +405,9 @@ void ConnectionsManager::loadConfig() {
                     auto datacenter = new Datacenter(instanceNum, buffer);
                     datacenters[datacenter->getDatacenterId()] = datacenter;
                     if (LOGS_ENABLED) DEBUG_D("datacenter(%p) %u loaded (hasAuthKey = %d, 0x%" PRIx64 ")", datacenter, datacenter->getDatacenterId(), (int) datacenter->hasPermanentAuthKey(), datacenter->getPermanentAuthKeyId());
+                    if (datacenter->isCdnDatacenter && !datacenter->hasPermanentAuthKey()) {
+                        datacenter->clearAuthKey(HandshakeTypePerm);
+                    }
                 }
             }
         }
@@ -670,6 +673,9 @@ void ConnectionsManager::cleanUp(bool resetKeys, int32_t datacenterId) {
 }
 
 void ConnectionsManager::onConnectionClosed(Connection *connection, int reason) {
+    if (reason == 1) {
+        lastProtocolUsefullData = false;
+    }
     Datacenter *datacenter = connection->getDatacenter();
     if ((connection->getConnectionType() == ConnectionTypeGeneric || connection->getConnectionType() == ConnectionTypeGenericMedia) && datacenter->isHandshakingAny()) {
         datacenter->onHandshakeConnectionClosed(connection);
@@ -825,7 +831,7 @@ void ConnectionsManager::onConnectionDataReceived(Connection *connection, Native
                     delegate->onProxyError(instanceNum);
                 }
             } else if (code == -404 && (datacenter->isCdnDatacenter || PFS_ENABLED)) {
-                if (!datacenter->isHandshaking(connection->isMediaConnection)) {
+                if (!datacenter->isHandshaking(connection->isMediaConnection) || datacenter->isCdnDatacenter) {
                     datacenter->clearAuthKey(connection->isMediaConnection ? HandshakeTypeMediaTemp : HandshakeTypeTemp);
                     datacenter->beginHandshake(connection->isMediaConnection ? HandshakeTypeMediaTemp : HandshakeTypeTemp, true);
                     if (LOGS_ENABLED) DEBUG_D("connection(%p, account%u, dc%u, type %d) reset auth key due to -404 error", connection, instanceNum, datacenter->getDatacenterId(), connection->getConnectionType());
@@ -891,10 +897,12 @@ void ConnectionsManager::onConnectionDataReceived(Connection *connection, Native
 
         if (object != nullptr) {
             if (datacenter->isHandshaking(connection->isMediaConnection)) {
+                if (LOGS_ENABLED) DEBUG_E("process handshake");
                 datacenter->processHandshakeResponse(connection->isMediaConnection, object, messageId);
             } else {
-                processServerResponse(object, messageId, 0, 0, connection, 0, 0);
-                connection->addProcessedMessageId(messageId);
+                if (LOGS_ENABLED) DEBUG_E("connection(%p) received incorrect unencrypted message type", connection);
+                connection->reconnect();
+                return;
             }
             lastProtocolUsefullData = true;
             connection->setHasUsefullData();
@@ -962,7 +970,7 @@ void ConnectionsManager::onConnectionDataReceived(Connection *connection, Native
                 }
             } else {
                 if (delegate != nullptr) {
-                    delegate->onUnparsedMessageReceived(0, data, connection->getConnectionType(), instanceNum);
+                    delegate->onUnparsedMessageReceived(messageId, data, connection->getConnectionType(), instanceNum);
                 }
             }
         } else {
@@ -1120,7 +1128,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
             if (innerMessage->unparsedBody != nullptr) {
                 if (LOGS_ENABLED) DEBUG_D("inner message %d id 0x%" PRIx64 " is unparsed", a, innerMessageId);
                 if (delegate != nullptr) {
-                    delegate->onUnparsedMessageReceived(0, innerMessage->unparsedBody.get(), connection->getConnectionType(), instanceNum);
+                    delegate->onUnparsedMessageReceived(innerMessageId, innerMessage->unparsedBody.get(), connection->getConnectionType(), instanceNum);
                 }
             } else {
                 if (LOGS_ENABLED) DEBUG_D("inner message %d id 0x%" PRIx64 " process", a, innerMessageId);
@@ -1295,11 +1303,17 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                                     request->serverFailureCount++;
                                 }
                                 discardResponse = true;
-                            } else if (error->error_code == 420) {
+                            } else if (error->error_code == -504) {
+                                discardResponse = (request->requestFlags & RequestFlagIgnoreFloodWait) == 0;
+                                request->failedByFloodWait = 2;
+                                request->startTime = 0;
+                                request->startTimeMillis = 0;
+                                request->minStartTime = (int32_t) (getCurrentTimeMonotonicMillis() / 1000 + 2);
+                            } else if (error->error_code == 420 && (request->requestFlags & RequestFlagIgnoreFloodWait) == 0 && error->error_message.find("STORY_SEND_FLOOD") == std::string::npos) {
                                 int32_t waitTime = 2;
                                 static std::string floodWait = "FLOOD_WAIT_";
                                 static std::string slowmodeWait = "SLOWMODE_WAIT_";
-                                discardResponse = (request->requestFlags & RequestFlagIgnoreFloodWait) == 0;
+                                discardResponse = true;
                                 if (error->error_message.find(floodWait) != std::string::npos) {
                                     std::string num = error->error_message.substr(floodWait.size(), error->error_message.size() - floodWait.size());
                                     waitTime = atoi(num.c_str());
@@ -1629,7 +1643,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                 NativeByteBuffer *data = BuffersStorage::getInstance().getFreeBuffer(message->getObjectSize());
                 message->serializeToStream(data);
                 data->position(0);
-                delegate->onUnparsedMessageReceived(0, data, connection->getConnectionType(), instanceNum);
+                delegate->onUnparsedMessageReceived(messageId, data, connection->getConnectionType(), instanceNum);
                 data->reuse();
             }
         }
@@ -1758,17 +1772,24 @@ void ConnectionsManager::detachConnection(ConnectionSocket *connection) {
 }
 
 int32_t ConnectionsManager::sendRequestInternal(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate) {
-    if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
-        if (LOGS_ENABLED) DEBUG_D("can't do request without login %s", typeid(*object).name());
-        delete object;
-        return 0;
-    }
     auto request = new Request(instanceNum, lastRequestToken++, connetionType, flags, datacenterId, onComplete, onQuickAck, nullptr);
     request->rawRequest = object;
     request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
-    requestsQueue.push_back(std::unique_ptr<Request>(request));
-    if (immediate) {
-        processRequestQueue(0, 0);
+    auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
+    if (cancelledIterator != tokensToBeCancelled.end()) {
+        if (LOGS_ENABLED) DEBUG_D("(3) request is cancelled before sending, token %d", request->requestToken);
+        tokensToBeCancelled.erase(cancelledIterator);
+        delete request;
+        return request->requestToken;
+    }
+    if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
+        if (LOGS_ENABLED) DEBUG_D("can't do request without login %s, reschedule token %d", typeid(*object).name(), request->requestToken);
+        waitingLoginRequests.push_back(std::unique_ptr<Request>(request));
+    } else {
+        requestsQueue.push_back(std::unique_ptr<Request>(request));
+        if (immediate) {
+            processRequestQueue(0, 0);
+        }
     }
     return request->requestToken;
 }
@@ -1779,11 +1800,6 @@ int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onCompl
 }
 
 int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate, int32_t requestToken) {
-    if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
-        if (LOGS_ENABLED) DEBUG_D("can't do request without login %s", typeid(*object).name());
-        delete object;
-        return 0;
-    }
     if (requestToken == 0) {
         requestToken = lastRequestToken++;
     }
@@ -1791,9 +1807,20 @@ int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onCompl
         auto request = new Request(instanceNum, requestToken, connetionType, flags, datacenterId, onComplete, onQuickAck, nullptr);
         request->rawRequest = object;
         request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
-        requestsQueue.push_back(std::unique_ptr<Request>(request));
-        if (immediate) {
-            processRequestQueue(0, 0);
+        auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
+        if (cancelledIterator != tokensToBeCancelled.end()) {
+            if (LOGS_ENABLED) DEBUG_D("(1) request is cancelled before sending, token %d", requestToken);
+            tokensToBeCancelled.erase(cancelledIterator);
+            delete request;
+        }
+        if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
+            if (LOGS_ENABLED) DEBUG_D("can't do request without login %s, reschedule token %d", typeid(*object).name(), requestToken);
+            waitingLoginRequests.push_back(std::unique_ptr<Request>(request));
+        } else {
+            requestsQueue.push_back(std::unique_ptr<Request>(request));
+            if (immediate) {
+                processRequestQueue(0, 0);
+            }
         }
     });
     return requestToken;
@@ -1801,28 +1828,6 @@ int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onCompl
 
 #ifdef ANDROID
 void ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onWriteToSocketFunc onWriteToSocket, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate, int32_t requestToken, jobject ptr1, jobject ptr2, jobject ptr3) {
-    if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
-        if (LOGS_ENABLED) DEBUG_D("can't do request without login %s", typeid(*object).name());
-        delete object;
-        JNIEnv *env = 0;
-        if (javaVm->GetEnv((void **) &env, JNI_VERSION_1_6) != JNI_OK) {
-            if (LOGS_ENABLED) DEBUG_E("can't get jnienv");
-            exit(1);
-        }
-        if (ptr1 != nullptr) {
-            env->DeleteGlobalRef(ptr1);
-            ptr1 = nullptr;
-        }
-        if (ptr2 != nullptr) {
-            env->DeleteGlobalRef(ptr2);
-            ptr2 = nullptr;
-        }
-        if (ptr3 != nullptr) {
-            env->DeleteGlobalRef(ptr3);
-            ptr3 = nullptr;
-        }
-        return;
-    }
     scheduleTask([&, requestToken, object, onComplete, onQuickAck, onWriteToSocket, flags, datacenterId, connetionType, immediate, ptr1, ptr2, ptr3] {
         if (LOGS_ENABLED) DEBUG_D("send request %p - %s", object, typeid(*object).name());
         auto request = new Request(instanceNum, requestToken, connetionType, flags, datacenterId, onComplete, onQuickAck, onWriteToSocket);
@@ -1832,9 +1837,21 @@ void ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete
         request->ptr3 = ptr3;
         request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
         if (LOGS_ENABLED) DEBUG_D("send request wrapped %p - %s", request->rpcRequest.get(), typeid(*(request->rpcRequest.get())).name());
-        requestsQueue.push_back(std::unique_ptr<Request>(request));
-        if (immediate) {
-            processRequestQueue(0, 0);
+        auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
+        if (cancelledIterator != tokensToBeCancelled.end()) {
+            if (LOGS_ENABLED) DEBUG_D("(2) request is cancelled before sending, token %d", requestToken);
+            tokensToBeCancelled.erase(cancelledIterator);
+            delete request;
+            return;
+        }
+        if (!currentUserId && !(flags & RequestFlagWithoutLogin)) {
+            if (LOGS_ENABLED) DEBUG_D("can't do request without login %s, reschedule token %d", typeid(*object).name(), request->requestToken);
+            waitingLoginRequests.push_back(std::unique_ptr<Request>(request));
+        } else {
+            requestsQueue.push_back(std::unique_ptr<Request>(request));
+            if (immediate) {
+                processRequestQueue(0, 0);
+            }
         }
     });
 }
@@ -1880,7 +1897,7 @@ void ConnectionsManager::setUserId(int64_t userId) {
             registerForInternalPushUpdates();
         }
         if (currentUserId != userId && userId != 0) {
-            updateDcSettings(0, false);
+            updateDcSettings(0, false, false);
         }
         if (currentUserId != 0 && pushConnectionEnabled) {
             Datacenter *datacenter = getDatacenterWithId(currentDatacenterId);
@@ -1888,6 +1905,16 @@ void ConnectionsManager::setUserId(int64_t userId) {
                 datacenter->createPushConnection()->setSessionId(pushSessionId);
                 sendPing(datacenter, true);
             }
+        }
+        if (LOGS_ENABLED) DEBUG_D("set user %lld", userId);
+        if (currentUserId != 0 && !waitingLoginRequests.empty()) {
+            for (auto iter = waitingLoginRequests.begin(); iter != waitingLoginRequests.end(); iter++) {
+                Request *request = iter->get();
+                if (LOGS_ENABLED) DEBUG_D("run rescheduled request %d", request->requestToken);
+                requestsQueue.push_back(std::move(*iter));
+            }
+            processRequestQueue(0, 0);
+            waitingLoginRequests.clear();
         }
     });
 }
@@ -1926,12 +1953,29 @@ void ConnectionsManager::removeRequestFromGuid(int32_t requestToken) {
 }
 
 bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId, bool notifyServer, bool removeFromClass) {
+    if (!tokensToBeCancelled.empty() && (connectionState != ConnectionStateWaitingForNetwork || tokensToBeCancelled.size() > 5000)) {
+        tokensToBeCancelled.clear();
+    }
+
     for (auto iter = requestsQueue.begin(); iter != requestsQueue.end(); iter++) {
         Request *request = iter->get();
         if ((token != 0 && request->requestToken == token) || (messageId != 0 && request->respondsToMessageId(messageId))) {
             request->cancelled = true;
             if (LOGS_ENABLED) DEBUG_D("cancelled queued rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
             requestsQueue.erase(iter);
+            if (removeFromClass) {
+                removeRequestFromGuid(token);
+            }
+            return true;
+        }
+    }
+
+    for (auto iter = waitingLoginRequests.begin(); iter != waitingLoginRequests.end(); iter++) {
+        Request *request = iter->get();
+        if ((token != 0 && request->requestToken == token) || (messageId != 0 && request->respondsToMessageId(messageId))) {
+            request->cancelled = true;
+            if (LOGS_ENABLED) DEBUG_D("cancelled waiting login  rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
+            waitingLoginRequests.erase(iter);
             if (removeFromClass) {
                 removeRequestFromGuid(token);
             }
@@ -1956,6 +2000,12 @@ bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId,
             return true;
         }
     }
+
+    if (token != 0 && connectionState == ConnectionStateWaitingForNetwork) {
+        if (LOGS_ENABLED) DEBUG_D("request is tried to be cancelled, but it does not even exist, token %d", token);
+        tokensToBeCancelled.insert(token);
+    }
+
     return false;
 }
 
@@ -1965,6 +2015,30 @@ void ConnectionsManager::cancelRequest(int32_t token, bool notifyServer) {
     }
     scheduleTask([&, token, notifyServer] {
         cancelRequestInternal(token, 0, notifyServer, true);
+    });
+}
+
+void ConnectionsManager::failNotRunningRequest(int32_t token) {
+    if (token == 0) {
+        return;
+    }
+
+    scheduleTask([&, token] {
+        for (auto iter = requestsQueue.begin(); iter != requestsQueue.end(); iter++) {
+            Request *request = iter->get();
+            if ((token != 0 && request->requestToken == token)) {
+                auto error = new TL_error();
+                error->code = -2000;
+                error->text = "CANCELLED_REQUEST";
+                request->onComplete(nullptr, error, 0, 0, request->messageId);
+
+                request->cancelled = true;
+                if (LOGS_ENABLED) DEBUG_D("cancelled queued rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
+                requestsQueue.erase(iter);
+                removeRequestFromGuid(token);
+                return true;
+            }
+        }
     });
 }
 
@@ -2729,7 +2803,7 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
     }
 
     if (!unknownDatacenterIds.empty()) {
-        updateDcSettings(0, false);
+        updateDcSettings(0, false, false);
     }
 
     size_t count = neededDatacenters.size();
@@ -2830,6 +2904,16 @@ std::unique_ptr<TLObject> ConnectionsManager::wrapInLayer(TLObject *object, Data
             jsonNumber->value = currentDeviceTimezone;
             objectValue->key = "tz_offset";
             objectValue->value = std::unique_ptr<JSONValue>(jsonNumber);
+
+            if (currentPerformanceClass != -1) {
+                objectValue = new TL_jsonObjectValue();
+                jsonObject->value.push_back(std::unique_ptr<TL_jsonObjectValue>(objectValue));
+
+                auto jsonNumber = new TL_jsonNumber();
+                jsonNumber->value = currentPerformanceClass + 1;
+                objectValue->key = "perf_cat";
+                objectValue->value = std::unique_ptr<JSONValue>(jsonNumber);
+            }
 
             request->flags |= 2;
 
@@ -2950,7 +3034,7 @@ inline std::string decodeSecret(std::string secret) {
     return base64UrlDecode(secret);
 }
 
-void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround) {
+void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround, bool ifLoadingTryAgain) {
     if (workaround) {
         if (updatingDcSettingsWorkaround) {
             return;
@@ -2958,6 +3042,10 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround) {
         updatingDcSettingsWorkaround = true;
     } else {
         if (updatingDcSettings) {
+            if (ifLoadingTryAgain) {
+                updatingDcSettingsAgain = true;
+                updatingDcSettingsAgainDcNum = dcNum;
+            }
             return;
         }
         updatingDcSettings = true;
@@ -2967,6 +3055,16 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround) {
     auto request = new TL_help_getConfig();
     sendRequest(request, [&, workaround](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime, int64_t msgId) {
         if ((!workaround && !updatingDcSettings) || (workaround && !updatingDcSettingsWorkaround)) {
+            return;
+        }
+        if (!workaround && updatingDcSettingsAgain && updatingDcSettingsAgainDcNum == dcNum) {
+            updatingDcSettingsAgain = false;
+            for (auto & datacenter : datacenters) {
+                if (datacenter.first == dcNum) {
+                    datacenter.second->resetInitVersion();
+                }
+            }
+            updateDcSettings(updatingDcSettingsAgainDcNum, false, false);
             return;
         }
 
@@ -2987,12 +3085,14 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround) {
                 std::vector<TcpAddress> addressesIpv4Download;
                 std::vector<TcpAddress> addressesIpv6Download;
                 bool isCdn = false;
+                bool forceTryIpV6;
 
                 void addAddressAndPort(TL_dcOption *dcOption) {
                     std::vector<TcpAddress> *addresses;
                     if (!isCdn) {
                         isCdn = dcOption->cdn;
                     }
+                    forceTryIpV6 = dcOption->force_try_ipv6;
                     if (dcOption->media_only) {
                         if (dcOption->ipv6) {
                             addresses = &addressesIpv6Download;
@@ -3015,7 +3115,7 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround) {
                     if (dcOption->secret != nullptr) {
                         secret = std::string((const char *) dcOption->secret->bytes, dcOption->secret->length);
                     }
-                    if (LOGS_ENABLED) DEBUG_D("getConfig add %s:%d to dc%d, flags %d, has_secret = %d[%d], try_this_port_only = %d", dcOption->ip_address.c_str(), dcOption->port, dcOption->id, dcOption->flags, dcOption->secret != nullptr ? 1 : 0, dcOption->secret != nullptr ? dcOption->secret->length : 0, dcOption->thisPortOnly ? 1 : 0);
+                    if (LOGS_ENABLED) DEBUG_D("getConfig add %s:%d to dc%d, flags %d, has_secret = %d[%d], try_this_port_only = %d, force_try_ipv6 = %d", dcOption->ip_address.c_str(), dcOption->port, dcOption->id, dcOption->flags, dcOption->secret != nullptr ? 1 : 0, dcOption->secret != nullptr ? dcOption->secret->length : 0, dcOption->thisPortOnly ? 1 : 0, dcOption->force_try_ipv6 ? 1 : 0);
                     if (dcOption->thisPortOnly) {
                         addresses->insert(addresses->begin(), TcpAddress(dcOption->ip_address, dcOption->port, dcOption->flags, secret));
                     } else {
@@ -3081,27 +3181,13 @@ void ConnectionsManager::moveToDatacenter(uint32_t datacenterId) {
 
     Datacenter *currentDatacenter = getDatacenterWithId(currentDatacenterId);
     clearRequestsForDatacenter(currentDatacenter, HandshakeTypeAll);
-
-    if (currentUserId) {
-        auto request = new TL_auth_exportAuthorization();
-        request->dc_id = datacenterId;
-        sendRequest(request, [&, datacenterId](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime, int64_t msgId) {
-            if (error == nullptr) {
-                movingAuthorization = std::move(((TL_auth_exportedAuthorization *) response)->bytes);
-                authorizeOnMovingDatacenter();
-            } else {
-                moveToDatacenter(datacenterId);
-            }
-        }, nullptr, RequestFlagWithoutLogin, DEFAULT_DATACENTER_ID, ConnectionTypeGeneric, true);
-    } else {
-        authorizeOnMovingDatacenter();
-    }
+    authorizeOnMovingDatacenter();
 }
 
 void ConnectionsManager::authorizeOnMovingDatacenter() {
     Datacenter *datacenter = getDatacenterWithId(movingToDatacenterId);
     if (datacenter == nullptr) {
-        updateDcSettings(0, false);
+        updateDcSettings(0, false, false);
         return;
     }
     datacenter->recreateSessions(HandshakeTypeAll);
@@ -3152,7 +3238,7 @@ void ConnectionsManager::applyDatacenterAddress(uint32_t datacenterId, std::stri
             if (datacenter->isHandshakingAny()) {
                 datacenter->beginHandshake(HandshakeTypeCurrent, true);
             }
-            updateDcSettings(datacenterId, false);
+            updateDcSettings(datacenterId, false, false);
         }
     });
 }
@@ -3245,7 +3331,7 @@ void ConnectionsManager::applyDnsConfig(NativeByteBuffer *buffer, std::string ph
                         if (datacenter->isHandshakingAny()) {
                             datacenter->beginHandshake(HandshakeTypeCurrent, true);
                         }
-                        updateDcSettings(rule->dc_id, true);
+                        updateDcSettings(rule->dc_id, true, false);
                     }
                 } else {
                     if (LOGS_ENABLED) DEBUG_D("config datacenter %d not found", rule->dc_id);
@@ -3276,7 +3362,7 @@ void ConnectionsManager::applyDnsConfig(NativeByteBuffer *buffer, std::string ph
     });
 }
 
-void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType) {
+void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType, int32_t performanceClass) {
     currentVersion = version;
     currentLayer = layer;
     currentApiId = apiId;
@@ -3296,6 +3382,7 @@ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, st
     pushConnectionEnabled = enablePushConnection;
     currentNetworkType = networkType;
     networkAvailable = hasNetwork;
+    currentPerformanceClass = performanceClass;
     if (isPaused) {
         lastPauseTime = getCurrentTimeMonotonicMillis();
     }
@@ -3330,7 +3417,7 @@ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, st
     pthread_create(&networkThread, nullptr, (ConnectionsManager::ThreadProc), this);
 
     if (needLoadConfig) {
-        updateDcSettings(0, false);
+        updateDcSettings(0, false, false);
     }
 }
 
@@ -3396,7 +3483,7 @@ void ConnectionsManager::setRegId(std::string regId) {
         for (auto & datacenter : datacenters) {
             datacenter.second->resetInitVersion();
         }
-        updateDcSettings(0, false);
+        updateDcSettings(0, false, true);
         saveConfig();
     });
 }
@@ -3411,7 +3498,7 @@ void ConnectionsManager::setSystemLangCode(std::string langCode) {
             datacenter.second->resetInitVersion();
         }
         saveConfig();
-        updateDcSettings(0, false);
+        updateDcSettings(0, false, false);
     });
 }
 
@@ -3488,6 +3575,7 @@ void ConnectionsManager::setNetworkAvailable(bool value, int32_t type, bool slow
 
 void ConnectionsManager::setIpStrategy(uint8_t value) {
     scheduleTask([&, value] {
+        lastProtocolUsefullData = false;
         ipStrategy = value;
     });
 }
@@ -3564,6 +3652,7 @@ void ConnectionsManager::useJavaVM(JavaVM *vm, bool useJavaByteBuffers) {
             if (LOGS_ENABLED) DEBUG_E("can't get jnienv");
             exit(1);
         }
+        DEBUG_REF("connectionsmanager byte buffer");
         jclass_ByteBuffer = (jclass) env->NewGlobalRef(env->FindClass("java/nio/ByteBuffer"));
         if (jclass_ByteBuffer == nullptr) {
             if (LOGS_ENABLED) DEBUG_E("can't find java ByteBuffer class");
@@ -3577,4 +3666,23 @@ void ConnectionsManager::useJavaVM(JavaVM *vm, bool useJavaByteBuffers) {
         if (LOGS_ENABLED) DEBUG_D("using java ByteBuffer");
     }
 }
+
+void ConnectionsManager::reconnect(int32_t dcId, int32_t connectionType) {
+    scheduleTask([&, dcId, connectionType] {
+        scheduleTask([&, dcId, connectionType] {
+            Datacenter *datacenter = getDatacenterWithId(dcId);
+            if (datacenter != nullptr) {
+                Connection *connection = datacenter->getConnectionByType(connectionType, false,
+                                                                         0);
+                if (connection != nullptr) {
+                    if (LOGS_ENABLED)
+                        DEBUG_D("discard connection dcId=%d connectionType=%d", dcId,
+                                connectionType);
+                    connection->suspendConnection(true);
+                }
+            }
+        });
+    });
+}
+
 #endif

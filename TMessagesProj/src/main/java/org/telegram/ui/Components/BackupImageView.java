@@ -22,23 +22,88 @@ import android.view.View;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.SecureDocument;
+import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 
 public class BackupImageView extends View {
 
     protected ImageReceiver imageReceiver;
+    protected ImageReceiver blurImageReceiver;
     protected int width = -1;
     protected int height = -1;
     public AnimatedEmojiDrawable animatedEmojiDrawable;
+    private AvatarDrawable avatarDrawable;
     boolean attached;
+
+    protected boolean hasBlur;
+    protected boolean blurAllowed;
+    public boolean drawFromStart;
 
     public BackupImageView(Context context) {
         super(context);
-        imageReceiver = new ImageReceiver(this);
+        imageReceiver = createImageReciever();
+        imageReceiver.setAllowLoadingOnAttachedOnly(true);
+        imageReceiver.setDelegate((imageReceiver1, set, thumb, memCache) -> {
+            if (set && !thumb) {
+                checkCreateBlurredImage();
+            }
+        });
+    }
+
+    protected ImageReceiver createImageReciever() {
+        return new ImageReceiver(this);
+    }
+
+    public void setBlurAllowed(boolean blurAllowed) {
+        if (attached) {
+            throw new IllegalStateException("You should call setBlurAllowed(...) only when detached!");
+        }
+        this.blurAllowed = blurAllowed;
+        if (blurAllowed) {
+            blurImageReceiver = new ImageReceiver();
+        }
+    }
+
+    public void setHasBlur(boolean hasBlur) {
+        if (hasBlur && !blurAllowed) {
+            throw new IllegalStateException("You should call setBlurAllowed(...) before calling setHasBlur(true)!");
+        }
+        this.hasBlur = hasBlur;
+        if (!hasBlur) {
+            if (blurImageReceiver.getBitmap() != null && !blurImageReceiver.getBitmap().isRecycled()) {
+                blurImageReceiver.getBitmap().recycle();
+            }
+            blurImageReceiver.setImageBitmap((Bitmap) null);
+        }
+        checkCreateBlurredImage();
+    }
+
+    public void onNewImageSet() {
+        if (hasBlur) {
+            if (blurImageReceiver.getBitmap() != null && !blurImageReceiver.getBitmap().isRecycled()) {
+                blurImageReceiver.getBitmap().recycle();
+            }
+            blurImageReceiver.setImageBitmap((Bitmap) null);
+            checkCreateBlurredImage();
+        }
+    }
+
+    private void checkCreateBlurredImage() {
+        if (hasBlur && blurImageReceiver.getBitmap() == null && imageReceiver.getBitmap() != null) {
+            Bitmap bitmap = imageReceiver.getBitmap();
+            if (bitmap != null && !bitmap.isRecycled()) {
+                blurImageReceiver.setImageBitmap(Utilities.stackBlurBitmapMax(bitmap));
+                invalidate();
+            }
+        }
     }
 
     public void setOrientation(int angle, boolean center) {
         imageReceiver.setOrientation(angle, center);
+    }
+
+    public void setOrientation(int angle, int invert, boolean center) {
+        imageReceiver.setOrientation(angle, invert, center);
     }
 
     public void setImage(SecureDocument secureDocument, String filter) {
@@ -55,6 +120,7 @@ public class BackupImageView extends View {
 
     public void setImage(ImageLocation mediaLocation, String mediaFilter, ImageLocation imageLocation, String imageFilter, Drawable thumb, Object parentObject) {
         imageReceiver.setImage(mediaLocation, mediaFilter, imageLocation, imageFilter, null, null, thumb, 0, null, parentObject, 1);
+        onNewImageSet();
     }
 
     public void setImage(ImageLocation imageLocation, String imageFilter, Bitmap thumb, Object parentObject) {
@@ -71,14 +137,21 @@ public class BackupImageView extends View {
             thumb = new BitmapDrawable(null, thumbBitmap);
         }
         imageReceiver.setImage(imageLocation, imageFilter, null, null, thumb, size, null, parentObject, cacheType);
+        onNewImageSet();
+    }
+
+    public void clearImage() {
+        imageReceiver.clearImage();
     }
 
     public void setForUserOrChat(TLObject object, AvatarDrawable avatarDrawable) {
         imageReceiver.setForUserOrChat(object, avatarDrawable);
+        onNewImageSet();
     }
 
     public void setForUserOrChat(TLObject object, AvatarDrawable avatarDrawable, Object parent) {
         imageReceiver.setForUserOrChat(object, avatarDrawable, parent);
+        onNewImageSet();
     }
 
     public void setImageMedia(ImageLocation mediaLocation, String mediaFilter, ImageLocation imageLocation, String imageFilter, Bitmap thumbBitmap, int size, int cacheType, Object parentObject) {
@@ -87,6 +160,7 @@ public class BackupImageView extends View {
             thumb = new BitmapDrawable(null, thumbBitmap);
         }
         imageReceiver.setImage(mediaLocation, mediaFilter, imageLocation, imageFilter, null, null, thumb, size, null, parentObject, cacheType);
+        onNewImageSet();
     }
 
     public void setImage(ImageLocation imageLocation, String imageFilter, ImageLocation thumbLocation, String thumbFilter, int size, Object parentObject) {
@@ -106,24 +180,33 @@ public class BackupImageView extends View {
             thumb = new BitmapDrawable(null, thumbBitmap);
         }
         imageReceiver.setImage(imageLocation, imageFilter, thumbLocation, thumbFilter, thumb, size, ext, parentObject, 0);
+        onNewImageSet();
     }
 
     public void setImage(ImageLocation imageLocation, String imageFilter, ImageLocation thumbLocation, String thumbFilter, String ext, long size, int cacheType, Object parentObject) {
         imageReceiver.setImage(imageLocation, imageFilter, thumbLocation, thumbFilter, null, size, ext, parentObject, cacheType);
+        onNewImageSet();
     }
 
-    public void setImageMedia(ImageLocation mediaLocation, String mediaFilter, ImageLocation imageLocation, String imageFilter, ImageLocation thumbLocation, String thumbFilter, String ext, int size, int cacheType, Object parentObject) {
-        imageReceiver.setImage(mediaLocation, mediaFilter, imageLocation, imageFilter, thumbLocation, thumbFilter, null, size, ext, parentObject, cacheType);
+    public void setImageMedia(VectorAvatarThumbDrawable vectorAvatar, ImageLocation mediaLocation, String mediaFilter, ImageLocation imageLocation, String imageFilter, ImageLocation thumbLocation, String thumbFilter, String ext, int size, int cacheType, Object parentObject) {
+        if (vectorAvatar != null) {
+            imageReceiver.setImageBitmap(vectorAvatar);
+        } else {
+            imageReceiver.setImage(mediaLocation, mediaFilter, imageLocation, imageFilter, thumbLocation, thumbFilter, null, size, ext, parentObject, cacheType);
+        }
+        onNewImageSet();
     }
 
     public void setImageBitmap(Bitmap bitmap) {
         imageReceiver.setImageBitmap(bitmap);
+        onNewImageSet();
     }
 
     public void setImageResource(int resId) {
         Drawable drawable = getResources().getDrawable(resId);
         imageReceiver.setImageBitmap(drawable);
         invalidate();
+        onNewImageSet();
     }
 
     public void setImageResource(int resId, int color) {
@@ -133,10 +216,12 @@ public class BackupImageView extends View {
         }
         imageReceiver.setImageBitmap(drawable);
         invalidate();
+        onNewImageSet();
     }
 
     public void setImageDrawable(Drawable drawable) {
         imageReceiver.setImageBitmap(drawable);
+        onNewImageSet();
     }
 
     public void setLayerNum(int value) {
@@ -145,11 +230,17 @@ public class BackupImageView extends View {
 
     public void setRoundRadius(int value) {
         imageReceiver.setRoundRadius(value);
+        if (blurAllowed) {
+            blurImageReceiver.setRoundRadius(value);
+        }
         invalidate();
     }
 
     public void setRoundRadius(int tl, int tr, int bl, int br) {
         imageReceiver.setRoundRadius(tl, tr, bl ,br);
+        if (blurAllowed) {
+            blurImageReceiver.setRoundRadius(tl, tr, bl, br);
+        }
         invalidate();
     }
 
@@ -171,11 +262,21 @@ public class BackupImageView extends View {
         invalidate();
     }
 
+    public AvatarDrawable getAvatarDrawable() {
+        if (avatarDrawable == null) {
+            avatarDrawable = new AvatarDrawable();
+        }
+        return avatarDrawable;
+    }
+
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         attached = false;
         imageReceiver.onDetachedFromWindow();
+        if (blurAllowed) {
+            blurImageReceiver.onDetachedFromWindow();
+        }
         if (animatedEmojiDrawable != null) {
             animatedEmojiDrawable.removeView(this);
         }
@@ -186,6 +287,9 @@ public class BackupImageView extends View {
         super.onAttachedToWindow();
         attached = true;
         imageReceiver.onAttachedToWindow();
+        if (blurAllowed) {
+            blurImageReceiver.onAttachedToWindow();
+        }
         if (animatedEmojiDrawable != null) {
             animatedEmojiDrawable.addView(this);
         }
@@ -198,11 +302,27 @@ public class BackupImageView extends View {
             return;
         }
         if (width != -1 && height != -1) {
-            imageReceiver.setImageCoords((getWidth() - width) / 2, (getHeight() - height) / 2, width, height);
+            if (drawFromStart) {
+                imageReceiver.setImageCoords(0, 0, width, height);
+                if (blurAllowed) {
+                    blurImageReceiver.setImageCoords(0, 0, width, height);
+                }
+            } else {
+                imageReceiver.setImageCoords((getWidth() - width) / 2, (getHeight() - height) / 2, width, height);
+                if (blurAllowed) {
+                    blurImageReceiver.setImageCoords((getWidth() - width) / 2, (getHeight() - height) / 2, width, height);
+                }
+            }
         } else {
             imageReceiver.setImageCoords(0, 0, getWidth(), getHeight());
+            if (blurAllowed) {
+                blurImageReceiver.setImageCoords(0, 0, getWidth(), getHeight());
+            }
         }
         imageReceiver.draw(canvas);
+        if (blurAllowed) {
+            blurImageReceiver.draw(canvas);
+        }
     }
 
     public void setColorFilter(ColorFilter colorFilter) {
@@ -220,6 +340,7 @@ public class BackupImageView extends View {
         if (attached && animatedEmojiDrawable != null) {
             animatedEmojiDrawable.addView(this);
         }
+        invalidate();
     }
 
     ValueAnimator roundRadiusAnimator;

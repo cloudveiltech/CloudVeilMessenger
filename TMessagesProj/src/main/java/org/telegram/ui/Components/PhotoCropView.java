@@ -37,6 +37,10 @@ import org.telegram.ui.Components.Crop.CropView;
 
 public class PhotoCropView extends FrameLayout {
 
+    public void setSubtitle(String subtitle) {
+        cropView.setSubtitle(subtitle);
+    }
+
     public interface PhotoCropViewDelegate {
         void onChange(boolean reset);
         void onUpdate();
@@ -398,8 +402,7 @@ public class PhotoCropView extends FrameLayout {
         cropView.invalidate();
     }
 
-    private int getThemedColor(String key) {
-        Integer color = resourcesProvider != null ? resourcesProvider.getColor(key) : null;
-        return color != null ? color : Theme.getColor(key);
+    private int getThemedColor(int key) {
+        return Theme.getColor(key, resourcesProvider);
     }
 }

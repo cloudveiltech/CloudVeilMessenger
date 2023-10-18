@@ -13,6 +13,7 @@ import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Build;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
@@ -74,6 +75,10 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
     private boolean isVisible;
 
     private int bitmapRotation;
+
+    public void setSubtitle(String subtitle) {
+        areaView.setSubtitle(subtitle);
+    }
 
     public class CropState {
         public float width;
@@ -256,11 +261,11 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
     }
 
     public float getStateFullOrientation() {
-        return state.baseRotation + state.orientation;
+        return state == null ? 0 : state.baseRotation + state.orientation;
     }
 
     public boolean getStateMirror() {
-        return state.mirrored;
+        return state != null && state.mirrored;
     }
 
     public CropView(Context context) {
@@ -447,6 +452,9 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
     }
 
     public void updateMatrix(boolean force) {
+        if (state == null) {
+            return;
+        }
         overlayMatrix.reset();
         if (state.getBaseRotation() == 90 || state.getBaseRotation() == 270) {
             overlayMatrix.postTranslate(-state.getHeight() / 2, -state.getWidth() / 2);
@@ -735,6 +743,9 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
     }
 
     public void maximize(boolean animated) {
+        if (state == null) {
+            return;
+        }
         final float toScale = state.minimumScale;
         areaView.resetAnimator();
         float aspectRatio;
@@ -983,53 +994,36 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
 
             if (entities != null && !entities.isEmpty()) {
                 float[] point = new float[4];
-                float newScale = 1.0f / sc * scale * stateScale;
-                float widthScale = b.getWidth() / (float) canvasBitmap.getWidth();
-                newScale *= widthScale;
-                TextPaintView textPaintView = null;
                 for (int a = 0, N = entities.size(); a < N; a++) {
                     VideoEditedInfo.MediaEntity entity = entities.get(a);
 
-                    point[0] = entity.x * b.getWidth() + entity.viewWidth * entity.scale / 2;
-                    point[1] = entity.y * b.getHeight() + entity.viewHeight * entity.scale / 2;
+                    point[0] = (entity.x + entity.width / 2) * b.getWidth();
+                    point[1] = (entity.y + entity.height / 2) * b.getHeight();
                     point[2] = entity.textViewX * b.getWidth();
                     point[3] = entity.textViewY * b.getHeight();
                     matrix.mapPoints(point);
 
-                    if (entity.type == 0) {
-                        entity.viewWidth = entity.viewHeight = canvasBitmap.getWidth() / 2;
-                    } else if (entity.type == 1) {
-                        entity.fontSize = canvasBitmap.getWidth() / 9;
-                        if (textPaintView == null) {
-                            textPaintView = new TextPaintView(context, new Point(0, 0), entity.fontSize, "", new Swatch(Color.BLACK, 0.85f, 0.1f), 0);
-                            textPaintView.setMaxWidth(canvasBitmap.getWidth() - 20);
-                        }
-                        int type;
-                        if ((entity.subType & 1) != 0) {
-                            type = 0;
-                        } else if ((entity.subType & 4) != 0) {
-                            type = 2;
-                        } else {
-                            type = 1;
-                        }
-                        textPaintView.setType(type);
-                        textPaintView.setText(entity.text);
-                        textPaintView.measure(MeasureSpec.makeMeasureSpec(canvasBitmap.getWidth(), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(canvasBitmap.getHeight(), MeasureSpec.AT_MOST));
-                        entity.viewWidth = textPaintView.getMeasuredWidth();
-                        entity.viewHeight = textPaintView.getMeasuredHeight();
+                    final int w = contentWidth, h = contentHeight;
+                    int bw = b.getWidth(), bh = b.getHeight();
+                    if (orientationOnly == 90 || orientationOnly == 270) {
+                        bw = b.getHeight();
+                        bh = b.getWidth();
                     }
-                    entity.scale *= newScale;
+                    if (entity.type == VideoEditedInfo.MediaEntity.TYPE_TEXT) {
+                        entity.width = entity.width * w / canvasBitmap.getWidth() * scale * stateScale;
+                        entity.height = entity.height * h / canvasBitmap.getHeight() * scale * stateScale;
+                    } else {
+                        entity.viewWidth = (int) (entity.viewWidth / (float) w * bw);
+                        entity.viewHeight = (int) (entity.viewHeight / (float) h * bh);
 
-                    entity.x = (point[0] - entity.viewWidth * entity.scale / 2) / canvasBitmap.getWidth();
-                    entity.y = (point[1] - entity.viewHeight * entity.scale / 2) / canvasBitmap.getHeight();
+                        entity.width = entity.width * w / bw * scale * stateScale;
+                        entity.height = entity.height * h / bh * scale * stateScale;
+                    }
+
+                    entity.x = point[0] / canvasBitmap.getWidth() - entity.width / 2;
+                    entity.y = point[1] / canvasBitmap.getHeight() - entity.height / 2;
                     entity.textViewX = point[2] / canvasBitmap.getWidth();
                     entity.textViewY = point[3] / canvasBitmap.getHeight();
-
-                    entity.width = entity.viewWidth * entity.scale / canvasBitmap.getWidth();
-                    entity.height = entity.viewHeight * entity.scale / canvasBitmap.getHeight();
-
-                    entity.textViewWidth = entity.viewWidth / (float) canvasBitmap.getWidth();
-                    entity.textViewHeight = entity.viewHeight / (float) canvasBitmap.getHeight();
 
                     entity.rotation -= (rotation + orientationOnly) * (Math.PI / 180);
                 }

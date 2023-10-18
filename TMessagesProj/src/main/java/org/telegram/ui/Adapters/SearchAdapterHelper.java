@@ -10,6 +10,8 @@ package org.telegram.ui.Adapters;
 
 import android.util.Pair;
 
+import androidx.collection.LongSparseArray;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.SQLite.SQLiteCursor;
@@ -29,15 +31,12 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ChatUsersActivity;
 import org.telegram.ui.Components.ShareAlert;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import androidx.collection.LongSparseArray;
 
 public class SearchAdapterHelper {
 
@@ -68,15 +67,15 @@ public class SearchAdapterHelper {
 
     private SearchAdapterHelperDelegate delegate;
 
-    private ArrayList<Integer> pendingRequestIds = new ArrayList<>();
+    private final ArrayList<Integer> pendingRequestIds = new ArrayList<>();
     private String lastFoundUsername = null;
-    private ArrayList<TLObject> localServerSearch = new ArrayList<>();
-    private ArrayList<TLObject> globalSearch = new ArrayList<>();
-    private LongSparseArray<TLObject> globalSearchMap = new LongSparseArray<>();
-    private ArrayList<TLObject> groupSearch = new ArrayList<>();
-    private LongSparseArray<TLObject> groupSearchMap = new LongSparseArray<>();
-    private LongSparseArray<TLObject> phoneSearchMap = new LongSparseArray<>();
-    private ArrayList<Object> phonesSearch = new ArrayList<>();
+    private final ArrayList<TLObject> localServerSearch = new ArrayList<>();
+    private final ArrayList<TLObject> globalSearch = new ArrayList<>();
+    private final LongSparseArray<TLObject> globalSearchMap = new LongSparseArray<>();
+    private final ArrayList<TLObject> groupSearch = new ArrayList<>();
+    private final LongSparseArray<TLObject> groupSearchMap = new LongSparseArray<>();
+    private final LongSparseArray<TLObject> phoneSearchMap = new LongSparseArray<>();
+    private final ArrayList<Object> phonesSearch = new ArrayList<>();
     private ArrayList<Object> localSearchResults;
     private ArrayList<DialogsSearchAdapter.RecentSearchObject> localRecentResults;
 
@@ -109,9 +108,12 @@ public class SearchAdapterHelper {
         return pendingRequestIds.size() > 0;
     }
     public void queryServerSearch(String query, boolean allowUsername, boolean allowChats, boolean allowBots, boolean allowSelf, boolean canAddGroupsOnly, long channelId, boolean phoneNumbers, int type, int searchId) {
-        queryServerSearch(query, allowUsername, allowChats, allowBots, allowSelf, canAddGroupsOnly, channelId, phoneNumbers, type, searchId, null);
+        queryServerSearch(query, allowUsername, allowChats, allowBots, allowSelf, canAddGroupsOnly, channelId, phoneNumbers, type, searchId, 0, null);
     }
-    public void queryServerSearch(String query, boolean allowUsername, boolean allowChats, boolean allowBots, boolean allowSelf, boolean canAddGroupsOnly, long channelId, boolean phoneNumbers, int type, int searchId, Runnable onEnd) {
+    public void queryServerSearch(String query, boolean allowUsername, boolean allowChats, boolean allowBots, boolean allowSelf, boolean canAddGroupsOnly, long channelId, boolean phoneNumbers, int type, int searchId, long exceptDialogId) {
+        queryServerSearch(query, allowUsername, allowChats, allowBots, allowSelf, canAddGroupsOnly, channelId, phoneNumbers, type, searchId, exceptDialogId, null);
+    }
+    public void queryServerSearch(String query, boolean allowUsername, boolean allowChats, boolean allowBots, boolean allowSelf, boolean canAddGroupsOnly, long channelId, boolean phoneNumbers, int type, int searchId, long exceptDialogId, Runnable onEnd) {
         for (int reqId : pendingRequestIds) {
             ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
         }
@@ -222,7 +224,7 @@ public class SearchAdapterHelper {
                                         chat = chatsMap.get(peer.channel_id);
                                     }
                                     if (chat != null) {
-                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || !allowGlobalResults && ChatObject.isNotInChat(chat)) {
+                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || !allowGlobalResults && ChatObject.isNotInChat(chat) || !filter(chat)) {
                                             continue;
                                         }
                                         //CloudVeil Start
@@ -232,7 +234,7 @@ public class SearchAdapterHelper {
                                         //CloudVeil End
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
-                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || !allowGlobalResults && b == 1 && !user.contact) {
+                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || !allowGlobalResults && b == 1 && !user.contact || !filter(user)) {
                                             continue;
                                         }
                                         //CloudVeil Start
@@ -257,13 +259,13 @@ public class SearchAdapterHelper {
                                         chat = chatsMap.get(peer.channel_id);
                                     }
                                     if (chat != null) {
-                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat)) {
+                                        if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || -chat.id == exceptDialogId || !filter(chat)) {
                                             continue;
                                         }
                                         localServerSearch.add(chat);
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
-                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self) {
+                                        if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || user.id == exceptDialogId || !filter(user)) {
                                             continue;
                                         }
                                         localServerSearch.add(user);
@@ -631,5 +633,9 @@ public class SearchAdapterHelper {
         hashtagsByText = hashMap;
         hashtagsLoadedFromDb = true;
         delegate.onSetHashtags(arrayList, hashMap);
+    }
+
+    protected boolean filter(TLObject obj) {
+        return true;
     }
 }

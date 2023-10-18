@@ -1,5 +1,6 @@
 package org.telegram.ui.Components;
 
+import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
@@ -12,15 +13,18 @@ import android.text.style.CharacterStyle;
 import android.text.style.ReplacementSpan;
 import android.util.LongSparseArray;
 import android.view.View;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.ImageReceiver;
+import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 
 import java.util.ArrayList;
@@ -39,7 +43,8 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
     private Paint.FontMetricsInt fontMetrics;
     private float size = AndroidUtilities.dp(20);
     public int cacheType = -1;
-    int measuredSize;
+    public String documentAbsolutePath;
+    protected int measuredSize;
 
     boolean spanDrawn;
     boolean positionChanged;
@@ -50,6 +55,11 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
     public AnimatedEmojiSpan(@NonNull TLRPC.Document document, Paint.FontMetricsInt fontMetrics) {
         this(document.id, 1.2f, fontMetrics);
+        this.document = document;
+    }
+
+    public AnimatedEmojiSpan(@NonNull TLRPC.Document document, float scale, Paint.FontMetricsInt fontMetrics) {
+        this(document.id, scale, fontMetrics);
         this.document = document;
     }
 
@@ -82,6 +92,16 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
     public long getDocumentId() {
         return document != null ? document.id : documentId;
+    }
+
+    public void replaceFontMetrics(Paint.FontMetricsInt newMetrics) {
+        this.fontMetrics = newMetrics;
+        if (fontMetrics != null) {
+            size = Math.abs(fontMetrics.descent) + Math.abs(fontMetrics.ascent);
+            if (size == 0) {
+                size = AndroidUtilities.dp(20);
+            }
+        }
     }
 
     public void replaceFontMetrics(Paint.FontMetricsInt newMetrics, int newSize, int cacheType) {
@@ -230,6 +250,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         public float alpha;
         public SpansChunk spansChunk;
         public boolean insideSpoiler;
+        private int rawIndex;
 
         private ImageReceiver.BackgroundThreadDrawHolder[] backgroundDrawHolder = new ImageReceiver.BackgroundThreadDrawHolder[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
 
@@ -268,7 +289,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
             }
         }
 
-        public void draw(Canvas canvas, long time, float boundTop, float boundBottom, float alpha) {
+        public void draw(Canvas canvas, long time, float boundTop, float boundBottom, float alpha, ColorFilter colorFilter) {
             if ((boundTop != 0 || boundBottom != 0) && outOfBounds(boundTop, boundBottom)) {
                 skipDraw = true;
                 return;
@@ -277,9 +298,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
             }
 
             if (drawable.getImageReceiver() != null) {
+                drawable.setColorFilter(colorFilter == null ? Theme.chat_animatedEmojiTextColorFilter : colorFilter);
                 drawable.setTime(time);
                 drawable.draw(canvas, drawableBounds, alpha * this.alpha);
-//                drawable.setTime(0);
             }
         }
 
@@ -366,7 +387,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                         holder = new AnimatedEmojiHolder(view, invalidateParent);
                         holder.layout = textLayout;
                         int localCacheType = span.standard ? AnimatedEmojiDrawable.STANDARD_LOTTIE_FRAME : (span.cacheType < 0 ? cacheType : span.cacheType);
-                        if (span.document != null) {
+                        if (span.documentAbsolutePath != null) {
+                            holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.getDocumentId(), span.documentAbsolutePath);
+                        } else if (span.document != null) {
                             holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.document);
                         } else {
                             holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.documentId);
@@ -557,6 +580,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         public ArrayList<AnimatedEmojiHolder> holders = new ArrayList<>();
         HashMap<Layout, SpansChunk> groupedByLayout = new HashMap<>();
         ArrayList<SpansChunk> backgroundDrawingArray = new ArrayList<>();
+        private int rawIndex;
 
         public boolean isEmpty() {
             return holders.isEmpty();
@@ -621,6 +645,14 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
             }
         }
 
+        public void incrementFrames(int inc) {
+            for (int i = 0; i < holders.size(); i++) {
+                if (holders.get(i).drawable != null && holders.get(i).drawable.getImageReceiver() != null) {
+                    holders.get(i).drawable.getImageReceiver().incrementFrames(inc);
+                }
+            }
+        }
+
         public void recordPositions(boolean record) {
             for (int i = 0; i < holders.size(); i++) {
                 holders.get(i).span.recordPositions = record;
@@ -668,13 +700,13 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         }
 
         private void checkBackgroundRendering() {
-            if (allowBackgroundRendering && holders.size() >= 10 && backgroundThreadDrawable == null) {
+            if (allowBackgroundRendering && holders.size() >= 10 && backgroundThreadDrawable == null && LiteMode.isEnabled(LiteMode.FLAG_ANIMATED_EMOJI_KEYBOARD)) {
                 backgroundThreadDrawable = new DrawingInBackgroundThreadDrawable() {
 
                     private final ArrayList<AnimatedEmojiHolder> backgroundHolders = new ArrayList<>();
 
                     @Override
-                    public void drawInBackground(Canvas canvas) {
+                        public void drawInBackground(Canvas canvas) {
                         for (int i = 0; i < backgroundHolders.size(); i++) {
                             AnimatedEmojiHolder holder = backgroundHolders.get(i);
                             if (holder != null && holder.backgroundDrawHolder[threadIndex] != null) {
@@ -691,7 +723,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                             if (!holder.span.spanDrawn) {
                                 continue;
                             }
-                            holder.draw(canvas, time, 0, 0, alpha);
+                            holder.draw(canvas, time, 0, 0, alpha, null);
                         }
                     }
 
@@ -736,8 +768,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                 };
                 backgroundThreadDrawable.padding = AndroidUtilities.dp(3);
                 backgroundThreadDrawable.onAttachToWindow();
-            }
-            else if (holders.size() < 10 && backgroundThreadDrawable != null) {
+            } else if (holders.size() < 10 && backgroundThreadDrawable != null) {
                 backgroundThreadDrawable.onDetachFromWindow();
                 backgroundThreadDrawable = null;
             }
@@ -778,7 +809,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                 holder.drawingYOffset = drawingYOffset;
                 holder.alpha = spoilerAlpha;
                 if (backgroundThreadDrawable == null) {
-                    holder.draw(canvas, time, boundTop, boundBottom, alpha);
+                    holder.draw(canvas, time, boundTop, boundBottom, alpha, colorFilter);
                 }
             }
             if (backgroundThreadDrawable != null) {
@@ -799,6 +830,10 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
     }
 
     public static CharSequence cloneSpans(CharSequence text) {
+        return cloneSpans(text, -1);
+    }
+
+    public static CharSequence cloneSpans(CharSequence text, int newCacheType) {
         if (!(text instanceof Spanned)) {
             return text;
         }
@@ -823,12 +858,53 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
                 AnimatedEmojiSpan oldSpan = (AnimatedEmojiSpan) spans[i];
                 newText.removeSpan(oldSpan);
-                newText.setSpan(cloneSpan(oldSpan), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                AnimatedEmojiSpan newSpan = cloneSpan(oldSpan);
+                if (newCacheType != -1) {
+                    newSpan.cacheType = newCacheType;
+                }
+                newText.setSpan(newSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             } else {
 //                newText.setSpan(spans[i], start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
         return newText;
+    }
+
+    public static class TextViewEmojis extends TextView {
+        public TextViewEmojis(Context context) {
+            super(context);
+        }
+
+        AnimatedEmojiSpan.EmojiGroupedSpans stack;
+        @Override
+        public void setText(CharSequence text, TextView.BufferType type) {
+            super.setText(text, type);
+            stack = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, stack, getLayout());
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            stack = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, stack, getLayout());
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            stack = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, stack, getLayout());
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            AnimatedEmojiSpan.release(this, stack);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            AnimatedEmojiSpan.drawAnimatedEmojis(canvas, getLayout(), stack, 0, null, 0, 0, 0, 1f);
+        }
     }
 
     public interface InvalidateHolder {

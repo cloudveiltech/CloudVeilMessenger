@@ -30,9 +30,11 @@ import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ImageLocation;
+import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.voip.VoIPService;
@@ -123,7 +125,7 @@ public class GroupCallUserCell extends FrameLayout {
         muteButton.playAnimation();
     };
 
-    private String grayIconColor = Theme.key_voipgroup_mutedIcon;
+    private int grayIconColor = Theme.key_voipgroup_mutedIcon;
 
     private Runnable checkRaiseRunnable = () -> applyParticipantChanges(true, true);
 
@@ -431,6 +433,9 @@ public class GroupCallUserCell extends FrameLayout {
         if (animatorSet != null) {
             animatorSet.cancel();
         }
+        if (rightDrawable != null) {
+            rightDrawable.detach();
+        }
     }
 
     public boolean isSelfUser() {
@@ -536,6 +541,9 @@ public class GroupCallUserCell extends FrameLayout {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         applyParticipantChanges(false);
+        if (rightDrawable != null) {
+            rightDrawable.attach();
+        }
     }
 
     public TLRPC.TL_groupCallParticipant getParticipant() {
@@ -577,8 +585,8 @@ public class GroupCallUserCell extends FrameLayout {
         applyParticipantChanges(animated, false);
     }
 
-    public void setGrayIconColor(String key, int value) {
-        if (!grayIconColor.equals(key)) {
+    public void setGrayIconColor(int key, int value) {
+        if (grayIconColor != key) {
             if (currentIconGray) {
                 lastMuteColor = Theme.getColor(key);
             }
@@ -983,6 +991,9 @@ public class GroupCallUserCell extends FrameLayout {
         }
 
         public void draw(Canvas canvas, float cx, float cy, View parentView) {
+            if (!LiteMode.isEnabled(LiteMode.FLAG_CALLS_ANIMATIONS)) {
+                return;
+            }
             float scaleBlob = 0.8f + 0.4f * amplitude;
             if (showWaves || wavesEnter != 0) {
                 canvas.save();

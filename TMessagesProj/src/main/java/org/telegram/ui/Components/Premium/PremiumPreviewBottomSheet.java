@@ -16,6 +16,7 @@ import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
+import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -80,7 +81,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
     int buttonRow;
 
     FireworksOverlay fireworksOverlay;
-    PremiumGradient.GradientTools gradientTools;
+    PremiumGradient.PremiumGradientTools gradientTools;
     StarParticlesView starParticlesView;
     GLIconTextureView iconTextureView;
     ViewGroup iconContainer;
@@ -110,7 +111,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
     }
 
     public PremiumPreviewBottomSheet(BaseFragment fragment, int currentAccount, TLRPC.User user, GiftPremiumBottomSheet.GiftTier gift, Theme.ResourcesProvider resourcesProvider) {
-        super(fragment, false, false, resourcesProvider);
+        super(fragment, false, false, false, resourcesProvider);
         fixNavigationBar();
         this.fragment = fragment;
         topPadding = 0.26f;
@@ -124,7 +125,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
             buttonContainer.setVisibility(View.GONE);
         }
 
-        gradientTools = new PremiumGradient.GradientTools(Theme.key_premiumGradient1, Theme.key_premiumGradient2, Theme.key_premiumGradient3, Theme.key_premiumGradient4);
+        gradientTools = new PremiumGradient.PremiumGradientTools(Theme.key_premiumGradient1, Theme.key_premiumGradient2, Theme.key_premiumGradient3, Theme.key_premiumGradient4);
         gradientTools.exactly = true;
         gradientTools.x1 = 0;
         gradientTools.y1 = 1f;
@@ -194,7 +195,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
         super.onViewCreated(containerView);
         currentAccount = UserConfig.selectedAccount;
 
-        PremiumButtonView premiumButtonView = new PremiumButtonView(getContext(), false);
+        PremiumButtonView premiumButtonView = new PremiumButtonView(getContext(), false, resourcesProvider);
         premiumButtonView.setButton(PremiumPreviewFragment.getPremiumButtonText(currentAccount, null), v -> {
             PremiumPreviewFragment.sentPremiumButtonClick();
             PremiumPreviewFragment.buyPremium(fragment, "profile");
@@ -357,8 +358,11 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
             if (isOutboundGift) {
                 titleView[0].setText(AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.TelegramPremiumUserGiftedPremiumOutboundDialogTitleWithPlural, user != null ? user.first_name : "", LocaleController.formatPluralString("GiftMonths", giftTier.getMonths())), Theme.key_windowBackgroundWhiteBlueButton,  AndroidUtilities.REPLACING_TAG_TYPE_LINK, null));
                 subtitleView.setText(AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.TelegramPremiumUserGiftedPremiumOutboundDialogSubtitle, user != null ? user.first_name : ""), Theme.key_windowBackgroundWhiteBlueButton,  AndroidUtilities.REPLACING_TAG_TYPE_LINK, null));
+            } else if (user == null || TextUtils.isEmpty(user.first_name) || user.id == 777000) {
+                titleView[0].setText(AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.TelegramPremiumUserGiftedPremiumDialogTitleWithPluralSomeone, LocaleController.formatPluralString("GiftMonths", giftTier.getMonths())), Theme.key_windowBackgroundWhiteBlueButton,  AndroidUtilities.REPLACING_TAG_TYPE_LINK, null));
+                subtitleView.setText(AndroidUtilities.replaceTags(LocaleController.getString(R.string.TelegramPremiumUserGiftedPremiumDialogSubtitle)));
             } else {
-                titleView[0].setText(AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.TelegramPremiumUserGiftedPremiumDialogTitleWithPlural, user != null ? user.first_name : "", LocaleController.formatPluralString("GiftMonths", giftTier.getMonths())), Theme.key_windowBackgroundWhiteBlueButton,  AndroidUtilities.REPLACING_TAG_TYPE_LINK, null));
+                titleView[0].setText(AndroidUtilities.replaceSingleTag(LocaleController.formatString(R.string.TelegramPremiumUserGiftedPremiumDialogTitleWithPlural, user.first_name, LocaleController.formatPluralString("GiftMonths", giftTier.getMonths())), Theme.key_windowBackgroundWhiteBlueButton,  AndroidUtilities.REPLACING_TAG_TYPE_LINK, null));
                 subtitleView.setText(AndroidUtilities.replaceTags(LocaleController.getString(R.string.TelegramPremiumUserGiftedPremiumDialogSubtitle)));
             }
         } else {

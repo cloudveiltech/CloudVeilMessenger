@@ -2,7 +2,7 @@
 
 # instructions for build
 # used
-# ffmpeg 4.3.3
+# ffmpeg 4.4.3
 # lib vpx 1.10.9
 # NDK for compile libvpx. Last successful build with 21.1.6352462
 # NDK r10e for compile ffmpeg
@@ -22,7 +22,7 @@ NDK_r10e="/opt/android/ndk/android-ndk-r10e"
 cd ./vpx-android
 export ANDROID_NDK=$NDK
 sh build-vpx.sh
-cd ../..
+cd ..
 
 
 NDK=$NDK_r10e
@@ -87,10 +87,12 @@ LIBS=" -L${PREFIX}/lib"
 --enable-decoder=gif \
 --enable-decoder=alac \
 --enable-decoder=opus \
+--enable-decoder=mp3 \
 --enable-demuxer=mov \
 --enable-demuxer=gif \
 --enable-demuxer=ogg \
 --enable-demuxer=matroska \
+--enable-demuxer=mp3 \
 --enable-hwaccels \
 --enable-runtime-cpudetect \
 $ADDITIONAL_CONFIGURE_FLAG

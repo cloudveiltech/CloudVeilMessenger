@@ -11,7 +11,6 @@ package org.telegram.ui.Cells;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
@@ -34,20 +33,23 @@ import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
+import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
-import org.telegram.messenger.FileLoader;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.AnimatedEmojiDrawable;
+import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.CheckBox2;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.LetterDrawable;
 import org.telegram.ui.Components.LinkPath;
-import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.LinkSpanDrawable;
 import org.telegram.ui.Components.TextStyleSpan;
 import org.telegram.ui.Components.spoilers.SpoilerEffect;
 import org.telegram.ui.FilteredSearchView;
@@ -91,8 +93,8 @@ public class SharedLinkCell extends FrameLayout {
             if (checkingForLongPress && getParent() != null && currentPressCount == pressCount) {
                 checkingForLongPress = false;
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-                if (pressedLink >= 0) {
-                    delegate.onLinkPress(links.get(pressedLink).toString(), true);
+                if (pressedLinkIndex >= 0) {
+                    delegate.onLinkPress(links.get(pressedLinkIndex).toString(), true);
                 }
                 MotionEvent event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_CANCEL, 0, 0, 0);
                 onTouchEvent(event);
@@ -122,9 +124,10 @@ public class SharedLinkCell extends FrameLayout {
         }
     }
 
+    private LinkSpanDrawable.LinkCollector linksCollector = new LinkSpanDrawable.LinkCollector(this);
     private boolean linkPreviewPressed;
-    private LinkPath urlPath;
-    private int pressedLink;
+    private int pressedLinkIndex;
+    private LinkSpanDrawable pressedLink;
 
     private ImageReceiver linkImageView;
     private boolean drawLinkImageView;
@@ -171,6 +174,7 @@ public class SharedLinkCell extends FrameLayout {
     private StaticLayout dateLayout;
     private int fromInfoLayoutY = AndroidUtilities.dp(30);
     private StaticLayout fromInfoLayout;
+    private AnimatedEmojiSpan.EmojiGroupedSpans fromInfoLayoutEmojis;
 
     private Theme.ResourcesProvider resourcesProvider;
     private int viewType;
@@ -191,9 +195,6 @@ public class SharedLinkCell extends FrameLayout {
         this.viewType = viewType;
         setFocusable(true);
 
-        urlPath = new LinkPath();
-        urlPath.setUseRoundRect(true);
-
         titleTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         titleTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
         titleTextPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
@@ -210,7 +211,7 @@ public class SharedLinkCell extends FrameLayout {
 
         checkBox = new CheckBox2(context, 21, resourcesProvider);
         checkBox.setVisibility(INVISIBLE);
-        checkBox.setColor(null, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
+        checkBox.setColor(-1, Theme.key_windowBackgroundWhite, Theme.key_checkboxCheck);
         checkBox.setDrawUnchecked(false);
         checkBox.setDrawBackgroundAsArc(2);
         addView(checkBox, LayoutHelper.createFrame(24, 24, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 0 : 44, 44, LocaleController.isRTL ? 44 : 0, 0));
@@ -477,7 +478,8 @@ public class SharedLinkCell extends FrameLayout {
         }
 
         if (viewType == VIEW_TYPE_GLOBAL_SEARCH) {
-            fromInfoLayout = ChatMessageCell.generateStaticLayout(FilteredSearchView.createFromInfoString(message), description2TextPaint, maxWidth, maxWidth, 0, desctiptionLines);
+            fromInfoLayout = ChatMessageCell.generateStaticLayout(FilteredSearchView.createFromInfoString(message, true, 2, description2TextPaint), description2TextPaint, maxWidth, maxWidth, 0, desctiptionLines);
+            fromInfoLayoutEmojis = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, fromInfoLayoutEmojis, fromInfoLayout);
         }
 
         int height = 0;
@@ -539,6 +541,7 @@ public class SharedLinkCell extends FrameLayout {
         if (drawLinkImageView) {
             linkImageView.onDetachedFromWindow();
         }
+        AnimatedEmojiSpan.release(this, fromInfoLayoutEmojis);
     }
 
     @Override
@@ -547,6 +550,7 @@ public class SharedLinkCell extends FrameLayout {
         if (drawLinkImageView) {
             linkImageView.onAttachedToWindow();
         }
+        fromInfoLayoutEmojis = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, fromInfoLayoutEmojis, fromInfoLayout);
     }
 
     @Override
@@ -563,15 +567,18 @@ public class SharedLinkCell extends FrameLayout {
                     if (layout.getLineCount() > 0) {
                         int height = layout.getLineBottom(layout.getLineCount() - 1);
                         int linkPosX = AndroidUtilities.dp(LocaleController.isRTL ? 8 : AndroidUtilities.leftBaseline);
-                        if (x >= linkPosX + layout.getLineLeft(0) && x <= linkPosX + layout.getLineWidth(0) && y >= linkY + offset && y <= linkY + offset + height) {
+                        if (
+                            x >= linkPosX + layout.getLineLeft(0) && x <= linkPosX + layout.getLineWidth(0) &&
+                            y >= linkY + offset && y <= linkY + offset + height
+                        ) {
                             ok = true;
                             if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                                resetPressedLink();
 
                                 spoilerPressed = null;
                                 if (linkSpoilers.get(a, null) != null) {
                                     for (SpoilerEffect eff : linkSpoilers.get(a)) {
                                         if (eff.getBounds().contains(x - linkPosX, y - linkY - offset)) {
+                                            resetPressedLink();
                                             spoilerPressed = eff;
                                             spoilerTypePressed = SPOILER_TYPE_LINK;
                                             break;
@@ -582,21 +589,27 @@ public class SharedLinkCell extends FrameLayout {
                                 if (spoilerPressed != null) {
                                     result = true;
                                 } else {
-                                    pressedLink = a;
-                                    linkPreviewPressed = true;
-                                    startCheckLongPress();
-                                    try {
-                                        urlPath.setCurrentLayout(layout, 0, 0);
-                                        layout.getSelectionPath(0, layout.getText().length(), urlPath);
-                                    } catch (Exception e) {
-                                        FileLog.e(e);
+                                    if (pressedLinkIndex != a || pressedLink == null || !linkPreviewPressed) {
+                                        resetPressedLink();
+                                        pressedLinkIndex = a;
+                                        pressedLink = new LinkSpanDrawable(null, resourcesProvider, x - linkPosX, y - linkY - offset);
+                                        LinkPath urlPath = pressedLink.obtainNewPath();
+                                        linkPreviewPressed = true;
+                                        linksCollector.addLink(pressedLink);
+                                        startCheckLongPress();
+                                        try {
+                                            urlPath.setCurrentLayout(layout, 0, linkPosX, linkY + offset);
+                                            layout.getSelectionPath(0, layout.getText().length(), urlPath);
+                                        } catch (Exception e) {
+                                            FileLog.e(e);
+                                        }
                                     }
                                     result = true;
                                 }
                             } else if (linkPreviewPressed) {
                                 try {
                                     //CloudVeil start
-                                    Browser.openUrl(getContext(), links.get(pressedLink).toString());
+                                    Browser.openUrl(getContext(), pressedLink.obtainNewPath().toString());
                                     //CloudVeil end
                                 } catch (Exception e) {
                                     FileLog.e(e);
@@ -736,7 +749,9 @@ public class SharedLinkCell extends FrameLayout {
     }
 
     protected void resetPressedLink() {
-        pressedLink = -1;
+        linksCollector.clear(true);
+        pressedLinkIndex = -1;
+        pressedLink = null;
         linkPreviewPressed = false;
         cancelCheckLongPress();
         invalidate();
@@ -748,8 +763,6 @@ public class SharedLinkCell extends FrameLayout {
         }
         checkBox.setChecked(checked, animated);
     }
-
-    private Paint urlPaint;
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -813,16 +826,8 @@ public class SharedLinkCell extends FrameLayout {
                             path.addRect(b.left, b.top, b.right, b.bottom, Path.Direction.CW);
                         }
                     }
-                    if (urlPaint == null) {
-                        urlPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        urlPaint.setPathEffect(new CornerPathEffect(AndroidUtilities.dp(4)));
-                    }
-                    urlPaint.setColor(Theme.getColor(Theme.key_chat_linkSelectBackground, resourcesProvider));
                     canvas.save();
                     canvas.clipPath(path, Region.Op.DIFFERENCE);
-                    if (pressedLink == a) {
-                        canvas.drawPath(urlPath, urlPaint);
-                    }
                     layout.draw(canvas);
                     canvas.restore();
 
@@ -832,10 +837,6 @@ public class SharedLinkCell extends FrameLayout {
                     if (spoilers != null && !spoilers.isEmpty())
                         spoilers.get(0).getRipplePath(path);
                     canvas.clipPath(path);
-
-                    if (pressedLink == a) {
-                        canvas.drawPath(urlPath, urlPaint);
-                    }
                     layout.draw(canvas);
                     canvas.restore();
 
@@ -846,12 +847,17 @@ public class SharedLinkCell extends FrameLayout {
                     offset += layout.getLineBottom(layout.getLineCount() - 1);
                 }
             }
+
+            if (linksCollector.draw(canvas)) {
+                invalidate();
+            }
         }
 
         if (fromInfoLayout != null) {
             canvas.save();
             canvas.translate(AndroidUtilities.dp(LocaleController.isRTL ? 8 : AndroidUtilities.leftBaseline), fromInfoLayoutY );
             fromInfoLayout.draw(canvas);
+            AnimatedEmojiSpan.drawAnimatedEmojis(canvas, fromInfoLayout, fromInfoLayoutEmojis, 0, null, 0, 0, 0, 1f);
             canvas.restore();
         }
         letterDrawable.draw(canvas);

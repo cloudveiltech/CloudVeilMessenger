@@ -12,14 +12,13 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
-import org.telegram.messenger.ImageLocation;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
@@ -62,7 +61,7 @@ public class ManageChatUserCell extends FrameLayout {
 
     private int currentAccount = UserConfig.selectedAccount;
 
-    private String dividerColor;
+    private int dividerColor = -1;
 
     private ManageChatUserCellDelegate delegate;
 
@@ -186,7 +185,7 @@ public class ManageChatUserCell extends FrameLayout {
         nameTextView.setTextColor(color);
     }
 
-    public void setDividerColor(String key) {
+    public void setDividerColor(int key) {
         dividerColor = key;
     }
 
@@ -242,7 +241,7 @@ public class ManageChatUserCell extends FrameLayout {
                 nameTextView.setText(currentName);
             } else {
                 lastName = newName == null ? UserObject.getUserName(currentUser) : newName;
-                nameTextView.setText(lastName);
+                nameTextView.setText(Emoji.replaceEmoji(lastName, nameTextView.getPaint().getFontMetricsInt(), AndroidUtilities.dp(15), false));
             }
             if (currrntStatus != null) {
                 statusTextView.setTextColor(statusColor);
@@ -353,10 +352,10 @@ public class ManageChatUserCell extends FrameLayout {
     @Override
     protected void onDraw(Canvas canvas) {
         if (needDivider) {
-            if (dividerColor != null) {
+            if (dividerColor >= 0) {
                 Theme.dividerExtraPaint.setColor(Theme.getColor(dividerColor, resourcesProvider));
             }
-            canvas.drawLine(LocaleController.isRTL ? 0 : AndroidUtilities.dp(68), getMeasuredHeight() - 1, getMeasuredWidth() - (LocaleController.isRTL ? AndroidUtilities.dp(68) : 0), getMeasuredHeight() - 1, dividerColor != null ? Theme.dividerExtraPaint : Theme.dividerPaint);
+            canvas.drawLine(LocaleController.isRTL ? 0 : AndroidUtilities.dp(68), getMeasuredHeight() - 1, getMeasuredWidth() - (LocaleController.isRTL ? AndroidUtilities.dp(68) : 0), getMeasuredHeight() - 1, dividerColor >= 0 ? Theme.dividerExtraPaint : Theme.dividerPaint);
         }
     }
 }

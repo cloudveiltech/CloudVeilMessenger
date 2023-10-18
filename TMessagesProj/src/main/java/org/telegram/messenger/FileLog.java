@@ -8,6 +8,8 @@
 
 package org.telegram.messenger;
 
+import android.content.Context;
+import android.content.res.ColorStateList;
 import android.util.Log;
 
 import com.google.gson.ExclusionStrategy;
@@ -15,28 +17,32 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import org.telegram.SQLite.SQLiteException;
 import org.telegram.messenger.time.FastDateFormat;
 import org.telegram.messenger.video.MediaCodecVideoConvertor;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.Components.AnimatedFileDrawable;
 import org.telegram.ui.LaunchActivity;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Locale;
 
 public class FileLog {
     private OutputStreamWriter streamWriter = null;
     private FastDateFormat dateFormat = null;
+    private FastDateFormat fileDateFormat = null;
     private DispatchQueue logQueue = null;
 
     private File currentFile = null;
     private File networkFile = null;
     private File tonlibFile = null;
     private boolean initied;
+    public static boolean databaseIsMalformed = false;
 
     private OutputStreamWriter tlStreamWriter = null;
     private File tlRequestsFile = null;
@@ -76,7 +82,7 @@ public class FileLog {
         String requestSimpleName = request.getClass().getSimpleName();
         checkGson();
 
-        if (excludeRequests.contains(requestSimpleName)) {
+        if (excludeRequests.contains(requestSimpleName) && error == null) {
             return;
         }
         try {
@@ -109,7 +115,7 @@ public class FileLog {
                 }
             });
         } catch (Throwable e) {
-            FileLog.e(e);
+            FileLog.e(e, BuildVars.DEBUG_PRIVATE_VERSION);
         }
     }
 
@@ -118,6 +124,7 @@ public class FileLog {
             return;
         }
         try {
+            checkGson();
             getInstance().dateFormat.format(System.currentTimeMillis());
             String messageStr = "receive message -> " + message.getClass().getSimpleName() + " : " + gson.toJson(message);
             String res = "null";
@@ -140,7 +147,6 @@ public class FileLog {
                 }
             });
         } catch (Throwable e) {
-            FileLog.e(e);
         }
     }
 
@@ -154,16 +160,19 @@ public class FileLog {
             privateFields.add("bytes");
             privateFields.add("secret");
             privateFields.add("stripped_thumb");
+            privateFields.add("strippedBitmap");
 
             privateFields.add("networkType");
             privateFields.add("disableFree");
+            privateFields.add("mContext");
+            privateFields.add("priority");
 
             //exclude file loading
             excludeRequests = new HashSet<>();
             excludeRequests.add("TL_upload_getFile");
-            excludeRequests.add("TL_upload_getWebFile");
+            excludeRequests.add("TL_upload_a");
 
-            gson = new GsonBuilder().addSerializationExclusionStrategy(new ExclusionStrategy() {
+            ExclusionStrategy strategy = new ExclusionStrategy() {
 
                 @Override
                 public boolean shouldSkipField(FieldAttributes f) {
@@ -175,9 +184,10 @@ public class FileLog {
 
                 @Override
                 public boolean shouldSkipClass(Class<?> clazz) {
-                    return false;
+                    return clazz.isInstance(DispatchQueue.class) || clazz.isInstance(AnimatedFileDrawable.class) || clazz.isInstance(ColorStateList.class) || clazz.isInstance(Context.class);
                 }
-            }).create();
+            };
+            gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).registerTypeAdapterFactory(RuntimeClassNameTypeAdapterFactory.of(TLObject.class, "type_", strategy)).create();
         }
     }
 
@@ -187,16 +197,14 @@ public class FileLog {
         if (initied) {
             return;
         }
-        dateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss", Locale.US);
-        String date = dateFormat.format(System.currentTimeMillis());
+        dateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss.SSS", Locale.US);
+        fileDateFormat = FastDateFormat.getInstance("dd_MM_yyyy_HH_mm_ss", Locale.US);
+        String date = fileDateFormat.format(System.currentTimeMillis());
         try {
-            File sdCard = ApplicationLoader.applicationContext.getExternalFilesDir(null);
-            if (sdCard == null) {
+            File dir = AndroidUtilities.getLogsDir();
+            if (dir == null) {
                 return;
             }
-            File dir = new File(sdCard.getAbsolutePath() + "/logs");
-            dir.mkdirs();
-
             currentFile = new File(dir, date + ".txt");
             tlRequestsFile = new File(dir, date + "_mtproto.txt");
         } catch (Exception e) {
@@ -229,13 +237,11 @@ public class FileLog {
             return "";
         }
         try {
-            File sdCard = ApplicationLoader.applicationContext.getExternalFilesDir(null);
-            if (sdCard == null) {
+            File dir = AndroidUtilities.getLogsDir();
+            if (dir == null) {
                 return "";
             }
-            File dir = new File(sdCard.getAbsolutePath() + "/logs");
-            dir.mkdirs();
-            getInstance().networkFile = new File(dir, getInstance().dateFormat.format(System.currentTimeMillis()) + "_net.txt");
+            getInstance().networkFile = new File(dir, getInstance().fileDateFormat.format(System.currentTimeMillis()) + "_net.txt");
             return getInstance().networkFile.getAbsolutePath();
         } catch (Throwable e) {
             e.printStackTrace();
@@ -248,12 +254,10 @@ public class FileLog {
             return "";
         }
         try {
-            File sdCard = ApplicationLoader.applicationContext.getExternalFilesDir(null);
-            if (sdCard == null) {
+            File dir = AndroidUtilities.getLogsDir();
+            if (dir == null) {
                 return "";
             }
-            File dir = new File(sdCard.getAbsolutePath() + "/logs");
-            dir.mkdirs();
             getInstance().tonlibFile = new File(dir, getInstance().dateFormat.format(System.currentTimeMillis()) + "_tonlib.txt");
             return getInstance().tonlibFile.getAbsolutePath();
         } catch (Throwable e) {
@@ -310,13 +314,26 @@ public class FileLog {
         if (BuildVars.DEBUG_VERSION && needSent(e) && logToAppCenter) {
             AndroidUtilities.appCenterLog(e);
         }
-        if (BuildVars.DEBUG_VERSION && e instanceof SQLiteException && e.getMessage() != null && e.getMessage().contains("disk image is malformed")) {
-
+        if (BuildVars.DEBUG_VERSION && e.getMessage() != null && e.getMessage().contains("disk image is malformed") && !databaseIsMalformed) {
+            FileLog.d("copy malformed files");
+            databaseIsMalformed = true;
+            File filesDir = ApplicationLoader.getFilesDirFixed();
+            filesDir = new File(filesDir, "malformed_database/");
+            filesDir.mkdirs();
+            ArrayList<File> malformedFiles = MessagesStorage.getInstance(UserConfig.selectedAccount).getDatabaseFiles();
+            for (int i = 0; i < malformedFiles.size(); i++) {
+                try {
+                    AndroidUtilities.copyFile(malformedFiles.get(i), new File(filesDir, malformedFiles.get(i).getName()));
+                } catch (IOException ex) {
+                    FileLog.e(ex);
+                }
+            }
         }
         ensureInitied();
         e.printStackTrace();
         if (getInstance().streamWriter != null) {
             getInstance().logQueue.postRunnable(() -> {
+
                 try {
                     getInstance().streamWriter.write(getInstance().dateFormat.format(System.currentTimeMillis()) + " E/tmessages: " + e + "\n");
                     StackTraceElement[] stack = e.getStackTrace();
@@ -419,11 +436,10 @@ public class FileLog {
 
     public static void cleanupLogs() {
         ensureInitied();
-        File sdCard = ApplicationLoader.applicationContext.getExternalFilesDir(null);
-        if (sdCard == null) {
+        File dir = AndroidUtilities.getLogsDir();
+        if (dir == null) {
             return;
         }
-        File dir = new File (sdCard.getAbsolutePath() + "/logs");
         File[] files = dir.listFiles();
         if (files != null) {
             for (int a = 0; a < files.length; a++) {
