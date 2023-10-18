@@ -105,6 +105,8 @@ android {
         multiDexEnabled true
 
         buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapScreenshotKey}\""
+        buildConfigField "int", "API_ID", "${keystoreProperties.telegramApiId}"
+        buildConfigField "String", "API_HASH", "\"${keystoreProperties.telegramApiHash}\""
         externalNativeBuild {
             cmake {
                 version '3.10.2'
