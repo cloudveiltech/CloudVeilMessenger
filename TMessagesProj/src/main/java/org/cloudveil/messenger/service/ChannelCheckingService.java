@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import io.sentry.Sentry;
 
 /**
  * Created by Dmitriy on 05.02.2018.

@@ -43,6 +43,10 @@ import org.telegram.ui.LauncherIconController;
 
 import java.io.File;
 
+import io.sentry.Sentry;
+import io.sentry.SentryLevel;
+import io.sentry.android.core.SentryAndroid;
+
 public class ApplicationLoader extends Application {
 
     public static ApplicationLoader applicationLoaderInstance;
@@ -248,6 +252,12 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
 
+        //CloudVeil start
+        SentryAndroid.init(this, options -> {
+            options.setDsn(BuildConfig.SENTRY_KEY);
+        });
+        //CloudVeil end
+
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app start time = " + (startTime = SystemClock.elapsedRealtime()));
             FileLog.d("buildVersion = " + BuildVars.BUILD_VERSION);
@@ -294,6 +304,7 @@ public class ApplicationLoader extends Application {
 
         LauncherIconController.tryFixLauncherIconIfNeeded();
         ProxyRotationController.init();
+
     }
 
     public static void startPushService() {
