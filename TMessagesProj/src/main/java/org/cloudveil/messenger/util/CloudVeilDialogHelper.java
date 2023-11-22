@@ -12,6 +12,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 
+import androidx.annotation.NonNull;
+
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.service.ChannelCheckingService;
@@ -38,6 +40,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CloudVeilDialogHelper {
+    private static final long SUPPORT_BOT_ID = 689684671;
     private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
     private final int accountNumber;
 
@@ -173,6 +176,9 @@ public class CloudVeilDialogHelper {
 
 
     public boolean isDialogIdAllowed(long currentDialogId) {
+        if(currentDialogId == SUPPORT_BOT_ID) {
+            return true;
+        }
         if (DialogObject.isEncryptedDialog(currentDialogId)) {
             if(GlobalSecuritySettings.isDisabledSecretChat()) {
                 return false;
@@ -190,6 +196,9 @@ public class CloudVeilDialogHelper {
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
+        if(currentDialogId == SUPPORT_BOT_ID) {
+            return true;
+        }
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
 
@@ -267,7 +276,12 @@ public class CloudVeilDialogHelper {
         progressDialog.show();
     }
 
-    public boolean isMessageAllowed(MessageObject messageObject) {
+    public boolean isMessageAllowed(@NonNull MessageObject messageObject) {
+        if(messageObject.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto) {
+            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                return false;
+            }
+        }
         if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
                 && !MediaDataController.getInstance(accountNumber).isStickerAllowed(messageObject.messageOwner.media.document)) {
             if (TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {

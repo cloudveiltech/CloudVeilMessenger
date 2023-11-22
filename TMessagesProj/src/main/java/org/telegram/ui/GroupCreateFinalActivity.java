@@ -38,11 +38,10 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
-
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -318,6 +317,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
             }
             if (!TextUtils.isEmpty(txt)) {
                 editText.setText(txt);
+                editText.setSelection(editText.getText().length());
             }
         }
     }
@@ -595,6 +595,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
         editText.setHint(chatType == ChatObject.CHAT_TYPE_CHAT || chatType == ChatObject.CHAT_TYPE_MEGAGROUP || chatType == ChatObject.CHAT_TYPE_FORUM ? LocaleController.getString("EnterGroupNamePlaceholder", R.string.EnterGroupNamePlaceholder) : LocaleController.getString("EnterListName", R.string.EnterListName));
         if (nameToSet != null) {
             editText.setText(nameToSet);
+            editText.setSelection(editText.getText().length());
             nameToSet = null;
         }
         setDefaultGroupName();

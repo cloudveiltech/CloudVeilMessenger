@@ -21,6 +21,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
 
+import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -590,7 +591,9 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
                 avatarImage.setImage(null, null, avatarDrawable, null, null, 0);
             } else {
                 Drawable thumb = avatarDrawable;
-                if (user.photo != null) {
+                //CloudVeil start
+                if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                //CloudVeil end
                     photo = user.photo.photo_small;
                     if (user.photo.strippedBitmap != null) {
                         thumb = user.photo.strippedBitmap;
@@ -600,7 +603,9 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
             }
         } else if (chat != null) {
             Drawable thumb = avatarDrawable;
-            if (chat.photo != null) {
+            //CloudVeil start
+            if (chat.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            //CloudVeil end
                 photo = chat.photo.photo_small;
                 if (chat.photo.strippedBitmap != null) {
                     thumb = chat.photo.strippedBitmap;
@@ -802,7 +807,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (user != null && avatarStoryParams.checkOnTouchEvent(event, this)) {
+        if ((user != null || chat != null) && avatarStoryParams.checkOnTouchEvent(event, this)) {
             return true;
         }
         if (actionButton != null && actionButton.checkTouchEvent(event)) {

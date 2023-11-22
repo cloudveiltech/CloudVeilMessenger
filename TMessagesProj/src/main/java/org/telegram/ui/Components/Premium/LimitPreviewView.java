@@ -34,7 +34,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
-import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.ColoredImageSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -77,7 +77,7 @@ public class LimitPreviewView extends LinearLayout {
     private int animateIncreaseWidth;
     float limitIconRotation;
     public boolean isStatistic;
-
+    public boolean invalidationEnabled = true;
 
     public LimitPreviewView(@NonNull Context context, int icon, int currentValue, int premiumLimit, Theme.ResourcesProvider resourcesProvider) {
         this(context, icon, currentValue, premiumLimit, .5f, resourcesProvider);
@@ -194,7 +194,7 @@ public class LimitPreviewView extends LinearLayout {
                 }
                 canvas.drawRoundRect(AndroidUtilities.rectTmp, dp(6), dp(6), paint);
                 canvas.restore();
-                if (staticGradient == null) {
+                if (staticGradient == null && invalidationEnabled) {
                     invalidate();
                 }
                 super.dispatchDraw(canvas);
@@ -226,11 +226,11 @@ public class LimitPreviewView extends LinearLayout {
                             width1 = (int) (leftWidth + availableWidth * percent);
                             premiumCount.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
                             defaultText.setTextColor(Color.WHITE);
-            } else {
+                        } else {
                             width1 = width;
                             premiumCount.setTextColor(Color.WHITE);
                             defaultText.setTextColor(Color.WHITE);
-            }
+                        }
                     } else {
                         final int minWidth2 = Math.max(premiumLayout.getMeasuredWidth(), dp(24) + premiumText.getMeasuredWidth() + (premiumCount.getVisibility() == View.VISIBLE ? dp(24) + premiumCount.getMeasuredWidth() : 0));
                         width1 = (int) Utilities.clamp(width * percent, width - minWidth2, minWidth1);
@@ -247,7 +247,7 @@ public class LimitPreviewView extends LinearLayout {
                 } else {
                     super.onMeasure(widthMeasureSpec, heightMeasureSpec);
                 }
-        }
+            }
 
             @Override
             protected void onLayout(boolean changed, int l, int t, int r, int b) {
@@ -257,7 +257,7 @@ public class LimitPreviewView extends LinearLayout {
                     final int w = child1.getMeasuredWidth();
                     child1.layout(0, 0, w, b - t);
                     child2.layout(w, 0, r - l, b - t);
-            } else {
+                } else {
                     super.onLayout(changed, l, t, r, b);
                 }
             }
@@ -451,7 +451,7 @@ public class LimitPreviewView extends LinearLayout {
         premiumLocked = true;
     }
 
-    public void setBoosts(TLRPC.TL_stories_boostsStatus boosts, boolean boosted) {
+    public void setBoosts(TL_stories.TL_premium_boostsStatus boosts, boolean boosted) {
         int k = boosts.current_level_boosts;
         boolean isZeroLevelBoosts = boosts.current_level_boosts == boosts.boosts;
         if ((isZeroLevelBoosts && boosted) || boosts.next_level_boosts == 0) {
@@ -471,18 +471,16 @@ public class LimitPreviewView extends LinearLayout {
         premiumCount.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
         defaultText.setTextColor(Color.WHITE);
 
-
         setIconValue(boosts.boosts, false);
         isBoostsStyle = true;
     }
 
-    public void increaseCurrentValue(int value, int maxValue) {
+    public void increaseCurrentValue(int boosts, int value, int maxValue) {
         currentValue++;
         percent = MathUtils.clamp(value / (float) maxValue, 0f, 1f);
         animateIncrease = true;
         animateIncreaseWidth = width1;
-
-        setIconValue(currentValue, true);
+        setIconValue(boosts, true);
         limitsContainer.requestLayout();
         requestLayout();
     }
@@ -559,7 +557,9 @@ public class LimitPreviewView extends LinearLayout {
                 PremiumGradient.getInstance().getMainGradientPaint().setPathEffect(pathEffect);
                 canvas.drawPath(path, PremiumGradient.getInstance().getMainGradientPaint());
                 PremiumGradient.getInstance().getMainGradientPaint().setPathEffect(null);
-                invalidate();
+                if (invalidationEnabled) {
+                    invalidate();
+                }
             }
 
             float x = (getMeasuredWidth() - textLayout.getWidth()) / 2f;
@@ -679,6 +679,9 @@ public class LimitPreviewView extends LinearLayout {
 
 
         void createAnimationLayoutsDiff(CharSequence oldText) {
+            if (textLayout == null) {
+                return;
+            }
             animatedLayouts.clear();
             SpannableStringBuilder spannableStringBuilder = new SpannableStringBuilder(text);
             int directionCount = 0;

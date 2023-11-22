@@ -471,7 +471,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             TLRPC.Chat chat = (TLRPC.Chat) object;
             //CloudVeil start
             if (chat.photo != null&& !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
-            //CloudVeil end
+                //CloudVeil end
                 strippedBitmap = chat.photo.strippedBitmap;
                 hasStripped = chat.photo.stripped_thumb != null;
             }
@@ -2307,7 +2307,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         }
     }
 
-    public void setImageX(int x) {
+    public void setImageX(float x) {
         imageX = x;
     }
 

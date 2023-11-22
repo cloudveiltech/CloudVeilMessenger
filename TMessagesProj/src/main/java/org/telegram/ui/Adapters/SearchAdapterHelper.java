@@ -230,9 +230,9 @@ public class SearchAdapterHelper {
                                         //CloudVeil Start
                                         if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(chat);
+                                            globalSearchMap.put(-chat.id, chat);
                                         }
                                         //CloudVeil End
-                                        globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
                                         if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || !allowGlobalResults && b == 1 && !user.contact || !filter(user)) {
                                             continue;
@@ -240,9 +240,9 @@ public class SearchAdapterHelper {
                                         //CloudVeil Start
                                         if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(user);
+                                            globalSearchMap.put(user.id, user);
                                         }
                                         //CloudVeil End
-                                        globalSearchMap.put(user.id, user);
                                     }
                                 }
                             }

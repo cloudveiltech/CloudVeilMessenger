@@ -17,17 +17,14 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
-import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,7 +34,6 @@ import android.text.Editable;
 import android.text.Html;
 import android.text.InputFilter;
 import android.text.InputType;
-import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
@@ -53,18 +49,17 @@ import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RawRes;
 import androidx.annotation.RequiresApi;
 import androidx.core.util.Consumer;
@@ -98,6 +93,7 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.SerializedData;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -115,7 +111,6 @@ import org.telegram.ui.Components.voip.VoIPHelper;
 import org.telegram.ui.LanguageSelectActivity;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.LoginActivity;
-import org.telegram.ui.NotificationPermissionDialog;
 import org.telegram.ui.NotificationsCustomSettingsActivity;
 import org.telegram.ui.NotificationsSettingsActivity;
 import org.telegram.ui.ProfileNotificationsActivity;
@@ -126,6 +121,7 @@ import java.net.IDN;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -242,7 +238,7 @@ public class AlertsCreator {
     }
 
     public static Dialog processError(int currentAccount, TLRPC.TL_error error, BaseFragment fragment, TLObject request, Object... args) {
-        if (error.code == 406 || error.text == null) {
+        if (error == null || error.code == 406 || error.text == null) {
             return null;
         }
         if (request instanceof TLRPC.TL_messages_initHistoryImport || request instanceof TLRPC.TL_messages_checkHistoryImportPeer || request instanceof TLRPC.TL_messages_checkHistoryImport || request instanceof TLRPC.TL_messages_startHistoryImport) {
@@ -483,7 +479,7 @@ public class AlertsCreator {
             } else if (error.text.startsWith("FLOOD_WAIT")) {
                 showSimpleAlert(fragment, LocaleController.getString("FloodWait", R.string.FloodWait));
             } else if (error.text.contains("FRESH_CHANGE_PHONE_FORBIDDEN")) {
-                showSimpleAlert(fragment, LocaleController.getString("FreshChangePhoneForbidden", R.string.FreshChangePhoneForbidden));
+                showSimpleAlert(fragment, LocaleController.getString(R.string.FreshChangePhoneForbiddenTitle), LocaleController.getString("FreshChangePhoneForbidden", R.string.FreshChangePhoneForbidden));
             } else {
                 showSimpleAlert(fragment, error.text);
             }
@@ -696,7 +692,7 @@ public class AlertsCreator {
                     }
                 }
                 if (few) {
-                    createSimpleAlert(context, chat.title, LocaleController.getString("SlowmodeSendError", R.string.SlowmodeSendError)).show();
+                    createSimpleAlert(context, chat.title, LocaleController.getString(R.string.SlowmodeSendError)).show();
                     return true;
                 }
             }
@@ -1484,7 +1480,10 @@ public class AlertsCreator {
         });
     }
 
-    public static void createBotLaunchAlert(BaseFragment fragment, TLRPC.TL_messages_botApp botApp, TLRPC.User user, AtomicBoolean allowWrite, Runnable loadBotSheet) {
+    public static void createBotLaunchAlert(BaseFragment fragment, AtomicBoolean allowWrite, TLRPC.User user, Runnable loadBotSheet) {
+        if (fragment == null) {
+            return;
+        }
         Context context = fragment.getContext();
         CheckBoxCell[] cell = new CheckBoxCell[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -1560,7 +1559,7 @@ public class AlertsCreator {
         frameLayout.addView(subtitleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, (LocaleController.isRTL ? 21 : 76), 28, (LocaleController.isRTL ? 76 : 21), 0));
         frameLayout.addView(messageTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 24, 57, 24, 1));
 
-        if (botApp.request_write_access) {
+        if (allowWrite != null) {
             allowWrite.set(true);
 
             cell[0] = new CheckBoxCell(context, 1, fragment.getResourceProvider());
@@ -2773,7 +2772,7 @@ public class AlertsCreator {
             this(null);
         }
 
-        private ScheduleDatePickerColors(Theme.ResourcesProvider rp) {
+        public ScheduleDatePickerColors(Theme.ResourcesProvider rp) {
             this(rp != null ? rp.getColorOrDefault(Theme.key_dialogTextBlack) : Theme.getColor(Theme.key_dialogTextBlack),
                     rp != null ? rp.getColorOrDefault(Theme.key_dialogBackground) : Theme.getColor(Theme.key_dialogBackground),
                     rp != null ? rp.getColorOrDefault(Theme.key_sheet_other) : Theme.getColor(Theme.key_sheet_other),
@@ -4082,8 +4081,8 @@ public class AlertsCreator {
         buttonTextView.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider));
         buttonTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         buttonTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        buttonTextView.setText(LocaleController.getString("JumpToDate", R.string.JumpToDate));
-        buttonTextView.setBackgroundDrawable(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(4), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), Theme.getColor(Theme.key_featuredStickers_addButtonPressed, resourcesProvider)));
+        buttonTextView.setText(LocaleController.getString(R.string.JumpToDate));
+        buttonTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), Theme.getColor(Theme.key_featuredStickers_addButtonPressed, resourcesProvider)));
         container.addView(buttonTextView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.BOTTOM, 16, 15, 16, 16));
         buttonTextView.setOnClickListener(v -> {
             checkCalendarDate(minDate, dayPicker, monthPicker, yearPicker);
@@ -4195,7 +4194,7 @@ public class AlertsCreator {
             return;
         }
         if (storyId != 0) {
-            TLRPC.TL_stories_report request = new TLRPC.TL_stories_report();
+            TL_stories.TL_stories_report request = new TL_stories.TL_stories_report();
             request.peer = MessagesController.getInstance(UserConfig.selectedAccount).getInputPeer(peer.user_id);
             request.id.add(storyId);
             request.message = message;
@@ -4352,7 +4351,7 @@ public class AlertsCreator {
             TLObject req;
             TLRPC.InputPeer peer = MessagesController.getInstance(UserConfig.selectedAccount).getInputPeer(dialog_id);
             if (storyId != 0) {
-                TLRPC.TL_stories_report request = new TLRPC.TL_stories_report();
+                TL_stories.TL_stories_report request = new TL_stories.TL_stories_report();
                 request.id.add(storyId);
                 request.peer = MessagesController.getInstance(UserConfig.selectedAccount).getInputPeer(dialog_id);
                 request.message = "";
@@ -4911,47 +4910,47 @@ public class AlertsCreator {
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     public static AlertDialog.Builder createBackgroundLocationPermissionDialog(Activity activity, TLRPC.User selfUser, Runnable cancelRunnable, Theme.ResourcesProvider resourcesProvider) {
-    // CloudVeil disabled
+        // CloudVeil disabled
         return null;
-    //    if (activity == null || Build.VERSION.SDK_INT < 29) {
-    //        return null;
-    //    }
-    //    AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
-    //    String svg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_map_dark : R.raw.permission_map);
-    //    String pinSvg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_pin_dark : R.raw.permission_pin);
-    //    FrameLayout frameLayout = new FrameLayout(activity);
-    //    frameLayout.setClipToOutline(true);
-    //    frameLayout.setOutlineProvider(new ViewOutlineProvider() {
-    //        @Override
-    //        public void getOutline(View view, Outline outline) {
-    //            outline.setRoundRect(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight() + AndroidUtilities.dp(6), AndroidUtilities.dp(6));
-    //        }
-    //    });
-    //
-    //    View background = new View(activity);
-    //    background.setBackground(SvgHelper.getDrawable(svg));
-    //    frameLayout.addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 0, 0, 0, 0));
-    //
-    //    View pin = new View(activity);
-    //    pin.setBackground(SvgHelper.getDrawable(pinSvg));
-    //    frameLayout.addView(pin, LayoutHelper.createFrame(60, 82, Gravity.CENTER, 0, 0, 0, 0));
-    //
-    //    BackupImageView imageView = new BackupImageView(activity);
-    //    imageView.setRoundRadius(AndroidUtilities.dp(26));
-    //    imageView.setForUserOrChat(selfUser, new AvatarDrawable(selfUser));
-    //    frameLayout.addView(imageView, LayoutHelper.createFrame(52, 52, Gravity.CENTER, 0, 0, 0, 11));
-    //
-    //    builder.setTopView(frameLayout);
-    //    float aspectRatio = 354f / 936f;
-    //    builder.setTopViewAspectRatio(aspectRatio);
-    //    builder.setMessage(AndroidUtilities.replaceTags(LocaleController.getString(R.string.PermissionBackgroundLocation)));
-    //    builder.setPositiveButton(LocaleController.getString(R.string.Continue), (dialog, which) -> {
-    //        if (activity.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-    //            activity.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 30);
-    //        }
-    //    });
-    //    builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), ((dialog, which) -> cancelRunnable.run()));
-    //    return builder;
+//        if (activity == null || Build.VERSION.SDK_INT < 29) {
+//            return null;
+//        }
+//        AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
+//        String svg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_map_dark : R.raw.permission_map);
+//        String pinSvg = RLottieDrawable.readRes(null, Theme.getCurrentTheme().isDark() ? R.raw.permission_pin_dark : R.raw.permission_pin);
+//        FrameLayout frameLayout = new FrameLayout(activity);
+//        frameLayout.setClipToOutline(true);
+//        frameLayout.setOutlineProvider(new ViewOutlineProvider() {
+//            @Override
+//            public void getOutline(View view, Outline outline) {
+//                outline.setRoundRect(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight() + AndroidUtilities.dp(6), AndroidUtilities.dp(6));
+//            }
+//        });
+//
+//        View background = new View(activity);
+//        background.setBackground(SvgHelper.getDrawable(svg));
+//        frameLayout.addView(background, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 0, 0, 0, 0));
+//
+//        View pin = new View(activity);
+//        pin.setBackground(SvgHelper.getDrawable(pinSvg));
+//        frameLayout.addView(pin, LayoutHelper.createFrame(60, 82, Gravity.CENTER, 0, 0, 0, 0));
+//
+//        BackupImageView imageView = new BackupImageView(activity);
+//        imageView.setRoundRadius(AndroidUtilities.dp(26));
+//        imageView.setForUserOrChat(selfUser, new AvatarDrawable(selfUser));
+//        frameLayout.addView(imageView, LayoutHelper.createFrame(52, 52, Gravity.CENTER, 0, 0, 0, 11));
+//
+//        builder.setTopView(frameLayout);
+//        float aspectRatio = 354f / 936f;
+//        builder.setTopViewAspectRatio(aspectRatio);
+//        builder.setMessage(AndroidUtilities.replaceTags(LocaleController.getString(R.string.PermissionBackgroundLocation)));
+//        builder.setPositiveButton(LocaleController.getString(R.string.Continue), (dialog, which) -> {
+//            if (activity.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                activity.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 30);
+//            }
+//        });
+//        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), ((dialog, which) -> cancelRunnable.run()));
+//        return builder;
     }
 
     public static AlertDialog.Builder createGigagroupConvertAlert(Activity activity, DialogInterface.OnClickListener onProcess, DialogInterface.OnClickListener onCancel) {
@@ -5362,7 +5361,6 @@ public class AlertsCreator {
             }
             return "";
         });
-
         //CloudVeil start
         final int actualMinLength = minLength;
         //CloudVeil end
@@ -5704,7 +5702,8 @@ public class AlertsCreator {
         }
         final TLRPC.User userFinal = actionUser;
         final TLRPC.Chat chatFinal = actionChat;
-        builder.setPositiveButton(LocaleController.getString("Delete", R.string.Delete), (dialogInterface, i) -> {
+
+        DialogInterface.OnClickListener deleteAction = (dialogInterface, i) -> {
             ArrayList<Integer> ids = null;
             if (selectedMessage != null) {
                 ids = new ArrayList<>();
@@ -5772,7 +5771,7 @@ public class AlertsCreator {
             if (onDelete != null) {
                 onDelete.run();
             }
-        });
+        };
 
         if (count == 1) {
             builder.setTitle(LocaleController.getString("DeleteSingleMessagesTitle", R.string.DeleteSingleMessagesTitle));
@@ -5810,6 +5809,34 @@ public class AlertsCreator {
             }
         }
 
+        boolean isGiveawayAndOwner = false;
+        String giveawayEndDate = null;
+        if (selectedMessage != null) {
+            isGiveawayAndOwner = selectedMessage.isGiveaway() && !selectedMessage.isForwarded();
+            if (isGiveawayAndOwner) {
+                TLRPC.TL_messageMediaGiveaway giveaway = (TLRPC.TL_messageMediaGiveaway) selectedMessage.messageOwner.media;
+                giveawayEndDate = LocaleController.getInstance().formatterGiveawayMonthDayYear.format(new Date(giveaway.until_date * 1000L));
+            }
+        } else if (count == 1) {
+            for (int a = 1; a >= 0; a--) {
+                for (int b = 0; b < selectedMessages[a].size(); b++) {
+                    MessageObject msg = selectedMessages[a].valueAt(b);
+                    isGiveawayAndOwner = msg.isGiveaway() && !msg.isForwarded();
+                    if (isGiveawayAndOwner) {
+                        TLRPC.TL_messageMediaGiveaway giveaway = (TLRPC.TL_messageMediaGiveaway) msg.messageOwner.media;
+                        giveawayEndDate = LocaleController.getInstance().formatterGiveawayMonthDayYear.format(new Date(giveaway.until_date * 1000L));
+                    }
+                }
+            }
+        }
+
+        if (isGiveawayAndOwner) {
+            builder.setTitle(LocaleController.getString("BoostingGiveawayDeleteMsgTitle", R.string.BoostingGiveawayDeleteMsgTitle));
+            builder.setMessage(AndroidUtilities.replaceTags(LocaleController.formatString("BoostingGiveawayDeleteMsgText", R.string.BoostingGiveawayDeleteMsgText, giveawayEndDate)));
+            builder.setNeutralButton(LocaleController.getString("Delete", R.string.Delete), deleteAction);
+        } else {
+            builder.setPositiveButton(LocaleController.getString("Delete", R.string.Delete), deleteAction);
+        }
         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
         builder.setOnPreDismissListener(di -> {
             if (hideDim != null) {
@@ -5818,9 +5845,15 @@ public class AlertsCreator {
         });
         AlertDialog dialog = builder.create();
         fragment.showDialog(dialog);
-        TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
-        if (button != null) {
-            button.setTextColor(Theme.getColor(Theme.key_text_RedBold));
+        TextView positiveButton = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+        if (positiveButton != null) {
+            positiveButton.setTextColor(Theme.getColor(Theme.key_text_RedBold));
+        }
+        TextView neutralButton = (TextView) dialog.getButton(DialogInterface.BUTTON_NEUTRAL);
+        if (neutralButton != null) {
+            dialog.getButtonsLayout().setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(0), AndroidUtilities.dp(8), AndroidUtilities.dp(12));
+            ((ViewGroup.MarginLayoutParams) dialog.getButtonsLayout().getLayoutParams()).topMargin = AndroidUtilities.dp(-8);
+            neutralButton.setTextColor(Theme.getColor(Theme.key_text_RedBold));
         }
     }
 

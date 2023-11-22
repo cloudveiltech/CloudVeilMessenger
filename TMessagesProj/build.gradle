@@ -2,9 +2,11 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 apply plugin: 'com.android.library'
 
+//CloudVeil start
 def keystorePropertiesFile = rootProject.file("../keystore.properties");
 def keystoreProperties = new Properties()
 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+//CloudVeil end
 
 repositories {
     mavenCentral()
@@ -51,14 +53,14 @@ dependencies {
     implementation 'com.google.guava:guava:31.1-android'
 
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
-
+	
     //cloudveil start
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.retrofit2:adapter-rxjava2:2.4.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
     implementation files('libs/libgsaverification-client.aar')
-    implementation 'io.sentry:sentry-android:5.5.2'
+    implementation 'io.sentry:sentry-android:6.31.0'
     //cloudveil end
 }
 
@@ -105,6 +107,9 @@ android {
         multiDexEnabled true
 
         buildConfigField "String", "MAP_SDK_KEY", "\"${keystoreProperties.mapScreenshotKey}\""
+        buildConfigField "int", "API_ID", "${keystoreProperties.telegramApiId}"
+        buildConfigField "String", "API_HASH", "\"${keystoreProperties.telegramApiHash}\""
+        buildConfigField "String", "SENTRY_KEY", "\"${keystoreProperties.sentryKey}\""
         externalNativeBuild {
             cmake {
                 version '3.10.2'
@@ -183,7 +188,7 @@ android {
         release {
             debuggable false
             jniDebuggable false
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'

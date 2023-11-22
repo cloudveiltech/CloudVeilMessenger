@@ -23,6 +23,7 @@ import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.tgnet.AbstractSerializedData;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.Theme;
 
 import java.io.File;
@@ -88,9 +89,9 @@ public class DraftsController {
 
         loading = true;
         loadInternal(false, loadedDrafts -> {
-                final long now = System.currentTimeMillis();
-                ArrayList<Long> ids = new ArrayList<>();
-                ArrayList<StoryEntry> deleteEntries = new ArrayList<>();
+            final long now = System.currentTimeMillis();
+            ArrayList<Long> ids = new ArrayList<>();
+            ArrayList<StoryEntry> deleteEntries = new ArrayList<>();
             for (int i = 0; i < loadedDrafts.size(); ++i) {
                 StoryEntry entry = loadedDrafts.get(i).toEntry();
                 if (entry == null) {
@@ -104,10 +105,10 @@ public class DraftsController {
                         (now - entry.draftDate > EXPIRATION_PERIOD)
                     )
                 ) {
-                        deleteEntries.add(entry);
-                    } else {
-                        drafts.add(entry);
-                        ids.add(entry.draftId);
+                    deleteEntries.add(entry);
+                } else {
+                    drafts.add(entry);
+                    ids.add(entry.draftId);
                 }
             }
             delete(deleteEntries);
@@ -303,7 +304,7 @@ public class DraftsController {
         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.storiesDraftsUpdated);
     }
 
-    public void deleteForEdit(TLRPC.StoryItem storyItem) {
+    public void deleteForEdit(TL_stories.StoryItem storyItem) {
         if (storyItem == null) {
             return;
         }
@@ -328,7 +329,7 @@ public class DraftsController {
         delete(toDelete);
     }
 
-    public void saveForEdit(StoryEntry entry, long dialogId, TLRPC.StoryItem storyItem) {
+    public void saveForEdit(StoryEntry entry, long dialogId, TL_stories.StoryItem storyItem) {
         if (entry == null || storyItem == null || storyItem.media == null) {
             return;
         }
@@ -359,7 +360,7 @@ public class DraftsController {
         append(draft);
     }
 
-    public StoryEntry getForEdit(long dialogId, TLRPC.StoryItem storyItem) {
+    public StoryEntry getForEdit(long dialogId, TL_stories.StoryItem storyItem) {
         if (storyItem == null) {
             return null;
         }
@@ -583,6 +584,9 @@ public class DraftsController {
             entry.gradientBottomColor = gradientBottomColor;
             if (caption != null) {
                 CharSequence caption = new SpannableString(this.caption);
+                if (Theme.chat_msgTextPaint == null) {
+                    Theme.createCommonMessageResources();
+                }
                 caption = Emoji.replaceEmoji(caption, Theme.chat_msgTextPaint.getFontMetricsInt(), true);
                 MessageObject.addEntitiesToText(caption, captionEntities, true, false, true, false);
                 entry.caption = caption;

@@ -987,14 +987,14 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
                 List<TLRPC.InputPeer> sendAs = MessagesController.getInstance(currentAccount).getStoriesController().sendAs;
                 boolean containsPrivacy = true;
                 if (canChangePeer && (isEdit || sendAs == null || sendAs.size() <= 1)) {
-                items.add(ItemInner.asHeader2(
-                    isEdit ?
-                        LocaleController.getString("StoryPrivacyAlertEditTitle", R.string.StoryPrivacyAlertEditTitle) :
-                        LocaleController.getString("StoryPrivacyAlertTitle", R.string.StoryPrivacyAlertTitle),
-                    storyPeriod != Integer.MAX_VALUE ?
-                        LocaleController.formatPluralString("StoryPrivacyAlertSubtitle", storyPeriod / 3600) :
-                        LocaleController.getString("StoryPrivacyAlertSubtitleProfile", R.string.StoryPrivacyAlertSubtitleProfile)
-                ));
+                    items.add(ItemInner.asHeader2(
+                        isEdit ?
+                                LocaleController.getString("StoryPrivacyAlertEditTitle", R.string.StoryPrivacyAlertEditTitle) :
+                                LocaleController.getString("StoryPrivacyAlertTitle", R.string.StoryPrivacyAlertTitle),
+                        storyPeriod != Integer.MAX_VALUE ?
+                                LocaleController.formatPluralString("StoryPrivacyAlertSubtitle", storyPeriod / 3600) :
+                                LocaleController.getString("StoryPrivacyAlertSubtitleProfile", R.string.StoryPrivacyAlertSubtitleProfile)
+                    ));
                 } else {
                     items.add(ItemInner.asHeaderCell(LocaleController.getString(R.string.StoryPrivacyPublishAs)));
                     if (selectedPeer == null || selectedPeer instanceof TLRPC.TL_inputPeerSelf) {

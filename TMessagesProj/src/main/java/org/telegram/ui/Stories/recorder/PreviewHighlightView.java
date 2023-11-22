@@ -22,7 +22,6 @@ import android.widget.TextView;
 
 import androidx.core.graphics.ColorUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;

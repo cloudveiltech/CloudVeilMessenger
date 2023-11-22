@@ -97,7 +97,7 @@ public class DarkThemeResourceProvider implements Theme.ResourcesProvider {
         sparseIntArray.put(Theme.key_chat_emojiPanelShadowLine, ColorUtils.setAlphaComponent(Color.BLACK, 30));
         sparseIntArray.put(Theme.key_chat_emojiPanelBackspace, ColorUtils.setAlphaComponent(Color.WHITE, 125));
         sparseIntArray.put(Theme.key_divider, 0xFF000000);
-        sparseIntArray.put(Theme.key_dialogFloatingButton, -15033089);
+        sparseIntArray.put(Theme.key_chat_editMediaButton, -15033089);
         sparseIntArray.put(Theme.key_dialogFloatingIcon, 0xffffffff);
         sparseIntArray.put(Theme.key_graySection, 0xFF292929);
         sparseIntArray.put(Theme.key_graySectionText, -8158332);
@@ -114,7 +114,8 @@ public class DarkThemeResourceProvider implements Theme.ResourcesProvider {
 
         sparseIntArray.put(Theme.key_switchTrack, 0xFF636363);
         sparseIntArray.put(Theme.key_switchTrackChecked, 0xFF1A9CFF);
-        sparseIntArray.put(Theme.key_dialogRoundCheckBox, -10177041);
+        sparseIntArray.put(Theme.key_dialogRoundCheckBox, 0xFF1A9CFF);
+        sparseIntArray.put(Theme.key_dialogRadioBackgroundChecked, 0xFF1A9CFF);
         sparseIntArray.put(Theme.key_dialogTextBlue2, 0xFF1A9CFF);
         sparseIntArray.put(Theme.key_color_red, -832444);
         sparseIntArray.put(Theme.key_checkboxDisabled, 0xff626262);

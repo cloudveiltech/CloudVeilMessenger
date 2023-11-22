@@ -149,13 +149,6 @@ public class Browser {
         }
     }
 
-    public static void openUrl(Context context, String url) {
-        if (url == null) {
-            return;
-        }
-        openUrl(context, Uri.parse(url), true);
-    }
-
     //CloudVeil start
     public static void openUrl(Context context, String url, BaseFragment fragment) {
         if (url == null) {
@@ -168,6 +161,13 @@ public class Browser {
         openUrl(context, uri, allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, null);
     }
     //CloudVeil end
+
+    public static void openUrl(Context context, String url) {
+        if (url == null) {
+            return;
+        }
+        openUrl(context, Uri.parse(url), true);
+    }
 
     public static void openUrl(Context context, Uri uri) {
         openUrl(context, uri, true);
@@ -257,7 +257,7 @@ public class Browser {
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
@@ -346,11 +346,12 @@ public class Browser {
                 }
                 uri = Uri.parse("https://" + finalPath);
             }
+
             //CloudVeil start
             boolean forceInternal = GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
             boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
             if (allowCustomTab && !internalUri && !scheme.equals("tel")) {
-            //CloudVeil end
+                //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"));
