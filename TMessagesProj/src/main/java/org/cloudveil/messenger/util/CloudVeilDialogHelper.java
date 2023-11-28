@@ -9,14 +9,13 @@ import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
@@ -32,7 +31,6 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ChatActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -272,7 +270,7 @@ public class CloudVeilDialogHelper {
         delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
         progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
         NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
-        ChannelCheckingService.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
+        CloudVeilSyncWorker.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
         progressDialog.show();
     }
 

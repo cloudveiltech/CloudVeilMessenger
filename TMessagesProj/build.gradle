@@ -60,7 +60,9 @@ dependencies {
     implementation 'com.squareup.retrofit2:adapter-rxjava2:2.4.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
     implementation files('libs/libgsaverification-client.aar')
-    implementation 'io.sentry:sentry-android:6.31.0'
+    implementation 'androidx.work:work-runtime:2.8.1'
+    implementation 'io.sentry:sentry-android:6.32.0'
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
     //cloudveil end
 }
 
@@ -197,6 +199,22 @@ android {
             buildConfigField "boolean", "DEBUG_VERSION", "false"
             buildConfigField "boolean", "DEBUG_PRIVATE_VERSION", "false"
             buildConfigField "boolean", "BUILD_HOST_IS_WINDOWS", isWindows
+        }
+    }
+
+
+    flavorDimensions "minApi"
+    productFlavors {
+        cloudveil {
+            sourceSets.debug {
+                manifest.srcFile '../TMessagesProj/config/debug/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.release {
+                manifest.srcFile '../TMessagesProj/config/release/AndroidManifest_SDK23.xml'
+            }
+            sourceSets.standalone {
+                manifest.srcFile '../TMessagesProj/config/release/AndroidManifest_standalone.xml'
+            }
         }
     }
 }

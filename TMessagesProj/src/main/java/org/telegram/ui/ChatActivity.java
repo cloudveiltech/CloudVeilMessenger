@@ -67,7 +67,6 @@ import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.ImageSpan;
 import android.text.style.URLSpan;
-import android.util.Log;
 import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
@@ -118,7 +117,7 @@ import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.zxing.common.detector.MathUtils;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
@@ -19399,7 +19398,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
             messages = CloudVeilDialogHelper.getInstance(currentAccount).filterMessages(messages);
         } else {
-            ChannelCheckingService.startDataChecking(currentAccount, dialog_id, getParentActivity());
+            CloudVeilSyncWorker.startDataChecking(currentAccount, dialog_id, getParentActivity());
         }
         if (chatAdapter != null && getParentActivity() != null) {
             getParentActivity().runOnUiThread(chatAdapter::notifyDataSetChanged);

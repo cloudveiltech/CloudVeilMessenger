@@ -27,10 +27,12 @@ import android.os.Handler;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.multidex.MultiDex;
+import androidx.work.WorkManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -45,6 +47,7 @@ import org.telegram.ui.IUpdateLayout;
 import org.telegram.ui.LauncherIconController;
 
 import java.io.File;
+import java.util.concurrent.Executors;
 
 import io.sentry.android.core.SentryAndroid;
 
@@ -261,6 +264,12 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
         //CloudVeil start
+        WorkManager.initialize(
+                this,
+                new androidx.work.Configuration.Builder()
+                        .setExecutor(Executors.newFixedThreadPool(1))
+                        .setMinimumLoggingLevel(Log.VERBOSE)
+                        .build());
         SentryAndroid.init(this, options -> {
             options.setDsn(BuildConfig.SENTRY_KEY);
         });

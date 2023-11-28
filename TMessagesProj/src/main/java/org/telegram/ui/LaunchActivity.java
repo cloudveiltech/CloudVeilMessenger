@@ -86,7 +86,7 @@ import com.google.firebase.appindexing.FirebaseUserActions;
 import com.google.firebase.appindexing.builders.AssistActionBuilder;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
@@ -4871,7 +4871,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         delegateInstance = new ReopenDialogAfterCheckDelegate(runnable);
         progressDialog = new AlertDialog(this, 3);
         NotificationCenter.getInstance(currentAccount).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
-        ChannelCheckingService.startDataChecking(currentAccount, dialogId, this);
+        CloudVeilSyncWorker.startDataChecking(currentAccount, dialogId, this);
         progressDialog.show();
     }
     //CloudVeil end

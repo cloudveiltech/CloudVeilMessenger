@@ -34,7 +34,6 @@ import android.text.TextUtils;
 import android.text.style.CharacterStyle;
 import android.text.style.URLSpan;
 import android.text.util.Linkify;
-import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 
@@ -48,7 +47,7 @@ import androidx.core.graphics.drawable.IconCompat;
 import com.android.billingclient.api.ProductDetails;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLiteException;
@@ -475,7 +474,7 @@ public class MediaDataController extends BaseController {
                     }
                 }
                 newStickerSets.add(stickerSet1);
-                ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
+                CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
             });
         }
     }

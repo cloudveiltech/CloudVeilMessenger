@@ -209,9 +209,11 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
     private int liteModeRow;
     private int liteModeInfoRow;
 
+    //CloudVeil disabled
+    /*
     private int appIconHeaderRow;
     private int appIconSelectorRow;
-    private int appIconShadowRow;
+    private int appIconShadowRow;*/
 
     private int rowCount;
 
@@ -574,9 +576,9 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
         editThemeRow = -1;
         createNewThemeRow = -1;
 
-        appIconHeaderRow = -1;
-        appIconSelectorRow = -1;
-        appIconShadowRow = -1;
+      //  appIconHeaderRow = -1;
+     //   appIconSelectorRow = -1;
+     //   appIconShadowRow = -1;
         lastShadowRow = -1;
 
         defaultThemes.clear();
@@ -639,9 +641,9 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             chatListRow = rowCount++;
             chatListInfoRow = rowCount++;
 
-            appIconHeaderRow = rowCount++;
-            appIconSelectorRow = rowCount++;
-            appIconShadowRow = rowCount++;
+          //CloudVeil disabled  appIconHeaderRow = rowCount++;
+            //CloudVeil disabled   appIconSelectorRow = rowCount++;
+            //CloudVeil disabled  appIconShadowRow = rowCount++;
 
             swipeGestureHeaderRow = rowCount++;
             swipeGestureRow = rowCount++;
@@ -2314,9 +2316,9 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                         headerCell.setText(LocaleController.getString("ChatListSwipeGesture", R.string.ChatListSwipeGesture));
                     } else if (position == selectThemeHeaderRow) {
                         headerCell.setText(LocaleController.getString("SelectTheme", R.string.SelectTheme));
-                    } else if (position == appIconHeaderRow) {
-                        headerCell.setText(LocaleController.getString(R.string.AppIcon));
-                    } else if (position == otherHeaderRow) {
+                    }/*else if (position == appIconHeaderRow) {
+                        //CloudVeil disabled headerCell.setText(LocaleController.getString(R.string.AppIcon));
+                    } */else if (position == otherHeaderRow) {
                         headerCell.setText(LocaleController.getString("OtherSettings", R.string.OtherSettings));
                     } else if (position == mediaSoundHeaderRow) {
                         headerCell.setText(LocaleController.getString("MediaAndSoundSettings", R.string.MediaAndSoundSettings));
@@ -2473,7 +2475,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 return TYPE_TEXT_INFO_PRIVACY;
             } else if (position == themeInfoRow || position == nightTypeInfoRow || position == scheduleFromToInfoRow ||
                     position == settings2Row || position == newThemeInfoRow || position == chatListInfoRow || position == bubbleRadiusInfoRow ||
-                    position == saveToGallerySectionRow || position == appIconShadowRow || position == lastShadowRow || position == stickersSectionRow ||
+                    position == saveToGallerySectionRow/* || position == appIconShadowRow*/ || position == lastShadowRow || position == stickersSectionRow ||
                     position == mediaSoundSectionRow || position == otherSectionRow) {
                 return TYPE_SHADOW;
             } else if (position == nightDisabledRow || position == nightScheduledRow || position == nightAutomaticRow || position == nightSystemDefaultRow) {
@@ -2481,7 +2483,7 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
             } else if (position == scheduleHeaderRow || position == automaticHeaderRow || position == preferedHeaderRow ||
                     position == settingsRow || position == themeHeaderRow || position == textSizeHeaderRow ||
                     position == chatListHeaderRow || position == bubbleRadiusHeaderRow || position == swipeGestureHeaderRow ||
-                    position == selectThemeHeaderRow || position == appIconHeaderRow || position == mediaSoundHeaderRow ||
+                    position == selectThemeHeaderRow || /*position == appIconHeaderRow ||*/ position == mediaSoundHeaderRow ||
                     position == otherHeaderRow) {
                 return TYPE_HEADER;
             } else if (position == automaticBrightnessRow) {
@@ -2513,9 +2515,9 @@ public class ThemeActivity extends BaseFragment implements NotificationCenter.No
                 return TYPE_DEFAULT_THEMES_PREVIEW;
             } else if (position == saveToGalleryOption1Row || position == saveToGalleryOption2Row) {
                 return TYPE_SAVE_TO_GALLERY;
-            } else if (position == appIconSelectorRow) {
+            }/* else if (position == appIconSelectorRow) {
                 return TYPE_APP_ICON;
-            } else if (position == changeUserColor) {
+            } */else if (position == changeUserColor) {
                 return TYPE_CHOOSE_COLOR;
             }
             return TYPE_TEXT_SETTING;

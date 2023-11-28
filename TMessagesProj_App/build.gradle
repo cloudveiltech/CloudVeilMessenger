@@ -190,13 +190,6 @@ android {
         }
     }
 
-    variantFilter { variant ->
-        def names = variant.flavors*.name
-        if (variant.buildType.name != "release" && !names.contains("afat")) {
-            setIgnore(true)
-        }
-    }
-
     defaultConfig {
         minSdkVersion 19
         targetSdkVersion 33

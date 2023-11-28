@@ -84,7 +84,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.ViewPager;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -10058,7 +10058,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     public void didReceivedNotification(int id, int account, Object... args) {
         //CloudVeil start
         if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoad) {
-            ChannelCheckingService.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
+            CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         }
 
         if (id == NotificationCenter.filterDialogsReady) {
