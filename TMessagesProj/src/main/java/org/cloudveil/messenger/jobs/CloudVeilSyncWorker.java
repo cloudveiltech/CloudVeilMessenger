@@ -60,6 +60,9 @@ public class CloudVeilSyncWorker extends Worker {
     private static final String EXTRA_ADDITION_DIALOG_ID = "extra_dialog_id";
     private static final String EXTRA_ACCOUNT_NUMBER = "extra_account_number";
     private static final long CACHE_TIMEOUT_MS = 30000;
+
+    Handler mainLooperHandler;
+
     private Disposable subscription;
     private long additionalDialogId = 0;
     private static boolean firstCall = true;
@@ -69,6 +72,7 @@ public class CloudVeilSyncWorker extends Worker {
 
     public CloudVeilSyncWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
+        this.mainLooperHandler = new Handler(context.getMainLooper());
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
@@ -95,8 +99,7 @@ public class CloudVeilSyncWorker extends Worker {
                 putLong(EXTRA_ADDITION_DIALOG_ID, dialogId).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
-        WorkManager.getInstance(context).pruneWork();
-        WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.REPLACE, requestBuilder.build());
+        WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.KEEP, requestBuilder.build());
     }
 
 
@@ -117,16 +120,16 @@ public class CloudVeilSyncWorker extends Worker {
         return Result.success();
     }
 
-    Runnable checkDataRunnable = this::sendDataCheckRequest;
-
     private void sendDataCheckRequest() {
         UserConfig userConfig = UserConfig.getInstance(accountNumber);
         if (userConfig == null || !userConfig.isConfigLoaded()) {
+            postFilterDialogsReady();
             return;
         }
 
         TLRPC.User currentUser = userConfig.getCurrentUser();
         if (currentUser == null) {
+            postFilterDialogsReady();
             return;
         }
 
@@ -143,7 +146,7 @@ public class CloudVeilSyncWorker extends Worker {
         addStickersToRequest(request);
 
         if (request.isEmpty()) {
-            NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
+            postFilterDialogsReady();
             return;
         }
 
@@ -154,7 +157,7 @@ public class CloudVeilSyncWorker extends Worker {
         if(cacheIsFreshEnough) {
             Log.d("CloudVeil", "cached response");
         }
-        boolean forceCache = firstCall || !ApplicationLoader.isNetworkOnline() || cacheIsFreshEnough;
+        boolean forceCache = firstCall || cacheIsFreshEnough;
         if(request.equals(cachedRequest)) {
             Log.d("CloudVeil", "requests are equal");
             if (cached != null && forceCache && !hasAdditionalDialog) {
@@ -164,20 +167,17 @@ public class CloudVeilSyncWorker extends Worker {
             }
         }
         cachedRequest = request;
-
-        if (!ApplicationLoader.isNetworkOnline() || (cachedResponseCalled && cacheIsFreshEnough)) {
+        if (cachedResponseCalled && cacheIsFreshEnough) {
+            postFilterDialogsReady();
             return;
         }
 
         CloudVeilDialogHelper.getInstance(accountNumber).loadNotificationChannelDialog(request);
 
-        NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
         lastServerCallTime = System.currentTimeMillis();
 
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
-
-                observeOn(AndroidSchedulers.mainThread()).
                 subscribe(settingsResponse -> {
                     saveToCache(settingsResponse);
                     processResponse(settingsResponse);
@@ -189,6 +189,11 @@ public class CloudVeilSyncWorker extends Worker {
                     throwable.printStackTrace();
                     freeSubscription();
                 });
+        postFilterDialogsReady();
+    }
+
+    private void postFilterDialogsReady() {
+        mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {
@@ -284,7 +289,7 @@ public class CloudVeilSyncWorker extends Worker {
             GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
         }
 
-        NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady);
+        postFilterDialogsReady();
     }
 
     private void appendAllowedDialogs(ConcurrentHashMap<Long, Boolean> allowedDialogs, ArrayList<HashMap<Long, Boolean>> groups) {

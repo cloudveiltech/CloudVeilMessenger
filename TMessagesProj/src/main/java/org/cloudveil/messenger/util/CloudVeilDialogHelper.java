@@ -9,6 +9,7 @@ import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
@@ -275,6 +276,9 @@ public class CloudVeilDialogHelper {
     }
 
     public boolean isMessageAllowed(@NonNull MessageObject messageObject) {
+        if(messageObject.messageOwner == null) {
+            return false;
+        }
         if(messageObject.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto) {
             if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
                 return false;

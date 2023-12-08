@@ -190,7 +190,7 @@ android {
         release {
             debuggable false
             jniDebuggable false
-            minifyEnabled true
+            minifyEnabled false
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'

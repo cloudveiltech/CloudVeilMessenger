@@ -2934,6 +2934,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 if (area || area2) {
                     if (area) {
                         buttonPressed = 1;
+                        //CloudVeil start
+                        if(MediaController.getInstance().isAudioTrackPlaying()) {
+                            buttonPressed = 0;
+                            playSoundEffect(SoundEffectConstants.CLICK);
+                            didPressButton(true, false);
+                            invalidate();
+                        }
+                        //CloudVeil end
                     } else {
                         miniButtonPressed = 1;
                     }

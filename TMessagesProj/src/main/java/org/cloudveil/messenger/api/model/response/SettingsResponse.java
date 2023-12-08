@@ -1,5 +1,7 @@
 package org.cloudveil.messenger.api.model.response;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 
