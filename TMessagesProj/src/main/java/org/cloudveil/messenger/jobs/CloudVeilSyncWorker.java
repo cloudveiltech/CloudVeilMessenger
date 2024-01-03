@@ -278,12 +278,7 @@ public class CloudVeilSyncWorker extends Worker {
         GlobalSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
         GlobalSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
 
-        if(settingsResponse.organization != null) {
-            GlobalSecuritySettings.setIsOrganisationChangeRequired(settingsResponse.organization.needChange);
-            GlobalSecuritySettings.setAboutUsUrl(settingsResponse.organization.aboutUrl);
-        } else {
-            GlobalSecuritySettings.setIsOrganisationChangeRequired(false);
-        }
+        GlobalSecuritySettings.setOrganization(settingsResponse.organization);
         
         if(settingsResponse.googleMapsKeys != null) {
             GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);

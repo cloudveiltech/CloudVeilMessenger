@@ -494,6 +494,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int policyRow;
     //CloudVeil start
     private int aboutUsRow;
+    private int organizationPolicyRow;
     //CloudVeil end
     private int helpSectionCell;
     private int debugHeaderRow;
@@ -3452,8 +3453,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Browser.openUrl(getParentActivity(), LocaleController.getString("PrivacyPolicyUrl", R.string.PrivacyPolicyUrl));
             }//CloudVeil start
             else if (position == aboutUsRow) {
-                Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getAboutUsUrl());
-                //CloudVeil end
+                Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getOrganization().aboutUrl);
+            } else if(position == organizationPolicyRow) {
+                    Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getOrganization().policyUrl);
+            //CloudVeil end
             } else if (position == sendLogsRow) {
                 sendLogs(getParentActivity(), false);
             } else if (position == sendLastLogsRow) {
@@ -7578,6 +7581,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         versionRow = -1;
         //CloudVeil start
         aboutUsRow = -1;
+        organizationPolicyRow = -1;
         //CloudVeil end
 
         sendMessageRow = -1;
@@ -7687,8 +7691,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 faqRow = rowCount++;
                 policyRow = rowCount++;
                 //CloudVeil start
-                if(!GlobalSecuritySettings.getAboutUsUrl().isEmpty()) {
+                if(!GlobalSecuritySettings.getOrganization().aboutUrl.isEmpty()) {
                     aboutUsRow = rowCount++;
+                }
+                if(!GlobalSecuritySettings.getOrganization().policyUrl.isEmpty()) {
+                    organizationPolicyRow = rowCount++;
                 }
                 //CloudVeil end
                 if (BuildVars.LOGS_ENABLED || BuildVars.DEBUG_PRIVATE_VERSION) {
@@ -9876,6 +9883,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         //CloudVeil start
                     } else if (position == aboutUsRow) {
                         textCell.setTextAndIcon(LocaleController.getString("AboutUs", R.string.about_us), R.drawable.msg_language, false);
+                    } else if (position == organizationPolicyRow) {
+                        textCell.setTextAndIcon(LocaleController.getString("OrganizationPolicy", R.string.organization_policy), R.drawable.msg2_discussion, false);
                         //CloudVeil end
                     } else if (position == sendLogsRow) {
                         textCell.setText(LocaleController.getString("DebugSendLogs", R.string.DebugSendLogs), true);
@@ -10147,7 +10156,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     position == questionRow || position == devicesRow || position == filtersRow || position == stickersRow ||
                     position == faqRow || position == policyRow || position == sendLogsRow || position == sendLastLogsRow ||
                     position == clearLogsRow || position == switchBackendRow || position == setAvatarRow || position == addToGroupButtonRow ||
-                    position == addToContactsRow || position == liteModeRow/*CloudVeil start*/|| position == aboutUsRow /*CloudVeil end*/) {
+                    position == addToContactsRow || position == liteModeRow/*CloudVeil start*/|| position == aboutUsRow || position == organizationPolicyRow/*CloudVeil end*/) {
                 return VIEW_TYPE_TEXT;
             } else if (position == notificationsDividerRow) {
                 return VIEW_TYPE_DIVIDER;
@@ -11386,6 +11395,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, policyRow, sparseIntArray);
             //CloudVeil start
             put(++pointer, aboutUsRow, sparseIntArray);
+            put(++pointer, organizationPolicyRow, sparseIntArray);
             //CloudVeil end
             put(++pointer, helpSectionCell, sparseIntArray);
             put(++pointer, debugHeaderRow, sparseIntArray);

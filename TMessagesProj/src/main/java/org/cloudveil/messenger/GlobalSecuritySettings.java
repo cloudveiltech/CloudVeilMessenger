@@ -7,6 +7,9 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.core.content.pm.ShortcutManagerCompat;
 
+import com.google.gson.Gson;
+
+import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.MediaDataController;
@@ -103,7 +106,7 @@ public class GlobalSecuritySettings {
 
     public static void setLockDisableOthersPhoto(boolean lockDisableOthersPhoto) {
         boolean oldValue = getLockDisableOthersPhoto();
-        if(oldValue != lockDisableOthersPhoto) {
+        if (oldValue != lockDisableOthersPhoto) {
             ShortcutManagerCompat.removeAllDynamicShortcuts(ApplicationLoader.applicationContext);
             MediaDataController.getInstance(UserConfig.selectedAccount).buildShortcuts();
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
@@ -159,7 +162,7 @@ public class GlobalSecuritySettings {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putInt("profilePhotoLimit", profilePhotoLimit).apply();
     }
-    
+
     public static int getProfilePhotoLimit() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         int limit = preferences.getInt("profilePhotoLimit", GlobalSecuritySettings.PROFILE_PHOTO_NO_LIMIT);
@@ -212,38 +215,32 @@ public class GlobalSecuritySettings {
     public static String getGoogleMapsKey() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         String v = preferences.getString("googleMapsKey", "");
-        if(TextUtils.isEmpty(v)) {
+        if (TextUtils.isEmpty(v)) {
             return BuildConfig.MAP_SDK_KEY;
         }
         return v;
     }
 
-    public static void setAboutUsUrl(String url) {
+    public static void setOrganization(SettingsResponse.Organization organization) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        if(url == null || url.isEmpty()) {
-            preferences.edit().remove("aboutUsUrl").apply();
+        if (organization == null) {
+            preferences.edit().remove("organization").apply();
         } else {
-            preferences.edit().putString("aboutUsUrl", url).apply();
+            preferences.edit().putString("organization", new Gson().toJson(organization)).apply();
         }
     }
 
-    public static String getAboutUsUrl() {
+    public static SettingsResponse.Organization getOrganization() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        return preferences.getString("aboutUsUrl", "");
-    }
-
-    public static void setIsOrganisationChangeRequired(boolean isRequired) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putBoolean("isOrganisationChangeRequired", isRequired).apply();
-    }
-
-    public static boolean getIsOrganisationChangeRequired() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        return preferences.getBoolean("isOrganisationChangeRequired", false);
+        SettingsResponse.Organization organization = new Gson().fromJson(preferences.getString("organization", ""), SettingsResponse.Organization.class);
+        if(organization == null) {
+            organization = new SettingsResponse.Organization();
+        }
+        return organization;
     }
 
     public static boolean isUrlWhileListedForInternalView(@NonNull String url) {
-        if(url.contains("://messenger.cloudveil.org")) {
+        if (url.contains("://messenger.cloudveil.org")) {
             return true;
         }
         return false;
@@ -252,11 +249,11 @@ public class GlobalSecuritySettings {
     public static boolean isVideoPlayingAllowed() {
         return true;
     }
-    
+
     public static String getInstallId(@NonNull int accountNum) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(GlobalSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         String id = preferences.getString("installId__" + accountNum, null);
-        if(id == null) {
+        if (id == null) {
             id = UUID.randomUUID().toString();
         }
         preferences.edit().putString("installId__" + accountNum, id).apply();

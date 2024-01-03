@@ -35,6 +35,7 @@ public class SettingsResponse {
         public String name;
         public boolean needChange;
         public String aboutUrl;
+        public String policyUrl;
     }
 
     public AccessList access;

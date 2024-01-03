@@ -420,7 +420,7 @@ public class CloudVeilDialogHelper {
     }
 
     public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {
-        if(!GlobalSecuritySettings.getIsOrganisationChangeRequired()) {
+        if(!GlobalSecuritySettings.getOrganization().needChange) {
             return;
         }
         long now = System.currentTimeMillis();
