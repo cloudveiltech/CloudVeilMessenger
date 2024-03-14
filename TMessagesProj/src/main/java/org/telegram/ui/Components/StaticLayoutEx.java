@@ -99,19 +99,15 @@ public class StaticLayoutEx {
                     .setHyphenationFrequency(StaticLayout.HYPHENATION_FREQUENCY_NONE);
             return builder.build();
         } else {
-            return createStaticLayout(source, 0, source.length(), paint, width, align, spacingmult, spacingadd, includepad, ellipsize, ellipsisWidth, maxLines, true);
+            return createStaticLayout(source, paint, width, align, spacingmult, spacingadd, includepad, ellipsize, ellipsisWidth, maxLines, true);
         }
     }
 
     public static StaticLayout createStaticLayout(CharSequence source, TextPaint paint, int width, Layout.Alignment align, float spacingmult, float spacingadd, boolean includepad, TextUtils.TruncateAt ellipsize, int ellipsisWidth, int maxLines) {
-        return createStaticLayout(source, 0, source.length(), paint, width, align, spacingmult, spacingadd, includepad, ellipsize, ellipsisWidth, maxLines, true);
+        return createStaticLayout(source, paint, width, align, spacingmult, spacingadd, includepad, ellipsize, ellipsisWidth, maxLines, true);
     }
 
-    public static StaticLayout createStaticLayout(CharSequence source, TextPaint paint, int width, Layout.Alignment align, float spacingmult, float spacingadd, boolean includepad, TextUtils.TruncateAt ellipsize, int ellipsisWidth, int maxLines, boolean canContainUrl) {
-        return createStaticLayout(source, 0, source.length(), paint, width, align, spacingmult, spacingadd, includepad, ellipsize, ellipsisWidth, maxLines, canContainUrl);
-    }
-
-    public static StaticLayout createStaticLayout(CharSequence source, int bufstart, int bufend, TextPaint paint, int outerWidth, Layout.Alignment align, float spacingMult, float spacingAdd, boolean includePad, TextUtils.TruncateAt ellipsize, int ellipsisWidth, int maxLines, boolean canContainUrl) {
+    public static StaticLayout createStaticLayout(CharSequence source, TextPaint paint, int outerWidth, Layout.Alignment align, float spacingMult, float spacingAdd, boolean includePad, TextUtils.TruncateAt ellipsize, int ellipsisWidth, int maxLines, boolean canContainUrl) {
         /*if (Build.VERSION.SDK_INT >= 14) {
             init();
             try {
@@ -154,6 +150,26 @@ public class StaticLayoutEx {
                             .setBreakStrategy(StaticLayout.BREAK_STRATEGY_HIGH_QUALITY)
                             .setHyphenationFrequency(StaticLayout.HYPHENATION_FREQUENCY_NONE);
                     layout = builder.build();
+
+                    boolean realWidthLarger = false;
+                    for (int l = 0; l < layout.getLineCount(); ++l) {
+                        if (layout.getLineRight(l) > outerWidth) {
+                            realWidthLarger = true;
+                            break;
+                        }
+                    }
+                    if (realWidthLarger) {
+                        builder = StaticLayout.Builder.obtain(source, 0, source.length(), paint, outerWidth)
+                            .setAlignment(align)
+                            .setLineSpacing(spacingAdd, spacingMult)
+                            .setIncludePad(includePad)
+                            .setEllipsize(null)
+                            .setEllipsizedWidth(ellipsisWidth)
+                            .setMaxLines(maxLines)
+                            .setBreakStrategy(StaticLayout.BREAK_STRATEGY_SIMPLE)
+                            .setHyphenationFrequency(StaticLayout.HYPHENATION_FREQUENCY_NONE);
+                        layout = builder.build();
+                    }
                 } else {
                     layout = new StaticLayout(source, paint, outerWidth, align, spacingMult, spacingAdd, includePad);
                 }

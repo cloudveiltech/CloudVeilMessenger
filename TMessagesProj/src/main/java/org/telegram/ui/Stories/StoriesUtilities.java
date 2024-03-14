@@ -6,7 +6,10 @@ import static org.telegram.ui.Stories.StoriesController.STATE_UNREAD_CLOSE_FRIEN
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -25,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLoader;
@@ -43,6 +47,7 @@ import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.AnimatedColor;
 import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.ButtonBounce;
 import org.telegram.ui.Components.ColoredImageSpan;
@@ -110,7 +115,7 @@ public class StoriesUtilities {
         int state;
         int unreadState = 0;
         boolean showProgress = storiesController.isLoading(dialogId);
-
+        boolean isForum = ChatObject.isForum(UserConfig.selectedAccount, dialogId) && !params.isDialogStoriesCell;
         if (params.drawHiddenStoriesAsSegments) {
             hasStories = storiesController.hasHiddenStories();
         }
@@ -137,6 +142,10 @@ public class StoriesUtilities {
             }
         } else {
             unreadState = state = getPredictiveUnreadState(storiesController, dialogId);
+        }
+
+        if (params.forceState != 0) {
+            unreadState = state = params.forceState;
         }
 
         if (params.currentState != state) {
@@ -215,7 +224,7 @@ public class StoriesUtilities {
             rectTmp.set(params.originalAvatarRect);
             rectTmp.inset(inset, inset);
 
-            drawCircleInternal(canvas, avatarImage.getParentView(), params, gradientTools.paint);
+            drawCircleInternal(canvas, avatarImage.getParentView(), params, gradientTools.paint, isForum);
         }
         if ((params.prevState == STATE_READ && params.progressToSate != 1f) || params.currentState == STATE_READ) {
             boolean animateOut = params.prevState == STATE_READ && params.progressToSate != 1f;
@@ -252,9 +261,9 @@ public class StoriesUtilities {
             rectTmp.set(params.originalAvatarRect);
             rectTmp.inset(inset, inset);
             if (params.drawSegments) {
-                drawSegmentsInternal(canvas, storiesController, avatarImage, params, paint, unreadPaint, closeFriendsPaint);
+                drawSegmentsInternal(canvas, storiesController, avatarImage, params, paint, unreadPaint, closeFriendsPaint, isForum);
             } else {
-                drawCircleInternal(canvas, avatarImage.getParentView(), params, paint);
+                drawCircleInternal(canvas, avatarImage.getParentView(), params, paint, isForum);
             }
         }
         if ((params.prevState == STATE_PROGRESS && params.progressToSate != 1f) || params.currentState == STATE_PROGRESS) {
@@ -305,7 +314,7 @@ public class StoriesUtilities {
                 }
                 float progressToSegments = params.progressToSegments;
                 params.progressToSegments = 1f - params.progressToProgressSegments;
-                drawSegmentsInternal(canvas, storiesController, avatarImage, params, paint, unreadPaint, closeFriendsPaint);
+                drawSegmentsInternal(canvas, storiesController, avatarImage, params, paint, unreadPaint, closeFriendsPaint, isForum);
                 params.progressToSegments = progressToSegments;
                 if (avatarImage.getParentView() != null) {
                     avatarImage.invalidate();
@@ -341,7 +350,7 @@ public class StoriesUtilities {
         }
     }
 
-    private static void drawSegmentsInternal(Canvas canvas, StoriesController storiesController, ImageReceiver avatarImage, AvatarStoryParams params, Paint paint, Paint unreadPaint, Paint closeFriendsPaint) {
+    private static void drawSegmentsInternal(Canvas canvas, StoriesController storiesController, ImageReceiver avatarImage, AvatarStoryParams params, Paint paint, Paint unreadPaint, Paint closeFriendsPaint, boolean isForum) {
         checkGrayPaint(params.resourcesProvider);
         checkStoryCellGrayPaint(params.isArchive, params.resourcesProvider);
         int globalState;
@@ -380,19 +389,19 @@ public class StoriesUtilities {
             }
             float startAngle = -90;
             float endAngle = 90;
-            drawSegment(canvas, rectTmp, localPaint, startAngle, endAngle, params);
+            drawSegment(canvas, rectTmp, localPaint, startAngle, endAngle, params, isForum);
             startAngle = 90;
             endAngle = 270;
-            drawSegment(canvas, rectTmp, localPaint, startAngle, endAngle, params);
+            drawSegment(canvas, rectTmp, localPaint, startAngle, endAngle, params, isForum);
 
             if (params.progressToSegments != 1 && localPaint != globalPaint) {
                 globalPaint.setAlpha((int) (255 * (1f - params.progressToSegments)));
                 startAngle = -90;
                 endAngle = 90;
-                drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params);
+                drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params, isForum);
                 startAngle = 90;
                 endAngle = 270;
-                drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params);
+                drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params, isForum);
                 globalPaint.setAlpha(255);
             }
             // canvas.drawCircle(rectTmp.centerX(), rectTmp.centerY(), rectTmp.width() / 2f, localPaint);
@@ -431,12 +440,12 @@ public class StoriesUtilities {
                 startAngle += gapLen;
                 endAngle -= gapLen;
 
-                drawSegment(canvas, rectTmp, segmentPaint, startAngle, endAngle, params);
+                drawSegment(canvas, rectTmp, segmentPaint, startAngle, endAngle, params, isForum);
                 if (params.progressToSegments != 1 && segmentPaint != globalPaint) {
                     float strokeWidth = globalPaint.getStrokeWidth();
                     //globalPaint.setStrokeWidth(AndroidUtilities.lerp(segmentPaint.getStrokeWidth(), strokeWidth, 1f - params.progressToSegments));
                     globalPaint.setAlpha((int) (255 * (1f - params.progressToSegments)));
-                    drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params);
+                    drawSegment(canvas, rectTmp, globalPaint, startAngle, endAngle, params, isForum);
                     //  globalPaint.setStrokeWidth(strokeWidth);
                     globalPaint.setAlpha(255);
                 }
@@ -543,7 +552,15 @@ public class StoriesUtilities {
         }
     }
 
-    private static void drawCircleInternal(Canvas canvas, View view, AvatarStoryParams params, Paint paint) {
+    private static final RectF forumRect = new RectF();
+
+    private static void drawCircleInternal(Canvas canvas, View view, AvatarStoryParams params, Paint paint, boolean isForum) {
+        if (isForum) {
+            forumRect.set(rectTmp);
+            forumRect.inset(AndroidUtilities.dp(0.5f), AndroidUtilities.dp(0.5f));
+            canvas.drawRoundRect(forumRect, AndroidUtilities.dp(18), AndroidUtilities.dp(18), paint);
+            return;
+        }
         if (params.progressToArc == 0) {
             canvas.drawCircle(rectTmp.centerX(), rectTmp.centerY(), rectTmp.width() / 2f, paint);
         } else {
@@ -551,7 +568,34 @@ public class StoriesUtilities {
         }
     }
 
-    private static void drawSegment(Canvas canvas, RectF rectTmp, Paint paint, float startAngle, float endAngle, AvatarStoryParams params) {
+    private static final Path forumRoundRectPath = new Path();
+    private static final Matrix forumRoundRectMatrix = new Matrix();
+    private static final PathMeasure forumRoundRectPathMeasure = new PathMeasure();
+    private static final Path forumSegmentPath = new Path();
+
+    private static void drawSegment(Canvas canvas, RectF rectTmp, Paint paint, float startAngle, float endAngle, AvatarStoryParams params, boolean isForum) {
+        if (isForum) {
+            float r = rectTmp.height() * 0.32f;
+            float rotateAngle = (((int)(startAngle)) / 90) * 90 + 90;
+            float pathAngleStart = -199 + rotateAngle;
+            float percentFrom = (startAngle - pathAngleStart) / 360;
+            float percentTo = (endAngle - pathAngleStart) / 360;
+            forumRoundRectPath.rewind();
+            forumRoundRectPath.addRoundRect(rectTmp, r, r, Path.Direction.CW);
+
+            forumRoundRectMatrix.reset();
+            forumRoundRectMatrix.postRotate(rotateAngle, rectTmp.centerX(), rectTmp.centerY());
+            forumRoundRectPath.transform(forumRoundRectMatrix);
+
+            forumRoundRectPathMeasure.setPath(forumRoundRectPath, false);
+            float length = forumRoundRectPathMeasure.getLength();
+
+            forumSegmentPath.reset();
+            forumRoundRectPathMeasure.getSegment(length * percentFrom, length * percentTo, forumSegmentPath, true);
+            forumSegmentPath.rLineTo(0, 0);
+            canvas.drawPath(forumSegmentPath, paint);
+            return;
+        }
         if (!params.isFirst && !params.isLast) {
             if (startAngle < 90) {
                 drawArcExcludeArc(canvas, rectTmp, paint, startAngle, endAngle, -params.progressToArc / 2, params.progressToArc / 2);
@@ -1048,9 +1092,11 @@ public class StoriesUtilities {
 
         private long dialogId;
         public int currentState;
+        public int forceState;
         public int prevState;
         public float progressToSate = 1f;
         public boolean showProgress = false;
+        public boolean isDialogStoriesCell;
 
         private final boolean isStoryCell;
         public RectF originalAvatarRect = new RectF();
@@ -1319,6 +1365,92 @@ public class StoriesUtilities {
             ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, false);
             canceled = true;
             params = null;
+        }
+    }
+
+    public static class StoryGradientTools {
+        public final int currentAccount = UserConfig.selectedAccount;
+
+        private final Runnable invalidate;
+        private final boolean isDialogCell;
+        private final GradientTools tools;
+
+        private int color1, color2;
+        private final AnimatedColor animatedColor1, animatedColor2;
+
+        public StoryGradientTools(View view, boolean isDialogCell) {
+            this(view::invalidate, isDialogCell);
+        }
+
+        public StoryGradientTools(Runnable invalidate, boolean isDialogCell) {
+            this.invalidate = invalidate;
+            this.isDialogCell = isDialogCell;
+
+            animatedColor1 = new AnimatedColor(invalidate, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
+            animatedColor2 = new AnimatedColor(invalidate, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
+
+            tools = new GradientTools();
+            tools.isDiagonal = true;
+            tools.isRotate = true;
+            resetColors(false);
+            tools.paint.setStrokeWidth(AndroidUtilities.dpf2(2.3f));
+            tools.paint.setStyle(Paint.Style.STROKE);
+            tools.paint.setStrokeCap(Paint.Cap.ROUND);
+        }
+
+        public void setUser(TLRPC.User user, boolean animated) {
+            int colorId = -1;
+            if (user != null && user.profile_color != null) {
+                colorId = user.profile_color.color;
+            }
+            setColorId(colorId, animated);
+        }
+
+        public void setChat(TLRPC.Chat chat, boolean animated) {
+            int colorId = -1;
+//            if (chat != null && chat.profile_color != null) {
+//                colorId = chat.profile_color.color;
+//            }
+            setColorId(colorId, animated);
+        }
+
+        public void setColorId(int colorId, boolean animated) {
+            MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).profilePeerColors;
+            MessagesController.PeerColor peerColor = peerColors == null ? null : peerColors.getColor(colorId);
+            if (peerColor != null) {
+                setColors(
+                    peerColor.getStoryColor1(Theme.isCurrentThemeDark()),
+                    peerColor.getStoryColor2(Theme.isCurrentThemeDark()),
+                    animated
+                );
+            } else {
+                resetColors(animated);
+            }
+        }
+        private void resetColors(boolean animated) {
+            if (isDialogCell) {
+                setColors(Theme.getColor(Theme.key_stories_circle_dialog1), Theme.getColor(Theme.key_stories_circle_dialog2), animated);
+            } else {
+                setColors(Theme.getColor(Theme.key_stories_circle1), Theme.getColor(Theme.key_stories_circle2), animated);
+            }
+        }
+
+        private void setColors(int color1, int color2, boolean animated) {
+            this.color1 = color1;
+            this.color2 = color2;
+            if (!animated) {
+                this.animatedColor1.set(color1, true);
+                this.animatedColor2.set(color2, true);
+            }
+            if (invalidate != null) {
+                invalidate.run();
+            }
+        }
+
+        public Paint getPaint(RectF bounds) {
+            tools.setColors(animatedColor1.set(color1), animatedColor2.set(color2));
+            tools.setBounds(bounds.left, bounds.top, bounds.right, bounds.bottom);
+            return tools.paint;
         }
     }
 }

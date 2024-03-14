@@ -32,10 +32,10 @@ public class SettingsResponse {
 
     public static class Organization {
         public int id;
-        public String name;
+        public String name = "";
         public boolean needChange;
-        public String aboutUrl;
-        public String policyUrl;
+        public String aboutUrl = "";
+        public String policyUrl = "";
     }
 
     public AccessList access;

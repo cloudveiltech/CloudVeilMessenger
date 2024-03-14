@@ -203,6 +203,7 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
         doneButton = menu.addItem(done_button, LocaleController.getString("Done", R.string.Done).toUpperCase());
 
         fragmentView = new ScrollView(context);
+        fragmentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundWhite));
 
         linearLayout = new LinearLayout(context);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
@@ -754,7 +755,7 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
         ArrayList<TLRPC.Message> arr = new ArrayList<>();
         arr.add(message);
       //  MessagesStorage.getInstance(currentAccount).putMessages(arr, false, true, false, 0, false, 0);
-        MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(user_id, objArr, false);
+        MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(user_id, objArr, 0);
 
 
         getMessagesController().photoSuggestion.put(message.local_id, imageUpdater);
@@ -873,7 +874,7 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
                 if (user == null) {
                     return;
                 }
-                avatarDrawable.setInfo(user);
+                avatarDrawable.setInfo(currentAccount, user);
                 avatarImage.invalidate();
             }
         };

@@ -270,7 +270,7 @@ public class Browser {
         if (tryTelegraph) {
             try {
                 String host = AndroidUtilities.getHostAuthority(uri);
-                if (isTelegraphUrl(host, true) || "telegram.org".equalsIgnoreCase(host) && (uri.toString().toLowerCase().contains("telegram.org/faq") || uri.toString().toLowerCase().contains("telegram.org/privacy") || uri.toString().toLowerCase().contains("telegram.org/blog"))) {
+                if (UserConfig.getInstance(UserConfig.selectedAccount).getCurrentUser() != null && (isTelegraphUrl(host, true) || "telegram.org".equalsIgnoreCase(host) && (uri.toString().toLowerCase().contains("telegram.org/faq") || uri.toString().toLowerCase().contains("telegram.org/privacy") || uri.toString().toLowerCase().contains("telegram.org/blog")))) {
                     final AlertDialog[] progressDialog = new AlertDialog[] {
                         new AlertDialog(context, AlertDialog.ALERT_TYPE_SPINNER)
                     };
@@ -471,6 +471,16 @@ public class Browser {
             }
         } catch (Throwable ignore) {
 
+        }
+        return false;
+    }
+
+    public static boolean isTMe(String url) {
+        try {
+            final String linkPrefix = MessagesController.getInstance(UserConfig.selectedAccount).linkPrefix;
+            return TextUtils.equals(AndroidUtilities.getHostAuthority(url), linkPrefix);
+        } catch (Exception e) {
+            FileLog.e(e);
         }
         return false;
     }

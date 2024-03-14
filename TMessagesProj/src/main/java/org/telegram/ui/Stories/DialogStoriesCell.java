@@ -471,7 +471,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
         }
 
         if (!hasOverlayText) {
-            titleView.setText(currentTitle, animated);
+            titleView.setText(currentTitle, animated && !LocaleController.isRTL);
         }
 
         miniItems.clear();
@@ -911,12 +911,12 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                         textToSet = spannableString;
                     }
                 }
-                titleView.setText(textToSet, true);
+                titleView.setText(textToSet, !LocaleController.isRTL);
             }
         } else {
             hasOverlayText = false;
             overlayTextId = 0;
-            titleView.setText(currentTitle, true);
+            titleView.setText(currentTitle, !LocaleController.isRTL);
         }
         if (hasEllipsizedText) {
             ellipsizeSpanAnimator.addView(titleView);
@@ -1108,6 +1108,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
         public StoryCell(Context context) {
             super(context);
             params.isArchive = type == TYPE_ARCHIVE;
+            params.isDialogStoriesCell = true;
             avatarImage.setInvalidateAll(true);
             avatarImage.setAllowLoadingOnAttachedOnly(true);
 
@@ -1165,7 +1166,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                 avatarImage.clearImage();
                 return;
             }
-            avatarDrawable.setInfo(object);
+            avatarDrawable.setInfo(currentAccount, object);
             avatarImage.setForUserOrChat(object, avatarDrawable);
             if (mini) {
                 return;
@@ -1640,7 +1641,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                         user = null;
                     }
                     if (object != null) {
-                        crossfadeAvatarDrawable.setInfo(object);
+                        crossfadeAvatarDrawable.setInfo(currentAccount, object);
                         crossfageToAvatarImage.setForUserOrChat(object, crossfadeAvatarDrawable);
                     }
                 } else {

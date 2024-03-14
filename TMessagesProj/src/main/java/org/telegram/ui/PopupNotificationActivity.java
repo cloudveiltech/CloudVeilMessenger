@@ -395,7 +395,12 @@ public class PopupNotificationActivity extends Activity implements NotificationC
             }
 
             @Override
-            public void needStartRecordVideo(int state, boolean notify, int scheduleDate) {
+            public void needStartRecordVideo(int state, boolean notify, int scheduleDate, int ttl) {
+
+            }
+
+            @Override
+            public void toggleVideoRecordingPause() {
 
             }
 

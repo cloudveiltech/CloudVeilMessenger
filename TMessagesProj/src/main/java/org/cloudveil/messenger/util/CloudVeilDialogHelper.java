@@ -333,12 +333,13 @@ public class CloudVeilDialogHelper {
     }
 
     public static boolean isBatteryOptimized(final Context context) {
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        String name = context.getPackageName();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return !powerManager.isIgnoringBatteryOptimizations(name);
-        }
         return false;
+//disabled for now, maybe remove in the future        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+//        String name = context.getPackageName();
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//            return !powerManager.isIgnoringBatteryOptimizations(name);
+//        }
+//        return false;
     }
 
     public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {

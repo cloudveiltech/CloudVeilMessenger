@@ -1022,7 +1022,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 } else if (bitmapDrawable instanceof AnimatedFileDrawable) {
                     AnimatedFileDrawable animatedFileDrawable = (AnimatedFileDrawable) drawable;
                     animatedFileDrawable.setRoundRadius(roundRadius);
-                } else if (bitmapDrawable.getBitmap() != null) {
+                } else if (bitmapDrawable.getBitmap() != null && !bitmapDrawable.getBitmap().isRecycled()) {
                     setDrawableShader(drawable, new BitmapShader(bitmapDrawable.getBitmap(), Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
                 }
             }
@@ -1116,25 +1116,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             return true;
         }
         return false;
-    }
-
-    private int bufferedFrame;
-    public void incrementFrames(int inc) {
-        if (currentMediaDrawable instanceof RLottieDrawable) {
-//            RLottieDrawable rlottie = (RLottieDrawable) currentMediaDrawable;
-//            inc = (int) Math.round((float) rlottie.getFramesCount() / rlottie.getDuration() * (1f / 30f));
-//            rlottie.setCurrentFrame(
-//                (rlottie.getCurrentFrame() + inc) % (int) rlottie.getFramesCount()
-//            );
-        } else if (currentMediaDrawable instanceof AnimatedFileDrawable) {
-            int lastFrame = (int) bufferedFrame;
-            bufferedFrame += inc;
-            int currentFrame = (int) bufferedFrame;
-            while (lastFrame != currentFrame) {
-                ((AnimatedFileDrawable) currentMediaDrawable).getNextFrame();
-                currentFrame--;
-            }
-        }
     }
 
     public boolean onAttachedToWindow() {
@@ -1667,6 +1648,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 if (drawable instanceof SvgHelper.SvgDrawable) {
                     svgDrawable = (SvgHelper.SvgDrawable) drawable;
                     svgDrawable.setParent(this);
+                }
+                if (colorFilter != null && drawable != null) {
+                    drawable.setColorFilter(colorFilter);
                 }
                 try {
                     drawable.setAlpha(alpha);

@@ -44,8 +44,23 @@ public class GiftInfoBottomSheet extends BottomSheetWithRecyclerListView {
             if (fragment.getParentActivity() == null) {
                 return;
             }
-            GiftInfoBottomSheet alert = new GiftInfoBottomSheet(fragment, false, true, giftCode, slug);
-            fragment.showDialog(alert);
+
+            if (giftCode.from_id == null) {
+                TLRPC.TL_premiumGiftOption giftOption = new TLRPC.TL_premiumGiftOption();
+                giftOption.months = giftCode.months;
+                TLRPC.User user = null;
+                if (fragment instanceof ChatActivity) {
+                    user = ((ChatActivity) fragment).getCurrentUser();
+                }
+                if (user == null || user.self) {
+                    user = new TLRPC.TL_user();
+                }
+                boolean isUsed = giftCode.used_date != 0;
+                PremiumPreviewGiftLinkBottomSheet.show(slug, giftOption, user, isUsed);
+            } else {
+                fragment.showDialog(new GiftInfoBottomSheet(fragment, false, true, giftCode, slug));
+            }
+
             if (progress != null) {
                 progress.end();
             }
@@ -107,10 +122,10 @@ public class GiftInfoBottomSheet extends BottomSheetWithRecyclerListView {
         this.giftCode = giftCode;
         this.slug = slug;
         setApplyTopPadding(false);
-        setApplyBottomPadding(true);
+        setApplyBottomPadding(false);
         fixNavigationBar();
         updateTitle();
-        adapter.init(fragment, giftCode, slug);
+        adapter.init(fragment, giftCode, slug, container);
     }
 
     @Override

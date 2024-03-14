@@ -18,21 +18,25 @@ import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
+import org.telegram.ui.Components.Premium.boosts.BoostRepository;
 import org.telegram.ui.Components.Premium.boosts.cells.AddChannelCell;
 import org.telegram.ui.Components.Premium.boosts.cells.BoostTypeCell;
 import org.telegram.ui.Components.Premium.boosts.cells.BoostTypeSingleCell;
 import org.telegram.ui.Components.Premium.boosts.cells.ChatCell;
 import org.telegram.ui.Components.Premium.boosts.cells.DateEndCell;
+import org.telegram.ui.Components.Premium.boosts.cells.EnterPrizeCell;
 import org.telegram.ui.Components.Premium.boosts.cells.HeaderCell;
 import org.telegram.ui.Components.Premium.boosts.cells.ParticipantsTypeCell;
 import org.telegram.ui.Components.Premium.boosts.cells.DurationCell;
 import org.telegram.ui.Components.Premium.boosts.cells.SliderCell;
 import org.telegram.ui.Components.Premium.boosts.cells.SubtitleWithCounterCell;
+import org.telegram.ui.Components.Premium.boosts.cells.SwitcherCell;
 import org.telegram.ui.Components.Premium.boosts.cells.TextInfoCell;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SlideChooseView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class BoostAdapter extends AdapterWithDiffUtils {
@@ -51,7 +55,9 @@ public class BoostAdapter extends AdapterWithDiffUtils {
             HOLDER_TYPE_PARTICIPANTS = 11,
             HOLDER_TYPE_DURATION = 12,
             HOLDER_TYPE_SUBTITLE_WITH_COUNTER = 13,
-            HOLDER_TYPE_SINGLE_BOOST_TYPE = 14;
+            HOLDER_TYPE_SINGLE_BOOST_TYPE = 14,
+            HOLDER_TYPE_SWITCHER = 15,
+            HOLDER_TYPE_ENTER_PRIZE = 16;
 
     private final Theme.ResourcesProvider resourcesProvider;
     private List<Item> items = new ArrayList<>();
@@ -59,16 +65,38 @@ public class BoostAdapter extends AdapterWithDiffUtils {
     private SlideChooseView.Callback sliderCallback;
     private ChatCell.ChatDeleteListener chatDeleteListener;
     private HeaderCell headerCell;
+    private EnterPrizeCell.AfterTextChangedListener afterTextChangedListener;
+    private TLRPC.Chat currentChat;
+    private HashMap<Long, Integer> chatsParticipantsCount = new HashMap<>();
 
     public BoostAdapter(Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
+        BoostRepository.loadParticipantsCount(result -> {
+            chatsParticipantsCount.clear();
+            chatsParticipantsCount.putAll(result);
+        });
     }
 
-    public void setItems(List<Item> items, RecyclerListView recyclerListView, SlideChooseView.Callback sliderCallback, ChatCell.ChatDeleteListener chatDeleteListener) {
+    public void setItems(TLRPC.Chat currentChat, List<Item> items, RecyclerListView recyclerListView, SlideChooseView.Callback sliderCallback, ChatCell.ChatDeleteListener chatDeleteListener, EnterPrizeCell.AfterTextChangedListener afterTextChangedListener) {
         this.items = items;
+        this.currentChat = currentChat;
         this.recyclerListView = recyclerListView;
         this.sliderCallback = sliderCallback;
         this.chatDeleteListener = chatDeleteListener;
+        this.afterTextChangedListener = afterTextChangedListener;
+    }
+
+    private int getParticipantsCount(TLRPC.Chat chat) {
+        TLRPC.ChatFull chatFull = MessagesController.getInstance(UserConfig.selectedAccount).getChatFull(chat.id);
+        if (chatFull != null && chatFull.participants_count > 0) {
+            return chatFull.participants_count;
+        } else if (!chatsParticipantsCount.isEmpty()) {
+            Integer count = chatsParticipantsCount.get(chat.id);
+            if (count != null) {
+                return count;
+            }
+        }
+        return chat.participants_count;
     }
 
     public void updateBoostCounter(int value) {
@@ -78,16 +106,34 @@ public class BoostAdapter extends AdapterWithDiffUtils {
                 ((SubtitleWithCounterCell) child).updateCounter(true, value);
             }
             if (child instanceof ChatCell) {
-                ((ChatCell) child).setCounter(value);
+                ChatCell chatCell = ((ChatCell) child);
+                chatCell.setCounter(value, getParticipantsCount(chatCell.getChat()));
             }
         }
-        notifyItemChanged(8);
-        //updates all prices
-        notifyItemChanged(items.size() - 1);
-        notifyItemChanged(items.size() - 2);
-        notifyItemChanged(items.size() - 3);
-        notifyItemChanged(items.size() - 4);
-        notifyItemChanged(items.size() - 6);
+        notifyItemChanged(8); //update main channel
+        notifyItemRangeChanged(items.size() - 12, 12); //updates all prices
+    }
+
+    public void notifyAllVisibleTextDividers() {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).viewType == HOLDER_TYPE_TEXT_DIVIDER) {
+                notifyItemChanged(i);
+            }
+        }
+    }
+
+    public void notifyAdditionalPrizeItem(boolean checked) {
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            if (item.viewType == HOLDER_TYPE_SWITCHER && item.subType == SwitcherCell.TYPE_ADDITION_PRIZE) {
+                if (checked) {
+                    notifyItemInserted(i + 1);
+                } else {
+                    notifyItemRemoved(i + 1);
+                }
+                break;
+            }
+        }
     }
 
     public void setPausedStars(boolean paused) {
@@ -158,6 +204,7 @@ public class BoostAdapter extends AdapterWithDiffUtils {
                 || itemViewType == HOLDER_TYPE_PARTICIPANTS
                 || itemViewType == HOLDER_TYPE_ADD_CHANNEL
                 || itemViewType == HOLDER_TYPE_DATE_END
+                || itemViewType == HOLDER_TYPE_SWITCHER
                 || itemViewType == HOLDER_TYPE_DURATION;
     }
 
@@ -176,6 +223,14 @@ public class BoostAdapter extends AdapterWithDiffUtils {
                 break;
             case HOLDER_TYPE_SINGLE_BOOST_TYPE:
                 view = new BoostTypeSingleCell(context, resourcesProvider);
+                break;
+            case HOLDER_TYPE_ENTER_PRIZE:
+                view = new EnterPrizeCell(context, resourcesProvider);
+                break;
+            case HOLDER_TYPE_SWITCHER:
+                SwitcherCell cell = new SwitcherCell(context, resourcesProvider);
+                cell.setHeight(50);
+                view = cell;
                 break;
             case HOLDER_TYPE_EMPTY:
                 view = new View(context);
@@ -224,7 +279,7 @@ public class BoostAdapter extends AdapterWithDiffUtils {
         switch (viewType) {
             case HOLDER_TYPE_HEADER: {
                 headerCell = (HeaderCell) holder.itemView;
-                headerCell.setBoostViaGifsText();
+                headerCell.setBoostViaGifsText(currentChat);
                 break;
             }
             case HOLDER_TYPE_BOOST_TYPE: {
@@ -265,19 +320,21 @@ public class BoostAdapter extends AdapterWithDiffUtils {
                 if (item.peer != null) {
                     TLRPC.InputPeer peer = item.peer;
                     if (peer instanceof TLRPC.TL_inputPeerChat) {
-                        cell.setChat(MessagesController.getInstance(UserConfig.selectedAccount).getChat(peer.chat_id), item.intValue, item.boolValue);
+                        TLRPC.Chat chat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(peer.chat_id);
+                        cell.setChat(chat, item.intValue, item.boolValue, getParticipantsCount(chat));
                     } else if (peer instanceof TLRPC.TL_inputPeerChannel) {
-                        cell.setChat(MessagesController.getInstance(UserConfig.selectedAccount).getChat(peer.channel_id), item.intValue, item.boolValue);
+                        TLRPC.Chat chat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(peer.channel_id);
+                        cell.setChat(chat, item.intValue, item.boolValue, getParticipantsCount(chat));
                     }
                 } else {
-                    cell.setChat(item.chat, item.intValue, item.boolValue);
+                    cell.setChat(item.chat, item.intValue, item.boolValue, getParticipantsCount(item.chat));
                 }
                 cell.setChatDeleteListener(chatDeleteListener);
                 break;
             }
             case HOLDER_TYPE_PARTICIPANTS: {
                 ParticipantsTypeCell cell = (ParticipantsTypeCell) holder.itemView;
-                cell.setType(item.subType, item.selectable, item.boolValue, (List<TLRPC.TL_help_country>) item.user);
+                cell.setType(item.subType, item.selectable, item.boolValue, (List<TLRPC.TL_help_country>) item.user, currentChat);
                 break;
             }
             case HOLDER_TYPE_DATE_END: {
@@ -291,6 +348,17 @@ public class BoostAdapter extends AdapterWithDiffUtils {
                 break;
             }
             case HOLDER_TYPE_SIMPLE_DIVIDER: {
+                break;
+            }
+            case HOLDER_TYPE_ENTER_PRIZE: {
+                EnterPrizeCell cell = (EnterPrizeCell) holder.itemView;
+                cell.setCount(item.intValue);
+                cell.setAfterTextChangedListener(afterTextChangedListener);
+                break;
+            }
+            case HOLDER_TYPE_SWITCHER: {
+                SwitcherCell cell = (SwitcherCell) holder.itemView;
+                cell.setData(item.text, item.selectable, item.boolValue, item.subType);
                 break;
             }
         }
@@ -355,6 +423,20 @@ public class BoostAdapter extends AdapterWithDiffUtils {
             item.chat = null;
             item.boolValue = removable;
             item.intValue = count;
+            return item;
+        }
+
+        public static Item asEnterPrize(int count) {
+            Item item = new Item(HOLDER_TYPE_ENTER_PRIZE, false);
+            item.intValue = count;
+            return item;
+        }
+
+        public static Item asSwitcher(CharSequence text, boolean isSelected, boolean needDivider, int subType) {
+            Item item = new Item(HOLDER_TYPE_SWITCHER, isSelected);
+            item.text = text;
+            item.boolValue = needDivider;
+            item.subType = subType;
             return item;
         }
 

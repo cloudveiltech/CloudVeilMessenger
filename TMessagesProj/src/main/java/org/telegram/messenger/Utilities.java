@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 
 import com.carrotsearch.randomizedtesting.Xoroshiro128PlusRandom;
@@ -86,12 +87,21 @@ public class Utilities {
     public static native void setupNativeCrashesListener(String path);
 
     public static Bitmap stackBlurBitmapMax(Bitmap bitmap) {
+        return stackBlurBitmapMax(bitmap, false);
+    }
+
+    public static Bitmap stackBlurBitmapMax(Bitmap bitmap, boolean round) {
         int w = AndroidUtilities.dp(20);
         int h = (int) (AndroidUtilities.dp(20) * (float) bitmap.getHeight() / bitmap.getWidth());
         Bitmap scaledBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(scaledBitmap);
         canvas.save();
         canvas.scale((float) scaledBitmap.getWidth() / bitmap.getWidth(), (float) scaledBitmap.getHeight() / bitmap.getHeight());
+        if (round) {
+            Path path = new Path();
+            path.addCircle(bitmap.getWidth() / 2f, bitmap.getHeight() / 2f, Math.min(bitmap.getWidth(), bitmap.getHeight()) / 2f - 1, Path.Direction.CW);
+            canvas.clipPath(path);
+        }
         canvas.drawBitmap(bitmap, 0, 0, null);
         canvas.restore();
         Utilities.stackBlurBitmap(scaledBitmap, Math.max(10, Math.max(w, h) / 150));
@@ -489,6 +499,16 @@ public class Utilities {
         return Math.max(Math.min(value, maxValue), minValue);
     }
 
+    public static double clamp(double value, double maxValue, double minValue) {
+        if (Double.isNaN(value)) {
+            return minValue;
+        }
+        if (Double.isInfinite(value)) {
+            return maxValue;
+        }
+        return Math.max(Math.min(value, maxValue), minValue);
+    }
+
     public static String generateRandomString() {
         return generateRandomString(16);
     }
@@ -549,8 +569,16 @@ public class Utilities {
     public static interface Callback4<T, T2, T3, T4> {
         public void run(T arg, T2 arg2, T3 arg3, T4 arg4);
     }
+
+    public static interface Callback4Return<T, T2, T3, T4, ReturnType> {
+        public ReturnType run(T arg, T2 arg2, T3 arg3, T4 arg4);
+    }
     public static interface Callback5<T, T2, T3, T4, T5> {
         public void run(T arg, T2 arg2, T3 arg3, T4 arg4, T5 arg5);
+    }
+
+    public static interface Callback5Return<T, T2, T3, T4, T5, ReturnType> {
+        public ReturnType run(T arg, T2 arg2, T3 arg3, T4 arg4, T5 arg5);
     }
 
     public static <Key, Value> Value getOrDefault(HashMap<Key, Value> map, Key key, Value defaultValue) {

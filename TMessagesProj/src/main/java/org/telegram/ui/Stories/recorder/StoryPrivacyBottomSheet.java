@@ -50,8 +50,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSmoothScrollerCustom;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.exoplayer2.util.Consumer;
-
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
@@ -89,13 +87,11 @@ import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.GroupCreateSpan;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
-import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.RadioButton;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.StickerEmptyView;
 import org.telegram.ui.Components.TypefaceSpan;
 import org.telegram.ui.Components.ViewPagerFixed;
-import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.Stories.StoriesController;
 
 import java.util.ArrayList;
@@ -986,6 +982,7 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
 //                items.add(ItemInner.asPad(dp(84) + 4 * dp(56) + (sendAsMessageEnabled ? dp(120) : dp(64))));
                 List<TLRPC.InputPeer> sendAs = MessagesController.getInstance(currentAccount).getStoriesController().sendAs;
                 boolean containsPrivacy = true;
+                boolean isChannel = false;
                 if (canChangePeer && (isEdit || sendAs == null || sendAs.size() <= 1)) {
                     items.add(ItemInner.asHeader2(
                         isEdit ?
@@ -1007,6 +1004,7 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
                         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(selectedPeer.channel_id);
                         items.add(ItemInner.asChat(chat, false).asSendAs());
                         containsPrivacy = false;
+                        isChannel = ChatObject.isChannelAndNotMegaGroup(chat);
                     } else if (selectedPeer instanceof TLRPC.TL_inputPeerChat) {
                         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(selectedPeer.chat_id);
                         items.add(ItemInner.asChat(chat, false).asSendAs());
@@ -1070,8 +1068,8 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
                 }
                 if (!isEdit) {
                     items.add(ItemInner.asCheck(LocaleController.getString(R.string.StoryAllowScreenshots), 0, allowScreenshots));
-                    items.add(ItemInner.asCheck(LocaleController.getString(containsPrivacy ? R.string.StoryKeep : R.string.StoryKeepChannel), 1, keepOnMyPage));
-                    items.add(ItemInner.asShadow(LocaleController.formatPluralString(containsPrivacy ? "StoryKeepInfo" : "StoryKeepChannelInfo", (storyPeriod == Integer.MAX_VALUE ? 86400 : storyPeriod) / 3600)));
+                    items.add(ItemInner.asCheck(LocaleController.getString(containsPrivacy ? R.string.StoryKeep : (isChannel ? R.string.StoryKeepChannel : R.string.StoryKeepGroup)), 1, keepOnMyPage));
+                    items.add(ItemInner.asShadow(LocaleController.formatPluralString(containsPrivacy ? "StoryKeepInfo" : (isChannel ? "StoryKeepChannelInfo" : "StoryKeepGroupInfo"), (storyPeriod == Integer.MAX_VALUE ? 86400 : storyPeriod) / 3600)));
                 }
             } else if (pageType == PAGE_TYPE_CLOSE_FRIENDS) {
                 headerView.setText(LocaleController.getString("StoryPrivacyAlertCloseFriendsTitle", R.string.StoryPrivacyAlertCloseFriendsTitle));
@@ -2761,10 +2759,11 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
                 if (participants_count <= 0) {
                     participants_count = chat.participants_count;
                 }
+                boolean isChannel = ChatObject.isChannelAndNotMegaGroup(chat);
                 if (participants_count >= 1) {
-                    subtitle = LocaleController.formatPluralString("Subscribers", participants_count);
+                    subtitle = LocaleController.formatPluralString(isChannel ? "Subscribers" : "Members", participants_count);
                 } else {
-                    subtitle = LocaleController.getString(R.string.DiscussChannel);
+                    subtitle = LocaleController.getString(isChannel ? R.string.DiscussChannel : R.string.AccDescrGroup);
                 }
             } else if (ChatObject.isChannel(chat) && !chat.megagroup) {
                 if (participants_count >= 1) {
@@ -3633,7 +3632,7 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
                 for (int i = 0; i < allowUsers.users.size(); ++i) {
                     long userId = allowUsers.users.get(i);
                     TLRPC.InputUser inputUser = messagesController.getInputUser(userId);
-                    if (!(inputUser instanceof TLRPC.TL_inputUserEmpty)) {
+                    if (inputUser != null && !(inputUser instanceof TLRPC.TL_inputUserEmpty)) {
                         rule.users.add(inputUser);
                         selectedUserIds.add(userId);
                         selectedInputUsers.add(inputUser);
@@ -4018,7 +4017,14 @@ public class StoryPrivacyBottomSheet extends BottomSheet implements Notification
             } else if (type == TYPE_CLOSE_FRIENDS) {
                 return user.close_friend;
             } else if (type == TYPE_SELECTED_CONTACTS) {
-                return selectedUserIds.contains(user.id);
+                if (selectedUserIds.contains(user.id)) {
+                    return true;
+                }
+                for (ArrayList<Long> userIds : selectedUserIdsByGroup.values()) {
+                    if (userIds.contains(user.id)) {
+                        return true;
+                    }
+                }
             }
             return false;
         }

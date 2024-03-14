@@ -874,6 +874,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
         File dir = new File(fileName);
         if (dir.exists()) {
             File[] entries = dir.listFiles();
+            if (entries == null) return count;
             for (int i = 0; i < entries.length; ++i) {
                 File entry = entries[i];
                 String name = entry.getName();
@@ -917,6 +918,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
         File dir = new File(fileName);
         if (dir.exists()) {
             File[] entries = dir.listFiles();
+            if (entries == null) return;
             for (int i = 0; i < entries.length; ++i) {
                 File entry = entries[i];
                 String name = entry.getName();
@@ -3167,7 +3169,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
 
     @Override
     public boolean isSwipeBackEnabled(MotionEvent event) {
-        if (cachedMediaLayout != null) {
+        if (cachedMediaLayout != null && event != null) {
             cachedMediaLayout.getHitRect(AndroidUtilities.rectTmp2);
             if (!AndroidUtilities.rectTmp2.contains((int) event.getX(), (int) event.getY() - actionBar.getMeasuredHeight())) {
                 return true;

@@ -30,7 +30,6 @@ import android.opengl.GLUtils;
 import android.os.Build;
 import android.os.Looper;
 import android.os.Parcelable;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;

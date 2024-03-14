@@ -18,16 +18,12 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.Layout;
-import android.text.SpannableStringBuilder;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
-import android.text.style.ReplacementSpan;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -136,6 +132,16 @@ public class GroupCreateSpan extends View {
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_FILTER_READ);
                     uid = Long.MIN_VALUE + 6;
                     firstName = LocaleController.getString("FilterRead", R.string.FilterRead);
+                    break;
+                case "existing_chats":
+                    avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_EXISTING_CHATS);
+                    uid = Long.MIN_VALUE + 8;
+                    firstName = LocaleController.getString(R.string.FilterExistingChats);
+                    break;
+                case "new_chats":
+                    avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_NEW_CHATS);
+                    uid = Long.MIN_VALUE + 9;
+                    firstName = LocaleController.getString(R.string.FilterNewChats);
                     break;
                 case "archived":
                 default:

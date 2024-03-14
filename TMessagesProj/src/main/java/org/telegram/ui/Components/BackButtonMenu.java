@@ -48,7 +48,7 @@ public class BackButtonMenu {
         int filterId;
     }
 
-    public static ActionBarPopupWindow show(BaseFragment thisFragment, View backButton, long currentDialogId, int topicId, Theme.ResourcesProvider resourcesProvider) {
+    public static ActionBarPopupWindow show(BaseFragment thisFragment, View backButton, long currentDialogId, long topicId, Theme.ResourcesProvider resourcesProvider) {
         if (thisFragment == null) {
             return null;
         }
@@ -105,7 +105,7 @@ public class BackButtonMenu {
             Drawable thumb = avatarDrawable;
             boolean addDivider = false;
             if (chat != null) {
-                avatarDrawable.setInfo(chat);
+                avatarDrawable.setInfo(thisFragment.getCurrentAccount(), chat);
                 if (chat.photo != null && chat.photo.strippedBitmap != null) {
                     thumb = chat.photo.strippedBitmap;
                 }
@@ -126,11 +126,11 @@ public class BackButtonMenu {
                     imageView.setImageDrawable(avatarDrawable);
                 } else if (UserObject.isDeleted(user)) {
                     name = LocaleController.getString("HiddenName", R.string.HiddenName);
-                    avatarDrawable.setInfo(user);
+                    avatarDrawable.setInfo(thisFragment.getCurrentAccount(), user);
                     imageView.setImage(ImageLocation.getForUser(user, ImageLocation.TYPE_SMALL), "50_50", avatarDrawable, user);
                 } else {
                     name = UserObject.getUserName(user);
-                    avatarDrawable.setInfo(user);
+                    avatarDrawable.setInfo(thisFragment.getCurrentAccount(), user);
                     imageView.setImage(ImageLocation.getForUser(user, ImageLocation.TYPE_SMALL), "50_50", thumb, user);
                 }
                 titleView.setText(name);
@@ -219,7 +219,7 @@ public class BackButtonMenu {
         return scrimPopupWindow;
     }
 
-    private static ArrayList<PulledDialog> getStackedHistoryForTopic(BaseFragment thisFragment, long currentDialogId, int topicId) {
+    private static ArrayList<PulledDialog> getStackedHistoryForTopic(BaseFragment thisFragment, long currentDialogId, long topicId) {
         ArrayList<PulledDialog> dialogs = new ArrayList<>();
         if (thisFragment.getParentLayout().getFragmentStack().size() > 1 && thisFragment.getParentLayout().getFragmentStack().get(thisFragment.getParentLayout().getFragmentStack().size() - 2) instanceof TopicsFragment) {
             PulledDialog pulledDialog = new PulledDialog();

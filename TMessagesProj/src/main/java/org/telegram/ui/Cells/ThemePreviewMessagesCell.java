@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -30,7 +31,9 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
+import org.telegram.ui.ChatBackgroundDrawable;
 import org.telegram.ui.Components.AnimatedColor;
+import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackgroundGradientDrawable;
 import org.telegram.ui.Components.CubicBezierInterpolator;
@@ -38,11 +41,13 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.MotionBackgroundDrawable;
 import org.telegram.ui.Components.Reactions.ReactionsEffectOverlay;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
+import org.telegram.ui.Stories.recorder.StoryEntry;
 
 public class ThemePreviewMessagesCell extends LinearLayout {
 
     public final static int TYPE_REACTIONS_DOUBLE_TAP = 2;
     public final static int TYPE_PEER_COLOR = 3;
+    public final static int TYPE_GROUP_PEER_COLOR = 4;
 
     private final Runnable invalidateRunnable = this::invalidate;
 
@@ -72,8 +77,12 @@ public class ThemePreviewMessagesCell extends LinearLayout {
         this(context, layout, type, 0);
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     public ThemePreviewMessagesCell(Context context, INavigationLayout layout, int type, long dialogId) {
+        this(context, layout, type, dialogId, null);
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    public ThemePreviewMessagesCell(Context context, INavigationLayout layout, int type, long dialogId, Theme.ResourcesProvider resourcesProvider) {
         super(context);
         this.type = type;
         int currentAccount = UserConfig.selectedAccount;
@@ -83,7 +92,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
         setOrientation(LinearLayout.VERTICAL);
         setPadding(0, AndroidUtilities.dp(11), 0, AndroidUtilities.dp(11));
 
-        shadowDrawable = Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow);
+        shadowDrawable = Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow, resourcesProvider);
 
         int date = (int) (System.currentTimeMillis() / 1000) - 60 * 60;
 
@@ -91,10 +100,6 @@ public class ThemePreviewMessagesCell extends LinearLayout {
         MessageObject message2 = null;
         if (type == TYPE_PEER_COLOR) {
             final boolean isChannel = dialogId < 0;
-
-            ChatActionCell actionCell = new ChatActionCell(context);
-            actionCell.setCustomText(LocaleController.getString(R.string.UserColorPreviewTitle));
-            addView(actionCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 5));
 
             TLRPC.Message message = new TLRPC.TL_message();
             message.message = LocaleController.getString(isChannel ? R.string.ChannelColorPreview : R.string.UserColorPreview);
@@ -274,10 +279,16 @@ public class ThemePreviewMessagesCell extends LinearLayout {
             message2.eventId = 1;
             message2.resetLayout();
             message2.replyMessageObject = replyMessageObject;
+            if (type == TYPE_GROUP_PEER_COLOR) {
+                TLRPC.User user = new TLRPC.TL_user();
+                user.first_name = LocaleController.getString(R.string.GroupThemePreviewSenderName);
+                message2.customName = user.first_name;
+                message2.customAvatarDrawable = new AvatarDrawable(user, false);
+            }
         }
 
         for (int a = 0; a < cells.length; a++) {
-            cells[a] = new ChatMessageCell(context) {
+            cells[a] = new ChatMessageCell(context, false, null, resourcesProvider) {
                 private GestureDetector gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
                     @Override
                     public boolean onDoubleTap(MotionEvent e) {
@@ -345,7 +356,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                             MessagesController.PeerColors peerColors = messagesController != null ? messagesController.peerColors : null;
                             MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
                             if (peerColor != null) {
-                                final int peerColorValue = messagesController.peerColors.getColor(colorId).getColor1();
+                                final int peerColorValue = peerColor.getColor1();
                                 color1 = getThemedColor(Theme.keys_avatar_background[AvatarDrawable.getPeerColorIndex(peerColorValue)]);
                                 color2 = getThemedColor(Theme.keys_avatar_background2[AvatarDrawable.getPeerColorIndex(peerColorValue)]);
                             } else {
@@ -414,7 +425,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                     return type == progress;
                 }
             });
-            cells[a].isChat = type == TYPE_REACTIONS_DOUBLE_TAP;
+            cells[a].isChat = type == TYPE_REACTIONS_DOUBLE_TAP || type == TYPE_GROUP_PEER_COLOR;
             cells[a].setFullyDraw(true);
             MessageObject messageObject = a == 0 ? message2 : message1;
             if (messageObject == null) {
@@ -437,14 +448,44 @@ public class ThemePreviewMessagesCell extends LinearLayout {
         }
     }
 
+    private Drawable overrideDrawable;
+    public void setOverrideBackground(Drawable drawable) {
+        overrideDrawable = drawable;
+        if (overrideDrawable != null) {
+            overrideDrawable.setCallback(this);
+        }
+        if (overrideDrawable instanceof ChatBackgroundDrawable) {
+            if (isAttachedToWindow()) {
+                ((ChatBackgroundDrawable) overrideDrawable).onAttachedToWindow(this);
+            }
+        }
+        invalidate();
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        if (overrideDrawable instanceof ChatBackgroundDrawable) {
+            ((ChatBackgroundDrawable) overrideDrawable).onAttachedToWindow(this);
+        }
+    }
+
+    @Override
+    protected boolean verifyDrawable(@NonNull Drawable who) {
+        return who == overrideDrawable || who == oldBackgroundDrawable || super.verifyDrawable(who);
+    }
+
+    public boolean customAnimation;
+    private final AnimatedFloat overrideDrawableUpdate = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
+
     @Override
     protected void onDraw(Canvas canvas) {
-        Drawable newDrawable = Theme.getCachedWallpaperNonBlocking();
+        Drawable newDrawable = overrideDrawable != null ? overrideDrawable : Theme.getCachedWallpaperNonBlocking();
         if (Theme.wallpaperLoadTask != null) {
             invalidate();
         }
         if (newDrawable != backgroundDrawable && newDrawable != null) {
-            if (Theme.isAnimatingColor()) {
+            if (Theme.isAnimatingColor() || customAnimation) {
                 oldBackgroundDrawable = backgroundDrawable;
                 oldBackgroundGradientDisposable = backgroundGradientDisposable;
             } else if (backgroundGradientDisposable != null) {
@@ -452,15 +493,16 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                 backgroundGradientDisposable = null;
             }
             backgroundDrawable = newDrawable;
+            overrideDrawableUpdate.set(0, true);
         }
-        float themeAnimationValue = parentLayout.getThemeAnimationValue();
+        float themeAnimationValue = customAnimation ? overrideDrawableUpdate.set(1) : parentLayout.getThemeAnimationValue();
         for (int a = 0; a < 2; a++) {
             Drawable drawable = a == 0 ? oldBackgroundDrawable : backgroundDrawable;
             if (drawable == null) {
                 continue;
             }
             int alpha;
-            if (a == 1 && oldBackgroundDrawable != null && parentLayout != null) {
+            if (a == 1 && oldBackgroundDrawable != null && (parentLayout != null || customAnimation)) {
                 alpha = (int) (255 * themeAnimationValue);
             } else {
                 alpha = 255;
@@ -500,6 +542,8 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                 }
                 drawable.draw(canvas);
                 canvas.restore();
+            } else {
+                StoryEntry.drawBackgroundDrawable(canvas, drawable, getWidth(), getHeight());
             }
             if (a == 0 && oldBackgroundDrawable != null && themeAnimationValue >= 1.0f) {
                 if (oldBackgroundGradientDisposable != null) {
@@ -528,6 +572,9 @@ public class ThemePreviewMessagesCell extends LinearLayout {
         if (oldBackgroundGradientDisposable != null) {
             oldBackgroundGradientDisposable.dispose();
             oldBackgroundGradientDisposable = null;
+        }
+        if (overrideDrawable instanceof ChatBackgroundDrawable) {
+            ((ChatBackgroundDrawable) overrideDrawable).onDetachedFromWindow(this);
         }
     }
 

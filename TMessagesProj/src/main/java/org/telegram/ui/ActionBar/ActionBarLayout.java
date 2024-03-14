@@ -63,6 +63,8 @@ import org.telegram.ui.Components.FloatingDebug.FloatingDebugController;
 import org.telegram.ui.Components.FloatingDebug.FloatingDebugProvider;
 import org.telegram.ui.Components.GroupCallPip;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.LogoutActivity;
 import org.telegram.ui.Stories.StoryViewer;
 
 import java.util.ArrayList;
@@ -220,7 +222,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent ev) {
-            processMenuButtonsTouch(ev);
+//            processMenuButtonsTouch(ev);
             boolean passivePreview = inPreviewMode && previewMenu == null;
             if ((passivePreview || transitionAnimationPreviewMode) && (ev.getActionMasked() == MotionEvent.ACTION_DOWN || ev.getActionMasked() == MotionEvent.ACTION_POINTER_DOWN)) {
                 return false;
@@ -250,10 +252,27 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             invalidate();
         }
 
+        float lastY, startY;
         // for menu buttons to be clicked by hover:
         private float pressX, pressY;
         private boolean allowToPressByHover;
         public void processMenuButtonsTouch(MotionEvent event) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                startY = event.getY();
+            }
+            if (isInPreviewMode() && previewMenu == null) {
+                lastY = event.getY();
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    finishPreviewFragment();
+                } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                    float dy = startY - lastY;
+                    movePreviewFragment(dy);
+                    if (dy < 0) {
+                        startY = lastY;
+                    }
+                }
+                return;
+            }
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 pressX = event.getX();
                 pressY = event.getY();
@@ -378,6 +397,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
     private float themeAnimationValue;
     private boolean animateThemeAfterAnimation;
     private Theme.ThemeInfo animateSetThemeAfterAnimation;
+    private boolean animateSetThemeAfterAnimationApply;
     private boolean animateSetThemeNightAfterAnimation;
     private int animateSetThemeAccentIdAfterAnimation;
     private boolean rebuildAfterAnimation;
@@ -1237,14 +1257,16 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             return false;
         }
         BaseFragment lastFragment = getLastFragment();
-        if (lastFragment != null && lastFragment.getVisibleDialog() != null) {
-            if (shouldOpenFragmentOverlay(lastFragment.getVisibleDialog())) {
-                BaseFragment.BottomSheetParams bottomSheetParams = new BaseFragment.BottomSheetParams();
-                bottomSheetParams.transitionFromLeft = true;
-                bottomSheetParams.allowNestedScroll = false;
-                lastFragment.showAsSheet(fragment, bottomSheetParams);
-                return true;
-            }
+        Dialog dialog = lastFragment != null ? lastFragment.getVisibleDialog() : null;
+        if (dialog == null && LaunchActivity.instance != null && LaunchActivity.instance.getVisibleDialog() != null) {
+            dialog = LaunchActivity.instance.getVisibleDialog();
+        }
+        if (lastFragment != null && shouldOpenFragmentOverlay(dialog)) {
+            BaseFragment.BottomSheetParams bottomSheetParams = new BaseFragment.BottomSheetParams();
+            bottomSheetParams.transitionFromLeft = true;
+            bottomSheetParams.allowNestedScroll = false;
+            lastFragment.showAsSheet(fragment, bottomSheetParams);
+            return true;
         }
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("present fragment " + fragment.getClass().getSimpleName() + " args=" + fragment.getArguments());
@@ -1544,7 +1566,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
     }
 
     private boolean shouldOpenFragmentOverlay(Dialog visibleDialog) {
-        return visibleDialog instanceof ChatAttachAlert || visibleDialog instanceof BotWebViewSheet;
+        return (visibleDialog != null && visibleDialog.isShowing()) && (visibleDialog instanceof ChatAttachAlert || visibleDialog instanceof BotWebViewSheet);
     }
 
     @Override
@@ -1605,6 +1627,12 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
         } else {
             fragmentsStack.add(position, fragment);
             onFragmentStackChanged("addFragmentToStack");
+        }
+        if (!useAlphaAnimations) {
+            setVisibility(VISIBLE);
+            if (backgroundView != null) {
+                backgroundView.setVisibility(VISIBLE);
+            }
         }
         return true;
     }
@@ -1706,6 +1734,10 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
 
         fragment.setInPreviewMode(false);
         fragment.setInMenuMode(false);
+
+        try {
+            AndroidUtilities.setLightStatusBar(parentActivity.getWindow(), Theme.getColor(Theme.key_actionBarDefault) == Color.WHITE || (fragment.hasForceLightStatusBar() && !Theme.getCurrentTheme().isDark()), fragment.hasForceLightStatusBar());
+        } catch (Exception ignore) {}
     }
 
     @Override
@@ -2010,6 +2042,11 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             removeFragmentFromStackInternal(fragmentsStack.get(a), false);
             a--;
         }
+        if (backgroundView != null) {
+            backgroundView.animate().alpha(0.0f).setDuration(180).withEndAction(() -> {
+                backgroundView.setVisibility(View.GONE);
+            }).start();
+        }
     }
 
     @Keep
@@ -2052,7 +2089,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             for (int i = 0, N = presentingFragmentDescriptions.size(); i < N; i++) {
                 ThemeDescription description = presentingFragmentDescriptions.get(i);
                 int key = description.getCurrentKey();
-                description.setColor(Theme.getColor(key), false, false);
+                description.setColor(Theme.getColor(key, description.resourcesProvider), false, false);
             }
         }
         if (animationProgressListener != null) {
@@ -2104,6 +2141,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             animateSetThemeAfterAnimation = settings.theme;
             animateSetThemeNightAfterAnimation = settings.nightTheme;
             animateSetThemeAccentIdAfterAnimation = settings.accentId;
+            animateSetThemeAfterAnimationApply = settings.applyTrulyTheme;
             if (onDone != null) {
                 onDone.run();
             }
@@ -2239,7 +2277,7 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
                 onDone.run();
             }
         };
-        if (fragmentCount >= 1 && settings.applyTheme) {
+        if (fragmentCount >= 1 && settings.applyTheme && settings.applyTrulyTheme) {
             if (settings.accentId != -1 && settings.theme != null) {
                 settings.theme.setCurrentAccentId(settings.accentId);
                 Theme.saveThemeAccents(settings.theme, true, false, true, false);
@@ -2343,7 +2381,11 @@ public class ActionBarLayout extends FrameLayout implements INavigationLayout, F
             rebuildAllFragmentViews(rebuildLastAfterAnimation, showLastAfterAnimation);
             rebuildAfterAnimation = false;
         } else if (animateThemeAfterAnimation) {
-            animateThemedValues(animateSetThemeAfterAnimation, animateSetThemeAccentIdAfterAnimation, animateSetThemeNightAfterAnimation, false);
+            ThemeAnimationSettings settings = new ThemeAnimationSettings(animateSetThemeAfterAnimation, animateSetThemeAccentIdAfterAnimation, animateSetThemeNightAfterAnimation, false);
+            if (!animateSetThemeAfterAnimationApply) {
+                settings.applyTheme = settings.applyTrulyTheme = animateSetThemeAfterAnimationApply;
+            }
+            animateThemedValues(settings, null);
             animateSetThemeAfterAnimation = null;
             animateThemeAfterAnimation = false;
         }

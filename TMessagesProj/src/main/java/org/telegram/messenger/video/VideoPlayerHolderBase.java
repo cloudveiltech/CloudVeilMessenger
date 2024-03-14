@@ -28,7 +28,7 @@ public class VideoPlayerHolderBase {
     public TLRPC.Document document;
     VideoPlayer videoPlayer;
     Runnable initRunnable;
-    volatile boolean released;
+    public volatile boolean released;
     public boolean firstFrameRendered;
 
     public float progress;
@@ -86,7 +86,7 @@ public class VideoPlayerHolderBase {
 
     long startTime;
 
-    public void preparePlayer(Uri uri, boolean audioDisabled) {
+    public void preparePlayer(Uri uri, boolean audioDisabled, float speed) {
         this.audioDisabled = audioDisabled;
         this.currentAccount = currentAccount;
         this.contentUri = uri;
@@ -99,25 +99,31 @@ public class VideoPlayerHolderBase {
                 return;
             }
             ensurePlayerCreated(audioDisabled);
+            videoPlayer.setPlaybackSpeed(speed);
+            FileLog.d("videoplayerholderbase.preparePlayer(): preparePlayer new player as preload uri=" + uri);
             videoPlayer.preparePlayer(uri, "other", FileLoader.PRIORITY_LOW);
             videoPlayer.setPlayWhenReady(false);
             videoPlayer.setWorkerQueue(dispatchQueue);
         });
     }
 
-    public void start(boolean paused, Uri uri, long position, boolean audioDisabled) {
+    public void start(boolean paused, Uri uri, long position, boolean audioDisabled, float speed) {
         startTime = System.currentTimeMillis();
         this.audioDisabled = audioDisabled;
         this.paused = paused;
+        this.triesCount = 3;
         if (position > 0) {
             currentPosition = position;
         }
         dispatchQueue.postRunnable(initRunnable = () -> {
             if (released) {
+                FileLog.d("videoplayerholderbase returned from start: released");
                 return;
             }
             if (videoPlayer == null) {
                 ensurePlayerCreated(audioDisabled);
+                videoPlayer.setPlaybackSpeed(speed);
+                FileLog.d("videoplayerholderbase.start(): preparePlayer new player uri=" + uri);
                 videoPlayer.preparePlayer(uri, "other");
                 videoPlayer.setWorkerQueue(dispatchQueue);
                 if (!paused) {
@@ -129,6 +135,7 @@ public class VideoPlayerHolderBase {
                     videoPlayer.setPlayWhenReady(true);
                 }
             } else {
+                FileLog.d("videoplayerholderbase.start(): player already exist");
                 if (!paused) {
                     if (surfaceView != null) {
                         videoPlayer.setSurfaceView(surfaceView);
@@ -146,6 +153,8 @@ public class VideoPlayerHolderBase {
             AndroidUtilities.runOnUIThread(() -> initRunnable = null);
         });
     }
+
+    private volatile int triesCount = 3;
 
     private void ensurePlayerCreated(boolean audioDisabled) {
         if (videoPlayer != null) {
@@ -174,6 +183,17 @@ public class VideoPlayerHolderBase {
             @Override
             public void onError(VideoPlayer player, Exception e) {
                 FileLog.e(e);
+                final long positionMs = getCurrentPosition();
+                triesCount--;
+                if (triesCount > 0) {
+                    dispatchQueue.postRunnable(initRunnable = () -> {
+                        if (released) {
+                            return;
+                        }
+                        videoPlayer.preparePlayer(uri, "other");
+                        videoPlayer.seekTo(positionMs);
+                    });
+                }
             }
 
             @Override
@@ -280,6 +300,17 @@ public class VideoPlayerHolderBase {
         }
     }
 
+    public void setSpeed(float speed) {
+        if (released) {
+            return;
+        }
+        dispatchQueue.postRunnable(() -> {
+            if (videoPlayer != null) {
+                videoPlayer.setPlaybackSpeed(speed);
+            }
+        });
+    }
+
     public void play() {
         if (released) {
             return;
@@ -304,12 +335,38 @@ public class VideoPlayerHolderBase {
         });
     }
 
+    public void play(float speed) {
+        if (released) {
+            return;
+        }
+        if (!paused) {
+            return;
+        }
+        paused = false;
+        dispatchQueue.postRunnable(() -> {
+            if (videoPlayer != null) {
+                if (surfaceView != null) {
+                    videoPlayer.setSurfaceView(surfaceView);
+                } else {
+                    videoPlayer.setTextureView(textureView);
+                }
+                if (pendingSeekTo > 0) {
+                    videoPlayer.seekTo(pendingSeekTo);
+                    pendingSeekTo = 0;
+                }
+                videoPlayer.setPlaybackSpeed(speed);
+                videoPlayer.setPlayWhenReady(true);
+            }
+        });
+    }
+
     public void setAudioEnabled(boolean enabled, boolean prepared) {
         boolean disabled = !enabled;
         if (audioDisabled == disabled) {
             return;
         }
         audioDisabled = disabled;
+        this.triesCount = 3;
         dispatchQueue.postRunnable(() -> {
             if (videoPlayer == null) {
                 return;
@@ -322,6 +379,7 @@ public class VideoPlayerHolderBase {
                 videoPlayer.releasePlayer(false);
                 videoPlayer = null;
                 ensurePlayerCreated(audioDisabled);
+                FileLog.d("videoplayerholderbase.setAudioEnabled(): repreparePlayer as audio track is enabled back uri=" + uri);
                 videoPlayer.preparePlayer(uri, "other");
                 videoPlayer.setWorkerQueue(dispatchQueue);
                 if (!prepared) {
@@ -428,16 +486,6 @@ public class VideoPlayerHolderBase {
 
     public Uri getCurrentUri() {
         return contentUri;
-    }
-
-    public void setPlaybackSpeed(float currentVideoSpeed) {
-        dispatchQueue.postRunnable(() -> {
-            if (videoPlayer == null) {
-                return;
-            }
-            videoPlayer.setPlaybackSpeed(currentVideoSpeed);
-        });
-
     }
 
     private Runnable onSeekUpdate;

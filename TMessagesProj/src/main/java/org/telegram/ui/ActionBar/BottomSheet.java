@@ -29,6 +29,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -108,6 +109,8 @@ public class BottomSheet extends Dialog {
     protected boolean fullWidth;
     protected boolean isFullscreen;
     private boolean fullHeight;
+    private int cellType;
+    private Integer selectedPos;
     protected ColorDrawable backDrawable = new ColorDrawable(0xff000000) {
         @Override
         public void setAlpha(int alpha) {
@@ -342,6 +345,7 @@ public class BottomSheet extends Dialog {
 
         private float y = 0f;
         private float swipeBackX = 0f;
+        private boolean allowedSwipeToBack;
         public boolean processTouchEvent(MotionEvent ev, boolean intercept) {
             if (dismissed) {
                 return false;
@@ -349,8 +353,9 @@ public class BottomSheet extends Dialog {
             if (onContainerTouchEvent(ev)) {
                 return true;
             }
-            if (canSwipeToBack()) {
+            if (canSwipeToBack(ev) || allowedSwipeToBack) {
                 if (ev != null && (ev.getAction() == MotionEvent.ACTION_DOWN || ev.getAction() == MotionEvent.ACTION_MOVE) && (!startedTracking && !maybeStartTracking && ev.getPointerCount() == 1)) {
+                    allowedSwipeToBack = true;
                     startedTrackingX = (int) ev.getX();
                     startedTrackingY = (int) ev.getY();
                     startedTrackingPointerId = ev.getPointerId(0);
@@ -418,6 +423,7 @@ public class BottomSheet extends Dialog {
                     maybeStartTracking = false;
                     startedTracking = false;
                     startedTrackingPointerId = -1;
+                    allowedSwipeToBack = false;
                 }
             } else {
                 if (canDismissWithTouchOutside() && ev != null && (ev.getAction() == MotionEvent.ACTION_DOWN || ev.getAction() == MotionEvent.ACTION_MOVE) && (!startedTracking && !maybeStartTracking && ev.getPointerCount() == 1)) {
@@ -434,7 +440,7 @@ public class BottomSheet extends Dialog {
                     if (velocityTracker != null) {
                         velocityTracker.clear();
                     }
-                } else if (ev != null && ev.getAction() == MotionEvent.ACTION_MOVE && ev.getPointerId(0) == startedTrackingPointerId) {
+                } else if (canDismissWithSwipe() && ev != null && ev.getAction() == MotionEvent.ACTION_MOVE && ev.getPointerId(0) == startedTrackingPointerId) {
                     if (velocityTracker == null) {
                         velocityTracker = VelocityTracker.obtain();
                     }
@@ -474,7 +480,7 @@ public class BottomSheet extends Dialog {
                     startedTrackingPointerId = -1;
                 }
             }
-            return (!intercept && maybeStartTracking) || startedTracking || !(canDismissWithSwipe() || canSwipeToBack());
+            return (!intercept && maybeStartTracking) || startedTracking || !(canDismissWithSwipe() || canSwipeToBack(ev));
         }
 
         @Override
@@ -566,7 +572,7 @@ public class BottomSheet extends Dialog {
                     right -= getRightInset();
                     if (useSmoothKeyboard) {
                         t = 0;
-                    } else {
+                    } else if (!occupyNavigationBar) {
                         t -= lastInsets.getSystemWindowInsetBottom() * (1f - hideSystemVerticalInsetsProgress) - (drawNavigationBar ? 0 : getBottomInset());
                         if (Build.VERSION.SDK_INT >= 29) {
                             t -= getAdditionalMandatoryOffsets();
@@ -668,7 +674,7 @@ public class BottomSheet extends Dialog {
 
         @Override
         public boolean onInterceptTouchEvent(MotionEvent event) {
-            if (canDismissWithSwipe() || canSwipeToBack()) {
+            if (canDismissWithSwipe() || canSwipeToBack(event)) {
                 return processTouchEvent(event, true);
             }
             return super.onInterceptTouchEvent(event);
@@ -758,7 +764,7 @@ public class BottomSheet extends Dialog {
                 restore = true;
             }
             super.onDraw(canvas);
-            if (lastInsets != null && keyboardHeight != 0) {
+            if (drawNavigationBar && lastInsets != null && keyboardHeight != 0) {
                 backgroundPaint.setColor(behindKeyboardColorKey >= 0 ? getThemedColor(behindKeyboardColorKey) : behindKeyboardColor);
                 canvas.drawRect(containerView.getLeft() + backgroundPaddingLeft, getMeasuredHeight() - keyboardHeight - (drawNavigationBar ? getBottomInset() : 0), containerView.getRight() - backgroundPaddingLeft, getMeasuredHeight() - (drawNavigationBar ? getBottomInset() : 0), backgroundPaint);
             }
@@ -882,6 +888,7 @@ public class BottomSheet extends Dialog {
         private final Theme.ResourcesProvider resourcesProvider;
         private TextView textView;
         private ImageView imageView;
+        private ImageView imageView2;
         int currentType;
 
         public BottomSheetCell(Context context, int type) {
@@ -893,7 +900,9 @@ public class BottomSheet extends Dialog {
             this.resourcesProvider = resourcesProvider;
 
             currentType = type;
-            setBackgroundDrawable(Theme.getSelectorDrawable(false, resourcesProvider));
+            if (type != Builder.CELL_TYPE_CALL) {
+                setBackgroundDrawable(Theme.getSelectorDrawable(false, resourcesProvider));
+            }
             //setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(16), 0);
 
             imageView = new ImageView(context);
@@ -901,12 +910,17 @@ public class BottomSheet extends Dialog {
             imageView.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_dialogIcon), PorterDuff.Mode.MULTIPLY));
             addView(imageView, LayoutHelper.createFrame(56, 48, Gravity.CENTER_VERTICAL | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT)));
 
+            imageView2 = new ImageView(context);
+            imageView2.setScaleType(ImageView.ScaleType.CENTER);
+            imageView2.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_radioBackgroundChecked, resourcesProvider), PorterDuff.Mode.SRC_IN));
+            addView(imageView2, LayoutHelper.createFrame(56, 48, Gravity.CENTER_VERTICAL | (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT)));
+
             textView = new TextView(context);
             textView.setLines(1);
             textView.setSingleLine(true);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setEllipsize(TextUtils.TruncateAt.END);
-            if (type == 0) {
+            if (type == 0 || type == Builder.CELL_TYPE_CALL) {
                 textView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
                 textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
                 addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL));
@@ -975,6 +989,15 @@ public class BottomSheet extends Dialog {
                 imageView.setVisibility(INVISIBLE);
                 textView.setPadding(AndroidUtilities.dp(bigTitle ? 21 : 16), 0, AndroidUtilities.dp(bigTitle ? 21 : 16), 0);
             }
+        }
+
+        private boolean checked;
+        public void setChecked(boolean checked) {
+            imageView2.setImageResource((this.checked = checked) ? R.drawable.checkbig : 0);
+        }
+
+        public boolean isChecked() {
+            return checked;
         }
 
         public TextView getTextView() {
@@ -1113,7 +1136,7 @@ public class BottomSheet extends Dialog {
     }
 
     public void fixNavigationBar(int bgColor) {
-        drawNavigationBar = true;
+        drawNavigationBar = !occupyNavigationBar;
         drawDoubleNavigationBar = true;
         scrollNavBar = true;
         navBarColorKey = -1;
@@ -1230,7 +1253,7 @@ public class BottomSheet extends Dialog {
                     if (items[a] == null) {
                         continue;
                     }
-                    BottomSheetCell cell = new BottomSheetCell(getContext(), 0, resourcesProvider);
+                    BottomSheetCell cell = new BottomSheetCell(getContext(), cellType, resourcesProvider);
                     cell.setTextAndIcon(items[a], itemIcons != null ? itemIcons[a] : 0, null, bigTitle);
                     containerView.addView(cell, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.TOP, 0, topOffset, 0, 0));
                     topOffset += 48;
@@ -1324,7 +1347,10 @@ public class BottomSheet extends Dialog {
         }
         dismissed = false;
         cancelSheetAnimation();
-        containerView.measure(View.MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x + backgroundPaddingLeft * 2, View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.y, View.MeasureSpec.AT_MOST));
+        containerView.measure(
+            View.MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x + backgroundPaddingLeft * 2, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.y, View.MeasureSpec.AT_MOST)
+        );
         if (showWithoutAnimation) {
             backDrawable.setAlpha(dimBehind ? dimBehindAlpha : 0);
             containerView.setTranslationY(0);
@@ -1610,7 +1636,7 @@ public class BottomSheet extends Dialog {
                 ObjectAnimator.ofFloat(containerView, View.TRANSLATION_Y, getContainerViewHeight() + keyboardHeight + AndroidUtilities.dp(10) + (scrollNavBar ? getBottomInset() : 0)),
                 ObjectAnimator.ofInt(backDrawable, AnimationProperties.COLOR_DRAWABLE_ALPHA, 0)
         );
-        currentSheetAnimation.setDuration(180);
+        currentSheetAnimation.setDuration(cellType == Builder.CELL_TYPE_CALL ? 330 : 180);
         currentSheetAnimation.setInterpolator(CubicBezierInterpolator.EASE_OUT);
         currentSheetAnimation.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -1645,6 +1671,27 @@ public class BottomSheet extends Dialog {
         });
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 512);
         currentSheetAnimation.start();
+
+        if (cellType == Builder.CELL_TYPE_CALL && selectedPos != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            int color1 = getItemViews().get(selectedPos).getTextView().getCurrentTextColor();
+            int color2 = getItemViews().get(item).getTextView().getCurrentTextColor();
+            ValueAnimator animator = ValueAnimator.ofArgb(color1, color2);
+            animator.addUpdateListener(a -> {
+                int color = (int) a.getAnimatedValue();
+                setItemColor(selectedPos, color, color);
+            });
+            animator.setDuration(130);
+            animator.setInterpolator(CubicBezierInterpolator.DEFAULT);
+            animator.start();
+            ValueAnimator animator2 = ValueAnimator.ofArgb(color2, color1);
+            animator2.addUpdateListener(a -> {
+                int color = (int) a.getAnimatedValue();
+                setItemColor(item, color, color);
+            });
+            animator2.setDuration(130);
+            animator2.setInterpolator(CubicBezierInterpolator.DEFAULT);
+            animator2.start();
+        }
     }
 
     @Override
@@ -1664,7 +1711,7 @@ public class BottomSheet extends Dialog {
         return containerView.getMeasuredHeight();
     }
 
-    protected boolean canSwipeToBack() {
+    protected boolean canSwipeToBack(MotionEvent event) {
         return false;
     }
 
@@ -1789,6 +1836,8 @@ public class BottomSheet extends Dialog {
 
     public static class Builder {
 
+        public static int CELL_TYPE_CALL = 4;
+
         private BottomSheet bottomSheet;
 
         public Builder(Context context) {
@@ -1853,6 +1902,16 @@ public class BottomSheet extends Dialog {
         public Builder setTitle(CharSequence title, boolean big) {
             bottomSheet.title = title;
             bottomSheet.bigTitle = big;
+            return this;
+        }
+
+        public Builder selectedPos(Integer pos) {
+            bottomSheet.selectedPos = pos;
+            return this;
+        }
+
+        public Builder setCellType(int cellType) {
+            bottomSheet.cellType = cellType;
             return this;
         }
 

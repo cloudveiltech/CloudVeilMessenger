@@ -16,9 +16,11 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatActionCell;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.DialogCell;
+import org.telegram.ui.Cells.ManageChatUserCell;
 import org.telegram.ui.Cells.ProfileSearchCell;
 import org.telegram.ui.Cells.ReactedUserHolderView;
 import org.telegram.ui.Cells.SharedPhotoVideoCell2;
+import org.telegram.ui.Cells.StatisticPostInfoCell;
 import org.telegram.ui.Cells.UserCell;
 import org.telegram.ui.Components.BlurredRecyclerView;
 import org.telegram.ui.Components.RecyclerListView;
@@ -204,17 +206,31 @@ public class StoriesListPlaceProvider implements StoryViewer.PlaceProvider {
             } else if (child instanceof ReactedUserHolderView) {
                 ReactedUserHolderView cell = (ReactedUserHolderView) child;
                 if (cell.dialogId == dialogId) {
-                    holder.view = cell.avatarView;
-                    holder.params = cell.params;
-                    holder.avatarImage = cell.avatarView.getImageReceiver();
-                    holder.clipParent = (View) cell.getParent();
-                    holder.alpha = cell.getAlpha() * cell.getAlphaInternal();
-                    if (holder.alpha < 1) {
-                        holder.bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        holder.bgPaint.setColor(Theme.getColor(Theme.key_dialogBackground, cell.getResourcesProvider()));
+                    final boolean hasStoryPreview = cell.storyPreviewView != null && cell.storyPreviewView.getImageReceiver() != null && cell.storyPreviewView.getImageReceiver().getImageDrawable() != null;
+                    if (cell.storyId == storyId && hasStoryPreview) {
+                        holder.view = cell.storyPreviewView;
+                        holder.storyImage = cell.storyPreviewView.getImageReceiver();
+                        holder.clipParent = (View) cell.getParent();
+                        holder.alpha = cell.getAlpha() * cell.getAlphaInternal();
+                        if (holder.alpha < 1) {
+                            holder.bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                            holder.bgPaint.setColor(Theme.getColor(Theme.key_dialogBackground, cell.getResourcesProvider()));
+                        }
+                        updateClip(holder);
+                        return true;
+                    } else if (!hasStoryPreview) {
+                        holder.view = cell.avatarView;
+                        holder.params = cell.params;
+                        holder.avatarImage = cell.avatarView.getImageReceiver();
+                        holder.clipParent = (View) cell.getParent();
+                        holder.alpha = cell.getAlpha() * cell.getAlphaInternal();
+                        if (holder.alpha < 1) {
+                            holder.bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                            holder.bgPaint.setColor(Theme.getColor(Theme.key_dialogBackground, cell.getResourcesProvider()));
+                        }
+                        updateClip(holder);
+                        return true;
                     }
-                    updateClip(holder);
-                    return true;
                 }
             } else if (child instanceof ProfileSearchCell) {
                 ProfileSearchCell cell = (ProfileSearchCell) child;
@@ -222,6 +238,28 @@ public class StoriesListPlaceProvider implements StoryViewer.PlaceProvider {
                     holder.view = cell;
                     holder.params = cell.avatarStoryParams;
                     holder.avatarImage = cell.avatarImage;
+                    holder.clipParent = (View) cell.getParent();
+                    holder.alpha = 1;
+                    updateClip(holder);
+                    return true;
+                }
+            } else if (child instanceof StatisticPostInfoCell) {
+                StatisticPostInfoCell cell = (StatisticPostInfoCell) child;
+                if (cell.getPostInfo().getId() == storyId) {
+                    holder.view = cell.getImageView();
+                    holder.params = cell.getStoryAvatarParams();
+                    holder.storyImage = cell.getImageView().getImageReceiver();
+                    holder.clipParent = (View) cell.getParent();
+                    holder.alpha = 1;
+                    updateClip(holder);
+                    return true;
+                }
+            } else if (child instanceof ManageChatUserCell) {
+                ManageChatUserCell cell = (ManageChatUserCell) child;
+                if (cell.getStoryItem() != null && cell.getStoryItem().dialogId == dialogId && cell.getStoryItem().messageId == messageId) {
+                    holder.view = cell.getAvatarImageView();
+                    holder.params = cell.getStoryAvatarParams();
+                    holder.avatarImage = cell.getAvatarImageView().getImageReceiver();
                     holder.clipParent = (View) cell.getParent();
                     holder.alpha = 1;
                     updateClip(holder);

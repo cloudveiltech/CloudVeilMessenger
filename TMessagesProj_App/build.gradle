@@ -93,7 +93,7 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'
@@ -172,8 +172,6 @@ android {
             ext {
                 abiVersionCode = 9
             }
-
-            applicationId "org.cloudveil.messenger"
         }
     }
 
@@ -184,9 +182,17 @@ android {
             //CloudVeil start
             def date = new Date();
             def formattedDate = date.format('yy-MM-dd')
-            outputFileName = "cloudveil_messenger_" + formattedDate + ".apk"
+            outputFileName = "cloudveil_messenger_" + formattedDate + "_v" + APP_VERSION_NAME + ".apk"
             //CloudVeil end
             output.versionCodeOverride = defaultConfig.versionCode * 10 + variant.productFlavors.get(0).abiVersionCode
+        }
+    }
+
+
+    variantFilter { variant ->
+        def names = variant.flavors*.name
+        if (variant.buildType.name != "release" && !names.contains("afat")) {
+            setIgnore(true)
         }
     }
 
