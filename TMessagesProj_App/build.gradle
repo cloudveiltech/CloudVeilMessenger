@@ -182,7 +182,7 @@ android {
             //CloudVeil start
             def date = new Date();
             def formattedDate = date.format('yy-MM-dd')
-            outputFileName = "cloudveil_messenger_" + formattedDate + "_v" + APP_VERSION_NAME + ".apk"
+            outputFileName = "cloudveil_messenger_" + formattedDate + "_v" + APP_VERSION_NAME + "(" + APP_VERSION_CODE + ").apk"
             //CloudVeil end
             output.versionCodeOverride = defaultConfig.versionCode * 10 + variant.productFlavors.get(0).abiVersionCode
         }
@@ -191,7 +191,7 @@ android {
 
     variantFilter { variant ->
         def names = variant.flavors*.name
-        if (variant.buildType.name != "release" && !names.contains("afat")) {
+        if (variant.buildType.name != "release" && !names.contains("cloudveil")) {
             setIgnore(true)
         }
     }

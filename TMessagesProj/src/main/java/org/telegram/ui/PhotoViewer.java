@@ -3836,7 +3836,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 imagesArrMessages.clear();
                 avatarsArr.clear();
 
-                for (int a = 0; a < photos.size(); a++) {
+                //CloudVeil start
+                for (int a = 0; a < photos.size() && a < GlobalSecuritySettings.getProfilePhotoLimit(); a++) {
+                    //CloudVeil end
                     TLRPC.Photo photo = photos.get(a);
                     if (photo == null || photo instanceof TLRPC.TL_photoEmpty || photo.sizes == null) {
                         imagesArrLocations.add(null);
