@@ -5586,7 +5586,8 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             if ((hasMedia[6] <= 0) == scrollSlidingTextTabStrip.hasTab(TAB_COMMON_GROUPS)) {
                 changed++;
             }
-            hasRecommendations = !channelRecommendationsAdapter.chats.isEmpty();
+            //CloudVeil disabled
+            hasRecommendations = false;// !channelRecommendationsAdapter.chats.isEmpty();
             if (hasRecommendations != scrollSlidingTextTabStrip.hasTab(TAB_RECOMMENDED_CHANNELS)) {
                 changed++;
             }

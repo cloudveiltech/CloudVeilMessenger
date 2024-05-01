@@ -33170,6 +33170,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
 
         private void openChat(ChatMessageCell cell, TLRPC.Chat chat, int postId) {
+            //CloudVeil start
+            if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogIdAllowed(chat.id)) {
+                CloudVeilDialogHelper.showWarning(getFragmentForAlert(0), CloudVeilDialogHelper.DialogType.group, chat.id,null, null);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogCheckedOnServer(chat.id)) {
+                CloudVeilDialogHelper.openUncheckedDialog(chat.id, null, chat, getFragmentForAlert(0), 1, true);
+                return;
+            }
+
+            //CloudVeil end
             if (currentChat != null && chat.id == currentChat.id) {
                 if (avatarContainer != null && postId == 0) {
                     avatarContainer.openProfile(false);

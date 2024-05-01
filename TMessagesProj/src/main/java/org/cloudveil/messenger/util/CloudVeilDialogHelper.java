@@ -122,7 +122,7 @@ public class CloudVeilDialogHelper {
         if (user.bot) {
             return isBotIdAllowed(id);
         } else if (GlobalSecuritySettings.getManageUsers()) {
-            return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
+            return allowedDialogs.containsKey(id) && allowedDialogs.get(id);
         }
         return true;
     }
@@ -191,7 +191,7 @@ public class CloudVeilDialogHelper {
     }
 
     private boolean isChatIdAllowed(long currentDialogId) {
-        return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
+        return allowedDialogs.containsKey(currentDialogId) && allowedDialogs.get(currentDialogId);
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
