@@ -15,7 +15,7 @@ import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
@@ -313,7 +313,7 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
         UserConfig me = UserConfig.getInstance(UserConfig.selectedAccount);
         boolean showDivider = false;
         //CloudVeil start
-        if (me != null && me.isPremium() && !GlobalSecuritySettings.getIsEmojiStatusDisabled()) {
+        if (me != null && me.isPremium() && !CloudVeilSecuritySettings.getIsEmojiStatusDisabled()) {
             //CloudVeil end
             if (me.getEmojiStatus() != null) {
                 items.add(new Item(15, LocaleController.getString("ChangeEmojiStatus", R.string.ChangeEmojiStatus), R.drawable.msg_status_edit));

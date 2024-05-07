@@ -31,7 +31,7 @@ import androidx.core.graphics.ColorUtils;
 
 import com.google.zxing.common.detector.MathUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ImageReceiver;
@@ -190,7 +190,7 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

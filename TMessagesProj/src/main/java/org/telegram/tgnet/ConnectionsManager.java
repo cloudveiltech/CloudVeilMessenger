@@ -9,13 +9,10 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Base64;
-import android.util.LongSparseArray;
-import android.util.SparseIntArray;
 
-import com.google.android.exoplayer2.util.Log;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.telegram.messenger.AccountInstance;
@@ -33,7 +30,6 @@ import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.UserObject;
 import org.telegram.messenger.Utilities;
 
 import java.io.ByteArrayOutputStream;
@@ -272,7 +268,7 @@ public class ConnectionsManager extends BaseController {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         if (preferences.contains("pushConnection")) {
             //CloudVeil start
-            return preferences.getBoolean("pushConnection", true) || GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE;
+            return preferences.getBoolean("pushConnection", true) || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE;
             //CloudVeil end
         } else {
             return MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("backgroundConnection", false);

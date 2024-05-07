@@ -15,7 +15,7 @@ import android.text.TextUtils;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.AbstractSerializedData;
@@ -1118,7 +1118,7 @@ public class SecretChatHelper extends BaseController {
                         }
 
                         //CloudVeil start
-                        chat.ttl = Math.max(serviceMessage.action.ttl_seconds, GlobalSecuritySettings.getMinSecretChatTtl());
+                        chat.ttl = Math.max(serviceMessage.action.ttl_seconds, CloudVeilSecuritySettings.getMinSecretChatTtl());
                         if (chat.ttl != serviceMessage.action.ttl_seconds) {
                             chat.ttl = serviceMessage.action.ttl_seconds;
                             SecretChatHelper.getInstance(currentAccount).sendTTLMessage(chat, null);

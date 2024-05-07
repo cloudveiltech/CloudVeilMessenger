@@ -21,6 +21,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewParent;
@@ -31,6 +32,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -264,7 +266,25 @@ public class WebviewActivity extends BaseFragment {
                 }
                 return false;
             }
-
+            //CloudVeil start
+            private boolean maybeLaunchExternalBrowser(String url) {
+                if (!CloudVeilSecuritySettings.isUrlWhileListedForInternalView(url)) {
+                    finishFragment(false);
+                    try {
+                        Uri uri = Uri.parse(url);
+                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                        ComponentName componentName = new ComponentName(ApplicationLoader.applicationContext.getPackageName(), LaunchActivity.class.getName());
+                        intent.setComponent(componentName);
+                        intent.putExtra(android.provider.Browser.EXTRA_APPLICATION_ID, ApplicationLoader.applicationContext.getPackageName());
+                        ApplicationLoader.applicationContext.startActivity(intent);
+                        return true;
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                }
+                return false;
+            }
+            //CloudVeil end
             @Override
             public void onLoadResource(WebView view, String url) {
                 if (isInternalUrl(url)) {
@@ -275,7 +295,9 @@ public class WebviewActivity extends BaseFragment {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return isInternalUrl(url) || super.shouldOverrideUrlLoading(view, url);
+                //CloudVeil start
+                return isInternalUrl(url) || maybeLaunchExternalBrowser(url) || super.shouldOverrideUrlLoading(view, url);
+                //CloudVeil end
             }
 
             @Override

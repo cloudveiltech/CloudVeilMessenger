@@ -87,7 +87,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.json.JSONObject;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -4032,7 +4032,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			if (userOrChat instanceof TLRPC.User) {
 				TLRPC.User user = (TLRPC.User) userOrChat;
 				//CloudVeil start
-				if (user.photo != null && user.photo.photo_small != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+				if (user.photo != null && user.photo.photo_small != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
 					//CloudVeil end
 					BitmapDrawable img = ImageLoader.getInstance().getImageFromMemory(user.photo.photo_small, null, "50_50");
 					if (img != null) {
@@ -4050,7 +4050,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			} else {
 				TLRPC.Chat chat = (TLRPC.Chat) userOrChat;
 				//CloudVeil start
-				if (chat.photo != null && chat.photo.photo_small != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+				if (chat.photo != null && chat.photo.photo_small != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
 					//CloudVeil end
 					BitmapDrawable img = ImageLoader.getInstance().getImageFromMemory(chat.photo.photo_small, null, "50_50");
 					if (img != null) {

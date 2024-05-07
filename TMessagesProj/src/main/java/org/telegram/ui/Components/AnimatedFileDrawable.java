@@ -23,18 +23,15 @@ import android.graphics.Shader;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
-import android.util.Log;
 import android.view.View;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimatedFileDrawableStream;
-import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.DispatchQueue;
 import org.telegram.messenger.DispatchQueuePoolBackground;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
-import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.SharedConfig;
@@ -749,7 +746,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
             return;
         }
         //CloudVeil start
-        if(!GlobalSecuritySettings.isVideoPlayingAllowed()) {
+        if(!CloudVeilSecuritySettings.isVideoPlayingAllowed()) {
             return;
         }
         //CloudVeil end

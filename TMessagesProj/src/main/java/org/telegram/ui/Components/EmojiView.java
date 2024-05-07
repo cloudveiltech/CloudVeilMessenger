@@ -85,7 +85,7 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -1462,8 +1462,8 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         }
 
         //CloudVeil start
-        needGif = !GlobalSecuritySettings.isLockDisableGifs() && needGif;
-        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        needGif = !CloudVeilSecuritySettings.isLockDisableGifs() && needGif;
+        needStickers = !CloudVeilSecuritySettings.isLockDisableStickers() && needStickers;
         //CloudVeil end
 
         int color = getThemedColor(Theme.key_chat_emojiBottomPanelIcon);
@@ -6302,7 +6302,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         @Override
         public int getItemCount() {
             //CloudVeil start
-            if(GlobalSecuritySettings.isLockDisableStickers()) {
+            if(CloudVeilSecuritySettings.isLockDisableStickers()) {
                 return 0;
             }
             //CloudVeil end
@@ -7904,7 +7904,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         @Override
         public int getItemCount() {
             //CloudVeil start
-            if(GlobalSecuritySettings.isLockDisableGifs()) {
+            if(CloudVeilSecuritySettings.isLockDisableGifs()) {
                 return 0;
             }
             //CloudVeil end
@@ -7914,7 +7914,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
         @Override
         public int getItemViewType(int position) {
             //CloudVeil start
-            if(GlobalSecuritySettings.isLockDisableGifs()) {
+            if(CloudVeilSecuritySettings.isLockDisableGifs()) {
                 return 0;
             }
             //CloudVeil end
@@ -8081,7 +8081,7 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
 
         public void search(String text, boolean delay) {
             //CloudVeil start
-            if(GlobalSecuritySettings.isLockDisableGifs()) {
+            if(CloudVeilSecuritySettings.isLockDisableGifs()) {
                 return;
             }
             //CloudVeil end

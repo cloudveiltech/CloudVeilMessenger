@@ -26,7 +26,7 @@ import android.widget.TextView;
 import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
@@ -932,7 +932,7 @@ public class StoriesUtilities {
 
     public static boolean isExpired(int currentAccount, TL_stories.StoryItem storyItem) {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return true;
         }
         //CloudVeil end

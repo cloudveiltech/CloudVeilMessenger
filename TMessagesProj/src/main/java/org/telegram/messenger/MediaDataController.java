@@ -46,7 +46,7 @@ import androidx.core.graphics.drawable.IconCompat;
 
 import com.android.billingclient.api.ProductDetails;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
@@ -440,7 +440,7 @@ public class MediaDataController extends BaseController {
     }
 
     public boolean isStickerAllowed(long id) {
-        return !GlobalSecuritySettings.isLockDisableStickers() && allowedStickerSets.containsKey(id) && allowedStickerSets.get(id);
+        return !CloudVeilSecuritySettings.isLockDisableStickers() && allowedStickerSets.containsKey(id) && allowedStickerSets.get(id);
     }
 
     // Cloudveil Removed
@@ -489,7 +489,7 @@ public class MediaDataController extends BaseController {
         if (doc == null) {
             return true;
         }
-        if (GlobalSecuritySettings.isLockDisableStickers()) {
+        if (CloudVeilSecuritySettings.isLockDisableStickers()) {
             return true;
         }
         long id = getStickerSetId(doc);
@@ -4919,7 +4919,7 @@ public class MediaDataController extends BaseController {
 
                     Bitmap bitmap = null;
                     //CloudVeil start
-                    if (photo != null && GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                    if (photo != null && CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                         //CloudVeil end
                         try {
                             File path = getFileLoader().getPathToAttach(photo, true);

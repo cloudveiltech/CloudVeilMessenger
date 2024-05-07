@@ -12,7 +12,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
 import android.graphics.BlendMode;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.ComposeShader;
 import android.graphics.Matrix;
@@ -31,9 +30,7 @@ import android.view.View;
 
 import androidx.annotation.Keep;
 
-import com.google.android.exoplayer2.util.Log;
-
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.AnimatedFileDrawable;
@@ -47,7 +44,6 @@ import org.telegram.ui.Components.RecyclableDrawable;
 import org.telegram.ui.Components.VectorAvatarThumbDrawable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ImageReceiver implements NotificationCenter.NotificationCenterDelegate {
@@ -426,7 +422,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             TLRPC.User user = (TLRPC.User) object;
             isPremium = user.premium;
             //CloudVeil start
-            if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (user.photo != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                 strippedBitmap = user.photo.strippedBitmap;
                 hasStripped = user.photo.stripped_thumb != null;
@@ -470,7 +466,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         } else if (object instanceof TLRPC.Chat) {
             TLRPC.Chat chat = (TLRPC.Chat) object;
             //CloudVeil start
-            if (chat.photo != null&& !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (chat.photo != null&& !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                 strippedBitmap = chat.photo.strippedBitmap;
                 hasStripped = chat.photo.stripped_thumb != null;

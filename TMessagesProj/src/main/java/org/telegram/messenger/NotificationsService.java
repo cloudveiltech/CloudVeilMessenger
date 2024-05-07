@@ -13,7 +13,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.IBinder;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 
 public class NotificationsService extends Service {
 
@@ -37,7 +37,7 @@ public class NotificationsService extends Service {
         super.onDestroy();
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         //CloudVeil start
-        if (preferences.getBoolean("pushService", true) || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+        if (preferences.getBoolean("pushService", true) || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
             //CloudVeil end
             Intent intent = new Intent("org.telegram.start");
             sendBroadcast(intent);

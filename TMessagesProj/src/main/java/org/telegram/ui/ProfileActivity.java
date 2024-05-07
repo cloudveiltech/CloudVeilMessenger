@@ -109,9 +109,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
-import com.google.android.exoplayer2.util.Log;
-
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -151,7 +149,6 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.SerializedData;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -640,9 +637,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             TLRPC.FileLocation photoBig = null;
             if (userId != 0) {
                 //CloudVeil start
-                boolean allowPhoto = !GlobalSecuritySettings.getLockDisableOthersPhoto();
+                boolean allowPhoto = !CloudVeilSecuritySettings.getLockDisableOthersPhoto();
                 if (userId == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
-                    allowPhoto = UserConfig.getInstance(currentAccount).getCurrentUser().id == userId && !GlobalSecuritySettings.getLockDisableOwnPhoto();
+                    allowPhoto = UserConfig.getInstance(currentAccount).getCurrentUser().id == userId && !CloudVeilSecuritySettings.getLockDisableOwnPhoto();
                 }
 
                 TLRPC.User user = getMessagesController().getUser(userId);
@@ -2360,7 +2357,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     presentFragment(fragment);
                 } else if (id == start_secret_chat) {
                     //CloudVeil start
-                    if (GlobalSecuritySettings.isDisabledSecretChat()) {
+                    if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
                         return;
                     }
                     //CloudVeil end
@@ -3662,9 +3659,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 Browser.openUrl(getParentActivity(), LocaleController.getString("PrivacyPolicyUrl", R.string.PrivacyPolicyUrl));
             }//CloudVeil start
             else if (position == aboutUsRow) {
-                Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getOrganization().aboutUrl);
+                Browser.openUrl(getParentActivity(), CloudVeilSecuritySettings.getOrganization().aboutUrl);
             } else if(position == organizationPolicyRow) {
-                Browser.openUrl(getParentActivity(), GlobalSecuritySettings.getOrganization().policyUrl);
+                Browser.openUrl(getParentActivity(), CloudVeilSecuritySettings.getOrganization().policyUrl);
                 //CloudVeil end
             }else if (position == sendLogsRow) {
                 sendLogs(getParentActivity(), false);
@@ -3693,7 +3690,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 presentFragment(new ChangeUsernameActivity());
             } else if (position == bioRow) {
                 //CloudVeil start
-                if (!GlobalSecuritySettings.getLockDisableOwnBio()) {
+                if (!CloudVeilSecuritySettings.getLockDisableOwnBio()) {
                     if (userInfo != null) {
                         presentFragment(new ChangeBioActivity());
                     }
@@ -4349,7 +4346,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 return;
             }
             //CloudVeil start
-            if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            if (CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
                 return;
             }
             //CloudVeil end
@@ -4645,7 +4642,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             onWriteButtonClick();
         });
         //CloudVeil start
-        if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+        if (CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
             writeButton.setVisibility(View.GONE);
         }
         //CloudVeil end
@@ -4693,7 +4690,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         //CloudVeil start
         if (userId == 0 && chatId != 0) {
-            if (GlobalSecuritySettings.getLockDisableOthersPhoto() && writeButton != null) {
+            if (CloudVeilSecuritySettings.getLockDisableOthersPhoto() && writeButton != null) {
                 writeButton.setVisibility(View.GONE);
             }
         }
@@ -5346,11 +5343,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private void openAvatar() {
         //CloudVeil start
         if (userId == UserConfig.getInstance(currentAccount).getCurrentUser().id) {
-            if (GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            if (CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
                 return;
             }
         }
-        if (GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+        if (CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
             return;
         }
         //CloudVeil end
@@ -5366,7 +5363,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     user.photo.photo_big.dc_id = user.photo.dc_id;
                 }
                 //CloudVeil start
-                if (user.photo.has_video && GlobalSecuritySettings.getIsProfileVideoDisabled()) {
+                if (user.photo.has_video && CloudVeilSecuritySettings.getIsProfileVideoDisabled()) {
                     return;
                 }
                 //CloudVeil end
@@ -5386,7 +5383,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     videoLocation = null;
                 }
                 //CloudVeil start
-                if (videoLocation != null && (GlobalSecuritySettings.getIsProfileVideoDisabled() || !GlobalSecuritySettings.isVideoPlayingAllowed())) {
+                if (videoLocation != null && (CloudVeilSecuritySettings.getIsProfileVideoDisabled() || !CloudVeilSecuritySettings.isVideoPlayingAllowed())) {
                     return;
                 }
                 //CloudVeil end
@@ -5397,7 +5394,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     private void onWriteButtonClick() {
         //CloudVeil start
-        if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+        if(CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
             return;
         }
         //CloudVeil end
@@ -8227,10 +8224,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 faqRow = rowCount++;
                 policyRow = rowCount++;
                 //CloudVeil start
-                if(!GlobalSecuritySettings.getOrganization().aboutUrl.isEmpty()) {
+                if(!CloudVeilSecuritySettings.getOrganization().aboutUrl.isEmpty()) {
                     aboutUsRow = rowCount++;
                 }
-                if(!GlobalSecuritySettings.getOrganization().policyUrl.isEmpty()) {
+                if(!CloudVeilSecuritySettings.getOrganization().policyUrl.isEmpty()) {
                     organizationPolicyRow = rowCount++;
                 }
                 //CloudVeil end
@@ -8258,7 +8255,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     phoneRow = rowCount++;
                 }
                 //CLoudVeil start
-                if (userInfo != null && !TextUtils.isEmpty(userInfo.about) && !GlobalSecuritySettings.getLockDisableOthersBio()) {
+                if (userInfo != null && !TextUtils.isEmpty(userInfo.about) && !CloudVeilSecuritySettings.getLockDisableOthersBio()) {
                     //CloudVeil end
                     userInfoRow = rowCount++;
                 }
@@ -9077,7 +9074,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
             TLRPC.FileLocation photoBig = null;
             //CloudVeil start
-            if (chat.photo != null && !isTopic && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (chat.photo != null && !isTopic && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                 photoBig = chat.photo.photo_big;
             }
@@ -9306,7 +9303,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     }
 
                     //CloudVeil Start
-                    if (!GlobalSecuritySettings.isDisabledSecretChat()) {
+                    if (!CloudVeilSecuritySettings.isDisabledSecretChat()) {
                         otherItem.addSubItem(start_secret_chat, R.drawable.msg_secret, LocaleController.getString("StartEncryptedChat", R.string.StartEncryptedChat));
                     }
                     //CloudVeil end

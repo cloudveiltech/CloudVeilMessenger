@@ -76,7 +76,6 @@ import android.transition.TransitionManager;
 import android.transition.TransitionSet;
 import android.transition.TransitionValues;
 import android.util.FloatProperty;
-import android.util.Log;
 import android.util.Pair;
 import android.util.Property;
 import android.util.Range;
@@ -141,7 +140,7 @@ import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -3837,7 +3836,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 avatarsArr.clear();
 
                 //CloudVeil start
-                for (int a = 0; a < photos.size() && a < GlobalSecuritySettings.getProfilePhotoLimit(); a++) {
+                for (int a = 0; a < photos.size() && a < CloudVeilSecuritySettings.getProfilePhotoLimit(); a++) {
                     //CloudVeil end
                     TLRPC.Photo photo = photos.get(a);
                     if (photo == null || photo instanceof TLRPC.TL_photoEmpty || photo.sizes == null) {
@@ -14332,7 +14331,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
 
         //CloudVeil start
-        if(messageObject != null && messageObject.isVideo() && !GlobalSecuritySettings.isVideoPlayingAllowed()) {
+        if(messageObject != null && messageObject.isVideo() && !CloudVeilSecuritySettings.isVideoPlayingAllowed()) {
             return false;
         }
         //CloudVeil end

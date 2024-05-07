@@ -57,7 +57,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -217,8 +217,8 @@ public class ContactsActivity extends BaseFragment implements NotificationCenter
         }
 
         // Cloudveil Start
-        allowBots = !GlobalSecuritySettings.LOCK_DISABLE_BOTS;
-        if (GlobalSecuritySettings.isDisabledSecretChat()) {
+        allowBots = !CloudVeilSecuritySettings.LOCK_DISABLE_BOTS;
+        if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
             createSecretChat = false;
         }
         //CloudVeil End

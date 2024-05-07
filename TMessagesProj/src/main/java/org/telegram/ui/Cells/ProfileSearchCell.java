@@ -27,7 +27,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -652,7 +652,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
             } else {
                 Drawable thumb = avatarDrawable;
                 //CloudVeil start
-                if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                if (user.photo != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                     photo = user.photo.photo_small;
                     if (user.photo.strippedBitmap != null) {
@@ -664,7 +664,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
         } else if (chat != null) {
             Drawable thumb = avatarDrawable;
             //CloudVeil start
-            if (chat.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (chat.photo != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
             //CloudVeil end
                 photo = chat.photo.photo_small;
                 if (chat.photo.strippedBitmap != null) {

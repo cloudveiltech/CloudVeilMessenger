@@ -89,7 +89,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.math.MathUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
@@ -2427,7 +2427,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         } else if (!currentMessageObject.preview) {
                             TLRPC.WebPage webPage = MessageObject.getMedia(currentMessageObject.messageOwner).webpage;
                             //CloudVeil Start
-                            boolean isYoutube = !GlobalSecuritySettings.LOCK_DISABLE_YOUTUBE_VIDEO && (webPage != null && CloudVeilDialogHelper.isYoutubeUrl(webPage.embed_url));
+                            boolean isYoutube = !CloudVeilSecuritySettings.LOCK_DISABLE_YOUTUBE_VIDEO && (webPage != null && CloudVeilDialogHelper.isYoutubeUrl(webPage.embed_url));
                             if (webPage != null && !TextUtils.isEmpty(webPage.embed_url) && isYoutube) {
                                 //CloudVeil End
                                 delegate.needOpenWebView(currentMessageObject, webPage.embed_url, webPage.site_name, webPage.title, webPage.url, webPage.embed_width, webPage.embed_height);
@@ -5438,7 +5438,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 hasInvoicePreview = MessageObject.getMedia(messageObject.messageOwner) instanceof TLRPC.TL_messageMediaInvoice;
                 hasLinkPreview = !messageObject.isRestrictedMessage && MessageObject.getMedia(messageObject.messageOwner) instanceof TLRPC.TL_messageMediaWebPage && MessageObject.getMedia(messageObject.messageOwner).webpage instanceof TLRPC.TL_webPage;
                 //CloudVeil start
-                hasLinkPreview = hasLinkPreview && !GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+                hasLinkPreview = hasLinkPreview && !CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
                 //CloudVeil end
                 TLRPC.WebPage webpage = hasLinkPreview ? MessageObject.getMedia(messageObject.messageOwner).webpage : null;
                 if (messageObject.isStoryMention()) {

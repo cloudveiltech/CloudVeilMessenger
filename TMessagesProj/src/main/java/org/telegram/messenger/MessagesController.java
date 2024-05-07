@@ -27,7 +27,6 @@ import android.os.SystemClock;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Base64;
-import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -41,7 +40,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.util.Consumer;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
@@ -2604,7 +2603,7 @@ public class MessagesController extends BaseController implements NotificationCe
                         TLRPC.TL_jsonBool bool = (TLRPC.TL_jsonBool) value.value;
                         if (bool.value != keepAliveService) {
                             //CloudVeil start
-                            keepAliveService = bool.value || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE;
+                            keepAliveService = bool.value || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE;
                             editor.putBoolean("keepAliveService", keepAliveService);
                             //CloudVeil end
                             changed = true;
@@ -5514,11 +5513,11 @@ public class MessagesController extends BaseController implements NotificationCe
             return false;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsEmojiStatusDisabled()) {
+        if(CloudVeilSecuritySettings.getIsEmojiStatusDisabled()) {
             user.emoji_status = new TLRPC.TL_emojiStatusEmpty();
         }
 
-        user.stories_unavailable = GlobalSecuritySettings.getIsDisableStories();
+        user.stories_unavailable = CloudVeilSecuritySettings.getIsDisableStories();
         //CloudVeil end
 
         fromCache = fromCache && user.id / 1000 != 333 && user.id != 777000;
@@ -20161,7 +20160,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public boolean storiesEnabled() {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end

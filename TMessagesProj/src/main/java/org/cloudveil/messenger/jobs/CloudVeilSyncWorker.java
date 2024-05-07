@@ -1,23 +1,14 @@
 package org.cloudveil.messenger.jobs;
 
 import android.app.Activity;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.Service;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Handler;
-import android.os.IBinder;
 import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
 import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.OneTimeWorkRequest;
@@ -27,7 +18,7 @@ import androidx.work.WorkerParameters;
 
 import com.google.gson.Gson;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
@@ -37,7 +28,6 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
@@ -46,9 +36,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 
-import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
@@ -139,7 +127,7 @@ public class CloudVeilSyncWorker extends Worker {
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
         request.userName = currentUser.username;
-        request.clientSessionId = GlobalSecuritySettings.getInstallId(accountNumber);
+        request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
 
         addDialogsToRequest(request);
         addInlineBotsToRequest(request);
@@ -261,27 +249,27 @@ public class CloudVeilSyncWorker extends Worker {
             appendAllowedDialogs(MediaDataController.getInstance(accountNumber).allowedStickerSets, settingsResponse.access.stickers);
         }
 
-        GlobalSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
-        GlobalSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
+        CloudVeilSecuritySettings.setDisableSecretChat(!settingsResponse.secretChat);
+        CloudVeilSecuritySettings.setMinSecretChatTtl(settingsResponse.secretChatMinimumLength);
 
-        GlobalSecuritySettings.setLockDisableOthersBio(settingsResponse.disableBio);
-        GlobalSecuritySettings.setLockDisableOwnBio(settingsResponse.disableBioChange);
-        GlobalSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
-        GlobalSecuritySettings.setLockDisableOthersPhoto(settingsResponse.disableProfilePhoto);
-        GlobalSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
-        GlobalSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
-        GlobalSecuritySettings.setManageUsers(settingsResponse.manageUsers);
-        GlobalSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
-        GlobalSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
-        GlobalSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
-        GlobalSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
-        GlobalSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
-        GlobalSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
+        CloudVeilSecuritySettings.setLockDisableOthersBio(settingsResponse.disableBio);
+        CloudVeilSecuritySettings.setLockDisableOwnBio(settingsResponse.disableBioChange);
+        CloudVeilSecuritySettings.setLockDisableOwnPhoto(settingsResponse.disableProfilePhotoChange);
+        CloudVeilSecuritySettings.setLockDisableOthersPhoto(settingsResponse.disableProfilePhoto);
+        CloudVeilSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
+        CloudVeilSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
+        CloudVeilSecuritySettings.setManageUsers(settingsResponse.manageUsers);
+        CloudVeilSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
+        CloudVeilSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
+        CloudVeilSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
+        CloudVeilSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
+        CloudVeilSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
+        CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
 
-        GlobalSecuritySettings.setOrganization(settingsResponse.organization);
+        CloudVeilSecuritySettings.setOrganization(settingsResponse.organization);
         
         if(settingsResponse.googleMapsKeys != null) {
-            GlobalSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
+            CloudVeilSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
         }
 
         postFilterDialogsReady();

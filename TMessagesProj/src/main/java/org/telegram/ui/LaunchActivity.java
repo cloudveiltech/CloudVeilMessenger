@@ -85,7 +85,7 @@ import com.google.firebase.appindexing.Action;
 import com.google.firebase.appindexing.FirebaseUserActions;
 import com.google.firebase.appindexing.builders.AssistActionBuilder;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
@@ -576,7 +576,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 3) {
                     //CloudVeil Start
-                    if (!GlobalSecuritySettings.isDisabledSecretChat()) {
+                    if (!CloudVeilSecuritySettings.isDisabledSecretChat()) {
                         Bundle args = new Bundle();
                         args.putBoolean("onlyUsers", true);
                         args.putBoolean("destroyAfterSelect", true);

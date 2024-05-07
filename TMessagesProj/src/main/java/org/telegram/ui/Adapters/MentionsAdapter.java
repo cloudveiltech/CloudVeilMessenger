@@ -24,7 +24,7 @@ import android.widget.TextView;
 import androidx.collection.LongSparseArray;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -279,7 +279,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.isLockDisableStickers()) {
+        if(CloudVeilSecuritySettings.isLockDisableStickers()) {
             return;
         }
         //CloudVeil end

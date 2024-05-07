@@ -26,9 +26,8 @@ import android.util.Pair;
 import android.view.View;
 
 import androidx.core.content.FileProvider;
-import androidx.exifinterface.media.ExifInterface;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -223,7 +222,7 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
         this.supportEmojiMarkup = supportEmojiMarkup;
         this.setForType = setForType;
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+        if(CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
             setSearchAvailable(false);
         }
         //CloudVeil end
@@ -266,7 +265,7 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
         ids.add(ID_TAKE_PHOTO);
 
         //CloudVeil start
-        if (canSelectVideo && !GlobalSecuritySettings.getIsProfileVideoChangeDisabled()) {
+        if (canSelectVideo && !CloudVeilSecuritySettings.getIsProfileVideoChangeDisabled()) {
             //CloudVeil end
             items.add(LocaleController.getString("ChooseRecordVideo", R.string.ChooseRecordVideo));
             icons.add(R.drawable.msg_video);
@@ -365,7 +364,7 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+        if(CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
             return;
         }
         //CloudVeil end

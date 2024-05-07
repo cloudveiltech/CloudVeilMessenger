@@ -17,8 +17,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -39,7 +37,7 @@ import androidx.work.WorkManager;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.json.JSONObject;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.tgnet.ConnectionsManager;
@@ -47,7 +45,6 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Adapters.DrawerLayoutAdapter;
 import org.telegram.ui.Components.ForegroundDetector;
-import org.telegram.ui.Components.Premium.boosts.BoostRepository;
 import org.telegram.ui.IUpdateLayout;
 import org.telegram.ui.LauncherIconController;
 
@@ -318,10 +315,10 @@ public class ApplicationLoader extends Application {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         SharedPreferences.Editor edit = preferences.edit();
         if (edit != null) {
-            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
+            if(CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
                 edit.putBoolean("pushConnection", true);
             }
-            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+            if(CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
                 edit.putBoolean("pushService", true);
             }
             edit.commit();
@@ -337,7 +334,7 @@ public class ApplicationLoader extends Application {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled;
         //CloudVeil start
-        if (preferences.contains("pushService") || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+        if (preferences.contains("pushService") || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
             //CloudVeil end
             enabled = preferences.getBoolean("pushService", true);
         } else {

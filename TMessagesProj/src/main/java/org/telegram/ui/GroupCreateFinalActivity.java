@@ -41,7 +41,7 @@ import android.widget.LinearLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -526,7 +526,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
         editTextContainer.addView(avatarOverlay, LayoutHelper.createFrame(64, 64, Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT), LocaleController.isRTL ? 0 : 16, 16, LocaleController.isRTL ? 16 : 0, 16));
         avatarOverlay.setOnClickListener(view -> {
             //CloudVeil start
-            if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            if(CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
                 return;
             }
             //CloudVeil end
@@ -756,7 +756,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
     @Override
     public void didUploadPhoto(final TLRPC.InputFile photo, final TLRPC.InputFile video, double videoStartTimestamp, String videoPath, final TLRPC.PhotoSize bigSize, final TLRPC.PhotoSize smallSize, boolean isVideo, TLRPC.VideoSize emojiMarkup) {
         //CloudVeil start
-        if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+        if(CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
             return;
         }
         //CloudVeil end

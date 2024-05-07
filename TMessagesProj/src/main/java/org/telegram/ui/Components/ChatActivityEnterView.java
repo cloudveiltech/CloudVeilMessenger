@@ -109,7 +109,7 @@ import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.ChatListItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -5305,8 +5305,8 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
 
     public void setAllowStickersAndGifs(boolean needAnimatedEmoji, boolean needStickers, boolean needGifs, boolean waitingForKeyboardOpen) {
         //CloudVeil start
-        needGifs = !GlobalSecuritySettings.isLockDisableGifs() && needGifs;
-        needStickers = !GlobalSecuritySettings.isLockDisableStickers() && needStickers;
+        needGifs = !CloudVeilSecuritySettings.isLockDisableGifs() && needGifs;
+        needStickers = !CloudVeilSecuritySettings.isLockDisableStickers() && needStickers;
         //CloudVeil end
 
         if ((allowStickers != needStickers || allowGifs != needGifs) && emojiView != null) {
@@ -5902,7 +5902,7 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
             hasRecordVideo = false;
         }
         //CloudVeil start
-        if (GlobalSecuritySettings.getDisabledVideoInlineRecording()) {
+        if (CloudVeilSecuritySettings.getDisabledVideoInlineRecording()) {
             hasRecordVideo = false;
         }
         //CloudVeil end
@@ -9957,7 +9957,7 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                     return;
                 }
                 //CloudVeil start
-                if (!GlobalSecuritySettings.isLockDisableStickers()) {
+                if (!CloudVeilSecuritySettings.isLockDisableStickers()) {
                     if (stickerSet != null) {
                         inputStickerSet = new TLRPC.TL_inputStickerSetID();
                         inputStickerSet.access_hash = stickerSet.access_hash;
@@ -10494,7 +10494,7 @@ public class ChatActivityEnterView extends BlurredFrameLayout implements Notific
                     nextIcon = ChatActivityEnterViewAnimatedIconView.State.STICKER;
                 } else {
                     //CloudVeil start
-                    nextIcon = GlobalSecuritySettings.isLockDisableGifs() ? ChatActivityEnterViewAnimatedIconView.State.SMILE : ChatActivityEnterViewAnimatedIconView.State.GIF;
+                    nextIcon = CloudVeilSecuritySettings.isLockDisableGifs() ? ChatActivityEnterViewAnimatedIconView.State.SMILE : ChatActivityEnterViewAnimatedIconView.State.GIF;
                     //CloudVeil end
                 }
             }

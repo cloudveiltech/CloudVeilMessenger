@@ -64,7 +64,7 @@ import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.graphics.drawable.IconCompat;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.ConnectionsManager;
@@ -4132,7 +4132,7 @@ public class NotificationsController extends BaseController {
                         }
                     }
                     //CloudVeil start
-                    if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                    if(CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                         photoPath = null;
                     }
                     //CloudVeil end
@@ -4629,7 +4629,7 @@ public class NotificationsController extends BaseController {
             }
 
             //CloudVeil start
-            if(GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if(CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 photoPath = null;
             }
             //CloudVeil end

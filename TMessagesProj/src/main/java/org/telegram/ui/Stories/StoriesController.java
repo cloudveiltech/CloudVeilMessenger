@@ -12,7 +12,7 @@ import androidx.collection.LongSparseArray;
 
 import com.google.android.exoplayer2.util.Consumer;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -234,7 +234,7 @@ public class StoriesController {
 
     public boolean hasStories(long dialogId) {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end
@@ -266,7 +266,7 @@ public class StoriesController {
 
     public boolean hasStories() {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return false;
         }
         //CloudVeil end
@@ -275,7 +275,7 @@ public class StoriesController {
 
     public void loadStories() {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end
@@ -369,7 +369,7 @@ public class StoriesController {
 
     private void loadFromServer(boolean hidden) {
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

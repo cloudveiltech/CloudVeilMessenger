@@ -10,7 +10,6 @@ package org.telegram.ui.Components;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
@@ -45,7 +44,6 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.style.URLSpan;
 import android.util.Base64;
-import android.util.Pair;
 import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -68,7 +66,7 @@ import androidx.annotation.RawRes;
 import androidx.annotation.RequiresApi;
 import androidx.core.util.Consumer;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -124,24 +122,15 @@ import org.telegram.ui.ThemePreviewActivity;
 import org.telegram.ui.TooManyCommunitiesActivity;
 
 import java.net.IDN;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoField;
-import java.time.temporal.TemporalField;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -1643,7 +1632,7 @@ public class AlertsCreator {
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+        if(CloudVeilSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
             return;
         }
         //CloudVeil end
@@ -5635,7 +5624,7 @@ public class AlertsCreator {
                 30, 60, 60*60, 60*60*24, 60*60*24*7
         };
 
-        int serverMinLength = GlobalSecuritySettings.getMinSecretChatTtl();
+        int serverMinLength = CloudVeilSecuritySettings.getMinSecretChatTtl();
         int minValue = 0;
         int minLength = 0;
         for(int i=0; i<ttls.length; i++) {

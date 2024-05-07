@@ -21,7 +21,6 @@ import android.graphics.RectF;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
-import android.util.Log;
 import android.util.LongSparseArray;
 import android.util.SparseArray;
 import android.view.GestureDetector;
@@ -46,12 +45,11 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.BotWebViewVibrationEffect;
 import org.telegram.messenger.BuildVars;
-import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
@@ -365,7 +363,7 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
         setSpeed(1f);
 
         //CloudVeil start
-        if(GlobalSecuritySettings.getIsDisableStories()) {
+        if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end

@@ -88,7 +88,7 @@ import androidx.recyclerview.widget.LinearSmoothScrollerCustom;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.ViewPager;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
@@ -6873,10 +6873,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else { //Cloudveil start
             CloudVeilDialogHelper.getInstance(currentAccount).showPopup(this, getParentActivity());
 
-            if (GlobalSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS && SharedConfig.isAutoplayGifs()) {
+            if (CloudVeilSecuritySettings.LOCK_DISABLE_AUTOPLAY_GIFS && SharedConfig.isAutoplayGifs()) {
                 SharedConfig.toggleAutoplayGifs();
             }
-            if (GlobalSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER && SharedConfig.customTabs) {
+            if (CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER && SharedConfig.customTabs) {
                 SharedConfig.toggleCustomTabs();
             }
         }
@@ -8577,7 +8577,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     //CloudVeil start
-    public boolean storiesEnabled = !GlobalSecuritySettings.getIsDisableStories();
+    public boolean storiesEnabled = !CloudVeilSecuritySettings.getIsDisableStories();
     //CloudVeil end
     private void updateStoriesPosting() {
         final boolean storiesEnabled = getMessagesController().storiesEnabled();

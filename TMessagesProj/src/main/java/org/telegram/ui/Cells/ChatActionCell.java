@@ -46,7 +46,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -545,7 +545,7 @@ public class ChatActionCell extends BaseCell implements DownloadController.FileD
             }
             TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 1000);
             //CloudVeil start
-            if (photoSize != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (photoSize != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                 if (videoSize != null) {
                     imageReceiver.setImage(videoLocation, ImageLoader.AUTOPLAY_FILTER, ImageLocation.getForPhoto(photoSize, photo), "150_150", ImageLocation.getForObject(strippedPhotoSize, messageObject.photoThumbsObject), "50_50_b", messageObject.strippedThumb, 0, null, messageObject, 0);

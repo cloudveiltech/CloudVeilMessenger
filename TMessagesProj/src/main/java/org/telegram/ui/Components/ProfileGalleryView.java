@@ -22,7 +22,7 @@ import android.view.ViewGroup;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLoader;
@@ -908,7 +908,7 @@ public class ProfileGalleryView extends CircularViewPager implements Notificatio
                     }
                 }
                 //CloudVeil start
-                for (int a = 0; a < arrayList.size() && a < GlobalSecuritySettings.getProfilePhotoLimit(); a++) {
+                for (int a = 0; a < arrayList.size() && a < CloudVeilSecuritySettings.getProfilePhotoLimit(); a++) {
                 //CloudVeil end
                     TLRPC.Photo photo = arrayList.get(a);
                     if (photo == null || photo instanceof TLRPC.TL_photoEmpty || photo.sizes == null) {

@@ -122,7 +122,7 @@ import androidx.viewpager.widget.ViewPager;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.zxing.common.detector.MathUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
@@ -11638,7 +11638,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             return false;
         }
         //CloudVeil Start
-        if (GlobalSecuritySettings.isLockDisableGifs()) {
+        if (CloudVeilSecuritySettings.isLockDisableGifs()) {
             return false;
         }
         //CloudVeil End
@@ -16072,7 +16072,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 //CloudVeil start
                 int oldTtl = currentEncryptedChat.ttl;
-                currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, GlobalSecuritySettings.getMinSecretChatTtl());
+                currentEncryptedChat.ttl = Math.max(currentEncryptedChat.ttl, CloudVeilSecuritySettings.getMinSecretChatTtl());
                 if (oldTtl != currentEncryptedChat.ttl) {
                     SecretChatHelper.getInstance(currentAccount).sendTTLMessage(currentEncryptedChat, null);
                     MessagesStorage.getInstance(currentAccount).updateEncryptedChatTTL(currentEncryptedChat);
@@ -20925,7 +20925,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
         } else if (id == NotificationCenter.storiesUpdated) {
             //CloudVeil start
-            if(!GlobalSecuritySettings.getIsDisableStories()) {
+            if(!CloudVeilSecuritySettings.getIsDisableStories()) {
                 if (avatarContainer != null) {
                     avatarContainer.avatarImageView.invalidate();
                 }
@@ -28082,7 +28082,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         final ActionBarMenu actionMode = actionBar.createActionMode();
         actionMode.setItemVisibility(delete, View.VISIBLE);
         //CloudVeil start
-        if (GlobalSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
+        if (CloudVeilSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
             actionMode.setItemVisibility(delete, View.GONE);
         }
         //CloudVeil end
@@ -31364,7 +31364,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     public void didClickImage(ChatActionCell cell) {
                         MessageObject message = cell.getMessageObject();
                         //CloudVeil start
-                        if(message.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto && GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+                        if(message.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto && CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                             return;
                         }
                         //CloudVeil end

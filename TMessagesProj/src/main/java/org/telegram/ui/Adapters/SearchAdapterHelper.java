@@ -12,7 +12,7 @@ import android.util.Pair;
 
 import androidx.collection.LongSparseArray;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -228,7 +228,7 @@ public class SearchAdapterHelper {
                                             continue;
                                         }
                                         //CloudVeil Start
-                                        if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+                                        if (!CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(chat);
                                             globalSearchMap.put(-chat.id, chat);
                                         }
@@ -238,7 +238,7 @@ public class SearchAdapterHelper {
                                             continue;
                                         }
                                         //CloudVeil Start
-                                        if (!GlobalSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+                                        if (!CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
                                             globalSearch.add(user);
                                             globalSearchMap.put(user.id, user);
                                         }

@@ -67,7 +67,7 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -3120,7 +3120,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
     protected boolean includeStories() {
         //CloudVeil start
-        return !GlobalSecuritySettings.getIsDisableStories();
+        return !CloudVeilSecuritySettings.getIsDisableStories();
         //CloudVeil end
     }
 
