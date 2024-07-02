@@ -189,7 +189,7 @@ public class CloudVeilDialogHelper {
     }
 
     private boolean isChatIdAllowed(long currentDialogId) {
-        return allowedDialogs.containsKey(currentDialogId) && allowedDialogs.get(currentDialogId);
+        return allowedDialogs.containsKey(currentDialogId) && Boolean.TRUE.equals(allowedDialogs.get(currentDialogId));
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
