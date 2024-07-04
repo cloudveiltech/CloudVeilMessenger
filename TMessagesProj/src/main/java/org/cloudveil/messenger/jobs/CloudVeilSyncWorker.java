@@ -21,6 +21,7 @@ import com.google.gson.Gson;
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
+import org.cloudveil.messenger.api.service.MessengerHttpInterface;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
@@ -39,6 +40,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import io.sentry.Sentry;
+import io.sentry.SentryLevel;
+import io.sentry.protocol.User;
 
 /**
  * Created by Dmitriy on 05.02.2018.
@@ -163,7 +167,14 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilDialogHelper.getInstance(accountNumber).loadNotificationChannelDialog(request);
 
         lastServerCallTime = System.currentTimeMillis();
+        User user = new User();
+        user.setId("" + request.userId);
+        user.setUsername(request.userName);
+        sendDataAndPingServer(user, request, cached);
+        postFilterDialogsReady();
+    }
 
+    private void sendDataAndPingServer(@NonNull User user, @NonNull SettingsRequest request, SettingsResponse cached) {
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
                 subscribeOn(Schedulers.io()).
                 subscribe(settingsResponse -> {
@@ -174,10 +185,32 @@ public class CloudVeilSyncWorker extends Worker {
                     if (cached != null) {
                         processResponse(cached);
                     }
+                    sendSentryEvent(throwable, user, "Settings sync request failed.");
                     throwable.printStackTrace();
                     freeSubscription();
+                    subscription = ServiceClientHolders.getSettingsService().ping().
+                            subscribeOn(Schedulers.io()).
+                            subscribe(response -> {
+                                freeSubscription();
+                                String responseString = response.string();
+                                if(!responseString.equalsIgnoreCase(MessengerHttpInterface.PING_SUCCCESS)) {
+                                    sendSentryEvent(new Exception("Ping failed! " + responseString), user, "Ping request failed " + responseString);
+                                }
+                            }, throwable1 -> {
+                                sendSentryEvent(throwable1, user, "Ping request failed.");
+                                throwable1.printStackTrace();
+                                freeSubscription();
+                            });
                 });
-        postFilterDialogsReady();
+
+    }
+
+    private void sendSentryEvent(Throwable exception, User user, String message) {
+        Exception wrapped = new RuntimeException("Can't sync with CloudVeil server: " + message, exception);
+        Sentry.captureException(wrapped, scope -> {
+            scope.setLevel(SentryLevel.FATAL);
+            scope.setUser(user);
+        });
     }
 
     private void postFilterDialogsReady() {
