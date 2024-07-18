@@ -1,5 +1,7 @@
 package org.telegram.ui.Components;
 
+import static org.telegram.messenger.AndroidUtilities.lerp;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.TimeInterpolator;
@@ -71,8 +73,12 @@ public class AnimatedTextView extends View {
 
             public Part(StaticLayout layout, float offset, int toOppositeIndex) {
                 this.layout = layout;
-                this.offset = offset;
                 this.toOppositeIndex = toOppositeIndex;
+                layout(offset);
+            }
+
+            public void layout(float offset) {
+                this.offset = offset;
                 this.left = layout == null || layout.getLineCount() <= 0 ? 0 : layout.getLineLeft(0);
                 this.width = layout == null || layout.getLineCount() <= 0 ? 0 : layout.getLineWidth(0);
             }
@@ -88,6 +94,8 @@ public class AnimatedTextView extends View {
         private long animateDuration = 450;
         private TimeInterpolator animateInterpolator = CubicBezierInterpolator.EASE_OUT_QUINT;
         private float moveAmplitude = 1f;
+
+        private float scaleAmplitude = 0;
 
         private int alpha = 255;
         private final Rect bounds = new Rect();
@@ -159,8 +167,8 @@ public class AnimatedTextView extends View {
             int fullWidth = bounds.width();
             int fullHeight = bounds.height();
             if (currentParts != null && oldParts != null && t != 1) {
-                float width = AndroidUtilities.lerp(oldWidth, currentWidth, t);
-                float height = AndroidUtilities.lerp(oldHeight, currentHeight, t);
+                float width = lerp(oldWidth, currentWidth, t);
+                float height = lerp(oldHeight, currentHeight, t);
                 canvas.translate(0, (fullHeight - height) / 2f);
                 for (int i = 0; i < currentParts.length; ++i) {
                     Part current = currentParts[i];
@@ -175,7 +183,7 @@ public class AnimatedTextView extends View {
                         if (isRTL && !ignoreRTL) {
                             oldX = oldWidth - (oldX + old.width);
                         }
-                        x = AndroidUtilities.lerp(oldX - old.left, x - current.left, t);
+                        x = lerp(oldX - old.left, x - current.left, t);
                         applyAlphaInternal(1f);
                     } else {
                         x -= current.left;
@@ -194,6 +202,10 @@ public class AnimatedTextView extends View {
                         }
                     }
                     canvas.translate(x, y);
+                    if (j < 0 && scaleAmplitude > 0) {
+                        final float s = lerp(1f - scaleAmplitude, 1f, t);
+                        canvas.scale(s, s, current.width / 2f, current.layout.getHeight() / 2f);
+                    }
                     current.layout.draw(canvas);
                     canvas.restore();
                 }
@@ -221,6 +233,10 @@ public class AnimatedTextView extends View {
                         }
                     }
                     canvas.translate(x, y);
+                    if (scaleAmplitude > 0) {
+                        final float s = lerp(1f, 1f - scaleAmplitude, t);
+                        canvas.scale(s, s, old.width / 2f, old.layout.getHeight() / 2f);
+                    }
                     old.layout.draw(canvas);
                     canvas.restore();
                 }
@@ -245,7 +261,6 @@ public class AnimatedTextView extends View {
                                 x += fullWidth - currentWidth;
                             }
                         }
-//                        boolean isAppeared = currentLayoutToOldIndex != null && i < currentLayoutToOldIndex.length && currentLayoutToOldIndex[i] < 0;
                         canvas.translate(x, 0);
                         current.layout.draw(canvas);
                         canvas.restore();
@@ -441,7 +456,7 @@ public class AnimatedTextView extends View {
 
         public float getCurrentWidth() {
             if (currentParts != null && oldParts != null) {
-                return AndroidUtilities.lerp(oldWidth, currentWidth, t);
+                return lerp(oldWidth, currentWidth, t);
             }
             return currentWidth;
         }
@@ -454,7 +469,7 @@ public class AnimatedTextView extends View {
             if (oldParts == null || otherTextDrawable.oldParts == null) {
                 return Math.max(getCurrentWidth(), otherTextDrawable.getCurrentWidth());
             }
-            return AndroidUtilities.lerp(
+            return lerp(
                 Math.max(oldWidth, otherTextDrawable.oldWidth),
                 Math.max(currentWidth, otherTextDrawable.currentWidth),
                 Math.max(t, otherTextDrawable.t)
@@ -796,7 +811,33 @@ public class AnimatedTextView extends View {
         }
 
         public void setTextSize(float textSizePx) {
+            final float lastTextPaint = textPaint.getTextSize();
             textPaint.setTextSize(textSizePx);
+            if (Math.abs(lastTextPaint - textSizePx) > 0.5f) {
+                final int width = overrideFullWidth > 0 ? overrideFullWidth : bounds.width();
+                if (currentParts != null) {
+                    // relayout parts:
+                    currentWidth = 0;
+                    currentHeight = 0;
+                    for (int i = 0; i < currentParts.length; ++i) {
+                        StaticLayout layout = makeLayout(currentParts[i].layout.getText(), width - (int) Math.ceil(Math.min(currentWidth, oldWidth)));
+                        currentParts[i] = new Part(layout, currentParts[i].offset, currentParts[i].toOppositeIndex);
+                        currentWidth += currentParts[i].width;
+                        currentHeight = Math.max(currentHeight, currentParts[i].layout.getHeight());
+                    }
+                }
+                if (oldParts != null) {
+                    oldWidth = 0;
+                    oldHeight = 0;
+                    for (int i = 0; i < oldParts.length; ++i) {
+                        StaticLayout layout = makeLayout(oldParts[i].layout.getText(), width - (int) Math.ceil(Math.min(currentWidth, oldWidth)));
+                        oldParts[i] = new Part(layout, oldParts[i].offset, oldParts[i].toOppositeIndex);
+                        oldWidth += oldParts[i].width;
+                        oldHeight = Math.max(oldHeight, oldParts[i].layout.getHeight());
+                    }
+                }
+                invalidateSelf();
+            }
         }
 
         public float getTextSize() {
@@ -828,11 +869,19 @@ public class AnimatedTextView extends View {
             this.gravity = gravity;
         }
 
+        public int getGravity() {
+            return this.gravity;
+        }
+
         public void setAnimationProperties(float moveAmplitude, long startDelay, long duration, TimeInterpolator interpolator) {
             this.moveAmplitude = moveAmplitude;
             animateDelay = startDelay;
             animateDuration = duration;
             animateInterpolator = interpolator;
+        }
+
+        public void setScaleProperty(float scale) {
+            this.scaleAmplitude = scale;
         }
 
         public void copyStylesFrom(TextPaint paint) {
@@ -883,7 +932,7 @@ public class AnimatedTextView extends View {
         }
 
         public float isNotEmpty() {
-            return AndroidUtilities.lerp(
+            return lerp(
                 oldText == null || oldText.length() <= 0 ? 0f : 1f,
                 currentText == null || currentText.length() <= 0 ? 0f : 1f,
                 oldText == null ? 1f : t
@@ -1023,6 +1072,10 @@ public class AnimatedTextView extends View {
 
     public void setAnimationProperties(float moveAmplitude, long startDelay, long duration, TimeInterpolator interpolator) {
         drawable.setAnimationProperties(moveAmplitude, startDelay, duration, interpolator);
+    }
+
+    public void setScaleProperty(float scale) {
+        drawable.setScaleProperty(scale);
     }
 
     public AnimatedTextDrawable getDrawable() {

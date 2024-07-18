@@ -19,7 +19,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -145,15 +145,7 @@ public class Browser {
     private static class NavigationCallback extends CustomTabsCallback {
         @Override
         public void onNavigationEvent(int navigationEvent, Bundle extras) {
-
         }
-    }
-
-    public static void openUrl(Context context, String url) {
-        if (url == null) {
-            return;
-        }
-        openUrl(context, Uri.parse(url), true);
     }
 
     //CloudVeil start
@@ -168,6 +160,13 @@ public class Browser {
         openUrl(context, uri, allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, null);
     }
     //CloudVeil end
+
+    public static void openUrl(Context context, String url) {
+        if (url == null) {
+            return;
+        }
+        openUrl(context, Uri.parse(url), true);
+    }
 
     public static void openUrl(Context context, Uri uri) {
         openUrl(context, uri, true);
@@ -257,7 +256,7 @@ public class Browser {
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
@@ -270,7 +269,7 @@ public class Browser {
         if (tryTelegraph) {
             try {
                 String host = AndroidUtilities.getHostAuthority(uri);
-                if (isTelegraphUrl(host, true) || "telegram.org".equalsIgnoreCase(host) && (uri.toString().toLowerCase().contains("telegram.org/faq") || uri.toString().toLowerCase().contains("telegram.org/privacy") || uri.toString().toLowerCase().contains("telegram.org/blog"))) {
+                if (UserConfig.getInstance(UserConfig.selectedAccount).getCurrentUser() != null && (isTelegraphUrl(host, true) || "telegram.org".equalsIgnoreCase(host) && (uri.toString().toLowerCase().contains("telegram.org/faq") || uri.toString().toLowerCase().contains("telegram.org/privacy") || uri.toString().toLowerCase().contains("telegram.org/blog")))) {
                     final AlertDialog[] progressDialog = new AlertDialog[] {
                         new AlertDialog(context, AlertDialog.ALERT_TYPE_SPINNER)
                     };
@@ -346,11 +345,12 @@ public class Browser {
                 }
                 uri = Uri.parse("https://" + finalPath);
             }
+
             //CloudVeil start
-            boolean forceInternal = GlobalSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
+            boolean forceInternal = CloudVeilSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
             boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
             if (allowCustomTab && !internalUri && !scheme.equals("tel")) {
-            //CloudVeil end
+                //CloudVeil end
                 String[] browserPackageNames = null;
                 try {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"));
@@ -410,17 +410,23 @@ public class Browser {
                     Intent share = new Intent(ApplicationLoader.applicationContext, ShareBroadcastReceiver.class);
                     share.setAction(Intent.ACTION_SEND);
 
-                    PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-                    CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession());
-                    builder.addMenuItem(LocaleController.getString("CopyLink", R.string.CopyLink), copy);
-
-                    builder.setToolbarColor(Theme.getColor(Theme.key_actionBarBrowser));
-                    builder.setShowTitle(true);
-                    builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
-                    CustomTabsIntent intent = builder.build();
-                    intent.setUseNewTask();
-                    intent.launchUrl(context, uri);
+                    //CloudVeil start
+                    if(CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER) {
+                        if (baseFragment != null) {
+                            baseFragment.presentFragment(new WebviewActivity(uri.toString(), "organisation", "organisation", "", null));
+                        }
+                    } else {
+                        PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession());
+                        builder.addMenuItem(LocaleController.getString("CopyLink", R.string.CopyLink), copy);
+                        builder.setToolbarColor(Theme.getColor(Theme.key_actionBarBrowser));
+                        builder.setShowTitle(true);
+                        builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
+                        CustomTabsIntent intent = builder.build();
+                        intent.setUseNewTask();
+                        intent.launchUrl(context, uri);
+                    }
+                    //CloudVeil end
                     return;
                 }
             }
@@ -470,6 +476,16 @@ public class Browser {
             }
         } catch (Throwable ignore) {
 
+        }
+        return false;
+    }
+
+    public static boolean isTMe(String url) {
+        try {
+            final String linkPrefix = MessagesController.getInstance(UserConfig.selectedAccount).linkPrefix;
+            return TextUtils.equals(AndroidUtilities.getHostAuthority(url), linkPrefix);
+        } catch (Exception e) {
+            FileLog.e(e);
         }
         return false;
     }

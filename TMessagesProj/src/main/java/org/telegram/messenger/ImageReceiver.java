@@ -12,7 +12,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
 import android.graphics.BlendMode;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.ComposeShader;
 import android.graphics.Matrix;
@@ -31,9 +30,7 @@ import android.view.View;
 
 import androidx.annotation.Keep;
 
-import com.google.android.exoplayer2.util.Log;
-
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.AnimatedFileDrawable;
@@ -47,7 +44,6 @@ import org.telegram.ui.Components.RecyclableDrawable;
 import org.telegram.ui.Components.VectorAvatarThumbDrawable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ImageReceiver implements NotificationCenter.NotificationCenterDelegate {
@@ -426,7 +422,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             TLRPC.User user = (TLRPC.User) object;
             isPremium = user.premium;
             //CloudVeil start
-            if (user.photo != null && !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
+            if (user.photo != null && !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
                 //CloudVeil end
                 strippedBitmap = user.photo.strippedBitmap;
                 hasStripped = user.photo.stripped_thumb != null;
@@ -470,8 +466,8 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         } else if (object instanceof TLRPC.Chat) {
             TLRPC.Chat chat = (TLRPC.Chat) object;
             //CloudVeil start
-            if (chat.photo != null&& !GlobalSecuritySettings.getLockDisableOthersPhoto()) {
-            //CloudVeil end
+            if (chat.photo != null&& !CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
+                //CloudVeil end
                 strippedBitmap = chat.photo.strippedBitmap;
                 hasStripped = chat.photo.stripped_thumb != null;
             }
@@ -1022,7 +1018,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 } else if (bitmapDrawable instanceof AnimatedFileDrawable) {
                     AnimatedFileDrawable animatedFileDrawable = (AnimatedFileDrawable) drawable;
                     animatedFileDrawable.setRoundRadius(roundRadius);
-                } else if (bitmapDrawable.getBitmap() != null) {
+                } else if (bitmapDrawable.getBitmap() != null && !bitmapDrawable.getBitmap().isRecycled()) {
                     setDrawableShader(drawable, new BitmapShader(bitmapDrawable.getBitmap(), Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
                 }
             }
@@ -1116,25 +1112,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             return true;
         }
         return false;
-    }
-
-    private int bufferedFrame;
-    public void incrementFrames(int inc) {
-        if (currentMediaDrawable instanceof RLottieDrawable) {
-//            RLottieDrawable rlottie = (RLottieDrawable) currentMediaDrawable;
-//            inc = (int) Math.round((float) rlottie.getFramesCount() / rlottie.getDuration() * (1f / 30f));
-//            rlottie.setCurrentFrame(
-//                (rlottie.getCurrentFrame() + inc) % (int) rlottie.getFramesCount()
-//            );
-        } else if (currentMediaDrawable instanceof AnimatedFileDrawable) {
-            int lastFrame = (int) bufferedFrame;
-            bufferedFrame += inc;
-            int currentFrame = (int) bufferedFrame;
-            while (lastFrame != currentFrame) {
-                ((AnimatedFileDrawable) currentMediaDrawable).getNextFrame();
-                currentFrame--;
-            }
-        }
     }
 
     public boolean onAttachedToWindow() {
@@ -1667,6 +1644,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                 if (drawable instanceof SvgHelper.SvgDrawable) {
                     svgDrawable = (SvgHelper.SvgDrawable) drawable;
                     svgDrawable.setParent(this);
+                }
+                if (colorFilter != null && drawable != null) {
+                    drawable.setColorFilter(colorFilter);
                 }
                 try {
                     drawable.setAlpha(alpha);
@@ -2307,7 +2287,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         }
     }
 
-    public void setImageX(int x) {
+    public void setImageX(float x) {
         imageX = x;
     }
 

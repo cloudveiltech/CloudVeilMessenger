@@ -24,7 +24,7 @@ import android.widget.TextView;
 import androidx.collection.LongSparseArray;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -50,6 +50,8 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Business.QuickRepliesActivity;
+import org.telegram.ui.Business.QuickRepliesController;
 import org.telegram.ui.Cells.BotSwitchCell;
 import org.telegram.ui.Cells.ContextLinkCell;
 import org.telegram.ui.Cells.MentionCell;
@@ -85,7 +87,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     private int currentAccount = UserConfig.selectedAccount;
     private Context mContext;
     private long dialog_id;
-    private int threadMessageId;
+    private long threadMessageId;
     private TLRPC.ChatFull info;
     private SearchAdapterHelper searchAdapterHelper;
     private ArrayList<TLObject> searchResultUsernames;
@@ -94,6 +96,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     private ArrayList<String> searchResultHashtags;
     private ArrayList<String> searchResultCommands;
     private ArrayList<String> searchResultCommandsHelp;
+    private String quickRepliesQuery;
+    private ArrayList<QuickRepliesController.QuickReply> quickReplies;
     private ArrayList<MediaDataController.KeywordResult> searchResultSuggestions;
     private String[] lastSearchKeyboardLanguage;
     private ArrayList<TLRPC.User> searchResultCommandsUsers;
@@ -147,6 +151,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     private String lastSticker;
     private int lastReqId;
     private boolean delayLocalResults;
+    private Runnable checkAgainRunnable;
 
     private ChatActivity parentFragment;
     private final Theme.ResourcesProvider resourcesProvider;
@@ -182,7 +187,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         }
     };
 
-    public MentionsAdapter(Context context, boolean darkTheme, long did, int threadMessageId, MentionsAdapterDelegate mentionsAdapterDelegate, Theme.ResourcesProvider resourcesProvider) {
+    public MentionsAdapter(Context context, boolean darkTheme, long did, long threadMessageId, MentionsAdapterDelegate mentionsAdapterDelegate, Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
         mContext = context;
         delegate = mentionsAdapterDelegate;
@@ -207,6 +212,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileLoaded);
             NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileLoadFailed);
         }
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.recentDocumentsDidLoad);
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.stickersDidLoad);
     }
 
     public TLRPC.User getFoundContextBot() {
@@ -223,6 +230,18 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     delegate.needChangePanelVisibility(getItemCountInternal() > 0);
                 }
             }
+        } else if (id == NotificationCenter.recentDocumentsDidLoad) {
+            if (checkAgainRunnable != null) {
+                AndroidUtilities.runOnUIThread(checkAgainRunnable);
+                checkAgainRunnable = null;
+            }
+        } else if (id == NotificationCenter.stickersDidLoad) {
+            if ((int) args[0] == MediaDataController.TYPE_IMAGE) {
+                if (checkAgainRunnable != null) {
+                    AndroidUtilities.runOnUIThread(checkAgainRunnable);
+                    checkAgainRunnable = null;
+                }
+            }
         }
     }
 
@@ -230,7 +249,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (document == null) {
             return;
         }
-
         //CloudVeil start
         if(!MediaDataController.getInstance(currentAccount).isStickerAllowed(document)) {
             return;
@@ -261,7 +279,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil start
-        if(GlobalSecuritySettings.isLockDisableStickers()) {
+        if(CloudVeilSecuritySettings.isLockDisableStickers()) {
             return;
         }
         //CloudVeil end
@@ -389,6 +407,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
     }
 
     private boolean itemsEqual(Object a, Object b) {
+        if (a instanceof QuickRepliesController.QuickReply) {
+            return false;
+        }
         if (a == b) {
             return true;
         }
@@ -451,6 +472,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileLoaded);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.fileLoadFailed);
         }
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.recentDocumentsDidLoad);
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.stickersDidLoad);
     }
 
     public void setParentFragment(ChatActivity fragment) {
@@ -526,11 +549,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         contextUsernameReqid = 0;
         locationProvider.stop();
         if (user != null && user.bot && user.bot_inline_placeholder != null) {
-            //CloudVeil start
-            if(!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
-                return;
-            }
-            //CloudVeil end
             foundContextBot = user;
             if (parentFragment != null) {
                 TLRPC.Chat chat = parentFragment.getCurrentChat();
@@ -577,6 +595,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             foundContextBot = null;
             inlineMediaEnabled = true;
         }
+
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
@@ -597,7 +616,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (foundContextBot != null && foundContextBot.username != null && foundContextBot.username.equals(username) && searchingContextQuery != null && searchingContextQuery.equals(query)) {
             return;
         }
-
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(foundContextBot)) {
             foundContextBot = null;
@@ -812,6 +830,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 searchResultUsernames = null;
                 searchResultUsernamesMap = null;
                 searchResultCommands = null;
+                quickReplies = null;
                 searchResultSuggestions = null;
                 searchResultCommandsHelp = null;
                 searchResultCommandsUsers = null;
@@ -867,6 +886,10 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (searchGlobalRunnable != null) {
             AndroidUtilities.cancelRunOnUIThread(searchGlobalRunnable);
             searchGlobalRunnable = null;
+        }
+        if (checkAgainRunnable != null) {
+            AndroidUtilities.cancelRunOnUIThread(checkAgainRunnable);
+            checkAgainRunnable = null;
         }
         if (TextUtils.isEmpty(text) || text.length() > MessagesController.getInstance(currentAccount).maxMessageLength) {
             searchForContextBot(null, null);
@@ -932,6 +955,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
 
             delayLocalResults = false;
             if (!serverStickersOnly) {
+                checkAgainRunnable = () -> searchUsernameOrHashtag(charSequence, position, messageObjects, usernameOnly, forSearch);
+                MediaDataController.getInstance(currentAccount).loadRecents(MediaDataController.TYPE_IMAGE, false, true, false);
+                MediaDataController.getInstance(currentAccount).loadRecents(MediaDataController.TYPE_FAVE, false, true, false);
                 final ArrayList<TLRPC.Document> recentStickers = MediaDataController.getInstance(currentAccount).getRecentStickersNoCopy(MediaDataController.TYPE_IMAGE);
                 final ArrayList<TLRPC.Document> favsStickers = MediaDataController.getInstance(currentAccount).getRecentStickersNoCopy(MediaDataController.TYPE_FAVE);
                 int recentsAdded = 0;
@@ -952,6 +978,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     }
                 }
 
+                MediaDataController.getInstance(currentAccount).checkStickers(MediaDataController.TYPE_IMAGE);
                 HashMap<String, ArrayList<TLRPC.Document>> allStickers = MediaDataController.getInstance(currentAccount).getAllStickers();
                 ArrayList<TLRPC.Document> newStickers = allStickers != null ? allStickers.get(lastSticker) : null;
                 if (newStickers != null && !newStickers.isEmpty()) {
@@ -1141,7 +1168,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                     if (user == null) {
                         continue;
                     }
-
                     //CloudVeil start
                     if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
                         continue;
@@ -1161,7 +1187,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 }
             }
             final TLRPC.Chat chat;
-            int threadId;
+            long threadId;
             if (parentFragment != null) {
                 chat = parentFragment.getCurrentChat();
                 threadId = parentFragment.getThreadId();
@@ -1320,6 +1346,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             });
             searchResultHashtags = null;
             stickers = null;
+            quickReplies = null;
             searchResultCommands = null;
             searchResultCommandsHelp = null;
             searchResultCommandsUsers = null;
@@ -1349,7 +1376,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                         channelParticipantsMentions.q = usernameString;
                         if (threadId != 0) {
                             channelParticipantsMentions.flags |= 2;
-                            channelParticipantsMentions.top_msg_id = threadId;
+                            channelParticipantsMentions.top_msg_id = (int) threadId;
                         }
                         req.filter = channelParticipantsMentions;
                         final int currentReqId = ++channelLastReqId;
@@ -1409,6 +1436,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             stickers = null;
             searchResultUsernames = null;
             searchResultUsernamesMap = null;
+            quickReplies = null;
             searchResultCommands = null;
             searchResultCommandsHelp = null;
             searchResultCommandsUsers = null;
@@ -1437,6 +1465,21 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 }
                 //CloudVeil end
             }
+            if (parentFragment != null && !DialogObject.isEncryptedDialog(dialog_id) && parentFragment.getChatMode() == 0 && parentFragment.getCurrentUser() != null && !parentFragment.getCurrentUser().bot && !UserObject.isReplyUser(parentFragment.getCurrentUser()) && !UserObject.isService(parentFragment.getCurrentUser().id)) {
+                QuickRepliesController quickRepliesController = QuickRepliesController.getInstance(currentAccount);
+                quickRepliesController.load();
+                quickRepliesQuery = command;
+                quickReplies = new ArrayList<QuickRepliesController.QuickReply>();
+                for (int i = 0; i < quickRepliesController.replies.size(); i++) {
+                    QuickRepliesController.QuickReply reply = quickRepliesController.replies.get(i);
+                    if (!reply.isSpecial() && reply.name.startsWith(command)) {
+                        quickReplies.add(reply);
+                    }
+                }
+            } else {
+                quickRepliesQuery = null;
+                quickReplies = null;
+            }
             searchResultHashtags = null;
             stickers = null;
             searchResultUsernames = null;
@@ -1448,7 +1491,7 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             contextMedia = false;
             searchResultBotContext = null;
             notifyDataSetChanged();
-            delegate.needChangePanelVisibility(!newResult.isEmpty());
+            delegate.needChangePanelVisibility(!newResult.isEmpty() || quickReplies != null && !quickReplies.isEmpty());
         } else if (foundType == 3) {
             String[] newLanguage = AndroidUtilities.getCurrentKeyboardLanguage();
             if (!Arrays.equals(newLanguage, lastSearchKeyboardLanguage)) {
@@ -1462,17 +1505,19 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 searchResultUsernames = null;
                 searchResultUsernamesMap = null;
                 searchResultCommands = null;
+                quickReplies = null;
                 searchResultCommandsHelp = null;
                 searchResultCommandsUsers = null;
                 notifyDataSetChanged();
                 delegate.needChangePanelVisibility(searchResultSuggestions != null && !searchResultSuggestions.isEmpty());
-            }, true);
+            }, SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium());
         } else if (foundType == 4) {
             searchResultHashtags = null;
             searchResultUsernames = null;
             searchResultUsernamesMap = null;
             searchResultSuggestions = null;
             searchResultCommands = null;
+            quickReplies = null;
             searchResultCommandsHelp = null;
             searchResultCommandsUsers = null;
         }
@@ -1553,8 +1598,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return searchResultUsernames.size();
         } else if (searchResultHashtags != null) {
             return searchResultHashtags.size();
-        } else if (searchResultCommands != null) {
-            return searchResultCommands.size();
+        } else if (searchResultCommands != null || quickReplies != null) {
+            return (quickReplies == null ? 0 : quickReplies.size()) + (searchResultCommands == null ? 0 : searchResultCommands.size());
         } else if (searchResultSuggestions != null) {
             return searchResultSuggestions.size();
         }
@@ -1583,6 +1628,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
         if (searchResultCommands != null) {
             searchResultCommands.clear();
         }
+        if (quickReplies != null) {
+            quickReplies.clear();
+        }
         if (searchResultSuggestions != null) {
             searchResultSuggestions.clear();
         }
@@ -1600,6 +1648,8 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 return 2;
             }
             return 1;
+        } else if (quickReplies != null && position >= 0 && position < quickReplies.size()) {
+            return 5;
         } else {
             return 0;
         }
@@ -1656,18 +1706,27 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 return null;
             }
             return searchResultSuggestions.get(i);
-        } else if (searchResultCommands != null) {
-            if (i < 0 || i >= searchResultCommands.size()) {
-                return null;
-            }
-            if (searchResultCommandsUsers != null && (botsCount != 1 || info instanceof TLRPC.TL_channelFull)) {
-                if (searchResultCommandsUsers.get(i) != null) {
-                    return String.format("%s@%s", searchResultCommands.get(i), searchResultCommandsUsers.get(i) != null ? searchResultCommandsUsers.get(i).username : "");
-                } else {
-                    return String.format("%s", searchResultCommands.get(i));
+        } else if (quickReplies != null || searchResultCommands != null) {
+            if (quickReplies != null) {
+                if (i >= 0 && i < quickReplies.size()) {
+                    return quickReplies.get(i);
+                } else if (quickReplies != null) {
+                    i -= quickReplies.size();
                 }
             }
-            return searchResultCommands.get(i);
+            if (searchResultCommands != null) {
+                if (i < 0 || i >= searchResultCommands.size()) {
+                    return null;
+                }
+                if (searchResultCommandsUsers != null && (botsCount != 1 || info instanceof TLRPC.TL_channelFull)) {
+                    if (searchResultCommandsUsers.get(i) != null) {
+                        return String.format("%s@%s", searchResultCommands.get(i), searchResultCommandsUsers.get(i) != null ? searchResultCommandsUsers.get(i).username : "");
+                    } else {
+                        return String.format("%s", searchResultCommands.get(i));
+                    }
+                }
+                return searchResultCommands.get(i);
+            }
         }
         return null;
     }
@@ -1723,6 +1782,9 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 textView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText2));
                 view = textView;
                 break;
+            case 5:
+                view = new QuickRepliesActivity.QuickReplyView(mContext, false, resourcesProvider);
+                break;
             case 4:
             default:
                 view = new StickerCell(mContext, resourcesProvider);
@@ -1750,6 +1812,11 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
                 } else {
                     textView.setText(LocaleController.formatString("AttachInlineRestricted", R.string.AttachInlineRestricted, LocaleController.formatDateForBan(chat.banned_rights.until_date)));
                 }
+            }
+        } else if (type == 5) {
+            QuickRepliesActivity.QuickReplyView cell = (QuickRepliesActivity.QuickReplyView) holder.itemView;
+            if (quickReplies != null && position >= 0 && position < quickReplies.size()) {
+                cell.set(quickReplies.get(position), quickRepliesQuery, USE_DIVIDERS && (position + 1) < getItemCount());
             }
         } else if (searchResultBotContext != null) {
             boolean hasTop = searchResultBotContextSwitch != null || searchResultBotWebViewSwitch != null;

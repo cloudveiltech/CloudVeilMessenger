@@ -452,8 +452,10 @@ public class Emoji {
                     } else if (emojiCode.length() >= 2 && emojiCode.charAt(0) == 0xD83C && emojiCode.charAt(1) == 0xDFF4 && next == 0xDB40) {
                         i++;
                         while (true) {
-                            emojiCode.append(cs.charAt(i));
-                            if (i + 1 >= cs.length()) {
+                            if (i < cs.length()) {
+                                emojiCode.append(cs.charAt(i));
+                            }
+                            if (i + 1 < cs.length()) {
                                 emojiCode.append(cs.charAt(i + 1));
                             }
                             startLength += 2;
@@ -535,14 +537,14 @@ public class Emoji {
     }
 
     public static CharSequence replaceEmoji(CharSequence cs, Paint.FontMetricsInt fontMetrics, boolean createNew) {
-        return replaceEmoji(cs, fontMetrics, AndroidUtilities.dp(16), createNew, null);
+        return replaceEmoji(cs, fontMetrics, createNew, null);
     }
 
     public static CharSequence replaceEmoji(CharSequence cs, Paint.FontMetricsInt fontMetrics, int size, boolean createNew) {
-        return replaceEmoji(cs, fontMetrics, size, createNew, null);
+        return replaceEmoji(cs, fontMetrics, createNew, null);
     }
 
-    public static CharSequence replaceEmoji(CharSequence cs, Paint.FontMetricsInt fontMetrics, int size, boolean createNew, int[] emojiOnly) {
+    public static CharSequence replaceEmoji(CharSequence cs, Paint.FontMetricsInt fontMetrics, boolean createNew, int[] emojiOnly) {
         return replaceEmoji(cs, fontMetrics, createNew, emojiOnly, DynamicDrawableSpan.ALIGN_BOTTOM);
     }
 

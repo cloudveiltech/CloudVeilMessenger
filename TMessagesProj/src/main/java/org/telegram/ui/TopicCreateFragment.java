@@ -63,7 +63,7 @@ public class TopicCreateFragment extends BaseFragment {
     private final static int EDIT_ID = 2;
     long chatId;
     long selectedEmojiDocumentId;
-    int topicId;
+    long topicId;
 
     TextCheckCell2 checkBoxCell;
     EditTextBoldCursor editTextBoldCursor;
@@ -79,10 +79,10 @@ public class TopicCreateFragment extends BaseFragment {
 
     int iconColor;
 
-    public static TopicCreateFragment create(long chatId, int topicId) {
+    public static TopicCreateFragment create(long chatId, long topicId) {
         Bundle bundle = new Bundle();
         bundle.putLong("chat_id", chatId);
-        bundle.putInt("topic_id", topicId);
+        bundle.putLong("topic_id", topicId);
         return new TopicCreateFragment(bundle);
     }
 
@@ -93,7 +93,7 @@ public class TopicCreateFragment extends BaseFragment {
     @Override
     public boolean onFragmentCreate() {
         chatId = arguments.getLong("chat_id");
-        topicId = arguments.getInt("topic_id", 0);
+        topicId = arguments.getLong("topic_id", 0);
         if (topicId != 0) {
             topicForEdit = getMessagesController().getTopicsController().findTopic(chatId, topicId);
             if (topicForEdit == null) {
@@ -443,7 +443,7 @@ public class TopicCreateFragment extends BaseFragment {
             selectAnimatedEmojiDialog.setClipChildren(false);
             emojiContainer.addView(selectAnimatedEmojiDialog, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, 0, 12, 12, 12, 12));
 
-            Drawable drawable = ForumUtilities.createTopicDrawable("", iconColor);
+            Drawable drawable = ForumUtilities.createTopicDrawable("", iconColor, false);
             CombinedDrawable topicCombinedDrawable = (CombinedDrawable) drawable;
             forumBubbleDrawable = (ForumBubbleDrawable) topicCombinedDrawable.getBackgroundDrawable();
 

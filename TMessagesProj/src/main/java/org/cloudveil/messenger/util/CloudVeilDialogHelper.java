@@ -5,16 +5,16 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
-import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.Pair;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import androidx.annotation.NonNull;
+
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
@@ -30,7 +30,6 @@ import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
-import org.telegram.ui.ChatActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +37,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CloudVeilDialogHelper {
+    private static final long SUPPORT_BOT_ID = 689684671;
     private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
     private final int accountNumber;
 
@@ -119,8 +119,8 @@ public class CloudVeilDialogHelper {
         long id = user.id;
         if (user.bot) {
             return isBotIdAllowed(id);
-        } else if (GlobalSecuritySettings.getManageUsers()) {
-            return !allowedDialogs.containsKey(id) || allowedDialogs.get(id);
+        } else if (CloudVeilSecuritySettings.getManageUsers()) {
+            return allowedDialogs.containsKey(id) && allowedDialogs.get(id);
         }
         return true;
     }
@@ -134,7 +134,7 @@ public class CloudVeilDialogHelper {
     }
 
     private boolean isBotIdAllowed(long id) {
-        if (GlobalSecuritySettings.LOCK_DISABLE_BOTS) {
+        if (CloudVeilSecuritySettings.LOCK_DISABLE_BOTS) {
             return false;
         }
         if(!allowedBots.containsKey(id)) {
@@ -161,7 +161,7 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        if (encryptedChat != null && GlobalSecuritySettings.isDisabledSecretChat()) {
+        if (encryptedChat != null && CloudVeilSecuritySettings.isDisabledSecretChat()) {
             return new Pair<>(encryptedChat, DialogType.group);
         } else if (chat != null) {
             return new Pair<>(chat,  ChatObject.isChannel(chat) ? DialogType.channel : DialogType.group);
@@ -173,8 +173,11 @@ public class CloudVeilDialogHelper {
 
 
     public boolean isDialogIdAllowed(long currentDialogId) {
+        if(currentDialogId == SUPPORT_BOT_ID) {
+            return true;
+        }
         if (DialogObject.isEncryptedDialog(currentDialogId)) {
-            if(GlobalSecuritySettings.isDisabledSecretChat()) {
+            if(CloudVeilSecuritySettings.isDisabledSecretChat()) {
                 return false;
             }
             return true;
@@ -186,10 +189,13 @@ public class CloudVeilDialogHelper {
     }
 
     private boolean isChatIdAllowed(long currentDialogId) {
-        return !allowedDialogs.containsKey(currentDialogId) || allowedDialogs.get(currentDialogId);
+        return allowedDialogs.containsKey(currentDialogId) && Boolean.TRUE.equals(allowedDialogs.get(currentDialogId));
     }
 
     public boolean isDialogCheckedOnServer(long currentDialogId) {
+        if(currentDialogId == SUPPORT_BOT_ID) {
+            return true;
+        }
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
 
@@ -205,7 +211,7 @@ public class CloudVeilDialogHelper {
         } else if (user != null) {
             if (user.bot) {
                 return allowedBots.containsKey(user.id);
-            } else if (GlobalSecuritySettings.getManageUsers()) {
+            } else if (CloudVeilSecuritySettings.getManageUsers()) {
                 return allowedDialogs.containsKey(currentDialogId);
             }
             return true;
@@ -263,14 +269,22 @@ public class CloudVeilDialogHelper {
         delegateInstance = new ReopenDialogAfterCheckDelegate(user, chat, fragment, type, closeLast);
         progressDialog = new AlertDialog(fragment.getParentActivity(), 3);
         NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
-        ChannelCheckingService.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
+        CloudVeilSyncWorker.startDataChecking(fragment.getCurrentAccount(), dialogId, fragment.getParentActivity());
         progressDialog.show();
     }
 
-    public boolean isMessageAllowed(MessageObject messageObject) {
+    public boolean isMessageAllowed(@NonNull MessageObject messageObject) {
+        if(messageObject.messageOwner == null) {
+            return false;
+        }
+        if(messageObject.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto) {
+            if(CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
+                return false;
+            }
+        }
         if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
                 && !MediaDataController.getInstance(accountNumber).isStickerAllowed(messageObject.messageOwner.media.document)) {
-            if (TextUtils.isEmpty(GlobalSecuritySettings.getBlockedImageUrl())) {
+            if (TextUtils.isEmpty(CloudVeilSecuritySettings.getBlockedImageUrl())) {
                 return false;
             }
         }
@@ -317,12 +331,13 @@ public class CloudVeilDialogHelper {
     }
 
     public static boolean isBatteryOptimized(final Context context) {
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        String name = context.getPackageName();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return !powerManager.isIgnoringBatteryOptimizations(name);
-        }
         return false;
+//disabled for now, maybe remove in the future        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+//        String name = context.getPackageName();
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//            return !powerManager.isIgnoringBatteryOptimizations(name);
+//        }
+//        return false;
     }
 
     public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {
@@ -404,7 +419,7 @@ public class CloudVeilDialogHelper {
     }
 
     public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {
-        if(!GlobalSecuritySettings.getIsOrganisationChangeRequired()) {
+        if(!CloudVeilSecuritySettings.getOrganization().needChange) {
             return;
         }
         long now = System.currentTimeMillis();

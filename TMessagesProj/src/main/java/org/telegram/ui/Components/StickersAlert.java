@@ -35,6 +35,7 @@ import android.text.TextWatcher;
 import android.transition.Transition;
 import android.transition.TransitionManager;
 import android.transition.TransitionValues;
+import android.util.Log;
 import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -1110,7 +1111,7 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
             }
             layoutManager.setSpanCount(adapter.stickersPerRow);
 
-            if (stickerSet != null && stickerSet.set != null && stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium()) {
+            if (stickerSet != null && stickerSet.set != null && stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium() && customButtonDelegate == null) {
                 boolean hasPremiumEmoji = false;
                 if (stickerSet.documents != null) {
                     for (int i = 0; i < stickerSet.documents.size(); ++i) {
@@ -1126,7 +1127,7 @@ public class StickersAlert extends BottomSheet implements NotificationCenter.Not
                     pickerBottomLayout.setBackground(null);
 
                     setButton(null, null, -1);
-                    premiumButtonView.setButton(LocaleController.getString("UnlockPremiumEmoji", R.string.UnlockPremiumEmoji), e -> {
+                    premiumButtonView.setButton(LocaleController.getString(R.string.UnlockPremiumEmoji), e -> {
                         if (parentFragment != null) {
                             new PremiumFeatureBottomSheet(parentFragment, PremiumPreviewFragment.PREMIUM_FEATURE_ANIMATED_EMOJI, false).show();
                         } else if (getContext() instanceof LaunchActivity) {

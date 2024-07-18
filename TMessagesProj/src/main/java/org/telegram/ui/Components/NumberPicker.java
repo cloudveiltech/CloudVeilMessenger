@@ -150,7 +150,7 @@ public class NumberPicker extends LinearLayout {
     private void init() {
         mSolidColor = 0;
         mSelectionDivider = new Paint();
-        mSelectionDivider.setColor(getThemedColor(Theme.key_dialogButton));
+        mSelectionDivider.setColor(getThemedColor(Theme.key_featuredStickers_addButton));
 
         mSelectionDividerHeight = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, UNSCALED_DEFAULT_SELECTION_DIVIDER_HEIGHT, getResources().getDisplayMetrics());
         mSelectionDividersDistance = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, UNSCALED_DEFAULT_SELECTION_DIVIDERS_DISTANCE, getResources().getDisplayMetrics());
@@ -734,10 +734,27 @@ public class NumberPicker extends LinearLayout {
         removeAllCallbacks();
     }
 
+    private int thisGravity;
+    @Override
+    public void setGravity(int gravity) {
+        super.setGravity(thisGravity = gravity);
+    }
+
     private final static CubicBezierInterpolator interpolator = new CubicBezierInterpolator(0, 0.5f, 0.5f, 1f);
     @Override
     protected void onDraw(Canvas canvas) {
-        float x = (getRight() - getLeft()) / 2 + textOffset;
+        float x;
+        if (thisGravity == Gravity.RIGHT) {
+            mSelectorWheelPaint.setTextAlign(Align.RIGHT);
+            x = getWidth();
+        } else if (thisGravity == Gravity.LEFT) {
+            mSelectorWheelPaint.setTextAlign(Align.LEFT);
+            x = 0;
+        } else {
+            mSelectorWheelPaint.setTextAlign(Align.CENTER);
+            x = getWidth() / 2f;
+        }
+        x += textOffset;
         float y = mCurrentScrollOffset;
 
         // draw the selector wheel

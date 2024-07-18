@@ -21,7 +21,6 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -30,12 +29,8 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.LinearGradient;
-import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
-import android.graphics.Shader;
 import android.location.LocationManager;
 import android.media.AudioManager;
 import android.net.Uri;
@@ -57,7 +52,6 @@ import android.util.Base64;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
-import android.util.TypedValue;
 import android.view.ActionMode;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -73,7 +67,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -92,8 +85,8 @@ import com.google.firebase.appindexing.Action;
 import com.google.firebase.appindexing.FirebaseUserActions;
 import com.google.firebase.appindexing.builders.AssistActionBuilder;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
-import org.cloudveil.messenger.service.ChannelCheckingService;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
@@ -113,7 +106,6 @@ import org.telegram.messenger.FileLog;
 import org.telegram.messenger.FingerprintController;
 import org.telegram.messenger.FlagSecureReason;
 import org.telegram.messenger.GenericProvider;
-import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.LiteMode;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.LocationController;
@@ -124,6 +116,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
+import org.telegram.messenger.OpenAttachedMenuBotReceiver;
 import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
@@ -139,16 +132,15 @@ import org.telegram.messenger.voip.VoIPService;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.ActionBarLayout;
-import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.tgnet.tl.TL_stories;
+import org.telegram.tgnet.tl.TL_chatlists;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.DrawerLayoutContainer;
 import org.telegram.ui.ActionBar.INavigationLayout;
-import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Adapters.DrawerLayoutAdapter;
-import org.telegram.ui.Cells.CheckBoxCell;
+import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Cells.DrawerActionCell;
 import org.telegram.ui.Cells.DrawerAddCell;
 import org.telegram.ui.Cells.DrawerProfileCell;
@@ -175,16 +167,18 @@ import org.telegram.ui.Components.Forum.ForumUtilities;
 import org.telegram.ui.Components.GroupCallPip;
 import org.telegram.ui.Components.JoinGroupAlert;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.ui.Components.MediaActionDrawable;
 import org.telegram.ui.Components.MediaActivity;
 import org.telegram.ui.Components.PasscodeView;
 import org.telegram.ui.Components.PhonebookShareAlert;
 import org.telegram.ui.Components.PipRoundVideoView;
 import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
+import org.telegram.ui.Components.Premium.boosts.BoostPagerBottomSheet;
+import org.telegram.ui.Components.Premium.boosts.GiftInfoBottomSheet;
+import org.telegram.ui.Components.Premium.boosts.UserSelectorBottomSheet;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
-import org.telegram.ui.Components.RadialProgress2;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.SearchTagsList;
 import org.telegram.ui.Components.SharingLocationsAlert;
 import org.telegram.ui.Components.SideMenultItemAnimator;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
@@ -193,7 +187,6 @@ import org.telegram.ui.Components.StickersAlert;
 import org.telegram.ui.Components.TermsOfServiceView;
 import org.telegram.ui.Components.ThemeEditorView;
 import org.telegram.ui.Components.UndoView;
-import org.telegram.ui.Components.UpdateAppAlertDialog;
 import org.telegram.ui.Components.spoilers.SpoilerEffect2;
 import org.telegram.ui.Components.voip.VoIPHelper;
 import org.telegram.ui.Stories.StoriesController;
@@ -215,6 +208,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -273,19 +267,25 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private List<PasscodeView> overlayPasscodeViews = new ArrayList<>();
     private TermsOfServiceView termsOfServiceView;
     private BlockingUpdateView blockingUpdateView;
-    private AlertDialog visibleDialog;
-    private AlertDialog proxyErrorDialog;
+    public final ArrayList<Dialog> visibleDialogs = new ArrayList<>();
+    private Dialog proxyErrorDialog;
     private RecyclerListView sideMenu;
     private SelectAnimatedEmojiDialog.SelectAnimatedEmojiDialogWindow selectAnimatedEmojiDialog;
     private SideMenultItemAnimator itemAnimator;
-    private FrameLayout updateLayout;
-    private RadialProgress2 updateLayoutIcon;
-    private SimpleTextView updateTextView;
-    private TextView updateSizeTextView;
     private FrameLayout sideMenuContainer;
     private View rippleAbove;
+    private IUpdateLayout updateLayout;
+    public Dialog getVisibleDialog() {
+        for (int i = visibleDialogs.size() - 1; i >= 0; --i) {
+            Dialog dialog = visibleDialogs.get(i);
+            if (dialog.isShowing()) {
+                return dialog;
+            }
+        }
+        return null;
+    }
 
-    private AlertDialog localeDialog;
+    private Dialog localeDialog;
     private boolean loadingLocaleDialog;
     private HashMap<String, String> systemLocaleStrings;
     private HashMap<String, String> englishLocaleStrings;
@@ -510,6 +510,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         layoutParams.height = LayoutHelper.MATCH_PARENT;
         sideMenuContainer.setLayoutParams(layoutParams);
         sideMenu.setOnItemClickListener((view, position, x, y) -> {
+            if (drawerLayoutAdapter.click(view, position)) {
+                drawerLayoutContainer.closeDrawer(false);
+                return;
+            }
             if (position == 0) {
                 DrawerProfileCell profileCell = (DrawerProfileCell) view;
                 if (profileCell.isInAvatar(x, y)) {
@@ -549,11 +553,17 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 int id = drawerLayoutAdapter.getId(position);
                 TLRPC.TL_attachMenuBot attachMenuBot = drawerLayoutAdapter.getAttachMenuBot(position);
                 if (attachMenuBot != null) {
-                    if (attachMenuBot.side_menu_disclaimer_needed) {
-                        WebAppDisclaimerAlert.show(this, (ignore) -> {
-                            attachMenuBot.side_menu_disclaimer_needed = false;
-                            showAttachMenuBot(attachMenuBot, null);
-                            MediaDataController.getInstance(currentAccount).updateAttachMenuBotsInCache();
+                    if (attachMenuBot.inactive || attachMenuBot.side_menu_disclaimer_needed) {
+                        WebAppDisclaimerAlert.show(this, (allowSendMessage) -> {
+                            TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
+                            botRequest.bot = MessagesController.getInstance(currentAccount).getInputUser(attachMenuBot.bot_id);
+                            botRequest.enabled = true;
+                            botRequest.write_allowed = true;
+                            ConnectionsManager.getInstance(currentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
+                                attachMenuBot.inactive = attachMenuBot.side_menu_disclaimer_needed = false;
+                                showAttachMenuBot(attachMenuBot, null);
+                                MediaDataController.getInstance(currentAccount).updateAttachMenuBotsInCache();
+                            }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
                         }, null);
                     } else {
                         showAttachMenuBot(attachMenuBot, null);
@@ -566,7 +576,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 3) {
                     //CloudVeil Start
-                    if (!GlobalSecuritySettings.isDisabledSecretChat()) {
+                    if (!CloudVeilSecuritySettings.isDisabledSecretChat()) {
                         Bundle args = new Bundle();
                         args.putBoolean("onlyUsers", true);
                         args.putBoolean("destroyAfterSelect", true);
@@ -589,7 +599,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     }
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 6) {
-                    presentFragment(new ContactsActivity(null));
+                    Bundle args = new Bundle();
+                    args.putBoolean("needFinishFragment", false);
+                    presentFragment(new ContactsActivity(args));
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 7) {
                     presentFragment(new InviteContactsActivity());
@@ -634,7 +646,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     }
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 13) {
-                    Browser.openUrl(LaunchActivity.this, LocaleController.getString("TelegramFeaturesUrl", R.string.TelegramFeaturesUrl));
+                    //CloudVeil start
+                    Browser.openUrl(LaunchActivity.this, "https://messenger.cloudveil.org/");
+                    //CloudVeil end
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 15) {
                     showSelectStatusDialog();
@@ -765,6 +779,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             }
             return false;
         });
+        updateLayout = ApplicationLoader.applicationLoaderInstance.takeUpdateLayout(this, sideMenu, sideMenuContainer);
         drawerLayoutContainer.setParentActionBarLayout(actionBarLayout);
         actionBarLayout.setDrawerLayoutContainer(drawerLayoutContainer);
         actionBarLayout.setFragmentStack(mainFragmentsStack);
@@ -925,7 +940,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
         MediaController.getInstance().setBaseActivity(this, true);
         ApplicationLoader.startAppCenter(this);
-        updateAppUpdateViews(false);
+        if (updateLayout != null) {
+            updateLayout.updateAppUpdateViews(currentAccount, false);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             FingerprintController.checkKeyReady();
@@ -958,10 +975,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     private void showAttachMenuBot(TLRPC.TL_attachMenuBot attachMenuBot, String startApp) {
+        drawerLayoutContainer.closeDrawer();
         BotWebViewSheet webViewSheet = new BotWebViewSheet(this, getLastFragment().getResourceProvider());
         webViewSheet.setParentActivity(this);
         webViewSheet.requestWebView(currentAccount, attachMenuBot.bot_id, attachMenuBot.bot_id, attachMenuBot.short_name, null, BotWebViewSheet.TYPE_SIMPLE_WEB_VIEW_BUTTON, 0, false, null, null, false, startApp, null,  BotWebViewSheet.FLAG_FROM_SIDE_MENU);
         webViewSheet.show();
+        visibleDialogs.add(webViewSheet);
     }
 
     @Override
@@ -1219,9 +1238,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             }
                             ((DrawerProfileCell) child).setUser(user, drawerLayoutAdapter.isAccountsShown());
                         } else if (child instanceof DrawerActionCell && drawerLayoutAdapter.getId(sideMenu.getChildAdapterPosition(child)) == 15) {
-                            boolean hasStatus =
-                                    user.emoji_status instanceof TLRPC.TL_emojiStatus ||
-                                            user.emoji_status instanceof TLRPC.TL_emojiStatusUntil && ((TLRPC.TL_emojiStatusUntil) user.emoji_status).until > (int) (System.currentTimeMillis() / 1000);
+                            boolean hasStatus = user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0;
                             ((DrawerActionCell) child).updateTextAndIcon(
                                 hasStatus ?
                                     LocaleController.getString("ChangeEmojiStatus", R.string.ChangeEmojiStatus) :
@@ -1239,8 +1256,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 }
             }
         };
-        if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusUntil && ((TLRPC.TL_emojiStatusUntil) user.emoji_status).until > (int) (System.currentTimeMillis() / 1000)) {
-            popupLayout.setExpireDateHint(((TLRPC.TL_emojiStatusUntil) user.emoji_status).until);
+        if (user != null) {
+            popupLayout.setExpireDateHint(DialogObject.getEmojiStatusUntil(user.emoji_status));
         }
         popupLayout.setSelected(scrimDrawable != null && scrimDrawable.getDrawable() instanceof AnimatedEmojiDrawable ? ((AnimatedEmojiDrawable) scrimDrawable.getDrawable()).getDocumentId() : null);
         popupLayout.setSaveState(2);
@@ -1314,6 +1331,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return frameLayout;
     }
 
+    private boolean switchingAccount;
     public void switchToAccount(int account, boolean removeAll) {
         switchToAccount(account, removeAll, obj -> new DialogsActivity(null));
     }
@@ -1322,6 +1340,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (account == UserConfig.selectedAccount || !UserConfig.isValidAccount(account)) {
             return;
         }
+        switchingAccount = true;
 
         ConnectionsManager.getInstance(currentAccount).setAppPaused(true, false);
         UserConfig.selectedAccount = account;
@@ -1361,6 +1380,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             showTosActivity(account, UserConfig.getInstance(account).unacceptedTermsOfService);
         }
         updateCurrentConnectionState(currentAccount);
+
+        switchingAccount = false;
     }
 
     private void switchToAvailableAccountOrLogout() {
@@ -1414,6 +1435,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     private void checkCurrentAccount() {
         if (currentAccount != UserConfig.selectedAccount) {
+            NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.openBoostForUsersDialog);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.appDidLogout);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.mainUserInfoChanged);
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.attachMenuBotsDidLoad);
@@ -1435,6 +1457,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.storiesEnabledUpdate);
         }
         currentAccount = UserConfig.selectedAccount;
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.openBoostForUsersDialog);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.appDidLogout);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.mainUserInfoChanged);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.attachMenuBotsDidLoad);
@@ -1616,12 +1639,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         PasscodeView.PasscodeViewDelegate delegate = view -> {
             SharedConfig.isWaitingForPasscodeEnter = false;
             if (passcodeSaveIntent != null) {
-                handleIntent(passcodeSaveIntent, passcodeSaveIntentIsNew, passcodeSaveIntentIsRestore, true);
+                handleIntent(passcodeSaveIntent, passcodeSaveIntentIsNew, passcodeSaveIntentIsRestore, true, null, false);
                 passcodeSaveIntent = null;
             }
             drawerLayoutContainer.setAllowOpenDrawer(true, false);
             actionBarLayout.getView().setVisibility(View.VISIBLE);
             actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
+            actionBarLayout.updateTitleOverlay();
             if (AndroidUtilities.isTablet()) {
                 layersActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                 rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -1662,6 +1686,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @SuppressLint("Range")
     private boolean handleIntent(Intent intent, boolean isNew, boolean restore, boolean fromPassword, Browser.Progress progress, boolean rebuildFragments) {
+        if (GiftInfoBottomSheet.handleIntent(intent, progress)) {
+            return true;
+        }
+        if (UserSelectorBottomSheet.handleIntent(intent, progress)) {
+            return true;
+        }
         if (AndroidUtilities.handleProxyIntent(this, intent)) {
             return true;
         }
@@ -1691,7 +1721,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         long push_chat_id = 0;
         long[] push_story_dids = null;
         int push_story_id = 0;
-        int push_topic_id = 0;
+        long push_topic_id = 0;
         int push_enc_id = 0;
         int push_msg_id = 0;
         int open_settings = 0;
@@ -1710,6 +1740,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         boolean newContact = false;
         boolean newContactAlert = false;
         boolean scanQr = false;
+        boolean openBot = false;
+        long botId = 0;
+        long botType = -1;
         String searchQuery = null;
         String callSearchQuery = null;
         String newContactName = null;
@@ -2035,7 +2068,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         String inputInvoiceSlug = null;
                         Integer messageId = null;
                         Long channelId = null;
-                        Integer threadId = null;
+                        Long threadId = null;
                         boolean isBoost = false;
                         Integer commentId = null;
                         int videoTimestamp = -1;
@@ -2191,6 +2224,15 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 lang = path.substring(12);
                                             } else if (path.startsWith("addtheme/")) {
                                                 theme = path.substring(9);
+                                            } else if (path.equalsIgnoreCase("boost") || path.startsWith("boost/")) {
+                                                isBoost = true;
+                                                String c = data.getQueryParameter("c");
+                                                List<String> segments = data.getPathSegments();
+                                                if (segments.size() >= 2) {
+                                                    username = segments.get(1);
+                                                } else if (!TextUtils.isEmpty(c)) {
+                                                    channelId = Utilities.parseLong(c);
+                                                }
                                             } else if (path.startsWith("c/")) {
                                                 List<String> segments = data.getPathSegments();
                                                 if (segments.size() >= 3) {
@@ -2200,18 +2242,18 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                         messageId = null;
                                                         channelId = null;
                                                     }
-                                                    threadId = Utilities.parseInt(data.getQueryParameter("thread"));
+                                                    threadId = Utilities.parseLong(data.getQueryParameter("thread"));
                                                     if (threadId == 0) {
                                                         threadId = null;
                                                     }
                                                     if (threadId == null) {
-                                                        threadId = Utilities.parseInt(data.getQueryParameter("topic"));
+                                                        threadId = Utilities.parseLong(data.getQueryParameter("topic"));
                                                         if (threadId == 0) {
                                                             threadId = null;
                                                         }
                                                     }
                                                     if (threadId == null && messageId != null && segments.size() >= 4) {
-                                                        threadId = messageId;
+                                                        threadId = (long) (int) messageId;
                                                         messageId = Utilities.parseInt(segments.get(3));
                                                     }
                                                 }
@@ -2265,7 +2307,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 setAsAttachBot = data.getQueryParameter("startattach");
                                                 attachMenuBotChoose = data.getQueryParameter("choose");
                                                 attachMenuBotToOpen = data.getQueryParameter("attach");
-                                                threadId = Utilities.parseInt(data.getQueryParameter("thread"));
+                                                threadId = Utilities.parseLong(data.getQueryParameter("thread"));
                                                 if (data.getQuery() != null) {
                                                     isBoost = data.getQuery().equals("boost");
                                                 }
@@ -2274,13 +2316,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                     threadId = null;
                                                 }
                                                 if (threadId == null) {
-                                                    threadId = Utilities.parseInt(data.getQueryParameter("topic"));
+                                                    threadId = Utilities.parseLong(data.getQueryParameter("topic"));
                                                     if (threadId == 0) {
                                                         threadId = null;
                                                     }
                                                 }
                                                 if (threadId == null && messageId != null && segments.size() >= 3) {
-                                                    threadId = messageId;
+                                                    threadId = (long) (int) messageId;
                                                     messageId = Utilities.parseInt(segments.get(2));
                                                 }
                                                 commentId = Utilities.parseInt(data.getQueryParameter("comment"));
@@ -2343,12 +2385,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             if (messageId == 0) {
                                                 messageId = null;
                                             }
-                                            threadId = Utilities.parseInt(data.getQueryParameter("thread"));
+                                            threadId = Utilities.parseLong(data.getQueryParameter("thread"));
                                             if (threadId == 0) {
                                                 threadId = null;
                                             }
                                             if (threadId == null) {
-                                                threadId = Utilities.parseInt(data.getQueryParameter("topic"));
+                                                threadId = Utilities.parseLong(data.getQueryParameter("topic"));
                                                 if (threadId == 0) {
                                                     threadId = null;
                                                 }
@@ -2375,12 +2417,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             messageId = null;
                                             channelId = null;
                                         }
-                                        threadId = Utilities.parseInt(data.getQueryParameter("thread"));
+                                        threadId = Utilities.parseLong(data.getQueryParameter("thread"));
                                         if (threadId == 0) {
                                             threadId = null;
                                         }
                                         if (threadId == null) {
-                                            threadId = Utilities.parseInt(data.getQueryParameter("topic"));
+                                            threadId = Utilities.parseLong(data.getQueryParameter("topic"));
                                             if (threadId == 0) {
                                                 threadId = null;
                                             }
@@ -2566,7 +2608,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         data = Uri.parse(url);
                                         theme = data.getQueryParameter("slug");
                                     } else if (url.startsWith("tg:settings") || url.startsWith("tg://settings")) {
-                                        if (url.contains("themes")) {
+                                        if (url.contains("themes") || url.contains("theme")) {
                                             open_settings = 2;
                                         } else if (url.contains("devices")) {
                                             open_settings = 3;
@@ -2574,12 +2616,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             open_settings = 4;
                                         } else if (url.contains("change_number")) {
                                             open_settings = 5;
+                                        } else if (url.contains("language")) {
+                                            open_settings = 10;
+                                        } else if (url.contains("auto_delete")) {
+                                            open_settings = 11;
+                                        } else if (url.contains("privacy")) {
+                                            open_settings = 12;
                                         } else if (url.contains("?enablelogs")) {
                                             open_settings = 7;
                                         } else if (url.contains("?sendlogs")) {
                                             open_settings = 8;
                                         } else if (url.contains("?disablelogs")) {
                                             open_settings = 9;
+                                        } else if (url.contains("premium_sms")) {
+                                            open_settings = 13;
                                         } else {
                                             open_settings = 1;
                                         }
@@ -2637,7 +2687,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         url = url.replace("tg:addcontact", "tg://telegram.org").replace("tg://addcontact", "tg://telegram.org");
                                         data = Uri.parse(url);
                                         newContactName = data.getQueryParameter("name");
-                                        newContactPhone = data.getQueryParameter("phone");
+
+                                        // use getQueryParameters to keep the "+" sign
+                                        List<String> phoneParams = data.getQueryParameters("phone");
+                                        if (phoneParams != null && phoneParams.size() > 0) {
+                                            newContactPhone = phoneParams.get(0);
+                                        }
                                         newContact = true;
                                     } else if (url.startsWith("tg:addlist") || url.startsWith("tg://addlist")) {
                                         url = url.replace("tg:addlist", "tg://telegram.org").replace("tg://addlist", "tg://telegram.org");
@@ -2676,7 +2731,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                 req.settings.allow_app_hash = req.settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();
                                 SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
                                 if (req.settings.allow_app_hash) {
-                                    preferences.edit().putString("sms_hash", BuildVars.SMS_HASH).apply();
+                                    preferences.edit().putString("sms_hash", BuildVars.getSmsHash()).apply();
                                 } else {
                                     preferences.edit().remove("sms_hash").apply();
                                 }
@@ -2702,15 +2757,16 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                 try (Cursor cursor = getContentResolver().query(intent.getData(), null, null, null, null)) {
                                     if (cursor != null) {
                                         if (cursor.moveToFirst()) {
+                                            long userId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data.DATA4));
                                             int accountId = Utilities.parseInt(cursor.getString(cursor.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)));
-                                            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-                                                if (UserConfig.getInstance(a).getClientUserId() == accountId) {
-                                                    intentAccount[0] = a;
+                                            for (int a = -1; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                                                int i = a == -1 ? intentAccount[0] : a;
+                                                if ((a == -1 && MessagesStorage.getInstance(i).containsLocalDialog(userId)) || UserConfig.getInstance(i).getClientUserId() == accountId) {
+                                                    intentAccount[0] = i;
                                                     switchToAccount(intentAccount[0], true);
                                                     break;
                                                 }
                                             }
-                                            long userId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data.DATA4));
                                             NotificationCenter.getInstance(intentAccount[0]).postNotificationName(NotificationCenter.closeChats);
                                             push_user_id = userId;
                                             String mimeType = cursor.getString(cursor.getColumnIndex(ContactsContract.Data.MIMETYPE));
@@ -2739,7 +2795,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     long userId = intent.getLongExtra("userId", 0);
                     int encId = intent.getIntExtra("encId", 0);
                     int widgetId = intent.getIntExtra("appWidgetId", 0);
-                    int topicId = intent.getIntExtra("topicId", 0);
+                    long topicId = intent.getLongExtra("topicId", 0);
                     if (widgetId != 0) {
                         open_settings = 6;
                         open_widget_edit = widgetId;
@@ -2767,6 +2823,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             showDialogsList = true;
                         }
                     }
+                } else if (intent.getAction().startsWith(OpenAttachedMenuBotReceiver.ACTION)) {
+                    botId = intent.getLongExtra("botId", 0);
+                    if (botId != 0) {
+                        openBot = true;
+                    }
                 } else if (intent.getAction().equals("com.tmessages.openplayer")) {
                     showPlayer = true;
                 } else if (intent.getAction().equals("org.tmessages.openlocations")) {
@@ -2782,7 +2843,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 if (lastFragment instanceof DialogsActivity) {
                     final DialogsActivity dialogsActivity = (DialogsActivity) lastFragment;
                     if (dialogsActivity.isMainDialogList()) {
-                        if (dialogsActivity.getFragmentView() != null) {
+                        if (dialogsActivity.getFragmentView() != null && isNew) {
                             dialogsActivity.search(searchQuery, true);
                         } else {
                             dialogsActivity.setInitialSearchString(searchQuery);
@@ -2814,7 +2875,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     }
                     if (mainFragmentsStack.isEmpty() || MessagesController.getInstance(intentAccount[0]).checkCanOpenChat(args, mainFragmentsStack.get(mainFragmentsStack.size() - 1))) {
                         ChatActivity fragment = new ChatActivity(args);
-                        if (actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
+                        if (getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
                             pushOpened = true;
                             drawerLayoutContainer.closeDrawer();
                         }
@@ -2837,19 +2898,19 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         } else {
                             boolean finalIsNew = isNew;
                             long finalPush_chat_id = push_chat_id;
-                            int finalPush_topic_id = push_topic_id;
+                            long finalPush_topic_id = push_topic_id;
                             MessagesController.getInstance(currentAccount).getTopicsController().loadTopic(push_chat_id, push_topic_id, () -> {
                                 TLRPC.TL_forumTopic loadedTopic = MessagesController.getInstance(currentAccount).getTopicsController().findTopic(finalPush_chat_id, finalPush_topic_id);
                                 FileLog.d("LaunchActivity openForum after load " + finalPush_chat_id + " " + finalPush_topic_id + " TL_forumTopic " + loadedTopic);
                                 if (actionBarLayout != null) {
                                     ForumUtilities.applyTopic(fragment, MessagesStorage.TopicKey.of(-finalPush_chat_id, finalPush_topic_id));
-                                    actionBarLayout.presentFragment(fragment);
+                                    getActionBarLayout().presentFragment(fragment);
                                 }
                             });
                             return true;
                         }
                     }
-                    if (actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
+                    if (getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
                         pushOpened = true;
                         drawerLayoutContainer.closeDrawer();
                     }
@@ -2858,7 +2919,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 Bundle args = new Bundle();
                 args.putInt("enc_id", push_enc_id);
                 ChatActivity fragment = new ChatActivity(args);
-                if (actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
+                if (getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true))) {
                     pushOpened = true;
                     drawerLayoutContainer.closeDrawer();
                 }
@@ -2958,12 +3019,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     closePrevious = true;
                 } else if (open_settings == 6) {
                     fragment = new EditWidgetActivity(open_widget_edit_type, open_widget_edit);
+                } else if (open_settings == 10) {
+                    fragment = new LanguageSelectActivity();
+                } else if (open_settings == 11) {
+                    fragment = new AutoDeleteMessagesActivity();
+                } else if (open_settings == 12) {
+                    fragment = new PrivacySettingsActivity();
+                } else if (ApplicationLoader.applicationLoaderInstance != null) {
+                    fragment = ApplicationLoader.applicationLoaderInstance.openSettings(open_settings);
                 } else {
                     fragment = null;
                 }
                 boolean closePreviousFinal = closePrevious;
                 if (open_settings == 6) {
-                    actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
+                    getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
                 } else {
                     AndroidUtilities.runOnUIThread(() -> presentFragment(fragment, closePreviousFinal, false));
                 }
@@ -2978,7 +3047,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             } else if (open_new_dialog != 0) {
                 Bundle args = new Bundle();
                 args.putBoolean("destroyAfterSelect", true);
-                actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(new ContactsActivity(args)).setNoAnimation(true));
+                getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(new ContactsActivity(args)).setNoAnimation(true));
                 if (AndroidUtilities.isTablet()) {
                     actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                     rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -3000,7 +3069,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     final TLRPC.UserFull userFull = MessagesController.getInstance(currentAccount).getUserFull(user.id);
                     VoIPHelper.startCall(user, videoCall, userFull != null && userFull.video_calls_available, LaunchActivity.this, userFull, AccountInstance.getInstance(intentAccount[0]));
                 });
-                actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(contactsFragment).setRemoveLast(actionBarLayout.getLastFragment() instanceof ContactsActivity));
+                getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(contactsFragment).setRemoveLast(actionBarLayout.getLastFragment() instanceof ContactsActivity));
                 if (AndroidUtilities.isTablet()) {
                     actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                     rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -3028,7 +3097,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
                     }));
                 });
-                actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
+                getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
                 if (AndroidUtilities.isTablet()) {
                     actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                     rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -3047,7 +3116,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     fragment.setInitialPhoneNumber(PhoneFormat.stripExceptNumbers(newContactPhone, true), false);
                 }
                 fragment.show();
-               // actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
+               // getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(fragment).setNoAnimation(true));
                 if (AndroidUtilities.isTablet()) {
                     actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                     rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -3085,7 +3154,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     pushOpened = true;
                 }
             } else if (showCallLog) {
-                actionBarLayout.presentFragment(new INavigationLayout.NavigationParams(new CallLogActivity()).setNoAnimation(true));
+                getActionBarLayout().presentFragment(new INavigationLayout.NavigationParams(new CallLogActivity()).setNoAnimation(true));
                 if (AndroidUtilities.isTablet()) {
                     actionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
                     rightActionBarLayout.rebuildFragments(INavigationLayout.REBUILD_FLAG_REBUILD_LAST);
@@ -3094,6 +3163,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     drawerLayoutContainer.setAllowOpenDrawer(true, false);
                 }
                 pushOpened = true;
+            } else if (openBot) {
+                processAttachedMenuBotFromShortcut(botId);
+                pushOpened = false;
             }
         }
         if (!pushOpened && !isNew) {
@@ -3216,7 +3288,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         } else {
             removeLast = actionBarLayout.getFragmentStack().size() > 1 && actionBarLayout.getFragmentStack().get(actionBarLayout.getFragmentStack().size() - 1) instanceof DialogsActivity;
         }
-        actionBarLayout.presentFragment(fragment, removeLast, !animated, true, false);
+        getActionBarLayout().presentFragment(fragment, removeLast, !animated, true, false);
         if (SecretMediaViewer.hasInstance() && SecretMediaViewer.getInstance().isVisible()) {
             SecretMediaViewer.getInstance().closePhoto(false, false);
         } else if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().isVisible()) {
@@ -3240,17 +3312,17 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
     }
 
-    private int runCommentRequest(int intentAccount, Runnable dismissLoading, Integer messageId, Integer commentId, Integer threadId, TLRPC.Chat chat) {
-        return runCommentRequest(intentAccount, dismissLoading, messageId, commentId, threadId, chat, null);
+    private int runCommentRequest(int intentAccount, Runnable dismissLoading, Integer messageId, Integer commentId, Long threadId, TLRPC.Chat chat) {
+        return runCommentRequest(intentAccount, dismissLoading, messageId, commentId, threadId, chat, null, null, 0, -1);
     }
 
-    private int runCommentRequest(int intentAccount, Runnable dismissLoading, Integer messageId, Integer commentId, Integer threadId, TLRPC.Chat chat, Runnable onOpened) {
+    private int runCommentRequest(int intentAccount, Runnable dismissLoading, Integer messageId, Integer commentId, Long threadId, TLRPC.Chat chat, Runnable onOpened, String quote, int fromMessageId, int quoteOffset) {
         if (chat == null) {
             return 0;
         }
         TLRPC.TL_messages_getDiscussionMessage req = new TLRPC.TL_messages_getDiscussionMessage();
         req.peer = MessagesController.getInputPeer(chat);
-        req.msg_id = commentId != null ? messageId : threadId;
+        req.msg_id = commentId != null ? messageId : (int) (long) threadId;
         return ConnectionsManager.getInstance(intentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             boolean chatOpened = false;
             if (response instanceof TLRPC.TL_messages_discussionMessage) {
@@ -3263,47 +3335,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 }
                 if (!arrayList.isEmpty() || chat.forum && threadId != null && threadId == 1) {
                     if (chat.forum) {
-                        TLRPC.TL_channels_getForumTopicsByID getForumTopicsByID = new TLRPC.TL_channels_getForumTopicsByID();
-                        getForumTopicsByID.channel = MessagesController.getInstance(currentAccount).getInputChannel(chat.id);
-                        getForumTopicsByID.topics.add(threadId);
-                        ConnectionsManager.getInstance(currentAccount).sendRequest(getForumTopicsByID, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
-                            if (error2 == null) {
-                                TLRPC.TL_messages_forumTopics topics = (TLRPC.TL_messages_forumTopics) response2;
-                                SparseArray<TLRPC.Message> messagesMap = new SparseArray<>();
-                                for (int i = 0; i < topics.messages.size(); i++) {
-                                    messagesMap.put(topics.messages.get(i).id, topics.messages.get(i));
-                                }
-                                MessagesController.getInstance(currentAccount).putUsers(topics.users, false);
-                                MessagesController.getInstance(currentAccount).putChats(topics.chats, false);
-
-                                MessagesController.getInstance(currentAccount).getTopicsController().processTopics(chat.id, topics.topics, messagesMap, false, TopicsController.LOAD_TYPE_LOAD_UNKNOWN, -1);
-                            }
-                            TLRPC.TL_forumTopic topic = MessagesController.getInstance(currentAccount).getTopicsController().findTopic(chat.id, threadId);
-                            if (topic != null) {
-                                Bundle args = new Bundle();
-                                args.putLong("chat_id", chat.id);
-                                if (messageId != topic.id) {
-                                    args.putInt("message_id", Math.max(1, messageId));
-                                }
-                                ChatActivity chatActivity = new ChatActivity(args);
-                                if (arrayList.isEmpty()) {
-                                    TLRPC.Message message = new TLRPC.Message();
-                                    message.id = 1;
-                                    message.action = new TLRPC.TL_messageActionChannelMigrateFrom();
-                                    arrayList.add(new MessageObject(currentAccount, message, false, false));
-                                }
-                                chatActivity.setThreadMessages(arrayList, chat, req.msg_id, topic.read_inbox_max_id, topic.read_outbox_max_id, topic);
-                                if (commentId != null) {
-                                    chatActivity.setHighlightMessageId(commentId);
-                                } else if (threadId != null && messageId != topic.id) {
-                                    chatActivity.setHighlightMessageId(messageId);
-                                }
-                                presentFragment(chatActivity);
-                                if (onOpened != null) {
-                                    onOpened.run();
-                                }
-                            }
-                        }));
+                        openTopicRequest(intentAccount, (int) (long) threadId, chat, commentId != null ? commentId : messageId, null, onOpened, quote, fromMessageId, arrayList, quoteOffset);
                         chatOpened = true;
                     } else {
                         Bundle args = new Bundle();
@@ -3312,9 +3344,17 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         ChatActivity chatActivity = new ChatActivity(args);
                         chatActivity.setThreadMessages(arrayList, chat, req.msg_id, res.read_inbox_max_id, res.read_outbox_max_id, null);
                         if (commentId != null) {
-                            chatActivity.setHighlightMessageId(commentId);
+                            if (quote != null) {
+                                chatActivity.setHighlightQuote(commentId, quote, quoteOffset);
+                            } else {
+                                chatActivity.setHighlightMessageId(commentId);
+                            }
                         } else if (threadId != null) {
-                            chatActivity.setHighlightMessageId(messageId);
+                            if (quote != null) {
+                                chatActivity.setHighlightQuote(messageId, quote, quoteOffset);
+                            } else {
+                                chatActivity.setHighlightMessageId(messageId);
+                            }
                         }
                         presentFragment(chatActivity);
                         chatOpened = true;
@@ -3341,6 +3381,67 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 FileLog.e(e);
             }
         }));
+    }
+
+    private void openTopicRequest(int intentAccount, int topicId, TLRPC.Chat chat, int messageId, TLRPC.TL_forumTopic forumTopic, Runnable whenDone, String quote, int fromMessageId, ArrayList<MessageObject> arrayList, int quoteOffset) {
+        if (forumTopic == null) {
+            forumTopic = MessagesController.getInstance(intentAccount).getTopicsController().findTopic(chat.id, topicId);
+        }
+        if (forumTopic == null) {
+            TLRPC.TL_channels_getForumTopicsByID getForumTopicsByID = new TLRPC.TL_channels_getForumTopicsByID();
+            getForumTopicsByID.channel = MessagesController.getInstance(currentAccount).getInputChannel(chat.id);
+            getForumTopicsByID.topics.add(topicId);
+            ConnectionsManager.getInstance(intentAccount).sendRequest(getForumTopicsByID, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
+                if (error2 == null) {
+                    TLRPC.TL_messages_forumTopics topics = (TLRPC.TL_messages_forumTopics) response2;
+                    SparseArray<TLRPC.Message> messagesMap = new SparseArray<>();
+                    for (int i = 0; i < topics.messages.size(); i++) {
+                        messagesMap.put(topics.messages.get(i).id, topics.messages.get(i));
+                    }
+                    MessagesController.getInstance(intentAccount).putUsers(topics.users, false);
+                    MessagesController.getInstance(intentAccount).putChats(topics.chats, false);
+
+                    MessagesController.getInstance(intentAccount).getTopicsController().processTopics(chat.id, topics.topics, messagesMap, false, TopicsController.LOAD_TYPE_LOAD_UNKNOWN, -1);
+
+                    TLRPC.TL_forumTopic topic = MessagesController.getInstance(intentAccount).getTopicsController().findTopic(chat.id, topicId);
+                    openTopicRequest(intentAccount, topicId, chat, messageId, topic, whenDone, quote, fromMessageId, arrayList, quoteOffset);
+                };
+            }));
+            return;
+        }
+        BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
+        if (lastFragment instanceof ChatActivity && ((ChatActivity) lastFragment).getDialogId() == -chat.id && ((ChatActivity) lastFragment).isTopic && ((ChatActivity) lastFragment).getTopicId() == forumTopic.id) {
+            if (quote != null) {
+                ((ChatActivity) lastFragment).setHighlightQuote(messageId, quote, quoteOffset);
+            }
+            ((ChatActivity) lastFragment).scrollToMessageId(messageId, fromMessageId, true, 0, true, 0, null);
+        } else {
+            Bundle args = new Bundle();
+            args.putLong("chat_id", chat.id);
+            if (messageId != forumTopic.id) {
+                args.putInt("message_id", Math.max(1, messageId));
+            }
+            ChatActivity chatActivity = new ChatActivity(args);
+            if (arrayList.isEmpty()) {
+                TLRPC.Message message = new TLRPC.Message();
+                message.id = 1;
+                message.action = new TLRPC.TL_messageActionChannelMigrateFrom();
+                arrayList.add(new MessageObject(intentAccount, message, false, false));
+            }
+            chatActivity.setThreadMessages(arrayList, chat, messageId, forumTopic.read_inbox_max_id, forumTopic.read_outbox_max_id, forumTopic);
+            if (messageId != forumTopic.id) {
+                if (quote != null) {
+                    chatActivity.setHighlightQuote(messageId, quote, quoteOffset);
+                } else {
+                    chatActivity.setHighlightMessageId(messageId);
+                }
+                chatActivity.scrollToMessageId(messageId, fromMessageId, true, 0, true, 0, null);
+            }
+            presentFragment(chatActivity);
+        }
+        if (whenDone != null) {
+            whenDone.run();
+        }
     }
 
     private void runImportRequest(final Uri importUri,
@@ -3443,7 +3544,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     } else {
                         removeLast = actionBarLayout.getFragmentStack().size() > 1 && actionBarLayout.getFragmentStack().get(actionBarLayout.getFragmentStack().size() - 1) instanceof DialogsActivity;
                     }
-                    actionBarLayout.presentFragment(fragment, removeLast, false, true, false);
+                    getActionBarLayout().presentFragment(fragment, removeLast, false, true, false);
                 } else {
                     if (documentsUrisArray == null) {
                         documentsUrisArray = new ArrayList<>();
@@ -3477,6 +3578,89 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         VoIPHelper.startCall(chat, null, hash, false, this, mainFragmentsStack.get(mainFragmentsStack.size() - 1), accountInstance);
     }
 
+    public void openMessage(long dialogId, int messageId, String quote, final Browser.Progress progress, int fromMessageId, final int quoteOffset) {
+        if (dialogId < 0) {
+            TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialogId);
+            if (chat != null && ChatObject.isForum(chat)) {
+                if (progress != null) {
+                    progress.init();
+                }
+                openForumFromLink(dialogId, messageId, quote, () -> {
+                    if (progress != null) {
+                        progress.end();
+                    }
+                }, fromMessageId, quoteOffset);
+                return;
+            }
+        }
+        if (progress != null) {
+            progress.init();
+        }
+        Bundle args = new Bundle();
+        if (dialogId >= 0) {
+            args.putLong("user_id", dialogId);
+        } else {
+            TLRPC.Chat chatLocal = MessagesController.getInstance(currentAccount).getChat(-dialogId);
+            if (chatLocal != null && chatLocal.forum) {
+                openForumFromLink(dialogId, messageId, quote, () -> {
+                    if (progress != null) {
+                        progress.end();
+                    }
+                }, fromMessageId, quoteOffset);
+                return;
+            }
+            args.putLong("chat_id", -dialogId);
+        }
+        args.putInt("message_id", messageId);
+        BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
+        if (lastFragment == null || MessagesController.getInstance(currentAccount).checkCanOpenChat(args, lastFragment)) {
+            AndroidUtilities.runOnUIThread(() -> {
+                ChatActivity chatActivity = new ChatActivity(args);
+                chatActivity.setHighlightQuote(messageId, quote, quoteOffset);
+                if (!(AndroidUtilities.isTablet() ? rightActionBarLayout : getActionBarLayout()).presentFragment(chatActivity) && dialogId < 0) {
+                    TLRPC.TL_channels_getChannels req = new TLRPC.TL_channels_getChannels();
+                    TLRPC.TL_inputChannel inputChannel = new TLRPC.TL_inputChannel();
+                    inputChannel.channel_id = -dialogId;
+                    req.id.add(inputChannel);
+                    final int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+                        if (progress != null) {
+                            progress.end();
+                        }
+                        boolean notFound = true;
+                        if (response instanceof TLRPC.TL_messages_chats) {
+                            TLRPC.TL_messages_chats res = (TLRPC.TL_messages_chats) response;
+                            if (!res.chats.isEmpty()) {
+                                notFound = false;
+                                MessagesController.getInstance(currentAccount).putChats(res.chats, false);
+                                TLRPC.Chat chat = res.chats.get(0);
+                                if (chat != null && chat.forum) {
+                                    openForumFromLink(-dialogId, messageId, null);
+                                }
+                                if (lastFragment == null || MessagesController.getInstance(currentAccount).checkCanOpenChat(args, lastFragment)) {
+                                    ChatActivity chatActivity2 = new ChatActivity(args);
+                                    chatActivity.setHighlightQuote(messageId, quote, quoteOffset);
+                                    getActionBarLayout().presentFragment(chatActivity2);
+                                }
+                            }
+                        }
+                        if (notFound) {
+                            showAlertDialog(AlertsCreator.createNoAccessAlert(LaunchActivity.this, LocaleController.getString(R.string.DialogNotAvailable), LocaleController.getString(R.string.LinkNotFound), null));
+                        }
+                    }));
+                    if (progress != null) {
+                        progress.onCancel(() -> {
+                            ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
+                        });
+                    }
+                } else {
+                    if (progress != null) {
+                        progress.end();
+                    }
+                }
+            });
+        }
+    }
+
     private void runLinkRequest(final int intentAccount,
                                 final String username,
                                 final String group,
@@ -3492,7 +3676,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                 final boolean hasUrl,
                                 final Integer messageId,
                                 final Long channelId,
-                                final Integer threadId,
+                                final Long threadId,
                                 final Integer commentId,
                                 final String game,
                                 final HashMap<String, String> auth,
@@ -3583,24 +3767,24 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 }
             }));
         } else if (folderSlug != null) {
-            TLRPC.TL_chatlists_checkChatlistInvite req = new TLRPC.TL_chatlists_checkChatlistInvite();
+            TL_chatlists.TL_chatlists_checkChatlistInvite req = new TL_chatlists.TL_chatlists_checkChatlistInvite();
             req.slug = folderSlug;
             requestId[0] = ConnectionsManager.getInstance(intentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                 BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
-                if (response instanceof TLRPC.chatlist_ChatlistInvite) {
-                    TLRPC.chatlist_ChatlistInvite inv = (TLRPC.chatlist_ChatlistInvite) response;
+                if (response instanceof TL_chatlists.chatlist_ChatlistInvite) {
+                    TL_chatlists.chatlist_ChatlistInvite inv = (TL_chatlists.chatlist_ChatlistInvite) response;
                     ArrayList<TLRPC.Chat> chats = null;
                     ArrayList<TLRPC.User> users = null;
-                    if (inv instanceof TLRPC.TL_chatlists_chatlistInvite) {
-                        chats = ((TLRPC.TL_chatlists_chatlistInvite) inv).chats;
-                        users = ((TLRPC.TL_chatlists_chatlistInvite) inv).users;
-                    } else if (inv instanceof TLRPC.TL_chatlists_chatlistInviteAlready) {
-                        chats = ((TLRPC.TL_chatlists_chatlistInviteAlready) inv).chats;
-                        users = ((TLRPC.TL_chatlists_chatlistInviteAlready) inv).users;
+                    if (inv instanceof TL_chatlists.TL_chatlists_chatlistInvite) {
+                        chats = ((TL_chatlists.TL_chatlists_chatlistInvite) inv).chats;
+                        users = ((TL_chatlists.TL_chatlists_chatlistInvite) inv).users;
+                    } else if (inv instanceof TL_chatlists.TL_chatlists_chatlistInviteAlready) {
+                        chats = ((TL_chatlists.TL_chatlists_chatlistInviteAlready) inv).chats;
+                        users = ((TL_chatlists.TL_chatlists_chatlistInviteAlready) inv).users;
                     }
                     MessagesController.getInstance(intentAccount).putChats(chats, false);
                     MessagesController.getInstance(intentAccount).putUsers(users, false);
-                    if (!(inv instanceof TLRPC.TL_chatlists_chatlistInvite && ((TLRPC.TL_chatlists_chatlistInvite) inv).peers.isEmpty())) {
+                    if (!(inv instanceof TL_chatlists.TL_chatlists_chatlistInvite && ((TL_chatlists.TL_chatlists_chatlistInvite) inv).peers.isEmpty())) {
                         final FolderBottomSheet sheet = new FolderBottomSheet(fragment, folderSlug, inv);
                         if (fragment != null) {
                             fragment.showDialog(sheet);
@@ -3680,7 +3864,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                     factory.createSimpleBulletin(R.raw.story_bomb2, LocaleController.getString("StoryNotFound", R.string.StoryNotFound)).show();
                                 }
                                 return;
-                            } else if (storyItem instanceof TLRPC.TL_storyItemDeleted) {
+                            } else if (storyItem instanceof TL_stories.TL_storyItemDeleted) {
                                 BulletinFactory factory = BulletinFactory.global();
                                 if (factory != null) {
                                     factory.createSimpleBulletin(R.raw.story_bomb1, LocaleController.getString("StoryNotFound", R.string.StoryNotFound)).show();
@@ -3709,26 +3893,55 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                     TLRPC.TL_messages_getAttachMenuBot getAttachMenuBot = new TLRPC.TL_messages_getAttachMenuBot();
                                     getAttachMenuBot.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
                                     ConnectionsManager.getInstance(intentAccount).sendRequest(getAttachMenuBot, (response1, error1) -> AndroidUtilities.runOnUIThread(() -> {
-                                        if (response1 instanceof TLRPC.TL_attachMenuBotsBot) {
-                                            WebAppDisclaimerAlert.show(this, ignore -> {
-                                                user.inactive = false;
-                                                processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, false, storyId, isBoost, user, dismissLoading);
+                                        if (error1 != null) {
+                                            AndroidUtilities.runOnUIThread(() -> runLinkRequest(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, null, null, progress, forceNotInternalForApps, storyId, isBoost));
+                                        } else if (response1 instanceof TLRPC.TL_attachMenuBotsBot) {
+                                            TLRPC.TL_attachMenuBotsBot bot = (TLRPC.TL_attachMenuBotsBot) response1;
+                                            TLRPC.TL_attachMenuBot attachBot = bot.bot;
+                                            final boolean botAttachable = attachBot != null && (attachBot.show_in_side_menu || attachBot.show_in_attach_menu);
+                                            if ((attachBot.inactive || attachBot.side_menu_disclaimer_needed) && botAttachable) {
+                                                WebAppDisclaimerAlert.show(this, (allowSendMessage) -> {
+                                                    attachBot.inactive = false;
+                                                    attachBot.request_write_access = false;
 
-                                                TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
-                                                botRequest.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
-                                                botRequest.enabled = true;
-                                                botRequest.write_allowed = true;
+                                                    TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
+                                                    botRequest.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
+                                                    botRequest.enabled = true;
+                                                    botRequest.write_allowed = true;
 
-                                                ConnectionsManager.getInstance(intentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
-                                                    if (response2 instanceof TLRPC.TL_boolTrue) {
-                                                        MediaDataController.getInstance(intentAccount).loadAttachMenuBots(false, true, null);
-                                                    }
-                                                }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
-                                            }, null);
+                                                    ConnectionsManager.getInstance(intentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
+                                                        if (response2 instanceof TLRPC.TL_boolTrue) {
+                                                            MediaDataController.getInstance(intentAccount).loadAttachMenuBots(false, true, null);
+                                                        }
+                                                    }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
+
+                                                    processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, forceNotInternalForApps, storyId, isBoost, user, dismissLoading, botAttachable, true);
+                                                }, null);
+                                            } else if (attachBot.request_write_access || forceNotInternalForApps) {
+                                                AtomicBoolean allowWrite = new AtomicBoolean(true);
+                                                AlertsCreator.createBotLaunchAlert(getLastFragment(), allowWrite, user, () -> {
+                                                    attachBot.inactive = false;
+                                                    attachBot.request_write_access = !allowWrite.get();
+
+                                                    TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
+                                                    botRequest.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
+                                                    botRequest.write_allowed = allowWrite.get();
+
+                                                    ConnectionsManager.getInstance(intentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
+                                                        if (response2 instanceof TLRPC.TL_boolTrue) {
+                                                            MediaDataController.getInstance(intentAccount).loadAttachMenuBots(false, true, null);
+                                                        }
+                                                    }), ConnectionsManager.RequestFlagInvokeAfter | ConnectionsManager.RequestFlagFailOnServerErrors);
+
+                                                    processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, forceNotInternalForApps, storyId, isBoost, user, dismissLoading, false, false);
+                                                });
+                                            } else {
+                                                processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, forceNotInternalForApps, storyId, isBoost, user, dismissLoading, false, false);
+                                            }
                                         }
                                     }));
                                 } else {
-                                    processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, false, storyId, isBoost, user, dismissLoading);
+                                    processWebAppBot(intentAccount, username, group, sticker, emoji, botUser, botChat, botChannel, botChatAdminParams, message, contactToken, folderSlug, hasUrl, messageId, channelId, threadId, commentId, game, auth, lang, unsupportedUrl, code, loginToken, wallPaper, inputInvoiceSlug, theme, voicechat, livestream, state, videoTimestamp, setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, botAppMaybe, botAppStartParam, progress, forceNotInternalForApps, storyId, isBoost, user, dismissLoading, false, false);
                                 }
                                 return;
                             }
@@ -3736,8 +3949,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
                         if (isBoost) {
                             TLRPC.Chat chat = MessagesController.getInstance(intentAccount).getChat(-peerId);
-                            if (ChatObject.isChannelAndNotMegaGroup(chat)) {
-                                processBoostDialog(peerId, dismissLoading);
+                            if (ChatObject.isBoostSupported(chat)) {
+                                processBoostDialog(peerId, dismissLoading, progress);
                                 return;
                             }
                         }
@@ -3787,7 +4000,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                 }
                                 if (MessagesController.getInstance(intentAccount).checkCanOpenChat(args1, fragment1)) {
                                     NotificationCenter.getInstance(intentAccount).postNotificationName(NotificationCenter.closeChats);
-                                    actionBarLayout.presentFragment(new ChatActivity(args1), true, false, true, false);
+                                    getActionBarLayout().presentFragment(new ChatActivity(args1), true, false, true, false);
                                 }
                                 return true;
                             });
@@ -3797,7 +4010,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             } else {
                                 removeLast = actionBarLayout.getFragmentStack().size() > 1 && actionBarLayout.getFragmentStack().get(actionBarLayout.getFragmentStack().size() - 1) instanceof DialogsActivity;
                             }
-                            actionBarLayout.presentFragment(fragment, removeLast, true, true, false);
+                            getActionBarLayout().presentFragment(fragment, removeLast, true, true, false);
                             if (SecretMediaViewer.hasInstance() && SecretMediaViewer.getInstance().isVisible()) {
                                 SecretMediaViewer.getInstance().closePhoto(false, false);
                             } else if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().isVisible()) {
@@ -3940,7 +4153,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 public void didChangeOwner(TLRPC.User user) {
                                                 }
                                             });
-                                            actionBarLayout.presentFragment(editRightsActivity, false);
+                                            getActionBarLayout().presentFragment(editRightsActivity, false);
                                         }
                                     }));
                                 } else {
@@ -3957,7 +4170,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         ChatActivity chatActivity = new ChatActivity(args12);
                                         NotificationCenter.getInstance(intentAccount).postNotificationName(NotificationCenter.closeChats);
                                         MessagesController.getInstance(intentAccount).addUserToChat(-did, user, 0, botHash, chatActivity, null);
-                                        actionBarLayout.presentFragment(chatActivity, true, false, true, false);
+                                        getActionBarLayout().presentFragment(chatActivity, true, false, true, false);
                                     });
                                     builder.show();
                                 }
@@ -4005,13 +4218,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             //CloudVeil start check link pressed before opening dialog
                             if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                                 openUncheckedDialog(dialog_id, () ->  runLinkRequest(intentAccount, username, group, sticker,
-                                emoji, botUser, botChat, botChannel,
-                                botChatAdminParams, message, null, null, hasUrl, messageId,
-                                channelId, threadId, commentId, game,
-                                auth, lang, unsupportedUrl, code,
-                                loginToken, wallPaper, inputInvoiceSlug, theme,
-                                voicechat, livestream, state, videoTimestamp,
-                                setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, "", "", null, false, 0, false));
+                                        emoji, botUser, botChat, botChannel,
+                                        botChatAdminParams, message, null, null, hasUrl, messageId,
+                                        channelId, threadId, commentId, game,
+                                        auth, lang, unsupportedUrl, code,
+                                        loginToken, wallPaper, inputInvoiceSlug, theme,
+                                        voicechat, livestream, state, videoTimestamp,
+                                        setAsAttachBot, attachMenuBotToOpen, attachMenuBotChoose, "", "", null, false, 0, false));
                             } else if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                                 BaseFragment lastFragment = !mainFragmentsStack.isEmpty() && voicechat == null ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
                                 if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
@@ -4023,12 +4236,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                     } else {
                                         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-dialog_id);
                                         if (chat != null && chat.forum) {
-                                            Integer topicId = threadId;
-                                            if (topicId == null) {
-                                                topicId = messageId;
+                                            Long topicId = threadId;
+                                            if (topicId == null && messageId != null) {
+                                                topicId = (long) (int) messageId;
                                             }
                                             if (topicId != null && topicId != 0) {
-                                                openForumFromLink(dialog_id, topicId, messageId, () -> {
+                                                openForumFromLink(dialog_id, messageId, () -> {
                                                     try {
                                                         dismissLoading.run();
                                                     } catch (Exception e) {
@@ -4038,13 +4251,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             } else {
                                                 Bundle bundle = new Bundle();
                                                 bundle.putLong("chat_id", -dialog_id);
-                                                presentFragment(new TopicsFragment(bundle));
-                                                    try {
-                                                        dismissLoading.run();
-	                                                } catch (Exception e) {
-	                                                    FileLog.e(e);
-	                                                }
-	                                        }
+                                                presentFragment(TopicsFragment.getTopicsOrChat(this, bundle));
+                                                try {
+                                                    dismissLoading.run();
+                                                } catch (Exception e) {
+                                                    FileLog.e(e);
+                                                }
+                                            }
                                         } else {
                                             MessagesController.getInstance(intentAccount).ensureMessagesLoaded(dialog_id, messageId == null ? 0 : messageId, new MessagesController.MessagesLoadedCallback() {
                                                 @Override
@@ -4074,7 +4287,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                                 voipLastFragment = lastFragment;
                                                             } else {
                                                                 ChatActivity fragment = new ChatActivity(args);
-                                                                actionBarLayout.presentFragment(fragment);
+                                                                getActionBarLayout().presentFragment(fragment);
                                                                 voipLastFragment = fragment;
                                                             }
                                                         } else {
@@ -4107,18 +4320,18 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                     }
                                                 }
 
-	                                            @Override
-	                                            public void onError() {
-	                                                if (!LaunchActivity.this.isFinishing()) {
-	                                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
-	                                                    AlertsCreator.showSimpleAlert(fragment, LocaleController.getString("JoinToGroupErrorNotExist", R.string.JoinToGroupErrorNotExist));
-	                                                }
-	                                                try {
-                                                       dismissLoading.run();
-	                                                } catch (Exception e) {
-	                                                    FileLog.e(e);
-	                                                }
-											    }
+                                                @Override
+                                                public void onError() {
+                                                    if (!LaunchActivity.this.isFinishing()) {
+                                                        BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                                        AlertsCreator.showSimpleAlert(fragment, LocaleController.getString("JoinToGroupErrorNotExist", R.string.JoinToGroupErrorNotExist));
+                                                    }
+                                                    try {
+                                                        dismissLoading.run();
+                                                    } catch (Exception e) {
+                                                        FileLog.e(e);
+                                                    }
+                                                }
                                             });
                                         }
                                         hideProgressDialog = false;
@@ -4182,7 +4395,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                     if (invite.chat.forum) {
                                         Bundle bundle = new Bundle();
                                         bundle.putLong("chat_id", invite.chat.id);
-                                        presentFragment(new TopicsFragment(bundle));
+                                        presentFragment(TopicsFragment.getTopicsOrChat(this, bundle));
                                     } else {
                                         MessagesController.getInstance(intentAccount).ensureMessagesLoaded(-invite.chat.id, 0, new MessagesController.MessagesLoadedCallback() {
                                             @Override
@@ -4199,7 +4412,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                                 if (invite instanceof TLRPC.TL_chatInvitePeek) {
                                                     fragment.setChatInvite(invite);
                                                 }
-                                                actionBarLayout.presentFragment(fragment);
+                                                getActionBarLayout().presentFragment(fragment);
                                             }
 
                                             @Override
@@ -4276,7 +4489,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         if (mainFragmentsStack.isEmpty() || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, mainFragmentsStack.get(mainFragmentsStack.size() - 1))) {
                                             ChatActivity fragment = new ChatActivity(args);
                                             NotificationCenter.getInstance(intentAccount).postNotificationName(NotificationCenter.closeChats);
-                                            actionBarLayout.presentFragment(fragment, false, true, true, false);
+                                            getActionBarLayout().presentFragment(fragment, false, true, true, false);
                                         }
                                     }
                                 }
@@ -4352,7 +4565,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 if (MessagesController.getInstance(intentAccount).checkCanOpenChat(args13, fragment13)) {
                     NotificationCenter.getInstance(intentAccount).postNotificationName(NotificationCenter.closeChats);
                     MediaDataController.getInstance(intentAccount).saveDraft(did, 0, message, null, null, false);
-                    actionBarLayout.presentFragment(new ChatActivity(args13), true, false, true, false);
+                    getActionBarLayout().presentFragment(new ChatActivity(args13), true, false, true, false);
                 }
                 return true;
             });
@@ -4602,10 +4815,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     args.putInt("message_id", messageId);
                 }
                 TLRPC.Chat chatLocal = MessagesController.getInstance(currentAccount).getChat(channelId);
-                if (chatLocal != null && ChatObject.isChannelAndNotMegaGroup(chatLocal) && isBoost) {
-                    processBoostDialog(-channelId, dismissLoading);
+                if (chatLocal != null && ChatObject.isBoostSupported(chatLocal) && isBoost) {
+                    processBoostDialog(-channelId, dismissLoading, progress);
                 } else if (chatLocal != null && chatLocal.forum) {
-                    openForumFromLink(-channelId, 0, messageId,  () -> {
+                    openForumFromLink(-channelId, messageId,  () -> {
                         try {
                             dismissLoading.run();
                         } catch (Exception e) {
@@ -4616,7 +4829,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     BaseFragment lastFragment = !mainFragmentsStack.isEmpty() ? mainFragmentsStack.get(mainFragmentsStack.size() - 1) : null;
                     if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
                         AndroidUtilities.runOnUIThread(() -> {
-                            if (!actionBarLayout.presentFragment(new ChatActivity(args))) {
+                            if (!getActionBarLayout().presentFragment(new ChatActivity(args))) {
                                 TLRPC.TL_channels_getChannels req = new TLRPC.TL_channels_getChannels();
                                 TLRPC.TL_inputChannel inputChannel = new TLRPC.TL_inputChannel();
                                 inputChannel.channel_id = channelId;
@@ -4634,17 +4847,17 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                             notFound = false;
                                             MessagesController.getInstance(currentAccount).putChats(res.chats, false);
                                             TLRPC.Chat chat = res.chats.get(0);
-                                            if (chat != null && isBoost && ChatObject.isChannelAndNotMegaGroup(chat)) {
-                                                processBoostDialog(-channelId, null);
+                                            if (chat != null && isBoost && ChatObject.isBoostSupported(chat)) {
+                                                processBoostDialog(-channelId, null, progress);
                                             } else if (chat != null && chat.forum) {
                                                 if (threadId != null) {
-                                                    openForumFromLink(-channelId, threadId, messageId, null);
+                                                    openForumFromLink(-channelId, messageId, null);
                                                 } else {
-                                                    openForumFromLink(-channelId, messageId, null, null);
+                                                    openForumFromLink(-channelId, null, null);
                                                 }
                                             }
                                             if (lastFragment == null || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, lastFragment)) {
-                                                actionBarLayout.presentFragment(new ChatActivity(args));
+                                                getActionBarLayout().presentFragment(new ChatActivity(args));
                                             }
                                         }
                                     }
@@ -4711,7 +4924,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
     }
 
-
     private void openUncheckedDialog(long dialogId, Runnable runnable) {
         if (progressDialog != null) {
             progressDialog.dismiss();
@@ -4719,7 +4931,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         delegateInstance = new ReopenDialogAfterCheckDelegate(runnable);
         progressDialog = new AlertDialog(this, 3);
         NotificationCenter.getInstance(currentAccount).addObserver(delegateInstance, NotificationCenter.filterDialogsReady);
-        ChannelCheckingService.startDataChecking(currentAccount, dialogId, this);
+        CloudVeilSyncWorker.startDataChecking(currentAccount, dialogId, this);
         progressDialog.show();
     }
     //CloudVeil end
@@ -4739,7 +4951,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                   final boolean hasUrl,
                                   final Integer messageId,
                                   final Long channelId,
-                                  final Integer threadId,
+                                  final Long threadId,
                                   final Integer commentId,
                                   final String game,
                                   final HashMap<String, String> auth,
@@ -4764,7 +4976,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                   final int storyId,
                                   final boolean isBoost,
                                   TLRPC.User user,
-                                  Runnable dismissLoading) {
+                                  Runnable dismissLoading, boolean botAttachable, boolean ignoreInactive) {
 
         TLRPC.TL_messages_getBotApp getBotApp = new TLRPC.TL_messages_getBotApp();
         TLRPC.TL_inputBotAppShortName app = new TLRPC.TL_inputBotAppShortName();
@@ -4789,13 +5001,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         sheet.setParentActivity(LaunchActivity.this);
                         sheet.requestWebView(intentAccount, user.id, user.id, null, null, BotWebViewSheet.TYPE_WEB_VIEW_BOT_APP, 0, false, lastFragment, botApp.app, allowWrite.get(), botAppStartParam, user);
                         sheet.show();
+                        visibleDialogs.add(sheet);
                         if (botApp.inactive || forceNotInternalForApps) {
                             sheet.showJustAddedBulletin();
                         }
                     };
 
-                    if (botApp.inactive || forceNotInternalForApps) {
-                        AlertsCreator.createBotLaunchAlert(lastFragment, botApp, user, allowWrite, loadBotSheet);
+                    if (ignoreInactive) {
+                        loadBotSheet.run();
+                    } else if (botApp.inactive && botAttachable) {
+                        WebAppDisclaimerAlert.show(this, (allowSendMessage) -> {
+                            loadBotSheet.run();
+                        }, null);
+                    } else if (botApp.request_write_access || forceNotInternalForApps) {
+                        AlertsCreator.createBotLaunchAlert(lastFragment, allowWrite, user, loadBotSheet);
                     } else {
                         loadBotSheet.run();
                     }
@@ -4805,15 +5024,70 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     }
 
-
-    private void processBoostDialog(Long peerId, Runnable dismissLoading) {
-        ChannelBoostsController boostsController = MessagesController.getInstance(currentAccount).getBoostsController();
-        boostsController.getBoostsStats(peerId, boostsStatus -> {
-            if (boostsStatus == null) {
-                dismissLoading.run();
+    private void processAttachedMenuBotFromShortcut(long botId) {
+        for (int i = 0; i < visibleDialogs.size(); i++) {
+            if (visibleDialogs.get(i) instanceof BotWebViewSheet) {
+                BotWebViewSheet addedDialog = (BotWebViewSheet) visibleDialogs.get(i);
+                if (addedDialog.isShowing() && addedDialog.getBotId() == botId) {
+                    return;
+                }
+            }
+        }
+        AtomicBoolean isMenuBotsUpdated = new AtomicBoolean(MediaDataController.getInstance(currentAccount).isMenuBotsUpdatedLocal());
+        if (!isMenuBotsUpdated.get()) {
+            final CountDownLatch countDownLatch = new CountDownLatch(1);
+            MessagesStorage.getInstance(currentAccount).getStorageQueue().postRunnable(() -> {
+                isMenuBotsUpdated.set(MediaDataController.getInstance(currentAccount).isMenuBotsUpdatedLocal());
+                countDownLatch.countDown();
+            });
+            try {
+                countDownLatch.await();
+            } catch (Exception e) {
+                FileLog.e(e);
                 return;
             }
-            boostsController.userCanBoostChannel(peerId, canApplyBoost -> {
+        }
+        if (isMenuBotsUpdated.get()) {
+            TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(currentAccount).getAttachMenuBots();
+            if (menuBots.bots.isEmpty()) {
+                // Bot is removed from the menu.
+                MediaDataController.getInstance(currentAccount).uninstallShortcut(botId, MediaDataController.SHORTCUT_TYPE_ATTACHED_BOT);
+                return;
+            }
+            for (int i = 0; i < menuBots.bots.size(); i++) {
+                if (menuBots.bots.get(i).bot_id == botId) {
+                    if (getLastFragment() != null) {
+                        showAttachMenuBot(menuBots.bots.get(i), null);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    private void processBoostDialog(Long peerId, Runnable dismissLoading, Browser.Progress progress) {
+        processBoostDialog(peerId, dismissLoading, progress, null);
+    }
+
+    private void processBoostDialog(Long peerId, Runnable dismissLoading, Browser.Progress progress, ChatMessageCell chatMessageCell) {
+        ChannelBoostsController boostsController = MessagesController.getInstance(currentAccount).getBoostsController();
+        if (progress != null) {
+            progress.init();
+        }
+        boostsController.getBoostsStats(peerId, boostsStatus -> {
+            if (boostsStatus == null) {
+                if (progress != null) {
+                    progress.end();
+                }
+                if (dismissLoading != null) {
+                    dismissLoading.run();
+                }
+                return;
+            }
+            boostsController.userCanBoostChannel(peerId, boostsStatus, canApplyBoost -> {
+                if (progress != null) {
+                    progress.end();
+                }
                 BaseFragment lastFragment = getLastFragment();
                 if (lastFragment == null) {
                     return;
@@ -4828,9 +5102,14 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 boolean isCurrentChat = false;
                 if (lastFragment instanceof ChatActivity) {
                     isCurrentChat = ((ChatActivity) lastFragment).getDialogId() == peerId;
+                } else if (lastFragment instanceof DialogsActivity) {
+                    DialogsActivity dialogsActivity = ((DialogsActivity) lastFragment);
+                    isCurrentChat = dialogsActivity.rightSlidingDialogContainer != null && dialogsActivity.rightSlidingDialogContainer.getCurrentFragmetDialogId() == peerId;
                 }
                 limitReachedBottomSheet.setBoostsStats(boostsStatus, isCurrentChat);
                 limitReachedBottomSheet.setDialogId(peerId);
+                limitReachedBottomSheet.setChatMessageCell(chatMessageCell);
+
                 lastFragment.showDialog(limitReachedBottomSheet);
                 try {
                     if (dismissLoading != null) {
@@ -4902,7 +5181,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
                         if (MessagesController.getInstance(intentAccount).checkCanOpenChat(args1, fragment)) {
                             NotificationCenter.getInstance(intentAccount).postNotificationName(NotificationCenter.closeChats);
-                            actionBarLayout.presentFragment(new ChatActivity(args1), true, false, true, false);
+                            getActionBarLayout().presentFragment(new ChatActivity(args1), true, false, true, false);
                         }
                         return true;
                     });
@@ -4912,6 +5191,16 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
                 if (!attachMenuBot.inactive) {
                     if (dialogsActivity != null) {
+                        if (lastFragment != null) {
+                            lastFragment.dismissCurrentDialog();
+                        }
+                        for (int i = 0; i < visibleDialogs.size(); ++i) {
+                            Dialog dialog = visibleDialogs.get(i);
+                            if (dialog.isShowing()) {
+                                visibleDialogs.get(i).dismiss();
+                            }
+                        }
+                        visibleDialogs.clear();
                         presentFragment(dialogsActivity);
                     } else if (lastFragment instanceof ChatActivity) {
                         ChatActivity chatActivity = (ChatActivity) lastFragment;
@@ -4929,18 +5218,26 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     introTopView.setBackgroundColor(Theme.getColor(Theme.key_dialogTopBackground));
                     introTopView.setAttachBot(attachMenuBot);
 
-                    AtomicBoolean allowWrite = new AtomicBoolean();
-
                     WebAppDisclaimerAlert.show(this, (allowSendMessage) -> {
                         TLRPC.TL_messages_toggleBotInAttachMenu botRequest = new TLRPC.TL_messages_toggleBotInAttachMenu();
                         botRequest.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
                         botRequest.enabled = true;
-                        botRequest.write_allowed = allowWrite.get();
+                        botRequest.write_allowed = true;
 
                         ConnectionsManager.getInstance(intentAccount).sendRequest(botRequest, (response2, error2) -> AndroidUtilities.runOnUIThread(() -> {
                             if (response2 instanceof TLRPC.TL_boolTrue) {
                                 MediaDataController.getInstance(intentAccount).loadAttachMenuBots(false, true, () -> {
                                     if (dialogsActivity != null) {
+                                        if (lastFragment != null) {
+                                            lastFragment.dismissCurrentDialog();
+                                        }
+                                        for (int i = 0; i < visibleDialogs.size(); ++i) {
+                                            Dialog dialog = visibleDialogs.get(i);
+                                            if (dialog.isShowing()) {
+                                                visibleDialogs.get(i).dismiss();
+                                            }
+                                        }
+                                        visibleDialogs.clear();
                                         presentFragment(dialogsActivity);
                                     } else if (lastFragment instanceof ChatActivity) {
                                         ((ChatActivity) lastFragment).openAttachBotLayout(user.id, setAsAttachBot, true);
@@ -4956,11 +5253,15 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }));
     }
 
-    private void openForumFromLink(long dialogId, int topicId, Integer messageId, Runnable onOpened) {
+    private void openForumFromLink(long dialogId, Integer messageId, Runnable onOpened) {
+        openForumFromLink(dialogId, messageId, null, onOpened, 0, -1);
+    }
+
+    private void openForumFromLink(long dialogId, Integer messageId, String quote, Runnable onOpened, int fromMessageId, int quoteOffset) {
         if (messageId == null) {
             Bundle bundle = new Bundle();
             bundle.putLong("chat_id", -dialogId);
-            presentFragment(new TopicsFragment(bundle));
+            presentFragment(TopicsFragment.getTopicsOrChat(this, bundle));
 
             if (onOpened != null) {
                 onOpened.run();
@@ -4984,13 +5285,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 }
 
                 if (message != null) {
-                    runCommentRequest(currentAccount, null, message.id, null, MessageObject.getTopicId(message, MessagesController.getInstance(currentAccount).isForum(message)), MessagesController.getInstance(currentAccount).getChat(-dialogId), onOpened);
+                    runCommentRequest(currentAccount, null, message.id, null, MessageObject.getTopicId(currentAccount, message, MessagesController.getInstance(currentAccount).isForum(message)), MessagesController.getInstance(currentAccount).getChat(-dialogId), onOpened, quote, fromMessageId, quoteOffset);
                     return;
                 }
 
                 Bundle bundle = new Bundle();
                 bundle.putLong("chat_id", -dialogId);
-                presentFragment(new TopicsFragment(bundle));
+                presentFragment(TopicsFragment.getTopicsOrChat(this, bundle));
 
                 if (onOpened != null) {
                     onOpened.run();
@@ -5082,177 +5383,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return foundContacts;
     }
 
-    private void createUpdateUI() {
-        if (sideMenuContainer == null) {
-            return;
-        }
-        updateLayout = new FrameLayout(this) {
-
-            private Paint paint = new Paint();
-            private Matrix matrix = new Matrix();
-            private LinearGradient updateGradient;
-            private int lastGradientWidth;
-
-            @Override
-            public void draw(Canvas canvas) {
-                if (updateGradient != null) {
-                    paint.setColor(0xffffffff);
-                    paint.setShader(updateGradient);
-                    updateGradient.setLocalMatrix(matrix);
-                    canvas.drawRect(0, 0, getMeasuredWidth(), getMeasuredHeight(), paint);
-                    updateLayoutIcon.setBackgroundGradientDrawable(updateGradient);
-                    updateLayoutIcon.draw(canvas);
-                }
-                super.draw(canvas);
-            }
-
-            @Override
-            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-                int width = MeasureSpec.getSize(widthMeasureSpec);
-                if (lastGradientWidth != width) {
-                    updateGradient = new LinearGradient(0, 0, width, 0, new int[]{0xff69BF72, 0xff53B3AD}, new float[]{0.0f, 1.0f}, Shader.TileMode.CLAMP);
-                    lastGradientWidth = width;
-                }
-            }
-        };
-        updateLayout.setWillNotDraw(false);
-        updateLayout.setVisibility(View.INVISIBLE);
-        updateLayout.setTranslationY(AndroidUtilities.dp(44));
-        if (Build.VERSION.SDK_INT >= 21) {
-            updateLayout.setBackground(Theme.getSelectorDrawable(0x40ffffff, false));
-        }
-        sideMenuContainer.addView(updateLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 44, Gravity.LEFT | Gravity.BOTTOM));
-        updateLayout.setOnClickListener(v -> {
-            if (!SharedConfig.isAppUpdateAvailable()) {
-                return;
-            }
-            if (updateLayoutIcon.getIcon() == MediaActionDrawable.ICON_DOWNLOAD) {
-                FileLoader.getInstance(currentAccount).loadFile(SharedConfig.pendingAppUpdate.document, "update", FileLoader.PRIORITY_NORMAL, 1);
-                updateAppUpdateViews(true);
-            } else if (updateLayoutIcon.getIcon() == MediaActionDrawable.ICON_CANCEL) {
-                FileLoader.getInstance(currentAccount).cancelLoadFile(SharedConfig.pendingAppUpdate.document);
-                updateAppUpdateViews(true);
-            } else {
-                AndroidUtilities.openForView(SharedConfig.pendingAppUpdate.document, true, this);
-            }
-        });
-        updateLayoutIcon = new RadialProgress2(updateLayout);
-        updateLayoutIcon.setColors(0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff);
-        updateLayoutIcon.setProgressRect(AndroidUtilities.dp(22), AndroidUtilities.dp(11), AndroidUtilities.dp(22 + 22), AndroidUtilities.dp(11 + 22));
-        updateLayoutIcon.setCircleRadius(AndroidUtilities.dp(11));
-        updateLayoutIcon.setAsMini();
-
-        updateTextView = new SimpleTextView(this);
-        updateTextView.setTextSize(15);
-        updateTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        updateTextView.setText(LocaleController.getString("AppUpdate", R.string.AppUpdate));
-        updateTextView.setTextColor(0xffffffff);
-        updateTextView.setGravity(Gravity.LEFT);
-        updateLayout.addView(updateTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 74, 0, 0, 0));
-
-        updateSizeTextView = new TextView(this);
-        updateSizeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-        updateSizeTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        updateSizeTextView.setGravity(Gravity.RIGHT);
-        updateSizeTextView.setTextColor(0xffffffff);
-        updateLayout.addView(updateSizeTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL | Gravity.RIGHT, 0, 0, 17, 0));
-    }
-
-    private void updateAppUpdateViews(boolean animated) {
-        if (sideMenuContainer == null) {
-            return;
-        }
-        if (SharedConfig.isAppUpdateAvailable()) {
-            View prevUpdateLayout = updateLayout;
-            createUpdateUI();
-            updateSizeTextView.setText(AndroidUtilities.formatFileSize(SharedConfig.pendingAppUpdate.document.size));
-            String fileName = FileLoader.getAttachFileName(SharedConfig.pendingAppUpdate.document);
-            File path = FileLoader.getInstance(currentAccount).getPathToAttach(SharedConfig.pendingAppUpdate.document, true);
-            boolean showSize;
-            if (path.exists()) {
-                updateLayoutIcon.setIcon(MediaActionDrawable.ICON_UPDATE, true, false);
-                updateTextView.setText(LocaleController.getString("AppUpdateNow", R.string.AppUpdateNow));
-                showSize = false;
-            } else {
-                if (FileLoader.getInstance(currentAccount).isLoadingFile(fileName)) {
-                    updateLayoutIcon.setIcon(MediaActionDrawable.ICON_CANCEL, true, false);
-                    updateLayoutIcon.setProgress(0, false);
-                    Float p = ImageLoader.getInstance().getFileProgress(fileName);
-                    updateTextView.setText(LocaleController.formatString("AppUpdateDownloading", R.string.AppUpdateDownloading, (int) ((p != null ? p : 0.0f) * 100)));
-                    showSize = false;
-                } else {
-                    updateLayoutIcon.setIcon(MediaActionDrawable.ICON_DOWNLOAD, true, false);
-                    updateTextView.setText(LocaleController.getString("AppUpdate", R.string.AppUpdate));
-                    showSize = true;
-                }
-            }
-            if (showSize) {
-                if (updateSizeTextView.getTag() != null) {
-                    if (animated) {
-                        updateSizeTextView.setTag(null);
-                        updateSizeTextView.animate().alpha(1.0f).scaleX(1.0f).scaleY(1.0f).setDuration(180).start();
-                    } else {
-                        updateSizeTextView.setAlpha(1.0f);
-                        updateSizeTextView.setScaleX(1.0f);
-                        updateSizeTextView.setScaleY(1.0f);
-                    }
-                }
-            } else {
-                if (updateSizeTextView.getTag() == null) {
-                    if (animated) {
-                        updateSizeTextView.setTag(1);
-                        updateSizeTextView.animate().alpha(0.0f).scaleX(0.0f).scaleY(0.0f).setDuration(180).start();
-                    } else {
-                        updateSizeTextView.setAlpha(0.0f);
-                        updateSizeTextView.setScaleX(0.0f);
-                        updateSizeTextView.setScaleY(0.0f);
-                    }
-                }
-            }
-            if (updateLayout.getTag() != null) {
-                return;
-            }
-            updateLayout.setVisibility(View.VISIBLE);
-            updateLayout.setTag(1);
-            if (animated) {
-                updateLayout.animate().translationY(0).setInterpolator(CubicBezierInterpolator.EASE_OUT).setListener(null).setDuration(180).withEndAction(() -> {
-                    if (prevUpdateLayout != null) {
-                        ViewGroup parent = (ViewGroup) prevUpdateLayout.getParent();
-                        parent.removeView(prevUpdateLayout);
-                    }
-                }).start();
-            } else {
-                updateLayout.setTranslationY(0);
-                if (prevUpdateLayout != null) {
-                    ViewGroup parent = (ViewGroup) prevUpdateLayout.getParent();
-                    parent.removeView(prevUpdateLayout);
-                }
-            }
-            sideMenu.setPadding(0, 0, 0, AndroidUtilities.dp(44));
-        } else {
-            if (updateLayout == null || updateLayout.getTag() == null) {
-                return;
-            }
-            updateLayout.setTag(null);
-            if (animated) {
-                updateLayout.animate().translationY(AndroidUtilities.dp(44)).setInterpolator(CubicBezierInterpolator.EASE_OUT).setListener(new AnimatorListenerAdapter() {
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        if (updateLayout.getTag() == null) {
-                            updateLayout.setVisibility(View.INVISIBLE);
-                        }
-                    }
-                }).setDuration(180).start();
-            } else {
-                updateLayout.setTranslationY(AndroidUtilities.dp(44));
-                updateLayout.setVisibility(View.INVISIBLE);
-            }
-            sideMenu.setPadding(0, 0, 0, 0);
-        }
-    }
-
-    public void checkAppUpdate(boolean force) {
+    public void checkAppUpdate(boolean force, Browser.Progress progress) {
         if (!force && BuildVars.DEBUG_VERSION || !force && !BuildVars.CHECK_UPDATES) {
             return;
         }
@@ -5269,7 +5400,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             req.source = "";
         }
         final int accountNum = currentAccount;
-        ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
+        int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
             SharedConfig.lastUpdateCheckTime = System.currentTimeMillis();
             SharedConfig.saveConfig();
             if (response instanceof TLRPC.TL_help_appUpdate) {
@@ -5278,39 +5409,61 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     if (SharedConfig.pendingAppUpdate != null && SharedConfig.pendingAppUpdate.version.equals(res.version)) {
                         return;
                     }
-                    if (SharedConfig.setNewAppVersionAvailable(res)) {
+                    final boolean newVersionAvailable = SharedConfig.setNewAppVersionAvailable(res);
+                    if (newVersionAvailable) {
                         if (res.can_not_skip) {
                             showUpdateActivity(accountNum, res, false);
-                        } else {
+                        } else if (ApplicationLoader.isStandaloneBuild() || BuildVars.DEBUG_VERSION) {
                             drawerLayoutAdapter.notifyDataSetChanged();
-                            try {
-                                (new UpdateAppAlertDialog(LaunchActivity.this, res, accountNum)).show();
-                            } catch (Exception e) {
-                                FileLog.e(e);
-                            }
+                            ApplicationLoader.applicationLoaderInstance.showUpdateAppPopup(LaunchActivity.this, res, accountNum);
                         }
                         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
+                    }
+                    if (progress != null) {
+                        progress.end();
+                        if (!newVersionAvailable) {
+                            BaseFragment fragment = getLastFragment();
+                            if (fragment != null) {
+                                BulletinFactory.of(fragment).createSimpleBulletin(R.raw.chats_infotip, LocaleController.getString(R.string.YourVersionIsLatest)).show();
+                            }
+                        }
+                    }
+                });
+            } else if (response instanceof TLRPC.TL_help_noAppUpdate) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (progress != null) {
+                        progress.end();
+                        BaseFragment fragment = getLastFragment();
+                        if (fragment != null) {
+                            BulletinFactory.of(fragment).createSimpleBulletin(R.raw.chats_infotip, LocaleController.getString(R.string.YourVersionIsLatest)).show();
+                        }
+                    }
+                });
+            } else if (error != null) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (progress != null) {
+                        progress.end();
+                        BaseFragment fragment = getLastFragment();
+                        if (fragment != null) {
+                            BulletinFactory.of(fragment).showForError(error);
+                        }
                     }
                 });
             }
         });
+        if (progress != null) {
+            progress.init();
+            progress.onCancel(() -> ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true));
+        }
     }
 
-    public AlertDialog showAlertDialog(AlertDialog.Builder builder) {
+    public Dialog showAlertDialog(AlertDialog.Builder builder) {
         try {
-            if (visibleDialog != null) {
-                visibleDialog.dismiss();
-                visibleDialog = null;
-            }
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        try {
-            visibleDialog = builder.show();
-            visibleDialog.setCanceledOnTouchOutside(true);
-            visibleDialog.setOnDismissListener(dialog -> {
-                if (visibleDialog != null) {
-                    if (visibleDialog == localeDialog) {
+            AlertDialog dialog = builder.show();
+            dialog.setCanceledOnTouchOutside(true);
+            dialog.setOnDismissListener(d -> {
+                if (dialog != null) {
+                    if (dialog == localeDialog) {
                         BaseFragment fragment = actionBarLayout == null ? null : actionBarLayout.getLastFragment();
                         try {
                             String shorname = LocaleController.getInstance().getCurrentLocaleInfo().shortName;
@@ -5329,7 +5482,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             FileLog.e(e);
                         }
                         localeDialog = null;
-                    } else if (visibleDialog == proxyErrorDialog) {
+                    } else if (dialog == proxyErrorDialog) {
                         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                         SharedPreferences.Editor editor = MessagesController.getGlobalMainSettings().edit();
                         editor.putBoolean("proxy_enabled", false);
@@ -5340,9 +5493,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         proxyErrorDialog = null;
                     }
                 }
-                visibleDialog = null;
+                visibleDialogs.remove(dialog);
             });
-            return visibleDialog;
+            visibleDialogs.add(dialog);
+            return dialog;
         } catch (Exception e) {
             FileLog.e(e);
         }
@@ -5404,7 +5558,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     }
                     ChatActivity fragment = new ChatActivity(args);
                     fragment.setOpenImport();
-                    actionBarLayout.presentFragment(fragment, dialogsFragment != null || param, dialogsFragment == null, true, false);
+                    getActionBarLayout().presentFragment(fragment, dialogsFragment != null || param, dialogsFragment == null, true, false);
                 } else {
                     documentsUrisArray = documentsUris;
                     if (documentsUrisArray == null) {
@@ -5490,12 +5644,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 PhonebookShareAlert alert = new PhonebookShareAlert(mainFragmentsStack.get(mainFragmentsStack.size() - 1), null, null, contactsToSendUri, null, null, null);
                 alert.setDelegate((user, notify2, scheduleDate) -> {
                     if (fragment != null) {
-                        actionBarLayout.presentFragment(fragment, true, false, true, false);
+                        getActionBarLayout().presentFragment(fragment, true, false, true, false);
                     }
                     AccountInstance accountInstance = AccountInstance.getInstance(UserConfig.selectedAccount);
                     for (int i = 0; i < dids.size(); i++) {
                         long did = dids.get(i).dialogId;
-                        int topicId = dids.get(i).topicId;
+                        long topicId = dids.get(i).topicId;
                         MessageObject replyToMsg = null;
                         if (topicId != 0) {
                             TLRPC.TL_forumTopic topic = accountInstance.getMessagesController().getTopicsController().findTopic(-did, topicId);
@@ -5516,7 +5670,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 String captionToSend = null;
                 for (int i = 0; i < dids.size(); i++) {
                     final long did = dids.get(i).dialogId;
-                    final int topicId = dids.get(i).topicId;
+                    final long topicId = dids.get(i).topicId;
 
                     AccountInstance accountInstance = AccountInstance.getInstance(UserConfig.selectedAccount);
                     MessageObject replyToMsg = null;
@@ -5530,7 +5684,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     boolean photosEditorOpened = false, videoEditorOpened = false;
                     if (fragment != null) {
                         boolean withoutAnimation = dialogsFragment == null || videoPath != null || (photoPathsArray != null && photoPathsArray.size() > 0);
-                        actionBarLayout.presentFragment(fragment, dialogsFragment != null, withoutAnimation, true, false);
+                        getActionBarLayout().presentFragment(fragment, dialogsFragment != null, withoutAnimation, true, false);
                         presentedFragmentWithRemoveLast = dialogsFragment != null;
                         if (videoPath != null && topicId == 0) {
                             fragment.openVideoEditor(videoPath, sendingText);
@@ -5550,7 +5704,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             }
                             ArrayList<String> arrayList = new ArrayList<>();
                             arrayList.add(videoPath);
-                            SendMessagesHelper.prepareSendingDocuments(accountInstance, arrayList, arrayList, null, captionToSend, null, did, replyToMsg, replyToMsg, null, null, notify, 0, null);
+                            SendMessagesHelper.prepareSendingDocuments(accountInstance, arrayList, arrayList, null, captionToSend, null, did, replyToMsg, replyToMsg, null, null, null, notify, 0, null, null, 0);
                         }
                     }
                     if (photoPathsArray != null && !photosEditorOpened) {
@@ -5558,14 +5712,14 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             photoPathsArray.get(0).caption = sendingText;
                             sendingText = null;
                         }
-                        SendMessagesHelper.prepareSendingMedia(accountInstance, photoPathsArray, did, replyToMsg, replyToMsg, null, false, false, null, notify, 0, false, null);
+                        SendMessagesHelper.prepareSendingMedia(accountInstance, photoPathsArray, did, replyToMsg, replyToMsg, null, null, false, false, null, notify, 0, 0, false, null, null, 0);
                     }
                     if (documentsPathsArray != null || documentsUrisArray != null) {
                         if (sendingText != null && sendingText.length() <= 1024 && ((documentsPathsArray != null ? documentsPathsArray.size() : 0) + (documentsUrisArray != null ? documentsUrisArray.size() : 0)) == 1) {
                             captionToSend = sendingText;
                             sendingText = null;
                         }
-                        SendMessagesHelper.prepareSendingDocuments(accountInstance, documentsPathsArray, documentsOriginalPathsArray, documentsUrisArray, captionToSend, documentsMimeType, did, replyToMsg, replyToMsg, null, null, notify, 0, null);
+                        SendMessagesHelper.prepareSendingDocuments(accountInstance, documentsPathsArray, documentsOriginalPathsArray, documentsUrisArray, captionToSend, documentsMimeType, did, replyToMsg, replyToMsg, null, null, null, notify, 0, null, null, 0);
                     }
                     if (voicePath != null) {
                         File file = new File(voicePath);
@@ -5694,19 +5848,23 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public void presentFragment(INavigationLayout.NavigationParams params) {
-        actionBarLayout.presentFragment(params);
+        getActionBarLayout().presentFragment(params);
     }
 
     public void presentFragment(BaseFragment fragment) {
-        actionBarLayout.presentFragment(fragment);
+        getActionBarLayout().presentFragment(fragment);
     }
 
     public boolean presentFragment(final BaseFragment fragment, final boolean removeLast, boolean forceWithoutAnimation) {
-        return actionBarLayout.presentFragment(fragment, removeLast, forceWithoutAnimation, true, false);
+        return getActionBarLayout().presentFragment(fragment, removeLast, forceWithoutAnimation, true, false);
     }
 
     public INavigationLayout getActionBarLayout() {
-        return actionBarLayout;
+        INavigationLayout currentLayout = actionBarLayout;
+        if (!sheetFragmentsStack.isEmpty()) {
+            currentLayout = sheetFragmentsStack.get(sheetFragmentsStack.size() - 1);
+        }
+        return currentLayout;
     }
 
     public INavigationLayout getLayersActionBarLayout() {
@@ -5783,6 +5941,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (!checkPermissionsResult(requestCode, permissions, grantResults)) return;
+        if (ApplicationLoader.applicationLoaderInstance != null && ApplicationLoader.applicationLoaderInstance.checkRequestPermissionResult(requestCode, permissions, grantResults)) return;
 
         if (actionBarLayout.getFragmentStack().size() != 0) {
             BaseFragment fragment = actionBarLayout.getFragmentStack().get(actionBarLayout.getFragmentStack().size() - 1);
@@ -5840,7 +5999,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         for (PasscodeView overlay : overlayPasscodeViews) {
             overlay.onPause();
         }
-        ConnectionsManager.getInstance(currentAccount).setAppPaused(true, false);
+        boolean doNotPause = false;
+        if (ApplicationLoader.applicationLoaderInstance != null) {
+            doNotPause = ApplicationLoader.applicationLoaderInstance.onPause();
+        }
+        ConnectionsManager.getInstance(currentAccount).setAppPaused(!doNotPause, false);
         if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().isVisible()) {
             PhotoViewer.getInstance().onPause();
         }
@@ -5910,10 +6073,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             editorView.destroy();
         }
         try {
-            if (visibleDialog != null) {
-                visibleDialog.dismiss();
-                visibleDialog = null;
+            for (int i = 0; i < visibleDialogs.size(); ++i) {
+                Dialog dialog = visibleDialogs.get(i);
+                if (dialog.isShowing()) {
+                    visibleDialogs.get(i).dismiss();
+                }
             }
+            visibleDialogs.clear();
         } catch (Exception e) {
             FileLog.e(e);
         }
@@ -6014,7 +6180,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         } else if (SharedConfig.pendingAppUpdate != null && SharedConfig.pendingAppUpdate.can_not_skip) {
             showUpdateActivity(UserConfig.selectedAccount, SharedConfig.pendingAppUpdate, true);
         }
-        checkAppUpdate(false);
+        checkAppUpdate(false, null);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             ApplicationLoader.canDrawOverlays = Settings.canDrawOverlays(this);
@@ -6024,6 +6190,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
         invalidateTabletMode();
         SpoilerEffect2.pause(false);
+
+        if (ApplicationLoader.applicationLoaderInstance != null) {
+            ApplicationLoader.applicationLoaderInstance.onResume();
+        }
     }
 
     private void invalidateTabletMode() {
@@ -6034,7 +6204,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         AndroidUtilities.resetWasTabletFlag();
         if (wasTablet != AndroidUtilities.isTablet()) {
             long dialogId = 0;
-            int topicId = 0;
+            long topicId = 0;
             if (wasTablet) {
                 mainFragmentsStack.addAll(rightFragmentsStack);
                 mainFragmentsStack.addAll(layerFragmentsStack);
@@ -6088,6 +6258,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         if (embedBottomSheet != null) {
             embedBottomSheet.onConfigurationChanged(newConfig);
         }
+        BoostPagerBottomSheet boostPagerBottomSheet = BoostPagerBottomSheet.getInstance();
+        if (boostPagerBottomSheet != null) {
+            boostPagerBottomSheet.onConfigurationChanged(newConfig);
+        }
         PhotoViewer photoViewer = PhotoViewer.getPipInstance();
         if (photoViewer != null) {
             photoViewer.onConfigurationChanged(newConfig);
@@ -6112,6 +6286,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     public void didReceivedNotification(int id, final int account, Object... args) {
         if (id == NotificationCenter.appDidLogout) {
             switchToAvailableAccountOrLogout();
+        } else if (id == NotificationCenter.openBoostForUsersDialog) {
+            long dialogId = (long) args[0];
+            ChatMessageCell chatMessageCell = null;
+            if (args.length > 1) {
+                chatMessageCell = (ChatMessageCell) args[1];
+            }
+            processBoostDialog(dialogId, null, null, chatMessageCell);
         } else if (id == NotificationCenter.closeOtherAppActivities) {
             if (args[0] != this) {
                 onFinish();
@@ -6414,8 +6595,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             }
             actionBarLayout.animateThemedValues(theme, accentId, nightTheme, instant, calcInBackgroundEnd);
             if (AndroidUtilities.isTablet()) {
-                layersActionBarLayout.animateThemedValues(theme, accentId, nightTheme, instant);
-                rightActionBarLayout.animateThemedValues(theme, accentId, nightTheme, instant);
+                if (layersActionBarLayout != null) {
+                    layersActionBarLayout.animateThemedValues(theme, accentId, nightTheme, instant);
+                }
+                if (rightActionBarLayout != null) {
+                    rightActionBarLayout.animateThemedValues(theme, accentId, nightTheme, instant);
+                }
             }
         } else if (id == NotificationCenter.notificationsCountUpdated) {
             if (sideMenu != null) {
@@ -6442,8 +6627,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             String path = (String) args[0];
             if (SharedConfig.isAppUpdateAvailable()) {
                 String name = FileLoader.getAttachFileName(SharedConfig.pendingAppUpdate.document);
-                if (name.equals(path)) {
-                    updateAppUpdateViews(true);
+                if (name.equals(path) && updateLayout != null) {
+                    updateLayout.updateAppUpdateViews(currentAccount, true);
                 }
             }
             if (loadingThemeFileName != null) {
@@ -6513,8 +6698,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             }
             if (SharedConfig.isAppUpdateAvailable()) {
                 String name = FileLoader.getAttachFileName(SharedConfig.pendingAppUpdate.document);
-                if (name.equals(path)) {
-                    updateAppUpdateViews(true);
+                if (name.equals(path) && updateLayout != null) {
+                    updateLayout.updateAppUpdateViews(currentAccount, true);
                 }
             }
         } else if (id == NotificationCenter.screenStateChanged) {
@@ -6618,19 +6803,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         } else if (id == NotificationCenter.groupCallUpdated) {
             checkWasMutedByAdmin(false);
         } else if (id == NotificationCenter.fileLoadProgressChanged) {
-            if (updateTextView != null && SharedConfig.isAppUpdateAvailable()) {
-                String location = (String) args[0];
-                String fileName = FileLoader.getAttachFileName(SharedConfig.pendingAppUpdate.document);
-                if (fileName != null && fileName.equals(location)) {
-                    Long loadedSize = (Long) args[1];
-                    Long totalSize = (Long) args[2];
-                    float loadProgress = loadedSize / (float) totalSize;
-                    updateLayoutIcon.setProgress(loadProgress, true);
-                    updateTextView.setText(LocaleController.formatString("AppUpdateDownloading", R.string.AppUpdateDownloading, (int) (loadProgress * 100)));
-                }
+            if (updateLayout != null) {
+                updateLayout.updateFileProgress(args);
             }
         } else if (id == NotificationCenter.appUpdateAvailable) {
-            updateAppUpdateViews(mainFragmentsStack.size() == 1);
+            if (updateLayout != null) {
+                updateLayout.updateAppUpdateViews(currentAccount, mainFragmentsStack.size() == 1);
+            }
         } else if (id == NotificationCenter.currentUserShowLimitReachedDialog) {
             if (!mainFragmentsStack.isEmpty()) {
                 BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
@@ -6878,10 +7057,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 localeDialog = null;
                 drawerLayoutContainer.closeDrawer(true);
                 presentFragment(new LanguageSelectActivity());
-                if (visibleDialog != null) {
-                    visibleDialog.dismiss();
-                    visibleDialog = null;
+                for (int i = 0; i < visibleDialogs.size(); ++i) {
+                    Dialog dialog = visibleDialogs.get(i);
+                    if (dialog.isShowing()) {
+                        visibleDialogs.get(i).dismiss();
+                    }
                 }
+                visibleDialogs.clear();
             });
             linearLayout.addView(cell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50));
             builder.setView(linearLayout);
@@ -7203,9 +7385,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             finish();
             return;
         }
-        if (ContentPreviewViewer.hasInstance() && ContentPreviewViewer.getInstance().isVisible()) {
+        if (SearchTagsList.onBackPressedRenameTagAlert()) {
+            return;
+        } else if (ContentPreviewViewer.hasInstance() && ContentPreviewViewer.getInstance().isVisible()) {
             ContentPreviewViewer.getInstance().closeWithMenu();
-        } if (SecretMediaViewer.hasInstance() && SecretMediaViewer.getInstance().isVisible()) {
+        } else if (SecretMediaViewer.hasInstance() && SecretMediaViewer.getInstance().isVisible()) {
             SecretMediaViewer.getInstance().closePhoto(true, false);
         } else if (PhotoViewer.hasInstance() && PhotoViewer.getInstance().isVisible()) {
             PhotoViewer.getInstance().closePhoto(true, false);
@@ -7406,7 +7590,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                 DialogsActivity dialogsActivity = (DialogsActivity) fragment;
                 if (dialogsActivity.isMainDialogList() && layout != actionBarLayout) {
                     actionBarLayout.removeAllFragments();
-                    actionBarLayout.presentFragment(params.setRemoveLast(removeLast).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
+                    getActionBarLayout().presentFragment(params.setRemoveLast(removeLast).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
                     layersActionBarLayout.removeAllFragments();
                     layersActionBarLayout.getView().setVisibility(View.GONE);
                     drawerLayoutContainer.setAllowOpenDrawer(true, false);
@@ -7430,11 +7614,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         layersActionBarLayout.closeLastFragment(!forceWithoutAnimation);
                     }
                     if (!result) {
-                        actionBarLayout.presentFragment(params.setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
+                        getActionBarLayout().presentFragment(params.setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
                     }
                     return result;
-                } else if (!tabletFullSize && layout != rightActionBarLayout) {
-                    rightActionBarLayout.getView().setVisibility(View.VISIBLE);
+                } else if (!tabletFullSize && layout != rightActionBarLayout && rightActionBarLayout != null) {
+                    if (rightActionBarLayout.getView() != null) {
+                        rightActionBarLayout.getView().setVisibility(View.VISIBLE);
+                    }
                     backgroundTablet.setVisibility(View.GONE);
                     rightActionBarLayout.removeAllFragments();
                     rightActionBarLayout.presentFragment(params.setNoAnimation(true).setRemoveLast(removeLast).setCheckPresentFromDelegate(false));
@@ -7447,7 +7633,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     }
                     return false;
                 } else if (tabletFullSize && layout != actionBarLayout) {
-                    actionBarLayout.presentFragment(params.setRemoveLast(actionBarLayout.getFragmentStack().size() > 1).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
+                    getActionBarLayout().presentFragment(params.setRemoveLast(actionBarLayout.getFragmentStack().size() > 1).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
                     if (!layersActionBarLayout.getFragmentStack().isEmpty()) {
                         for (int a = 0; a < layersActionBarLayout.getFragmentStack().size() - 1; a++) {
                             layersActionBarLayout.removeFragmentFromStack(layersActionBarLayout.getFragmentStack().get(0));
@@ -7464,7 +7650,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
                         layersActionBarLayout.closeLastFragment(!forceWithoutAnimation);
                     }
-                    actionBarLayout.presentFragment(params.setRemoveLast(actionBarLayout.getFragmentStack().size() > 1).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
+                    getActionBarLayout().presentFragment(params.setRemoveLast(actionBarLayout.getFragmentStack().size() > 1).setNoAnimation(forceWithoutAnimation).setCheckPresentFromDelegate(false));
                     return false;
                 }
             } else if (layout != layersActionBarLayout) {
@@ -7591,7 +7777,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     public boolean needCloseLastFragment(INavigationLayout layout) {
         if (AndroidUtilities.isTablet()) {
-            if (layout == actionBarLayout && layout.getFragmentStack().size() <= 1) {
+            if (layout == actionBarLayout && layout.getFragmentStack().size() <= 1 && !switchingAccount) {
                 onFinish();
                 finish();
                 return false;
@@ -7781,7 +7967,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             return;
         }
         StoriesController storiesController = MessagesController.getInstance(currentAccount).getStoriesController();
-        ArrayList<TLRPC.PeerStories> stories = new ArrayList<>(onlyArchived ? storiesController.getHiddenList() : storiesController.getDialogListStories());
+        ArrayList<TL_stories.PeerStories> stories = new ArrayList<>(onlyArchived ? storiesController.getHiddenList() : storiesController.getDialogListStories());
         ArrayList<Long> peerIds = new ArrayList<>();
         ArrayList<Long> toLoadPeerIds = new ArrayList<>();
         final long[] finalDialogIds;
@@ -7818,7 +8004,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             };
             for (int i = 0; i < toLoadPeerIds.size(); ++i) {
                 long did = toLoadPeerIds.get(i);
-                TLRPC.TL_stories_getPeerStories req = new TLRPC.TL_stories_getPeerStories();
+                TL_stories.TL_stories_getPeerStories req = new TL_stories.TL_stories_getPeerStories();
                 req.peer = messagesController.getInputPeer(did);
                 if (req.peer instanceof TLRPC.TL_inputPeerEmpty) {
                     loaded[0]--;
@@ -7829,8 +8015,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     continue;
                 }
                 ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
-                    if (res instanceof TLRPC.TL_stories_peerStories) {
-                        TLRPC.TL_stories_peerStories r = (TLRPC.TL_stories_peerStories) res;
+                    if (res instanceof TL_stories.TL_stories_peerStories) {
+                        TL_stories.TL_stories_peerStories r = (TL_stories.TL_stories_peerStories) res;
                         messagesController.putUsers(r.users, false);
                         messagesController.getStoriesController().putStories(did, r.stories);
                         whenDone.run();
@@ -7842,7 +8028,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         } else {
             long me = UserConfig.getInstance(currentAccount).getClientUserId();
             for (int i = 0; i < stories.size(); ++i) {
-                TLRPC.PeerStories userStories = stories.get(i);
+                TL_stories.PeerStories userStories = stories.get(i);
                 long dialogId = DialogObject.getPeerDialogId(userStories.peer);
                 if (dialogId != me && !peerIds.contains(dialogId) && storiesController.hasUnreadStories(dialogId)) {
                     peerIds.add(dialogId);

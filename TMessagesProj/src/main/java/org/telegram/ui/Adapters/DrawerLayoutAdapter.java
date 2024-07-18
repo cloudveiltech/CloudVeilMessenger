@@ -15,7 +15,7 @@ import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
@@ -313,8 +313,8 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
         UserConfig me = UserConfig.getInstance(UserConfig.selectedAccount);
         boolean showDivider = false;
         //CloudVeil start
-        if (me != null && me.isPremium() && !GlobalSecuritySettings.getIsEmojiStatusDisabled()) {
-        //CloudVeil end
+        if (me != null && me.isPremium() && !CloudVeilSecuritySettings.getIsEmojiStatusDisabled()) {
+            //CloudVeil end
             if (me.getEmojiStatus() != null) {
                 items.add(new Item(15, LocaleController.getString("ChangeEmojiStatus", R.string.ChangeEmojiStatus), R.drawable.msg_status_edit));
             } else {
@@ -325,6 +325,11 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
         if (MessagesController.getInstance(UserConfig.selectedAccount).storiesEnabled()) {
             items.add(new Item(16, LocaleController.getString("ProfileMyStories", R.string.ProfileMyStories), R.drawable.msg_menu_stories));
             showDivider = true;
+        }
+        if (ApplicationLoader.applicationLoaderInstance != null) {
+            if (ApplicationLoader.applicationLoaderInstance.extendDrawer(items)) {
+                showDivider = true;
+            }
         }
         TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();
         if (menuBots != null && menuBots.bots != null) {
@@ -344,14 +349,30 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
         //items.add(new Item(4, LocaleController.getString("NewChannel", R.string.NewChannel), newChannelIcon));
         items.add(new Item(6, LocaleController.getString("Contacts", R.string.Contacts), contactsIcon));
         items.add(new Item(10, LocaleController.getString("Calls", R.string.Calls), callsIcon));
-        if (hasGps) {//CloudVeil disabled
-            //items.add(new Item(12, LocaleController.getString("PeopleNearby", R.string.PeopleNearby), peopleNearbyIcon));
+        if (hasGps) {
+            //CloudVeil disabled items.add(new Item(12, LocaleController.getString("PeopleNearby", R.string.PeopleNearby), peopleNearbyIcon));
         }
         items.add(new Item(11, LocaleController.getString("SavedMessages", R.string.SavedMessages), savedIcon));
         items.add(new Item(8, LocaleController.getString("Settings", R.string.Settings), settingsIcon));
         items.add(null); // divider
         items.add(new Item(7, LocaleController.getString("InviteFriends", R.string.InviteFriends), inviteIcon));
         items.add(new Item(13, LocaleController.getString("TelegramFeatures", R.string.TelegramFeatures), helpIcon));
+    }
+
+    public boolean click(View view, int position) {
+        position -= 2;
+        if (accountsShown) {
+            position -= getAccountRowsCount();
+        }
+        if (position < 0 || position >= items.size()) {
+            return false;
+        }
+        Item item = items.get(position);
+        if (item != null && item.listener != null) {
+            item.listener.onClick(view);
+            return true;
+        }
+        return false;
     }
 
     public int getId(int position) {
@@ -392,13 +413,15 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
         return item != null ? item.bot : null;
     }
 
-    private static class Item {
+    public static class Item {
         public int icon;
-        public String text;
+        public CharSequence text;
         public int id;
         TLRPC.TL_attachMenuBot bot;
+        View.OnClickListener listener;
+        public boolean error;
 
-        public Item(int id, String text, int icon) {
+        public Item(int id, CharSequence text, int icon) {
             this.icon = icon;
             this.id = id;
             this.text = text;
@@ -415,6 +438,17 @@ public class DrawerLayoutAdapter extends RecyclerListView.SelectionAdapter {
             } else {
                 actionCell.setTextAndIcon(id, text, icon);
             }
+            actionCell.setError(error);
+        }
+
+        public Item onClick(View.OnClickListener listener) {
+            this.listener = listener;
+            return this;
+        }
+
+        public Item withError() {
+            this.error = true;
+            return this;
         }
     }
 }

@@ -38,11 +38,10 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
-
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -318,6 +317,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
             }
             if (!TextUtils.isEmpty(txt)) {
                 editText.setText(txt);
+                editText.setSelection(0, editText.getText().length());
             }
         }
     }
@@ -526,7 +526,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
         editTextContainer.addView(avatarOverlay, LayoutHelper.createFrame(64, 64, Gravity.TOP | (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT), LocaleController.isRTL ? 0 : 16, 16, LocaleController.isRTL ? 16 : 0, 16));
         avatarOverlay.setOnClickListener(view -> {
             //CloudVeil start
-            if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+            if(CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
                 return;
             }
             //CloudVeil end
@@ -595,6 +595,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
         editText.setHint(chatType == ChatObject.CHAT_TYPE_CHAT || chatType == ChatObject.CHAT_TYPE_MEGAGROUP || chatType == ChatObject.CHAT_TYPE_FORUM ? LocaleController.getString("EnterGroupNamePlaceholder", R.string.EnterGroupNamePlaceholder) : LocaleController.getString("EnterListName", R.string.EnterListName));
         if (nameToSet != null) {
             editText.setText(nameToSet);
+            editText.setSelection(editText.getText().length());
             nameToSet = null;
         }
         setDefaultGroupName();
@@ -755,7 +756,7 @@ public class GroupCreateFinalActivity extends BaseFragment implements Notificati
     @Override
     public void didUploadPhoto(final TLRPC.InputFile photo, final TLRPC.InputFile video, double videoStartTimestamp, String videoPath, final TLRPC.PhotoSize bigSize, final TLRPC.PhotoSize smallSize, boolean isVideo, TLRPC.VideoSize emojiMarkup) {
         //CloudVeil start
-        if(GlobalSecuritySettings.getLockDisableOwnPhoto()) {
+        if(CloudVeilSecuritySettings.getLockDisableOwnPhoto()) {
             return;
         }
         //CloudVeil end

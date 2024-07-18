@@ -5,6 +5,13 @@
 }
 #cloudveil start
 -keep class  org.cloudveil.messenger.* { *; }
+-keepclassmembernames class org.cloudveil.messenger.* { *; }
+-keep class  org.cloudveil.messenger.api.model.request.* { *; }
+-keepclassmembernames class org.cloudveil.messenger.api.model.request.* { *; }
+-keep class  org.cloudveil.messenger.api.model.response.* { *; }
+-keepclassmembernames class org.cloudveil.messenger.api.model.response.* { *; }
+-keep class  org.cloudveil.messenger.api.service.* { *; }
+-keepclassmembernames class org.cloudveil.messenger.api.service.* { *; }
 #cloudveil end
 -keep class org.webrtc.* { *; }
 -keep class org.webrtc.audio.* { *; }
@@ -20,11 +27,8 @@
 -keep class org.telegram.SQLite.** { *; }
 -keep class org.telegram.tgnet.ConnectionsManager { *; }
 -keep class org.telegram.tgnet.NativeByteBuffer { *; }
--keep class org.telegram.tgnet.RequestDelegateInternal { *; }
 -keep class org.telegram.tgnet.RequestTimeDelegate { *; }
 -keep class org.telegram.tgnet.RequestDelegate { *; }
--keep class org.telegram.tgnet.QuickAckDelegate { *; }
--keep class org.telegram.tgnet.WriteToSocketDelegate { *; }
 -keep class com.google.android.exoplayer2.ext.** { *; }
 -keep class com.google.android.exoplayer2.extractor.FlacStreamMetadata { *; }
 -keep class com.google.android.exoplayer2.metadata.flac.PictureFrame { *; }

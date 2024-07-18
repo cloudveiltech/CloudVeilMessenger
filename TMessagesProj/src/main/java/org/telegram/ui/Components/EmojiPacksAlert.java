@@ -639,7 +639,7 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
                         if (drawable == null) {
                             continue;
                         }
-                        drawable.setColorFilter(Theme.getAnimatedEmojiColorFilter(resourcesProvider));
+                        drawable.setColorFilter(getAdaptiveEmojiColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlueIcon)));
 //                            drawable.addView(this);
                         ArrayList<EmojiImageView> arrayList = viewsGroupedByLines.get(child.getTop());
                         if (arrayList == null) {
@@ -773,7 +773,7 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
                     drawable.setAlpha(255);
                     AndroidUtilities.rectTmp2.set(imageView.getLeft() + imageView.getPaddingLeft(),  imageView.getPaddingTop(), imageView.getRight() - imageView.getPaddingRight(), imageView.getMeasuredHeight() - imageView.getPaddingBottom());
                     imageView.backgroundThreadDrawHolder[threadIndex].setBounds(AndroidUtilities.rectTmp2);
-                    drawable.setColorFilter(Theme.getAnimatedEmojiColorFilter(resourcesProvider));
+                    drawable.setColorFilter(getAdaptiveEmojiColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteBlueIcon)));
                     imageView.imageReceiver = drawable.getImageReceiver();;
                     drawInBackgroundViews.add(imageView);
                 }
@@ -1140,7 +1140,7 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
                 removeButtonView.setOnClickListener(ev -> {
                     dismiss();
                     if (fragment != null) {
-                        MediaDataController.getInstance(fragment.getCurrentAccount()).removeMultipleStickerSets(fragment.getFragmentView().getContext(), fragment, installedPacks);
+                        MediaDataController.getInstance(fragment.getCurrentAccount()).removeMultipleStickerSets(fragment.getContext(), fragment, installedPacks);
                     } else {
                         for (int i = 0; i < installedPacks.size(); ++i) {
                             TLRPC.TL_messages_stickerSet stickerSet = installedPacks.get(i);
@@ -2042,5 +2042,14 @@ public class EmojiPacksAlert extends BottomSheet implements NotificationCenter.N
             }
             return null;
         }
+    }
+
+    private ColorFilter adaptiveEmojiColorFilter;
+    private int adaptiveEmojiColor;
+    private ColorFilter getAdaptiveEmojiColorFilter(int color) {
+        if (color != adaptiveEmojiColor || adaptiveEmojiColorFilter == null) {
+            adaptiveEmojiColorFilter = new PorterDuffColorFilter(adaptiveEmojiColor = color, PorterDuff.Mode.SRC_IN);
+        }
+        return adaptiveEmojiColorFilter;
     }
 }

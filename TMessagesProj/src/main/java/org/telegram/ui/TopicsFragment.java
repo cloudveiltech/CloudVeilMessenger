@@ -52,8 +52,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSmoothScrollerCustom;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.exoplayer2.util.Log;
-
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -74,6 +72,7 @@ import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -90,6 +89,7 @@ import org.telegram.ui.Cells.DialogCell;
 import org.telegram.ui.Cells.GraySectionCell;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ProfileSearchCell;
+import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TopicSearchCell;
 import org.telegram.ui.Cells.UserCell;
 import org.telegram.ui.Components.AlertsCreator;
@@ -115,6 +115,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
 import org.telegram.ui.Components.NumberTextView;
 import org.telegram.ui.Components.PullForegroundDrawable;
+import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.RecyclerAnimationScrollHelper;
@@ -132,6 +133,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.concurrent.CountDownLatch;
 
 public class TopicsFragment extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, ChatActivityInterface, RightSlidingDialogContainer.BaseFragmentWithFullscreen {
 
@@ -191,8 +193,10 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     private static final int delete_chat_id = 11;
     private static final int hide_id = 12;
     private static final int show_id = 13;
+    private static final int boost_group_id = 14;
 
     private boolean removeFragmentOnTransitionEnd;
+    private boolean finishDialogRightSlidingPreviewOnTransitionEnd;
     TLRPC.ChatFull chatFull;
     boolean canShowCreateTopic;
     private UnreadCounterTextView bottomOverlayChatText;
@@ -204,8 +208,10 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     private ActionBarMenuSubItem createTopicSubmenu;
     private ActionBarMenuSubItem addMemberSubMenu;
     private ActionBarMenuSubItem deleteChatSubmenu;
+    private ActionBarMenuSubItem boostGroupSubmenu;
     private boolean bottomPannelVisible = true;
     private float searchAnimationProgress = 0f;
+    private TL_stories.TL_premium_boostsStatus boostsStatus;
 
     private long startArchivePullingTime;
     private boolean scrollingManually;
@@ -234,6 +240,8 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     public boolean searching;
     private boolean opnendForSelect;
     private boolean openedForForward;
+    private boolean openedForQuote;
+    private boolean openedForReply;
     HashSet<Integer> excludeTopics;
     private boolean mute = false;
 
@@ -256,7 +264,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             NotificationCenter.topicsDidLoaded
     });
     private View blurredView;
-    private int selectedTopicForTablet;
+    private long selectedTopicForTablet;
 
     private boolean joinRequested;
     private ChatActivityMemberRequestsDelegate pendingRequestsDelegate;
@@ -281,8 +289,36 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         chatId = arguments.getLong("chat_id", 0);
         opnendForSelect = arguments.getBoolean("for_select", false);
         openedForForward = arguments.getBoolean("forward_to", false);
+        openedForQuote = arguments.getBoolean("quote", false);
+        openedForReply = arguments.getBoolean("reply_to", false);
         topicsController = getMessagesController().getTopicsController();
         canShowProgress = !getUserConfig().getPreferences().getBoolean("topics_end_reached_" + chatId, false);
+    }
+
+    public static BaseFragment getTopicsOrChat(BaseFragment parentFragment, Bundle args) {
+        return getTopicsOrChat(parentFragment.getMessagesController(), parentFragment.getMessagesStorage(), args);
+    }
+
+    public static BaseFragment getTopicsOrChat(LaunchActivity launchActivity, Bundle args) {
+        return getTopicsOrChat(MessagesController.getInstance(launchActivity.currentAccount), MessagesStorage.getInstance(launchActivity.currentAccount), args);
+    }
+
+    private static BaseFragment getTopicsOrChat(MessagesController messagesController, MessagesStorage messagesStorage, Bundle args) {
+        long chatId = args.getLong("chat_id");
+        if (chatId != 0L) {
+            TLRPC.Dialog dialog = messagesController.getDialog(-chatId);
+            if (dialog != null && dialog.view_forum_as_messages) {
+                return new ChatActivity(args);
+            }
+            TLRPC.ChatFull chatFull = messagesController.getChatFull(chatId);
+            if (chatFull == null) {
+                chatFull = messagesStorage.loadChatInfo(chatId, true, new CountDownLatch(1), false, false);
+            }
+            if (chatFull != null && chatFull.view_forum_as_messages) {
+                return new ChatActivity(args);
+            }
+        }
+        return new TopicsFragment(args);
     }
 
     public static void prepareToSwitchAnimation(ChatActivity chatActivity) {
@@ -505,7 +541,13 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                 TLRPC.TL_forumTopic topic;
                 switch (id) {
                     case toggle_id:
-                        switchToChat(false);
+                        getMessagesController().getTopicsController().toggleViewForumAsMessages(chatId, true);
+                        finishDialogRightSlidingPreviewOnTransitionEnd = true;
+                        Bundle bundle = new Bundle();
+                        bundle.putLong("chat_id", chatId);
+                        ChatActivity chatActivity = new ChatActivity(bundle);
+                        chatActivity.setSwitchFromTopics(true);
+                        presentFragment(chatActivity);
                         break;
                     case add_member_id:
                         TLRPC.ChatFull chatFull = getMessagesController().getChatFull(chatId);
@@ -542,6 +584,17 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                             bottomSheet.show();
                         }
                         break;
+                    case boost_group_id: {
+                        TLRPC.Chat chatLocal = getMessagesController().getChat(chatId);
+                        if (ChatObject.hasAdminRights(chatLocal)) {
+                            BoostsActivity boostsActivity = new BoostsActivity(-chatId);
+                            boostsActivity.setBoostsStatus(boostsStatus);
+                            presentFragment(boostsActivity);
+                        } else {
+                            getNotificationCenter().postNotificationName(NotificationCenter.openBoostForUsersDialog, -chatId);
+                        }
+                        break;
+                    }
                     case create_topic_id:
                         TopicCreateFragment fragment = TopicCreateFragment.create(chatId, 0);
                         presentFragment(fragment);
@@ -692,12 +745,15 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         other = menu.addItem(0, R.drawable.ic_ab_other, themeDelegate);
         other.addSubItem(toggle_id, R.drawable.msg_discussion, LocaleController.getString("TopicViewAsMessages", R.string.TopicViewAsMessages));
         addMemberSubMenu = other.addSubItem(add_member_id, R.drawable.msg_addcontact, LocaleController.getString("AddMember", R.string.AddMember));
+        boostGroupSubmenu = other.addSubItem(boost_group_id, 0, new RLottieDrawable(R.raw.boosts, "" + R.raw.boosts, AndroidUtilities.dp(24), AndroidUtilities.dp(24)), TextCell.applyNewSpan(LocaleController.getString(R.string.BoostingBoostGroupMenu)), true, false);
         createTopicSubmenu = other.addSubItem(create_topic_id, R.drawable.msg_topic_create, LocaleController.getString("CreateTopic", R.string.CreateTopic));
         deleteChatSubmenu = other.addSubItem(delete_chat_id, R.drawable.msg_leave, LocaleController.getString("LeaveMegaMenu", R.string.LeaveMegaMenu), themeDelegate);
 
         avatarContainer = new ChatAvatarContainer(context, this, false);
         avatarContainer.getAvatarImageView().setRoundRadius(AndroidUtilities.dp(16));
         avatarContainer.setOccupyStatusBar(!AndroidUtilities.isTablet() && !inPreviewMode);
+        avatarContainer.allowDrawStories = getDialogId() < 0;
+        avatarContainer.setClipChildren(false);
         actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 56, 0, 86, 0));
 
         avatarContainer.getAvatarImageView().setOnClickListener(new View.OnClickListener() {
@@ -725,7 +781,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             }
         };
         SpannableString generalIcon = new SpannableString("#");
-        Drawable generalIconDrawable = ForumUtilities.createGeneralTopicDrawable(getContext(), .85f, Color.WHITE);
+        Drawable generalIconDrawable = ForumUtilities.createGeneralTopicDrawable(getContext(), .85f, Color.WHITE, false);
         generalIconDrawable.setBounds(0, AndroidUtilities.dp(2), AndroidUtilities.dp(16), AndroidUtilities.dp(18));
         generalIcon.setSpan(new ImageSpan(generalIconDrawable, DynamicDrawableSpan.ALIGN_CENTER), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         pullForegroundDrawable = new PullForegroundDrawable(
@@ -1316,6 +1372,10 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         updateChatInfo();
         updateColors();
 
+        if (ChatObject.isBoostSupported(getCurrentChat())) {
+            getMessagesController().getBoostsController().getBoostsStats(-chatId, boostsStatus -> this.boostsStatus = boostsStatus);
+        }
+
         return fragmentView;
     }
 
@@ -1391,7 +1451,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                 parentAvatarImageView = new BackupImageView(getContext());
                 parentAvatarDrawable = new AvatarDrawable();
                 parentAvatarImageView.setRoundRadius(AndroidUtilities.dp(16));
-                parentAvatarDrawable.setInfo(getCurrentChat());
+                parentAvatarDrawable.setInfo(currentAccount, getCurrentChat());
                 parentAvatarImageView.setForUserOrChat(getCurrentChat(), parentAvatarDrawable);
             }
             parentDialogsActivity.getSearchItem().setSearchPaddingStart(52);
@@ -1819,7 +1879,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                 AndroidUtilities.runOnUIThread(() -> {
                     Bundle args = new Bundle();
                     args.putLong("dialog_id", -chatId);
-                    args.putInt("topic_id", topic.id);
+                    args.putLong("topic_id", topic.id);
                     presentFragment(new ProfileNotificationsActivity(args, themeDelegate));
                 }, 500);
             }
@@ -2368,7 +2428,11 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             }
             updateSubtitle();
         } else {
-            if (openedForForward) {
+            if (openedForReply) {
+                avatarContainer.setTitle(LocaleController.getString(R.string.ReplyToDialog));
+            } else if (openedForQuote) {
+                avatarContainer.setTitle(LocaleController.getString("QuoteTo", R.string.QuoteTo));
+            } else if (openedForForward) {
                 avatarContainer.setTitle(LocaleController.getString("ForwardTo", R.string.ForwardTo));
             } else {
                 avatarContainer.setTitle(LocaleController.getString("SelectTopic", R.string.SelectTopic));
@@ -2445,7 +2509,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
 
         other.setVisibility(opnendForSelect ? View.GONE : View.VISIBLE);
         addMemberSubMenu.setVisibility(ChatObject.canAddUsers(chatLocal) ? View.VISIBLE : View.GONE);
-
+        boostGroupSubmenu.setVisibility(ChatObject.isBoostSupported(chatLocal) && (getUserConfig().isPremium() || ChatObject.isBoosted(chatFull) || ChatObject.hasAdminRights(chatLocal)) ? View.VISIBLE : View.GONE);
         deleteChatSubmenu.setVisibility(chatLocal != null && !chatLocal.creator && !ChatObject.isNotInChat(chatLocal) ? View.VISIBLE : View.GONE);
         updateCreateTopicButton(true);
         groupCall = getMessagesController().getGroupCall(chatId, true);
@@ -2481,6 +2545,8 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     @Override
     public boolean onFragmentCreate() {
         getMessagesController().loadFullChat(chatId, 0, true);
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.storiesUpdated);
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.chatWasBoostedByUser);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.chatInfoDidLoad);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.topicsDidLoaded);
         NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.updateInterfaces);
@@ -2518,7 +2584,8 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     @Override
     public void onFragmentDestroy() {
         notificationsLocker.unlock();
-
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.storiesUpdated);
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.chatWasBoostedByUser);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.chatInfoDidLoad);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.topicsDidLoaded);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.updateInterfaces);
@@ -2608,6 +2675,12 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                     pendingRequestsDelegate.setChatInfo(chatFull, true);
                 }
             }
+        } else if (id == NotificationCenter.storiesUpdated) {
+            updateChatInfo();
+        } else if (id == NotificationCenter.chatWasBoostedByUser) {
+            if (chatId == -(long) args[2]) {
+                boostsStatus = (TL_stories.TL_premium_boostsStatus) args[0];
+            }
         } else if (id == NotificationCenter.topicsDidLoaded) {
             Long chatId = (Long) args[0];
             if (this.chatId == chatId) {
@@ -2654,7 +2727,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             }
             boolean close = (Boolean) args[2];
             long dialog_id = (Long) args[0];
-            int topicId = (int) args[1];
+            long topicId = (Long) args[1];
             if (dialog_id == -chatId && !close) {
                 if (selectedTopicForTablet != topicId) {
                     selectedTopicForTablet = topicId;
@@ -2969,7 +3042,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             }
             if (topic != null && topic.id == 1) {
                 setAnimatedEmojiDrawable(null);
-                setForumIcon(ForumUtilities.createGeneralTopicDrawable(getContext(), 1f, getThemedColor(Theme.key_chat_inMenu)));
+                setForumIcon(ForumUtilities.createGeneralTopicDrawable(getContext(), 1f, getThemedColor(Theme.key_chat_inMenu), false));
             } else if (topic != null && topic.icon_emoji_id != 0) {
                 setForumIcon(null);
                 if (animatedEmojiDrawable == null || animatedEmojiDrawable.getDocumentId() != topic.icon_emoji_id) {
@@ -2977,7 +3050,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                 }
             } else {
                 setAnimatedEmojiDrawable(null);
-                setForumIcon(ForumUtilities.createTopicDrawable(topic));
+                setForumIcon(ForumUtilities.createTopicDrawable(topic, false));
             }
             updateHidden(topic != null && topic.hidden, true);
 
@@ -3613,7 +3686,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                     MessageObject message = searchResultMessages.get(position - messagesStartRow);
                     TopicDialogCell dialogCell = (TopicDialogCell) holder.itemView;
                     dialogCell.drawDivider = position != messagesEndRow - 1;
-                    int topicId = MessageObject.getTopicId(message.messageOwner, true);
+                    long topicId = MessageObject.getTopicId(currentAccount, message.messageOwner, true);
                     if (topicId == 0) {
                         topicId = 1;
                     }
@@ -3780,10 +3853,19 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
 
         notificationsLocker.unlock();
 
-        if (!isOpen && (opnendForSelect && removeFragmentOnTransitionEnd)) {
-            removeSelfFromStack();
-            if (dialogsActivity != null) {
-                dialogsActivity.removeSelfFromStack();
+        if (!isOpen) {
+            if (opnendForSelect && removeFragmentOnTransitionEnd) {
+                removeSelfFromStack();
+                if (dialogsActivity != null) {
+                    dialogsActivity.removeSelfFromStack();
+                }
+            } else if (finishDialogRightSlidingPreviewOnTransitionEnd) {
+                removeSelfFromStack();
+                if (parentDialogsActivity != null && parentDialogsActivity.rightSlidingDialogContainer != null) {
+                    if (parentDialogsActivity.rightSlidingDialogContainer.hasFragment()) {
+                        parentDialogsActivity.rightSlidingDialogContainer.finishPreview();
+                    }
+                }
             }
         }
     }

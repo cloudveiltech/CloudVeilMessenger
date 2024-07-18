@@ -27,24 +27,31 @@ import android.os.Handler;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.multidex.MultiDex;
+import androidx.work.WorkManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.json.JSONObject;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.Adapters.DrawerLayoutAdapter;
 import org.telegram.ui.Components.ForegroundDetector;
+import org.telegram.ui.IUpdateLayout;
 import org.telegram.ui.LauncherIconController;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.concurrent.Executors;
 
-import io.sentry.Sentry;
-import io.sentry.SentryLevel;
 import io.sentry.android.core.SentryAndroid;
 
 public class ApplicationLoader extends Application {
@@ -128,7 +135,15 @@ public class ApplicationLoader extends Application {
         return applicationLoaderInstance.isHuaweiBuild();
     }
 
+    public static boolean isStandaloneBuild() {
+        return applicationLoaderInstance.isStandalone();
+    }
+
     protected boolean isHuaweiBuild() {
+        return false;
+    }
+
+    protected boolean isStandalone() {
         return false;
     }
 
@@ -251,8 +266,13 @@ public class ApplicationLoader extends Application {
         }
 
         super.onCreate();
-
         //CloudVeil start
+        WorkManager.initialize(
+                this,
+                new androidx.work.Configuration.Builder()
+                        .setExecutor(Executors.newFixedThreadPool(1))
+                        .setMinimumLoggingLevel(Log.VERBOSE)
+                        .build());
         SentryAndroid.init(this, options -> {
             options.setDsn(BuildConfig.SENTRY_KEY);
         });
@@ -260,7 +280,11 @@ public class ApplicationLoader extends Application {
 
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app start time = " + (startTime = SystemClock.elapsedRealtime()));
-            FileLog.d("buildVersion = " + BuildVars.BUILD_VERSION);
+            try {
+                FileLog.d("buildVersion = " + ApplicationLoader.applicationContext.getPackageManager().getPackageInfo(ApplicationLoader.applicationContext.getPackageName(), 0).versionCode);
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
         }
         if (applicationContext == null) {
             applicationContext = getApplicationContext();
@@ -291,10 +315,10 @@ public class ApplicationLoader extends Application {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         SharedPreferences.Editor edit = preferences.edit();
         if (edit != null) {
-            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
+            if(CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_BACKGROUND_SERVICE) {
                 edit.putBoolean("pushConnection", true);
             }
-            if(GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+            if(CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
                 edit.putBoolean("pushService", true);
             }
             edit.commit();
@@ -304,15 +328,14 @@ public class ApplicationLoader extends Application {
 
         LauncherIconController.tryFixLauncherIconIfNeeded();
         ProxyRotationController.init();
-
     }
 
     public static void startPushService() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         boolean enabled;
         //CloudVeil start
-        if (preferences.contains("pushService") || GlobalSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
-        //CloudVeil end
+        if (preferences.contains("pushService") || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
+            //CloudVeil end
             enabled = preferences.getBoolean("pushService", true);
         } else {
             enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
@@ -363,6 +386,13 @@ public class ApplicationLoader extends Application {
             FileLog.e(e);
         }
         return true;
+    }
+
+    private static long lastNetworkCheck = -1;
+    private static void ensureCurrentNetworkGet() {
+        final long now = System.currentTimeMillis();
+        ensureCurrentNetworkGet(now - lastNetworkCheck > 5000);
+        lastNetworkCheck = now;
     }
 
     private static void ensureCurrentNetworkGet(boolean force) {
@@ -588,4 +618,53 @@ public class ApplicationLoader extends Application {
     public boolean openApkInstall(Activity activity, TLRPC.Document document) {
         return false;
     }
+
+    public boolean showUpdateAppPopup(Context context, TLRPC.TL_help_appUpdate update, int account) {
+        return false;
+    }
+
+    public IUpdateLayout takeUpdateLayout(Activity activity, ViewGroup sideMenu, ViewGroup sideMenuContainer) {
+        return null;
+    }
+
+    public TLRPC.Update parseTLUpdate(int constructor) {
+        return null;
+    }
+
+    public void processUpdate(int currentAccount, TLRPC.Update update) {
+
+    }
+
+    public boolean onSuggestionFill(String suggestion, CharSequence[] output, boolean[] closeable) {
+        return false;
+    }
+
+    public boolean onSuggestionClick(String suggestion) {
+        return false;
+    }
+
+    public boolean extendDrawer(ArrayList<DrawerLayoutAdapter.Item> items) {
+        return false;
+    }
+
+    public boolean checkRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) {
+        return false;
+    }
+
+    public boolean consumePush(int account, JSONObject json) {
+        return false;
+    }
+
+    public void onResume() {
+
+    }
+
+    public boolean onPause() {
+        return false;
+    }
+
+    public BaseFragment openSettings(int n) {
+        return null;
+    }
+
 }

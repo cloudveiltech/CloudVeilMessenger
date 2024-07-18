@@ -1,5 +1,4 @@
 apply plugin: 'com.android.application'
-
 def keystorePropertiesFile = rootProject.file("../keystore.properties");
 def keystoreProperties = new Properties()
 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
@@ -94,7 +93,7 @@ android {
             debuggable false
             jniDebuggable false
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'
@@ -157,7 +156,6 @@ android {
                 abiVersionCode = 9
             }
         }
-
         cloudveil {
             ndk {
                 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
@@ -174,27 +172,6 @@ android {
             ext {
                 abiVersionCode = 9
             }
-
-            applicationId "org.cloudveil.messenger"
-        }
-
-        wcma {
-            ndk {
-                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-            }
-            sourceSets.debug {
-                manifest.srcFile '../TMessagesProj/config/debug/AndroidManifest_SDK23.xml'
-            }
-            sourceSets.release {
-                manifest.srcFile '../TMessagesProj/config/release/AndroidManifest_SDK23.xml'
-            }
-            sourceSets.standalone {
-                manifest.srcFile '../TMessagesProj/config/release/AndroidManifest_standalone.xml'
-            }
-            ext {
-                abiVersionCode = 9
-            }
-            applicationId "org.test.messenger"
         }
     }
 
@@ -205,21 +182,22 @@ android {
             //CloudVeil start
             def date = new Date();
             def formattedDate = date.format('yy-MM-dd')
-            outputFileName = "cloudveil_messenger_" + formattedDate + ".apk"
+            outputFileName = "cloudveil_messenger_" + formattedDate + "_v" + APP_VERSION_NAME + "(" + APP_VERSION_CODE + ").apk"
             //CloudVeil end
             output.versionCodeOverride = defaultConfig.versionCode * 10 + variant.productFlavors.get(0).abiVersionCode
         }
     }
 
+
     variantFilter { variant ->
         def names = variant.flavors*.name
-        if (variant.buildType.name != "release" && !names.contains("afat")) {
+        if (variant.buildType.name != "release" && !names.contains("cloudveil")) {
             setIgnore(true)
         }
     }
 
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion 19
         targetSdkVersion 33
         versionName APP_VERSION_NAME
         ndkVersion "21.4.7075529"

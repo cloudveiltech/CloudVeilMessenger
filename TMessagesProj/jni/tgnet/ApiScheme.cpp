@@ -483,19 +483,19 @@ void TL_user::readParams(NativeByteBuffer *stream, int32_t instanceNum, bool &er
         lang_code = stream->readString(&error);
     }
     if ((flags & 1073741824) != 0) {
-        uint32_t magic = stream->readUint32(&error);
-        if (magic == 0x2de11aae) {
+        emojiStatusMagic = stream->readUint32(&error);
+        if (emojiStatusMagic == 0x2de11aae) {
             // emojiStatusEmpty
-        } else if (magic == 0x929b619d) {
+        } else if (emojiStatusMagic == 0x929b619d) {
             // emojiStatus
-            int64_t document_id = stream->readInt64(&error);
-        } else if (magic == 0xfa30a8c7) {
+            emojiStatusDocumentId = stream->readInt64(&error);
+        } else if (emojiStatusMagic == 0xfa30a8c7) {
             // emojiStatusUntil
-            int64_t document_id = stream->readInt64(&error);
-            int until = stream->readInt32(&error);
+            emojiStatusDocumentId = stream->readInt64(&error);
+            emojiStatusUntil = stream->readInt32(&error);
         } else {
             error = true;
-            if (LOGS_ENABLED) DEBUG_FATAL("wrong EmojiStatus magic, got %x", magic);
+            if (LOGS_ENABLED) DEBUG_FATAL("wrong EmojiStatus magic, got %x", emojiStatusMagic);
             return;
         }
     }
@@ -517,6 +517,16 @@ void TL_user::readParams(NativeByteBuffer *stream, int32_t instanceNum, bool &er
     }
     if ((flags2 & 32) != 0) {
         stories_max_id = stream->readInt32(&error);
+    }
+    if ((flags2 & 256) != 0) {
+        int magic = stream->readInt32(&error);
+        color_color = stream->readInt32(&error);
+        color_background_emoji_id = stream->readInt64(&error);
+    }
+    if ((flags2 & 512) != 0) {
+        int magic = stream->readInt32(&error);
+        profile_color_color = stream->readInt32(&error);
+        profile_color_background_emoji_id = stream->readInt64(&error);
     }
 }
 
@@ -562,6 +572,38 @@ void TL_user::serializeToStream(NativeByteBuffer *stream) {
     }
     if ((flags & 4194304) != 0) {
         stream->writeString(lang_code);
+    }
+    if ((flags & 1073741824) != 0) {
+        stream->writeInt32(emojiStatusMagic);
+        if (emojiStatusMagic == 0x929b619d) {
+            // emojiStatus
+            stream->writeInt64(emojiStatusDocumentId);
+        } else if (emojiStatusMagic == 0xfa30a8c7) {
+            // emojiStatusUntil
+            stream->writeInt64(emojiStatusDocumentId);
+            stream->writeInt32(emojiStatusUntil);
+        }
+    }
+    if ((flags2 & 1) != 0) {
+        stream->writeInt32(0x1cb5c415);
+        int32_t count = (int32_t) usernames.size();
+        stream->writeInt32(count);
+        for (int a = 0; a < count; a++) {
+            usernames[a]->serializeToStream(stream);
+        }
+    }
+    if ((flags2 & 32) != 0) {
+        stream->writeInt32(stories_max_id);
+    }
+    if ((flags2 & 256) != 0) {
+        stream->writeInt32(0xba278146);
+        stream->writeInt32(color_color);
+        stream->writeInt32(color_background_emoji_id);
+    }
+    if ((flags2 & 512) != 0) {
+        stream->writeInt32(0xba278146);
+        stream->writeInt32(profile_color_color);
+        stream->writeInt32(profile_color_background_emoji_id);
     }
 }
 
@@ -1168,20 +1210,29 @@ UserStatus *UserStatus::TLdeserialize(NativeByteBuffer *stream, uint32_t constru
         case 0x8c703f:
             result = new TL_userStatusOffline();
             break;
-        case 0x7bf09fc:
-            result = new TL_userStatusLastWeek();
-            break;
         case 0x9d05049:
             result = new TL_userStatusEmpty();
-            break;
-        case 0x77ebc742:
-            result = new TL_userStatusLastMonth();
             break;
         case 0xedb93949:
             result = new TL_userStatusOnline();
             break;
-        case 0xe26f42f1:
+        case 0x7b197dc8:
             result = new TL_userStatusRecently();
+            break;
+        case 0x541a1d1a:
+            result = new TL_userStatusLastWeek();
+            break;
+        case 0x65899777:
+            result = new TL_userStatusLastMonth();
+            break;
+        case 0xe26f42f1:
+            result = new TL_userStatusRecently_layer171();
+            break;
+        case 0x7bf09fc:
+            result = new TL_userStatusLastWeek_layer171();
+            break;
+        case 0x77ebc742:
+            result = new TL_userStatusLastMonth_layer171();
             break;
         default:
             error = true;
@@ -1201,8 +1252,19 @@ void TL_userStatusOffline::serializeToStream(NativeByteBuffer *stream) {
     stream->writeInt32(expires);
 }
 
+void TL_userStatusLastWeek_layer171::serializeToStream(NativeByteBuffer *stream) {
+    stream->writeInt32(constructor);
+}
+
 void TL_userStatusLastWeek::serializeToStream(NativeByteBuffer *stream) {
     stream->writeInt32(constructor);
+    flags = by_me ? flags | 1 : flags &~ 1;
+    stream->writeInt32(flags);
+}
+
+void TL_userStatusLastWeek::readParams(NativeByteBuffer *stream, int32_t instanceNum, bool &error) {
+    flags = stream->readInt32(&error);
+    by_me = (flags & 1) != 0;
 }
 
 void TL_userStatusEmpty::serializeToStream(NativeByteBuffer *stream) {
@@ -1210,6 +1272,17 @@ void TL_userStatusEmpty::serializeToStream(NativeByteBuffer *stream) {
 }
 
 void TL_userStatusLastMonth::serializeToStream(NativeByteBuffer *stream) {
+    stream->writeInt32(constructor);
+    flags = by_me ? flags | 1 : flags &~ 1;
+    stream->writeInt32(flags);
+}
+
+void TL_userStatusLastMonth::readParams(NativeByteBuffer *stream, int32_t instanceNum, bool &error) {
+    flags = stream->readInt32(&error);
+    by_me = (flags & 1) != 0;
+}
+
+void TL_userStatusLastMonth_layer171::serializeToStream(NativeByteBuffer *stream) {
     stream->writeInt32(constructor);
 }
 
@@ -1223,6 +1296,21 @@ void TL_userStatusOnline::serializeToStream(NativeByteBuffer *stream) {
 }
 
 void TL_userStatusRecently::serializeToStream(NativeByteBuffer *stream) {
+    stream->writeInt32(constructor);
+    flags = by_me ? flags | 1 : flags &~ 1;
+    stream->writeInt32(flags);
+}
+
+void TL_userStatusRecently::readParams(NativeByteBuffer *stream, int32_t instanceNum, bool &error) {
+    flags = stream->readInt32(&error);
+    by_me = (flags & 1) != 0;
+}
+
+void TL_userStatusRecently_layer171::serializeToStream(NativeByteBuffer *stream) {
+    stream->writeInt32(constructor);
+}
+
+void TL_userStatusHidden::serializeToStream(NativeByteBuffer *stream) {
     stream->writeInt32(constructor);
 }
 

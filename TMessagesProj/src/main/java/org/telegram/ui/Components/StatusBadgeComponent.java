@@ -4,6 +4,7 @@ import android.graphics.drawable.Drawable;
 import android.view.View;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DialogObject;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
@@ -15,7 +16,11 @@ public class StatusBadgeComponent {
     private Drawable verifiedDrawable;
 
     public StatusBadgeComponent(View parentView) {
-        statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(parentView, AndroidUtilities.dp(18));
+        this(parentView, 18);
+    }
+
+    public StatusBadgeComponent(View parentView, int sizeDp) {
+        statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(parentView, AndroidUtilities.dp(sizeDp));
     }
 
     public Drawable updateDrawable(TLObject object, int colorFilter, boolean animated) {
@@ -31,17 +36,15 @@ public class StatusBadgeComponent {
         if (chat != null && chat.verified) {
             statusDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new CombinedDrawable(Theme.dialogs_verifiedDrawable, Theme.dialogs_verifiedCheckDrawable) : verifiedDrawable), animated);
             statusDrawable.setColor(null);
-            return statusDrawable;
-        }
-        if (user != null && user.verified) {
+        } else if (chat != null && DialogObject.getEmojiStatusDocumentId(chat.emoji_status) != 0) {
+            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(chat.emoji_status), animated);
+            statusDrawable.setColor(colorFilter);
+        } else if (user != null && user.verified) {
             statusDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new CombinedDrawable(Theme.dialogs_verifiedDrawable, Theme.dialogs_verifiedCheckDrawable) : verifiedDrawable), animated);
             statusDrawable.setColor(null);
-        } else if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatus) {
-            statusDrawable.set(((TLRPC.TL_emojiStatus) user.emoji_status).document_id, animated);
-            statusDrawable.setColor(null);
-        } else if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusUntil && ((TLRPC.TL_emojiStatusUntil) user.emoji_status).until > (int) (System.currentTimeMillis() / 1000)) {
-            statusDrawable.set(((TLRPC.TL_emojiStatusUntil) user.emoji_status).document_id, animated);
-            statusDrawable.setColor(null);
+        } else if (user != null && DialogObject.getEmojiStatusDocumentId(user.emoji_status) != 0) {
+            statusDrawable.set(DialogObject.getEmojiStatusDocumentId(user.emoji_status), animated);
+            statusDrawable.setColor(colorFilter);
         } else if (user != null && user.premium) {
             statusDrawable.set(PremiumGradient.getInstance().premiumStarDrawableMini, animated);
             statusDrawable.setColor(colorFilter);

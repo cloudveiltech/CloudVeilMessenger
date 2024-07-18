@@ -3,7 +3,6 @@ package org.telegram.ui.Stories.recorder;
 import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.AndroidUtilities.dpf2;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -22,7 +21,6 @@ import android.widget.TextView;
 
 import androidx.core.graphics.ColorUtils;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
@@ -74,7 +72,7 @@ public class PreviewHighlightView extends FrameLayout {
             }
         };
         PeerStoriesView.PeerHeaderView headerView = new PeerStoriesView.PeerHeaderView(getContext(), null);
-        headerView.backupImageView.getAvatarDrawable().setInfo(me);
+        headerView.backupImageView.getAvatarDrawable().setInfo(currentAccount, me);
         headerView.backupImageView.setForUserOrChat(me, headerView.backupImageView.getAvatarDrawable());
         CharSequence text = UserObject.getUserName(me);
         text = Emoji.replaceEmoji(text, headerView.titleView.getPaint().getFontMetricsInt(), false);
@@ -145,7 +143,7 @@ public class PreviewHighlightView extends FrameLayout {
 
     public void updateCaption(CharSequence caption) {
         caption = AnimatedEmojiSpan.cloneSpans(new SpannableString(caption));
-        storyCaptionView.captionTextview.setText(caption, false, false);
+        storyCaptionView.captionTextview.setText(caption, null, false, false);
     }
 
     private boolean shownTop = false, shownBottom = false;

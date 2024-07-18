@@ -43,9 +43,10 @@ class ServiceClientHolder<T> {
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         final OkHttpClient.Builder okHttpClientBuilder = new OkHttpClient.Builder();
-        okHttpClientBuilder.connectTimeout(1, TimeUnit.MINUTES);
-        okHttpClientBuilder.readTimeout(1, TimeUnit.MINUTES);
-        okHttpClientBuilder.writeTimeout(1, TimeUnit.MINUTES);
+        okHttpClientBuilder.connectTimeout(10, TimeUnit.MINUTES);
+        okHttpClientBuilder.readTimeout(10, TimeUnit.MINUTES);
+        okHttpClientBuilder.writeTimeout(10, TimeUnit.MINUTES);
+        okHttpClientBuilder.callTimeout(0, TimeUnit.SECONDS);
 
         okHttpClientBuilder.interceptors().add(interceptor);
 

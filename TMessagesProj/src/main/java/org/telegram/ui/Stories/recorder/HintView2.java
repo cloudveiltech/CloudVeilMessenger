@@ -11,16 +11,13 @@ import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.CornerPathEffect;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
-import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
@@ -32,22 +29,20 @@ import android.text.Spanned;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.style.ClickableSpan;
-import android.util.Log;
 import android.util.StateSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.animation.OvershootInterpolator;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
-import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.AnimatedEmojiDrawable;
+import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.ButtonBounce;
@@ -80,13 +75,13 @@ public class HintView2 extends View {
     private Drawable closeButtonDrawable;
     private boolean closeButton;
 
-    private float rounding = dp(8);
+    protected float rounding = dp(8);
     private final RectF innerPadding = new RectF(dp(11), dp(6), dp(11), dp(7));
     private float closeButtonMargin = dp(2);
     private float arrowHalfWidth = dp(7);
     private float arrowHeight = dp(6);
 
-    private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    protected final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private CharSequence textToSet;
     private AnimatedTextView.AnimatedTextDrawable textDrawable;
@@ -95,6 +90,7 @@ public class HintView2 extends View {
     private final TextPaint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private Layout.Alignment textLayoutAlignment = Layout.Alignment.ALIGN_NORMAL;
     private StaticLayout textLayout;
+    private AnimatedEmojiSpan.EmojiGroupedSpans emojiGroupedSpans;
     private float textLayoutLeft, textLayoutWidth, textLayoutHeight;
     private LinkSpanDrawable.LinkCollector links = new LinkSpanDrawable.LinkCollector();
     private float textX, textY;
@@ -212,6 +208,12 @@ public class HintView2 extends View {
         return this;
     }
 
+    public HintView2 setIcon(int resId) {
+        RLottieDrawable icon = new RLottieDrawable(resId, "" + resId, dp(34), dp(34));
+        icon.start();
+        return setIcon(icon);
+    }
+
     public HintView2 setIcon(Drawable icon) {
         if (this.icon != null) {
             this.icon.setCallback(null);
@@ -260,6 +262,7 @@ public class HintView2 extends View {
                 len += paint.measureText(spanned, s, e);
                 paint.setTypeface(oldTypeface);
             }
+            s = e;
         }
         e = Math.max(s, text.length());
         if (e - s > 0) {
@@ -275,15 +278,16 @@ public class HintView2 extends View {
         float prevLeftWidth = 0;
         float prevRightWidth = Float.MAX_VALUE;
 
+        int dir = -1;
         for (int i = 0; i < 10; ++i) {
             // Adjust the mid to point to the nearest space on the left
-            while (mid > 0 && text.charAt(mid) != ' ') {
-                mid--;
+            while (mid > 0 && mid < text.length() && text.charAt(mid) != ' ') {
+                mid += dir;
             }
 
 
-            leftWidth = measureCorrectly(text.subSequence(0, mid).toString(), paint);
-            rightWidth = measureCorrectly(text.subSequence(mid, text.length()).toString().trim(), paint);
+            leftWidth = measureCorrectly(text.subSequence(0, mid), paint);
+            rightWidth = measureCorrectly(AndroidUtilities.getTrimmedString(text.subSequence(mid, text.length())), paint);
 
             // If we're not making progress, exit the loop.
             // (This is a basic way to ensure termination when we can't improve the result.)
@@ -296,11 +300,13 @@ public class HintView2 extends View {
 
             // If left side is shorter, move midpoint to the right.
             if (leftWidth < rightWidth) {
-                mid++;
+                dir = +1;
+                mid += dir;
             }
             // If right side is shorter or equal, move midpoint to the left.
             else {
-                mid--;
+                dir = -1;
+                mid += dir;
             }
 
             // Ensure mid doesn't go out of bounds
@@ -459,6 +465,7 @@ public class HintView2 extends View {
         if (shown) {
             bounceShow();
         }
+        AndroidUtilities.makeAccessibilityAnnouncement(getText());
         shown = true;
         invalidate();
 
@@ -578,6 +585,13 @@ public class HintView2 extends View {
         textLayoutWidth = Math.max(0, right - left);
         textLayoutHeight = textLayout.getHeight();
         textLayoutLeft = left;
+        emojiGroupedSpans = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, emojiGroupedSpans, textLayout);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        AnimatedEmojiSpan.release(this, emojiGroupedSpans);
     }
 
     private final ButtonBounce bounce = new ButtonBounce(this, 2f, 5f);
@@ -585,11 +599,15 @@ public class HintView2 extends View {
 
     private final Rect boundsWithArrow = new Rect();
     private final RectF bounds = new RectF();
-    private final Path path = new Path();
+    protected final Path path = new Path();
     private float arrowX, arrowY;
     private float pathLastWidth, pathLastHeight;
     private boolean pathSet;
     private boolean firstDraw = true;
+
+    protected void drawBgPath(Canvas canvas) {
+        canvas.drawPath(path, backgroundPaint);
+    }
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
@@ -656,7 +674,7 @@ public class HintView2 extends View {
             backgroundAlpha *= .2f;
         }
         backgroundPaint.setAlpha((int) (wasAlpha * backgroundAlpha));
-        canvas.drawPath(path, backgroundPaint);
+        drawBgPath(canvas);
         backgroundPaint.setAlpha(wasAlpha);
 
         if (selectorDrawable != null) {
@@ -695,6 +713,7 @@ public class HintView2 extends View {
                 invalidate();
             }
             textLayout.draw(canvas);
+            AnimatedEmojiSpan.drawAnimatedEmojis(canvas, textLayout, emojiGroupedSpans, 0, null, 0, 0, 0, 1f);
             canvas.restore();
         } else {
             if (textToSet != null) {

@@ -1,5 +1,7 @@
 package org.cloudveil.messenger.api.model.response;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -30,9 +32,10 @@ public class SettingsResponse {
 
     public static class Organization {
         public int id;
-        public String name;
+        public String name = "";
         public boolean needChange;
-        public String aboutUrl;
+        public String aboutUrl = "";
+        public String policyUrl = "";
     }
 
     public AccessList access;

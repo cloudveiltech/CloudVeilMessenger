@@ -1,6 +1,7 @@
 package org.telegram.ui;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
+import static org.telegram.messenger.AndroidUtilities.dpf2;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -27,6 +28,7 @@ import android.text.TextWatcher;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
 import android.text.style.ReplacementSpan;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -57,6 +59,7 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_chatlists;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
@@ -71,6 +74,7 @@ import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.UserCell;
+import org.telegram.ui.Components.AnimatedColor;
 import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.BottomSheetWithRecyclerListView;
 import org.telegram.ui.Components.Bulletin;
@@ -84,6 +88,7 @@ import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
 import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
+import org.telegram.ui.Components.Premium.PremiumFeatureBottomSheet;
 import org.telegram.ui.Components.QRCodeBottomSheet;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.RecyclerListView;
@@ -112,10 +117,13 @@ public class FilterCreateActivity extends BaseFragment {
     private boolean doNotCloseWhenSave;
     private String newFilterName;
     private int newFilterFlags;
+    private int newFilterColor;
     private ArrayList<Long> newAlwaysShow;
     private ArrayList<Long> newNeverShow;
     private LongSparseIntArray newPinned;
     private CreateLinkCell createLinkCell;
+    private HeaderCellColorPreview folderTagsHeader;
+
     private boolean canCreateLink() {
         return (
             (!TextUtils.isEmpty(newFilterName) || !TextUtils.isEmpty(filter.name)) &&
@@ -125,7 +133,7 @@ public class FilterCreateActivity extends BaseFragment {
         );
     }
 
-    private ArrayList<TLRPC.TL_exportedChatlistInvite> invites = new ArrayList<>();
+    private ArrayList<TL_chatlists.TL_exportedChatlistInvite> invites = new ArrayList<>();
 
     private static final int MAX_NAME_LENGTH = 12;
 
@@ -176,10 +184,12 @@ public class FilterCreateActivity extends BaseFragment {
                 filter.id++;
             }
             filter.name = "";
+            filter.color = (int) (Math.random() * 8);
             creatingNew = true;
         }
         newFilterName = filter.name;
         newFilterFlags = filter.flags;
+        newFilterColor = filter.color;
         newAlwaysShow = new ArrayList<>(filter.alwaysShow);
         if (alwaysShow != null) {
             newAlwaysShow.addAll(alwaysShow);
@@ -205,17 +215,17 @@ public class FilterCreateActivity extends BaseFragment {
             return;
         }
         loadingInvites = true;
-        TLRPC.TL_chatlists_getExportedInvites req = new TLRPC.TL_chatlists_getExportedInvites();
-        req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+        TL_chatlists.TL_chatlists_getExportedInvites req = new TL_chatlists.TL_chatlists_getExportedInvites();
+        req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
         req.chatlist.filter_id = filter.id;
         requestingInvitesReqId = getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
             loadingInvites = false;
-            if (res instanceof TLRPC.TL_chatlists_exportedInvites) {
-                TLRPC.TL_chatlists_exportedInvites invs = (TLRPC.TL_chatlists_exportedInvites) res;
+            if (res instanceof TL_chatlists.TL_chatlists_exportedInvites) {
+                TL_chatlists.TL_chatlists_exportedInvites invs = (TL_chatlists.TL_chatlists_exportedInvites) res;
                 getMessagesController().putChats(invs.chats, false);
                 getMessagesController().putUsers(invs.users, false);
                 invites.clear();
-                invites.addAll(((TLRPC.TL_chatlists_exportedInvites) res).invites);
+                invites.addAll(((TL_chatlists.TL_chatlists_exportedInvites) res).invites);
                 updateRows();
             }
             requestingInvitesReqId = 0;
@@ -285,15 +295,15 @@ public class FilterCreateActivity extends BaseFragment {
         items.add(ItemInner.asShadow(LocaleController.getString("FilterIncludeInfo", R.string.FilterIncludeInfo)));
         if (!filter.isChatlist()) {
             items.add(ItemInner.asHeader(LocaleController.getString("FilterExclude", R.string.FilterExclude)));
-            items.add(ItemInner.asButton(R.drawable.msg2_chats_add, LocaleController.getString("FilterRemoveChats", R.string.FilterRemoveChats), false).whenClicked(v -> selectChatsFor(false)));
+            items.add(ItemInner.asButton(R.drawable.msg2_chats_add, LocaleController.getString(R.string.FilterRemoveChats), false).whenClicked(v -> selectChatsFor(false)));
             if ((newFilterFlags & MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_MUTED) != 0) {
-                items.add(ItemInner.asChat(false, LocaleController.getString("FilterMuted", R.string.FilterMuted), "muted", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_MUTED));
+                items.add(ItemInner.asChat(false, LocaleController.getString(R.string.FilterMuted), "muted", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_MUTED));
             }
             if ((newFilterFlags & MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_READ) != 0) {
-                items.add(ItemInner.asChat(false, LocaleController.getString("FilterRead", R.string.FilterRead), "read", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_READ));
+                items.add(ItemInner.asChat(false, LocaleController.getString(R.string.FilterRead), "read", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_READ));
             }
             if ((newFilterFlags & MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED) != 0) {
-                items.add(ItemInner.asChat(false, LocaleController.getString("FilterArchived", R.string.FilterArchived), "archived", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED));
+                items.add(ItemInner.asChat(false, LocaleController.getString(R.string.FilterArchived), "archived", MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED));
             }
             if (!newNeverShow.isEmpty()) {
                 int count = excludeExpanded || newNeverShow.size() < 8 ? newNeverShow.size() : Math.min(5, newNeverShow.size());
@@ -311,6 +321,12 @@ public class FilterCreateActivity extends BaseFragment {
                 }
             }
             items.add(ItemInner.asShadow(LocaleController.getString("FilterExcludeInfo", R.string.FilterExcludeInfo)));
+        }
+
+        if (getMessagesController().folderTags || !getUserConfig().isPremium()) {
+            items.add(new ItemInner(VIEW_TYPE_HEADER_COLOR_PREVIEW, false));
+            items.add(new ItemInner(VIEW_TYPE_COLOR, false));
+            items.add(ItemInner.asShadow(LocaleController.getString(R.string.FolderTagColorInfo)));
         }
 
         if (invites.isEmpty()) {
@@ -512,20 +528,20 @@ public class FilterCreateActivity extends BaseFragment {
             }
 
             if (!peers.isEmpty()) {
-                TLRPC.TL_chatlists_exportChatlistInvite req = new TLRPC.TL_chatlists_exportChatlistInvite();
-                req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+                TL_chatlists.TL_chatlists_exportChatlistInvite req = new TL_chatlists.TL_chatlists_exportChatlistInvite();
+                req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
                 req.chatlist.filter_id = filter.id;
                 req.peers = peers;
                 req.title = "";
                 getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                     if (
                         processErrors(err, FilterCreateActivity.this, BulletinFactory.of(FilterCreateActivity.this)) &&
-                        res instanceof TLRPC.TL_chatlists_exportedChatlistInvite
+                        res instanceof TL_chatlists.TL_chatlists_exportedChatlistInvite
                     ) {
                         FilterCreateActivity.hideNew(0);
 
                         getMessagesController().loadRemoteFilters(true);
-                        TLRPC.TL_chatlists_exportedChatlistInvite inv = (TLRPC.TL_chatlists_exportedChatlistInvite) res;
+                        TL_chatlists.TL_chatlists_exportedChatlistInvite inv = (TL_chatlists.TL_chatlists_exportedChatlistInvite) res;
                         FilterChatlistActivity fragment = new FilterChatlistActivity(filter, inv.invite);
                         fragment.setOnEdit(this::onEdit);
                         fragment.setOnDelete(this::onDelete);
@@ -573,14 +589,14 @@ public class FilterCreateActivity extends BaseFragment {
         return ChatObject.canUserDoAdminAction(chat, ChatObject.ACTION_INVITE) || ChatObject.isPublic(chat) && !chat.join_request;
     }
 
-    private void onDelete(TLRPC.TL_exportedChatlistInvite editedInvite) {
+    private void onDelete(TL_chatlists.TL_exportedChatlistInvite editedInvite) {
         if (editedInvite == null) {
             return;
         }
 
         int index = -1;
         for (int i = 0; i < invites.size(); ++i) {
-            TLRPC.TL_exportedChatlistInvite invite = invites.get(i);
+            TL_chatlists.TL_exportedChatlistInvite invite = invites.get(i);
             if (TextUtils.equals(invite.url, editedInvite.url)) {
                 index = i;
                 break;
@@ -598,14 +614,14 @@ public class FilterCreateActivity extends BaseFragment {
         }
     }
 
-    private void onEdit(TLRPC.TL_exportedChatlistInvite editedInvite) {
+    private void onEdit(TL_chatlists.TL_exportedChatlistInvite editedInvite) {
         if (editedInvite == null) {
             return;
         }
 
         int index = -1;
         for (int i = 0; i < invites.size(); ++i) {
-            TLRPC.TL_exportedChatlistInvite invite = invites.get(i);
+            TL_chatlists.TL_exportedChatlistInvite invite = invites.get(i);
             if (TextUtils.equals(invite.url, editedInvite.url)) {
                 index = i;
                 break;
@@ -790,6 +806,9 @@ public class FilterCreateActivity extends BaseFragment {
             newName = "";
         }
         newFilterName = newName;
+        if (folderTagsHeader != null) {
+            folderTagsHeader.setPreviewText((newFilterName == null ? "" : newFilterName).toUpperCase(), false);
+        }
         RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(nameRow);
         if (holder != null) {
             adapter.onViewAttachedToWindow(holder);
@@ -877,7 +896,7 @@ public class FilterCreateActivity extends BaseFragment {
     }
 
     private void save(boolean progress, Runnable after) {
-        saveFilterToServer(filter, newFilterFlags, newFilterName, newAlwaysShow, newNeverShow, newPinned, creatingNew, false, hasUserChanged, true, progress, this, () -> {
+        saveFilterToServer(filter, newFilterFlags, newFilterName, newFilterColor, newAlwaysShow, newNeverShow, newPinned, creatingNew, false, hasUserChanged, true, progress, this, () -> {
 
             hasUserChanged = false;
             creatingNew = false;
@@ -892,7 +911,7 @@ public class FilterCreateActivity extends BaseFragment {
         });
     }
 
-    private static void processAddFilter(MessagesController.DialogFilter filter, int newFilterFlags, String newFilterName, ArrayList<Long> newAlwaysShow, ArrayList<Long> newNeverShow, boolean creatingNew, boolean atBegin, boolean hasUserChanged, boolean resetUnreadCounter, BaseFragment fragment, Runnable onFinish) {
+    private static void processAddFilter(MessagesController.DialogFilter filter, int newFilterFlags, String newFilterName, int newFilterColor, ArrayList<Long> newAlwaysShow, ArrayList<Long> newNeverShow, boolean creatingNew, boolean atBegin, boolean hasUserChanged, boolean resetUnreadCounter, BaseFragment fragment, Runnable onFinish) {
         if (filter.flags != newFilterFlags || hasUserChanged) {
             filter.pendingUnreadCount = -1;
             if (resetUnreadCounter) {
@@ -901,6 +920,7 @@ public class FilterCreateActivity extends BaseFragment {
         }
         filter.flags = newFilterFlags;
         filter.name = newFilterName;
+        filter.color = newFilterColor;
         filter.neverShow = newNeverShow;
         filter.alwaysShow = newAlwaysShow;
         if (creatingNew) {
@@ -922,7 +942,7 @@ public class FilterCreateActivity extends BaseFragment {
         }
     }
 
-    public static void saveFilterToServer(MessagesController.DialogFilter filter, int newFilterFlags, String newFilterName, ArrayList<Long> newAlwaysShow, ArrayList<Long> newNeverShow, LongSparseIntArray newPinned, boolean creatingNew, boolean atBegin, boolean hasUserChanged, boolean resetUnreadCounter, boolean progress, BaseFragment fragment, Runnable onFinish) {
+    public static void saveFilterToServer(MessagesController.DialogFilter filter, int newFilterFlags, String newFilterName, int newFilterColor, ArrayList<Long> newAlwaysShow, ArrayList<Long> newNeverShow, LongSparseIntArray newPinned, boolean creatingNew, boolean atBegin, boolean hasUserChanged, boolean resetUnreadCounter, boolean progress, BaseFragment fragment, Runnable onFinish) {
         if (fragment == null || fragment.getParentActivity() == null) {
             return;
         }
@@ -948,6 +968,13 @@ public class FilterCreateActivity extends BaseFragment {
         req.filter.exclude_archived = (newFilterFlags & MessagesController.DIALOG_FILTER_FLAG_EXCLUDE_ARCHIVED) != 0;
         req.filter.id = filter.id;
         req.filter.title = newFilterName;
+        if (newFilterColor < 0) {
+            req.filter.flags &=~ 134217728;
+            req.filter.color = 0;
+        } else {
+            req.filter.flags |= 134217728;
+            req.filter.color = newFilterColor;
+        }
         MessagesController messagesController = fragment.getMessagesController();
         ArrayList<Long> pinArray = new ArrayList<>();
         if (newPinned.size() != 0) {
@@ -1023,13 +1050,13 @@ public class FilterCreateActivity extends BaseFragment {
                 } catch (Exception e) {
                     FileLog.e(e);
                 }
-                processAddFilter(filter, newFilterFlags, newFilterName, newAlwaysShow, newNeverShow, creatingNew, atBegin, hasUserChanged, resetUnreadCounter, fragment, onFinish);
+                processAddFilter(filter, newFilterFlags, newFilterName, newFilterColor, newAlwaysShow, newNeverShow, creatingNew, atBegin, hasUserChanged, resetUnreadCounter, fragment, onFinish);
             } else if (onFinish != null) {
                 onFinish.run();
             }
         }));
         if (!progress) {
-            processAddFilter(filter, newFilterFlags, newFilterName, newAlwaysShow, newNeverShow, creatingNew, atBegin, hasUserChanged, resetUnreadCounter, fragment, null);
+            processAddFilter(filter, newFilterFlags, newFilterName, newFilterColor, newAlwaysShow, newNeverShow, creatingNew, atBegin, hasUserChanged, resetUnreadCounter, fragment, null);
         }
     }
 
@@ -1044,6 +1071,9 @@ public class FilterCreateActivity extends BaseFragment {
             hasUserChanged = true;
         }
         if (filter.neverShow.size() != newNeverShow.size()) {
+            hasUserChanged = true;
+        }
+        if (filter.color != newFilterColor) {
             hasUserChanged = true;
         }
         if (!hasUserChanged) {
@@ -1114,6 +1144,8 @@ public class FilterCreateActivity extends BaseFragment {
     private static final int VIEW_TYPE_SHADOW_TEXT = 6;
     private static final int VIEW_TYPE_LINK = 7;
     private static final int VIEW_TYPE_CREATE_LINK = 8;
+    private static final int VIEW_TYPE_HEADER_COLOR_PREVIEW = 9;
+    private static final int VIEW_TYPE_COLOR = 10;
 
     private static class ItemInner extends AdapterWithDiffUtils.Item {
 
@@ -1130,7 +1162,7 @@ public class FilterCreateActivity extends BaseFragment {
         private int iconResId;
         private boolean isRed;
 
-        private TLRPC.TL_exportedChatlistInvite link;
+        private TL_chatlists.TL_exportedChatlistInvite link;
 
         public ItemInner(int viewType, boolean selectable) {
             super(viewType, selectable);
@@ -1175,7 +1207,7 @@ public class FilterCreateActivity extends BaseFragment {
             return item;
         }
 
-        public static ItemInner asLink(TLRPC.TL_exportedChatlistInvite invite) {
+        public static ItemInner asLink(TL_chatlists.TL_exportedChatlistInvite invite) {
             ItemInner item = new ItemInner(VIEW_TYPE_LINK, false);
             item.link = invite;
             return item;
@@ -1253,7 +1285,8 @@ public class FilterCreateActivity extends BaseFragment {
                 type != VIEW_TYPE_SHADOW &&
                 type != VIEW_TYPE_HEADER &&
                 type != VIEW_TYPE_EDIT &&
-                type != VIEW_TYPE_HINT
+                type != VIEW_TYPE_HINT &&
+                type != VIEW_TYPE_HEADER_COLOR_PREVIEW
             );
         }
 
@@ -1301,6 +1334,9 @@ public class FilterCreateActivity extends BaseFragment {
                             if (!TextUtils.equals(newName, newFilterName)) {
                                 nameChangedManually = !TextUtils.isEmpty(newName);
                                 newFilterName = newName;
+                                if (folderTagsHeader != null) {
+                                    folderTagsHeader.setPreviewText((newFilterName == null ? "" : newFilterName).toUpperCase(), true);
+                                }
                             }
                             RecyclerView.ViewHolder holder = listView.findViewHolderForAdapterPosition(nameRow);
                             if (holder != null) {
@@ -1329,7 +1365,7 @@ public class FilterCreateActivity extends BaseFragment {
                 case VIEW_TYPE_LINK:
                     view = new LinkCell(mContext, FilterCreateActivity.this, currentAccount, filter.id) {
                         @Override
-                        protected void onDelete(TLRPC.TL_exportedChatlistInvite invite) {
+                        protected void onDelete(TL_chatlists.TL_exportedChatlistInvite invite) {
                             FilterCreateActivity.this.onDelete(invite);
                         }
 
@@ -1341,6 +1377,14 @@ public class FilterCreateActivity extends BaseFragment {
                     break;
                 case VIEW_TYPE_CREATE_LINK:
                     view = new CreateLinkCell(mContext);
+                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    break;
+                case VIEW_TYPE_HEADER_COLOR_PREVIEW:
+                    view = new HeaderCellColorPreview(mContext);
+                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    break;
+                case VIEW_TYPE_COLOR:
+                    view = new PeerColorActivity.PeerColorGrid(getContext(), PeerColorActivity.PeerColorGrid.TYPE_FOLDER_TAG, currentAccount, resourceProvider);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 case VIEW_TYPE_SHADOW_TEXT:
@@ -1464,6 +1508,30 @@ public class FilterCreateActivity extends BaseFragment {
                 case VIEW_TYPE_CREATE_LINK: {
                     createLinkCell = (CreateLinkCell) holder.itemView;
                     createLinkCell.setDivider(divider);
+                    break;
+                }
+                case VIEW_TYPE_HEADER_COLOR_PREVIEW: {
+                    folderTagsHeader = (HeaderCellColorPreview) holder.itemView;
+                    folderTagsHeader.setPreviewText((newFilterName == null ? "" : newFilterName).toUpperCase(), false);
+                    folderTagsHeader.setPreviewColor(!getUserConfig().isPremium() ? -1 : newFilterColor, false);
+                    folderTagsHeader.setText(LocaleController.getString(R.string.FolderTagColor));
+                    break;
+                }
+                case VIEW_TYPE_COLOR: {
+                    PeerColorActivity.PeerColorGrid cell = (PeerColorActivity.PeerColorGrid) holder.itemView;
+                    cell.setCloseAsLock(!getUserConfig().isPremium());
+                    cell.setSelected(!getUserConfig().isPremium() ? -1 : newFilterColor, false);
+                    cell.setOnColorClick(color -> {
+                        if (!getUserConfig().isPremium()) {
+                            showDialog(new PremiumFeatureBottomSheet(FilterCreateActivity.this, PremiumPreviewFragment.PREMIUM_FEATURE_FOLDER_TAGS, true));
+                            return;
+                        }
+                        cell.setSelected(newFilterColor = color, true);
+                        if (folderTagsHeader != null) {
+                            folderTagsHeader.setPreviewColor(!getUserConfig().isPremium() ? -1 : newFilterColor, true);
+                        }
+                        checkDoneButton(true);
+                    });
                     break;
                 }
             }
@@ -1792,9 +1860,9 @@ public class FilterCreateActivity extends BaseFragment {
         }
 
         protected String lastUrl;
-        private TLRPC.TL_exportedChatlistInvite lastInvite;
+        private TL_chatlists.TL_exportedChatlistInvite lastInvite;
 
-        public void setInvite(TLRPC.TL_exportedChatlistInvite invite, boolean divider) {
+        public void setInvite(TL_chatlists.TL_exportedChatlistInvite invite, boolean divider) {
             boolean animated = lastInvite == invite;
             lastInvite = invite;
             String url = lastUrl = invite.url;
@@ -1846,8 +1914,8 @@ public class FilterCreateActivity extends BaseFragment {
                 return;
             }
 
-            TLRPC.TL_chatlists_editExportedInvite req = new TLRPC.TL_chatlists_editExportedInvite();
-            req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+            TL_chatlists.TL_chatlists_editExportedInvite req = new TL_chatlists.TL_chatlists_editExportedInvite();
+            req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
             req.chatlist.filter_id = filterId;
             req.revoked = revoke;
             req.slug = getSlug();
@@ -1868,8 +1936,8 @@ public class FilterCreateActivity extends BaseFragment {
                 return;
             }
 
-            TLRPC.TL_chatlists_deleteExportedInvite req = new TLRPC.TL_chatlists_deleteExportedInvite();
-            req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+            TL_chatlists.TL_chatlists_deleteExportedInvite req = new TL_chatlists.TL_chatlists_deleteExportedInvite();
+            req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
             req.chatlist.filter_id = filterId;
             req.slug = slug;
             Runnable update = () -> onDelete(lastInvite);
@@ -1883,7 +1951,7 @@ public class FilterCreateActivity extends BaseFragment {
             AndroidUtilities.runOnUIThread(update, 150);
         }
 
-        protected void onDelete(TLRPC.TL_exportedChatlistInvite invite) {
+        protected void onDelete(TL_chatlists.TL_exportedChatlistInvite invite) {
 
         }
 
@@ -1982,10 +2050,10 @@ public class FilterCreateActivity extends BaseFragment {
             textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
             if (outline) {
                 bgPaint.setStyle(Paint.Style.STROKE);
-                bgPaint.setStrokeWidth(AndroidUtilities.dpf2(1.33f));
+                bgPaint.setStrokeWidth(dpf2(1.33f));
                 textPaint.setTextSize(dp(10));
                 textPaint.setStyle(Paint.Style.FILL_AND_STROKE);
-                textPaint.setStrokeWidth(AndroidUtilities.dpf2(0.2f));
+                textPaint.setStrokeWidth(dpf2(0.2f));
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     textPaint.setLetterSpacing(.03f);
                 }
@@ -2088,18 +2156,18 @@ public class FilterCreateActivity extends BaseFragment {
 
         public static void show(BaseFragment fragment, MessagesController.DialogFilter filter, Runnable onLoaded) {
             long start = System.currentTimeMillis();
-            TLRPC.TL_chatlists_getExportedInvites req = new TLRPC.TL_chatlists_getExportedInvites();
-            req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+            TL_chatlists.TL_chatlists_getExportedInvites req = new TL_chatlists.TL_chatlists_getExportedInvites();
+            req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
             req.chatlist.filter_id = filter.id;
             fragment.getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                 if (fragment == null || fragment.getContext() == null) {
                     return;
                 }
-                if (res instanceof TLRPC.TL_chatlists_exportedInvites) {
-                    TLRPC.TL_chatlists_exportedInvites invs = (TLRPC.TL_chatlists_exportedInvites) res;
+                if (res instanceof TL_chatlists.TL_chatlists_exportedInvites) {
+                    TL_chatlists.TL_chatlists_exportedInvites invs = (TL_chatlists.TL_chatlists_exportedInvites) res;
                     fragment.getMessagesController().putChats(invs.chats, false);
                     fragment.getMessagesController().putUsers(invs.users, false);
-                    new FilterCreateActivity.FilterInvitesBottomSheet(fragment, filter, ((TLRPC.TL_chatlists_exportedInvites) res).invites).show();
+                    new FilterCreateActivity.FilterInvitesBottomSheet(fragment, filter, ((TL_chatlists.TL_chatlists_exportedInvites) res).invites).show();
                 } else if (err != null && "FILTER_ID_INVALID".equals(err.text) && !filter.isDefault()) {
                     new FilterCreateActivity.FilterInvitesBottomSheet(fragment, filter, null).show();
                 } else {
@@ -2112,7 +2180,7 @@ public class FilterCreateActivity extends BaseFragment {
         }
 
         private MessagesController.DialogFilter filter;
-        private ArrayList<TLRPC.TL_exportedChatlistInvite> invites = new ArrayList<>();
+        private ArrayList<TL_chatlists.TL_exportedChatlistInvite> invites = new ArrayList<>();
 
         private FrameLayout bulletinContainer;
 
@@ -2120,7 +2188,7 @@ public class FilterCreateActivity extends BaseFragment {
 
         private TextView button;
 
-        public FilterInvitesBottomSheet(BaseFragment fragment, MessagesController.DialogFilter filter, ArrayList<TLRPC.TL_exportedChatlistInvite> loadedInvites) {
+        public FilterInvitesBottomSheet(BaseFragment fragment, MessagesController.DialogFilter filter, ArrayList<TL_chatlists.TL_exportedChatlistInvite> loadedInvites) {
             super(fragment, false, false);
 
             this.filter = filter;
@@ -2283,7 +2351,7 @@ public class FilterCreateActivity extends BaseFragment {
                             }
 
                             @Override
-                            protected void onDelete(TLRPC.TL_exportedChatlistInvite invite) {
+                            protected void onDelete(TL_chatlists.TL_exportedChatlistInvite invite) {
                                 invites.remove(invite);
                                 updateCreateInviteButton();
                                 updateRows(true);
@@ -2414,21 +2482,21 @@ public class FilterCreateActivity extends BaseFragment {
                 dismiss();
                 getBaseFragment().presentFragment(new FilterChatlistActivity(filter, null));
             } else {
-                TLRPC.TL_chatlists_exportChatlistInvite req = new TLRPC.TL_chatlists_exportChatlistInvite();
-                req.chatlist = new TLRPC.TL_inputChatlistDialogFilter();
+                TL_chatlists.TL_chatlists_exportChatlistInvite req = new TL_chatlists.TL_chatlists_exportChatlistInvite();
+                req.chatlist = new TL_chatlists.TL_inputChatlistDialogFilter();
                 req.chatlist.filter_id = filter.id;
                 req.peers = peers;
                 req.title = "";
                 getBaseFragment().getConnectionsManager().sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                     if (
                         processErrors(err, getBaseFragment(), BulletinFactory.of(bulletinContainer, null)) &&
-                        res instanceof TLRPC.TL_chatlists_exportedChatlistInvite
+                        res instanceof TL_chatlists.TL_chatlists_exportedChatlistInvite
                     ) {
                         FilterCreateActivity.hideNew(0);
                         dismiss();
 
                         getBaseFragment().getMessagesController().loadRemoteFilters(true);
-                        TLRPC.TL_chatlists_exportedChatlistInvite inv = (TLRPC.TL_chatlists_exportedChatlistInvite) res;
+                        TL_chatlists.TL_chatlists_exportedChatlistInvite inv = (TL_chatlists.TL_chatlists_exportedChatlistInvite) res;
                         getBaseFragment().presentFragment(new FilterChatlistActivity(filter, inv.invite));
                     }
                 }));
@@ -2488,5 +2556,67 @@ public class FilterCreateActivity extends BaseFragment {
             factory.createErrorBulletin(LocaleController.getString("UnknownError", R.string.UnknownError)).show();
         }
         return true;
+    }
+
+    private class HeaderCellColorPreview extends HeaderCell {
+
+        public final TextView noTag;
+        public final AnimatedTextView previewView;
+        private int currentColor;
+        private final AnimatedColor animatedColor;
+
+        public HeaderCellColorPreview(Context context) {
+            super(context, Theme.key_windowBackgroundWhiteBlueHeader, 22, 15, false, resourceProvider);
+
+            noTag = new TextView(getContext());
+            noTag.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            noTag.setTextColor(FilterCreateActivity.this.getThemedColor(Theme.key_windowBackgroundWhiteGrayText2));
+            noTag.setText(LocaleController.getString(getUserConfig().isPremium() ? R.string.FolderTagNoColor : R.string.FolderTagNoColorPremium));
+            noTag.setGravity(Gravity.RIGHT);
+            addView(noTag, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, padding, 16.66f, padding, bottomMargin));
+            noTag.setAlpha(0f);
+
+            previewView = new AnimatedTextView(getContext(), false, true, true) {
+                private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                @Override
+                protected void dispatchDraw(Canvas canvas) {
+                    final int color = animatedColor.set(currentColor);
+                    setTextColor(color);
+                    backgroundPaint.setColor(Theme.multAlpha(color, Theme.isCurrentThemeDark() ? .20f : .10f));
+                    AndroidUtilities.rectTmp.set(getWidth() - getDrawable().getCurrentWidth() - dpf2(4.66f * 2), (getHeight() - dpf2(14.66f)) / 2f, getWidth(), (getHeight() + dpf2(14.66f)) / 2f);
+                    canvas.drawRoundRect(AndroidUtilities.rectTmp, dp(4), dp(4), backgroundPaint);
+                    super.dispatchDraw(canvas);
+                }
+            };
+            animatedColor = new AnimatedColor(previewView, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+            previewView.setTextSize(dp(10));
+            previewView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            previewView.setGravity(Gravity.RIGHT);
+            previewView.setPadding(dp(4.66f), 0, dp(4.66f), 0);
+            addView(previewView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, padding, 16.66f, padding, bottomMargin));
+        }
+
+        private boolean noTagShown;
+        public void setPreviewColor(int colorId, boolean animated) {
+            noTag.setText(LocaleController.getString(getUserConfig().isPremium() ? R.string.FolderTagNoColor : R.string.FolderTagNoColorPremium));
+
+            final boolean noTag = colorId < 0;
+            currentColor = noTag ? 0 : FilterCreateActivity.this.getThemedColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]);
+            if (!animated) {
+                this.animatedColor.set(currentColor, true);
+            }
+            if (noTag != noTagShown) {
+                noTagShown = noTag;
+                this.noTag.animate().alpha(noTag ? 1f : 0f).setDuration(320).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+                previewView.animate().alpha(noTag ? 0f : 1f).setDuration(320).setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT).start();
+            }
+        }
+
+        public void setPreviewText(String text, boolean animated) {
+            if (text.length() > MAX_NAME_LENGTH) {
+                text = text.substring(0, MAX_NAME_LENGTH);
+            }
+            previewView.setText(Emoji.replaceEmoji(text, previewView.getPaint().getFontMetricsInt(), false), animated && !LocaleController.isRTL);
+        }
     }
 }

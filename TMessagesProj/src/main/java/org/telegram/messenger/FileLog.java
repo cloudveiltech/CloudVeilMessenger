@@ -75,7 +75,7 @@ public class FileLog {
     private static Gson gson;
     private static HashSet<String> excludeRequests;
 
-    public static void dumpResponseAndRequest(TLObject request, TLObject response, TLRPC.TL_error error, long requestMsgId, long startRequestTimeInMillis, int requestToken) {
+    public static void dumpResponseAndRequest(int account, TLObject request, TLObject response, TLRPC.TL_error error, long requestMsgId, long startRequestTimeInMillis, int requestToken) {
         if (!BuildVars.DEBUG_PRIVATE_VERSION || !BuildVars.LOGS_ENABLED || request == null) {
             return;
         }
@@ -97,7 +97,7 @@ public class FileLog {
             long time = System.currentTimeMillis();
             FileLog.getInstance().logQueue.postRunnable(() -> {
                 try {
-                    String metadata = "requestMsgId=" + requestMsgId + " requestingTime=" + (System.currentTimeMillis() - startRequestTimeInMillis) +  " request_token=" + requestToken;
+                    String metadata = "requestMsgId=" + requestMsgId + " requestingTime=" + (System.currentTimeMillis() - startRequestTimeInMillis) +  " request_token=" + requestToken + " account=" + account;
                     FileLog.getInstance().tlStreamWriter.write(getInstance().dateFormat.format(time) + " " + metadata);
                     FileLog.getInstance().tlStreamWriter.write("\n");
                     FileLog.getInstance().tlStreamWriter.write(req);
@@ -126,7 +126,7 @@ public class FileLog {
         try {
             checkGson();
             getInstance().dateFormat.format(System.currentTimeMillis());
-            String messageStr = "receive message -> " + message.getClass().getSimpleName() + " : " + gson.toJson(message);
+            String messageStr = "receive message -> " + message.getClass().getSimpleName() + " : " + (gsonDisabled ? message : gson.toJson(message));
             String res = "null";
             long time = System.currentTimeMillis();
             FileLog.getInstance().logQueue.postRunnable(() -> {
@@ -150,6 +150,11 @@ public class FileLog {
         }
     }
 
+    private static boolean gsonDisabled;
+    public static void disableGson(boolean disable) {
+        gsonDisabled = disable;
+    }
+
     private static void checkGson() {
         if (gson == null) {
             HashSet<String> privateFields = new HashSet<>();
@@ -170,7 +175,7 @@ public class FileLog {
             //exclude file loading
             excludeRequests = new HashSet<>();
             excludeRequests.add("TL_upload_getFile");
-            excludeRequests.add("TL_upload_a");
+            excludeRequests.add("TL_upload_getWebFile");
 
             ExclusionStrategy strategy = new ExclusionStrategy() {
 

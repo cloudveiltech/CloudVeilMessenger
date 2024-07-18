@@ -2,7 +2,7 @@
 .gradle/
 build/
 obj/
+.cxx/
 *.iml
 local.properties
-TMessagesProj/.externalNativeBuild
-.cxx
+x86

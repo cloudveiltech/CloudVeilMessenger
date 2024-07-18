@@ -649,6 +649,7 @@ void ConnectionsManager::cleanUp(bool resetKeys, int32_t datacenterId) {
                 request->onComplete(nullptr, error, 0, 0, request->messageId);
                 delete error;
             }
+            DEBUG_D("1) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
             iter = runningRequests.erase(iter);
         }
         quickAckIdToRequestIds.clear();
@@ -666,6 +667,7 @@ void ConnectionsManager::cleanUp(bool resetKeys, int32_t datacenterId) {
         if (datacenterId == -1) {
             sessionsToDestroy.clear();
             currentUserId = 0;
+            currentUserPremium = false;
             registeredForInternalPush = false;
         }
         saveConfig();
@@ -752,6 +754,7 @@ void ConnectionsManager::onConnectionClosed(Connection *connection, int reason) 
                         Request *request = iter2->get();
                         if (connection->getConnectionToken() == request->connectionToken && request->requestToken == proxyCheckInfo->requestToken && (request->connectionType & 0x0000ffff) == ConnectionTypeProxy) {
                             request->completed = true;
+                            DEBUG_D("2) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                             runningRequests.erase(iter2);
                             proxyCheckInfo->onRequestTime(-1);
                             found = true;
@@ -942,9 +945,14 @@ void ConnectionsManager::onConnectionDataReceived(Connection *connection, Native
 
         TLObject *object = nullptr;
 
+        long req_msg_id = 0;
         if (processedStatus != 1) {
             deserializingDatacenter = datacenter;
             object = TLdeserialize(nullptr, messageLength, data);
+            TL_rpc_result* res = dynamic_cast<TL_rpc_result*>(object);
+            if (res != nullptr) {
+                req_msg_id = res->req_msg_id;
+            }
             if (processedStatus == 2) {
                 if (object == nullptr) {
                     connection->recreateSession();
@@ -969,11 +977,13 @@ void ConnectionsManager::onConnectionDataReceived(Connection *connection, Native
                     sendMessagesToConnectionWithConfirmation(messages, connection, false);
                 }
             } else {
+                if (LOGS_ENABLED) DEBUG_D("connection(%p, account%u, dc%u, type %d) received unparsed packet on 0x%" PRIx64, connection, instanceNum, datacenter->getDatacenterId(), connection->getConnectionType(), req_msg_id);
                 if (delegate != nullptr) {
                     delegate->onUnparsedMessageReceived(messageId, data, connection->getConnectionType(), instanceNum);
                 }
             }
         } else {
+            if (LOGS_ENABLED) DEBUG_D("connection(%p, account%u, dc%u, type %d) received unprocessed packet on 0x%" PRIx64, connection, instanceNum, datacenter->getDatacenterId(), connection->getConnectionType(), req_msg_id);
             std::vector<std::unique_ptr<NetworkMessage>> messages;
             sendMessagesToConnectionWithConfirmation(messages, connection, false);
         }
@@ -1011,8 +1021,8 @@ bool ConnectionsManager::hasPendingRequestsForConnection(Connection *connection)
 }
 
 TLObject *ConnectionsManager::getRequestWithMessageId(int64_t messageId) {
-    for (auto & runningRequest : runningRequests) {
-        Request *request = runningRequest.get();
+    for (auto & iter : runningRequests) {
+        Request *request = iter.get();
         if (request->messageId == messageId) {
             return request->rawRequest;
         }
@@ -1051,6 +1061,9 @@ TLObject *ConnectionsManager::TLdeserialize(TLObject *request, uint32_t bytes, N
                 }
             }
         } else {
+            if (constructor == 0x96a18d5) {
+                if (LOGS_ENABLED) DEBUG_D("not found file 0x%x", constructor);
+            }
             if (LOGS_ENABLED) DEBUG_D("not found request to parse constructor 0x%x", constructor);
         }
     }
@@ -1156,6 +1169,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                                 if (LOGS_ENABLED) DEBUG_D("got ping response for request %p, %" PRId64, request->rawRequest, ping);
                                 request->completed = true;
                                 proxyCheckInfo->onRequestTime(ping);
+                                DEBUG_D("3) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                                 runningRequests.erase(iter2);
                                 break;
                             }
@@ -1190,6 +1204,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
             if (request->respondsToMessageId(requestMid)) {
                 request->onComplete(response, nullptr, connection->currentNetworkType, timeMessage, requestMid);
                 request->completed = true;
+                DEBUG_D("4) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                 runningRequests.erase(iter);
                 break;
             }
@@ -1244,7 +1259,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                 if (!request->respondsToMessageId(resultMid)) {
                     continue;
                 }
-                if (LOGS_ENABLED) DEBUG_D("got response for request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
+                if (LOGS_ENABLED) DEBUG_D("got response for request %p - %s (messageId = 0x%" PRIx64 ")", request->rawRequest, typeid(*request->rawRequest).name(), request->messageId);
                 bool discardResponse = false;
                 bool isError = false;
                 bool allowInitConnection = true;
@@ -1366,6 +1381,37 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                             implicitError->code = -1000;
                             implicitError->text = "";
                         }
+
+                        if (hasResult) {
+                            // when receiving TL_rpc_answer_dropped_running, we want to still listen for a little for the response, as it may come
+                            TL_rpc_answer_dropped_running* droppedRunning = dynamic_cast<TL_rpc_answer_dropped_running*>(response->result.get());
+                            if (droppedRunning != nullptr) {
+                                TL_rpc_drop_answer* dropAnswer = dynamic_cast<TL_rpc_drop_answer*>(request->rawRequest);
+                                if (dropAnswer != nullptr) {
+                                    int64_t originalMessageId = dropAnswer->req_msg_id;
+                                    Request* originalRequest = nullptr;
+                                    for (auto iter2 = runningRequests.begin(); iter2 != runningRequests.end(); iter2++) {
+                                        Request *request2 = iter2->get();
+                                        if (request2->messageId == originalMessageId) {
+                                            originalRequest = request2;
+                                            break;
+                                        }
+                                    }
+                                    if (originalRequest != nullptr && (originalRequest->requestFlags & RequestFlagListenAfterCancel) != 0) {
+                                        if (LOGS_ENABLED) DEBUG_D("doNotClearOnDrop = true; msgid=0x%" PRIx64, originalMessageId);
+                                        originalRequest->disableClearCallback = false;
+                                        originalRequest->doNotClearOnDrop = true;
+                                        originalRequest->clearAfter = (int32_t) (getCurrentTimeMonotonicMillis() / 1000) + 25;
+                                        originalRequest->onRequestClearCallback = request->onRequestClearCallback;
+                                        request->onRequestClearCallback = nullptr;
+                                    } else {
+                                        if (LOGS_ENABLED) DEBUG_D("not found request; msgid=0x%" PRIx64, originalMessageId);
+                                    }
+                                } else {
+                                    if (LOGS_ENABLED) DEBUG_D("not found dropAnswer; msgid=0x%" PRIx64, request->messageId);
+                                }
+                            }
+                        }
                     }
 
                     if (!discardResponse) {
@@ -1389,6 +1435,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                             } else if (datacenter->getDatacenterId() == currentDatacenterId || datacenter->getDatacenterId() == movingToDatacenterId) {
                                 if (request->connectionType & ConnectionTypeGeneric && currentUserId) {
                                     currentUserId = 0;
+                                    currentUserPremium = false;
                                     if (delegate != nullptr) {
                                         delegate->onLogout(instanceNum);
                                     }
@@ -1434,6 +1481,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                     }
                     request->completed = true;
                     removeRequestFromGuid(request->requestToken);
+                    if (LOGS_ENABLED) DEBUG_D("5) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                     runningRequests.erase(iter);
                 } else {
                     request->messageId = 0;
@@ -1577,7 +1625,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
                     }
                     if (LOGS_ENABLED) DEBUG_D("got TL_msg_detailed_info for rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
                     auto currentTime = (int32_t) (getCurrentTimeMonotonicMillis() / 1000);
-                    if (request->lastResendTime == 0 || abs(currentTime - request->lastResendTime) >= 60) {
+                    if (!request->cancelled && (request->lastResendTime == 0 || abs(currentTime - request->lastResendTime) >= 60)) {
                         request->lastResendTime = currentTime;
                         requestResend = true;
                     } else {
@@ -1619,6 +1667,7 @@ void ConnectionsManager::processServerResponse(TLObject *message, int64_t messag
             processServerResponse(object, messageId, messageSeqNo, messageSalt, connection, innerMsgId, containerMessageId);
             delete object;
         } else {
+            if (LOGS_ENABLED) DEBUG_D("connection(%p, account%u, dc%u, type %d) received unparsed from gzip object on %0x" PRIx64, connection, instanceNum, datacenter->getDatacenterId(), connection->getConnectionType(), messageId);
             if (delegate != nullptr) {
                 delegate->onUnparsedMessageReceived(messageId, data, connection->getConnectionType(), instanceNum);
             }
@@ -1771,8 +1820,8 @@ void ConnectionsManager::detachConnection(ConnectionSocket *connection) {
     }
 }
 
-int32_t ConnectionsManager::sendRequestInternal(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate) {
-    auto request = new Request(instanceNum, lastRequestToken++, connetionType, flags, datacenterId, onComplete, onQuickAck, nullptr);
+int32_t ConnectionsManager::sendRequestInternal(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onRequestClearFunc onClear, uint32_t flags, uint32_t datacenterId, ConnectionType connectionType, bool immediate) {
+    auto request = new Request(instanceNum, lastRequestToken++, connectionType, flags, datacenterId, onComplete, onQuickAck, nullptr, onClear);
     request->rawRequest = object;
     request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
     auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
@@ -1794,17 +1843,17 @@ int32_t ConnectionsManager::sendRequestInternal(TLObject *object, onCompleteFunc
     return request->requestToken;
 }
 
-int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate) {
+int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onRequestClearFunc onClear, uint32_t flags, uint32_t datacenterId, ConnectionType connectionType, bool immediate) {
     int32_t requestToken = lastRequestToken++;
-    return sendRequest(object, onComplete, onQuickAck, flags, datacenterId, connetionType, immediate, requestToken);
+    return sendRequest(object, onComplete, onQuickAck, onClear, flags, datacenterId, connectionType, immediate, requestToken);
 }
 
-int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate, int32_t requestToken) {
+int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onRequestClearFunc onClear, uint32_t flags, uint32_t datacenterId, ConnectionType connectionType, bool immediate, int32_t requestToken) {
     if (requestToken == 0) {
         requestToken = lastRequestToken++;
     }
-    scheduleTask([&, requestToken, object, onComplete, onQuickAck, flags, datacenterId, connetionType, immediate] {
-        auto request = new Request(instanceNum, requestToken, connetionType, flags, datacenterId, onComplete, onQuickAck, nullptr);
+    scheduleTask([&, requestToken, object, onComplete, onQuickAck, onClear, flags, datacenterId, connectionType, immediate] {
+        auto request = new Request(instanceNum, requestToken, connectionType, flags, datacenterId, onComplete, onQuickAck, nullptr, onClear);
         request->rawRequest = object;
         request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
         auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
@@ -1827,14 +1876,11 @@ int32_t ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onCompl
 }
 
 #ifdef ANDROID
-void ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onWriteToSocketFunc onWriteToSocket, uint32_t flags, uint32_t datacenterId, ConnectionType connetionType, bool immediate, int32_t requestToken, jobject ptr1, jobject ptr2, jobject ptr3) {
-    scheduleTask([&, requestToken, object, onComplete, onQuickAck, onWriteToSocket, flags, datacenterId, connetionType, immediate, ptr1, ptr2, ptr3] {
+void ConnectionsManager::sendRequest(TLObject *object, onCompleteFunc onComplete, onQuickAckFunc onQuickAck, onWriteToSocketFunc onWriteToSocket, onRequestClearFunc onClear, uint32_t flags, uint32_t datacenterId, ConnectionType connectionType, bool immediate, int32_t requestToken) {
+    scheduleTask([&, requestToken, object, onComplete, onQuickAck, onWriteToSocket, onClear, flags, datacenterId, connectionType, immediate] {
         if (LOGS_ENABLED) DEBUG_D("send request %p - %s", object, typeid(*object).name());
-        auto request = new Request(instanceNum, requestToken, connetionType, flags, datacenterId, onComplete, onQuickAck, onWriteToSocket);
+        auto request = new Request(instanceNum, requestToken, connectionType, flags, datacenterId, onComplete, onQuickAck, onWriteToSocket, onClear);
         request->rawRequest = object;
-        request->ptr1 = ptr1;
-        request->ptr2 = ptr2;
-        request->ptr3 = ptr3;
         request->rpcRequest = wrapInLayer(object, getDatacenterWithId(datacenterId), request);
         if (LOGS_ENABLED) DEBUG_D("send request wrapped %p - %s", request->rpcRequest.get(), typeid(*(request->rpcRequest.get())).name());
         auto cancelledIterator = tokensToBeCancelled.find(request->requestToken);
@@ -1864,7 +1910,7 @@ void ConnectionsManager::cancelRequestsForGuid(int32_t guid) {
             std::vector<int32_t> &requests = iter->second;
             size_t count = requests.size();
             for (uint32_t a = 0; a < count; a++) {
-                cancelRequestInternal(requests[a], 0, true, false);
+                cancelRequestInternal(requests[a], 0, true, false, nullptr);
                 auto iter2 = guidsByRequests.find(requests[a]);
                 if (iter2 != guidsByRequests.end()) {
                     guidsByRequests.erase(iter2);
@@ -1886,6 +1932,12 @@ void ConnectionsManager::bindRequestToGuid(int32_t requestToken, int32_t guid) {
             requestsByGuids[guid] = array;
         }
         guidsByRequests[requestToken] = guid;
+    });
+}
+
+void ConnectionsManager::setUserPremium(bool premium) {
+    scheduleTask([&, premium] {
+        currentUserPremium = premium;
     });
 }
 
@@ -1952,7 +2004,7 @@ void ConnectionsManager::removeRequestFromGuid(int32_t requestToken) {
     }
 }
 
-bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId, bool notifyServer, bool removeFromClass) {
+bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId, bool notifyServer, bool removeFromClass, onRequestCancelDoneFunc onCancelled) {
     if (!tokensToBeCancelled.empty() && (connectionState != ConnectionStateWaitingForNetwork || tokensToBeCancelled.size() > 5000)) {
         tokensToBeCancelled.clear();
     }
@@ -1961,7 +2013,8 @@ bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId,
         Request *request = iter->get();
         if ((token != 0 && request->requestToken == token) || (messageId != 0 && request->respondsToMessageId(messageId))) {
             request->cancelled = true;
-            if (LOGS_ENABLED) DEBUG_D("cancelled queued rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
+            const char* type = request->rawRequest == nullptr ? "" : typeid(*request->rawRequest).name();
+            if (LOGS_ENABLED) DEBUG_D("cancelled queued rpc request %p - %s of messageId 0x%" PRIx64, request->rawRequest, type, request->messageId);
             requestsQueue.erase(iter);
             if (removeFromClass) {
                 removeRequestFromGuid(token);
@@ -1974,7 +2027,8 @@ bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId,
         Request *request = iter->get();
         if ((token != 0 && request->requestToken == token) || (messageId != 0 && request->respondsToMessageId(messageId))) {
             request->cancelled = true;
-            if (LOGS_ENABLED) DEBUG_D("cancelled waiting login  rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
+            const char* type = request->rawRequest == nullptr ? "" : typeid(*request->rawRequest).name();
+            if (LOGS_ENABLED) DEBUG_D("cancelled waiting login rpc request %p - %s", request->rawRequest, type);
             waitingLoginRequests.erase(iter);
             if (removeFromClass) {
                 removeRequestFromGuid(token);
@@ -1985,15 +2039,57 @@ bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId,
 
     for (auto iter = runningRequests.begin(); iter != runningRequests.end(); iter++) {
         Request *request = iter->get();
+        if (request == nullptr) continue;
         if ((token != 0 && request->requestToken == token) || (messageId != 0 && request->respondsToMessageId(messageId))) {
+            request->cancelled = true;
+            bool erase = true;
+            if ((request->requestFlags & RequestFlagListenAfterCancel) != 0) {
+                int32_t token = request->requestToken;
+                auto oldOnCancelled = onCancelled;
+                if (onCancelled != nullptr) {
+                    request->disableClearCallback = true;
+                }
+                onCancelled = [this, oldOnCancelled, token]() -> void {
+                    for (auto iter2 = runningRequests.begin(); iter2 != runningRequests.end(); iter2++) {
+                        Request *request2 = iter2->get();
+                        if (request2->requestToken == token && !request2->doNotClearOnDrop) {
+                            request2->disableClearCallback = true;
+                            if (LOGS_ENABLED) DEBUG_D("6) erase request %d 0x%" PRIx64, request2->requestToken, request2->messageId);
+                            runningRequests.erase(iter2);
+                            break;
+                        }
+                    }
+                    if (oldOnCancelled != nullptr) {
+                        oldOnCancelled();
+                    }
+                };
+                erase = false;
+            }
             if (notifyServer) {
                 auto dropAnswer = new TL_rpc_drop_answer();
                 dropAnswer->req_msg_id = request->messageId;
-                sendRequest(dropAnswer, nullptr, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin | RequestFlagFailOnServerErrors, request->datacenterId, request->connectionType, true);
+                if (onCancelled != nullptr) {
+                    sendRequest(dropAnswer, ([onCancelled](TLObject *response, TL_error *error, int32_t networkType, int64_t responseTime, int64_t msgId) -> void {
+                        if (onCancelled != nullptr) {
+                            onCancelled();
+                        }
+                    }), nullptr, ([onCancelled]() -> void {
+                        if (onCancelled != nullptr) {
+                            onCancelled();
+                        }
+                    }), RequestFlagEnableUnauthorized | RequestFlagWithoutLogin | RequestFlagFailOnServerErrors | RequestFlagIsCancel, request->datacenterId, request->connectionType, true);
+                } else {
+                    sendRequest(dropAnswer, nullptr, nullptr, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin | RequestFlagFailOnServerErrors | RequestFlagIsCancel, request->datacenterId, request->connectionType, true);
+                }
+            } else if (onCancelled != nullptr) {
+                onCancelled();
             }
-            request->cancelled = true;
-            if (LOGS_ENABLED) DEBUG_D("cancelled running rpc request %p - %s", request->rawRequest, typeid(*request->rawRequest).name());
-            runningRequests.erase(iter);
+            const char* type = request->rawRequest == nullptr ? "" : typeid(*request->rawRequest).name();
+            if (LOGS_ENABLED) DEBUG_D("cancelled running rpc request %p - %s, of messageId 0x%" PRIx64 " notify=%d", request->rawRequest, type, request->messageId, notifyServer);
+            if (erase) {
+                if (LOGS_ENABLED) DEBUG_D("7) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
+                runningRequests.erase(iter);
+            }
             if (removeFromClass) {
                 removeRequestFromGuid(token);
             }
@@ -2009,12 +2105,12 @@ bool ConnectionsManager::cancelRequestInternal(int32_t token, int64_t messageId,
     return false;
 }
 
-void ConnectionsManager::cancelRequest(int32_t token, bool notifyServer) {
+void ConnectionsManager::cancelRequest(int32_t token, bool notifyServer, onRequestCancelDoneFunc onCancelled) {
     if (token == 0) {
         return;
     }
-    scheduleTask([&, token, notifyServer] {
-        cancelRequestInternal(token, 0, notifyServer, true);
+    scheduleTask([&, token, notifyServer, onCancelled] {
+        cancelRequestInternal(token, 0, notifyServer, true, onCancelled);
     });
 }
 
@@ -2156,7 +2252,7 @@ void ConnectionsManager::requestSaltsForDatacenter(Datacenter *datacenter, bool 
             datacenter->mergeServerSalts((TL_future_salts *) response, media);
             saveConfig();
         }
-    }, nullptr, RequestFlagWithoutLogin | RequestFlagEnableUnauthorized | RequestFlagUseUnboundKey, datacenter->getDatacenterId(), connectionType, true);
+    }, nullptr, nullptr, RequestFlagWithoutLogin | RequestFlagEnableUnauthorized | RequestFlagUseUnboundKey, datacenter->getDatacenterId(), connectionType, true);
 }
 
 void ConnectionsManager::clearRequestsForDatacenter(Datacenter *datacenter, HandshakeType type) {
@@ -2192,7 +2288,7 @@ void ConnectionsManager::registerForInternalPushUpdates() {
         }
         saveConfig();
         registeringForPush = false;
-    }, nullptr, 0, DEFAULT_DATACENTER_ID, ConnectionTypeGeneric, true);
+    }, nullptr, nullptr, 0, DEFAULT_DATACENTER_ID, ConnectionTypeGeneric, true);
 }
 
 
@@ -2206,6 +2302,13 @@ inline void addMessageToDatacenter(uint32_t datacenterId, NetworkMessage *networ
     }
 }
 
+// since we no longer save 3 global refs per request, can we make request count limits higher?
+#define MAX_GENERAL_REQUESTS 60 * 8
+#define MAX_DOWNLOAD_REQUESTS_CANCELS 24 * 2
+#define MAX_DOWNLOAD_REQUESTS_PREMIUM 32 * 2
+#define MAX_DOWNLOAD_REQUESTS 16 * 2
+#define MAX_UPLOAD_REQUESTS 10 * 3
+
 void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t dc) {
     genericMessagesToDatacenters.clear();
     genericMediaMessagesToDatacenters.clear();
@@ -2214,6 +2317,7 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
     neededDatacenters.clear();
     unauthorizedDatacenters.clear();
     downloadRunningRequestCount.clear();
+    downloadCancelRunningRequestCount.clear();
 
     int64_t currentTimeMillis = getCurrentTimeMonotonicMillis();
     auto currentTime = (int32_t) (currentTimeMillis / 1000);
@@ -2224,6 +2328,15 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
 
     for (auto iter = runningRequests.begin(); iter != runningRequests.end();) {
         Request *request = iter->get();
+        if (request->cancelled) {
+            if (request->doNotClearOnDrop && currentTime > request->clearAfter) {
+                DEBUG_D("16) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
+                iter = runningRequests.erase(iter);
+            } else {
+                iter++;
+            }
+            continue;
+        }
         const std::type_info &typeInfo = typeid(*request->rawRequest);
 
         uint32_t datacenterId = request->datacenterId;
@@ -2247,17 +2360,20 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
 
         switch (request->connectionType & 0x0000ffff) {
             case ConnectionTypeGeneric:
-                genericRunningRequestCount++;
+                if (!request->failedByFloodWait) {
+                    genericRunningRequestCount++;
+                }
                 break;
             case ConnectionTypeDownload: {
+                auto map = request->isCancelRequest() ? downloadCancelRunningRequestCount : downloadRunningRequestCount;
                 uint32_t currentCount;
-                auto dcIter = downloadRunningRequestCount.find(datacenterId);
-                if (dcIter != downloadRunningRequestCount.end()) {
+                auto dcIter = map.find(datacenterId);
+                if (dcIter != map.end()) {
                     currentCount = dcIter->second;
                 } else {
                     currentCount = 0;
                 }
-                downloadRunningRequestCount[datacenterId] = currentCount + 1;
+                map[datacenterId] = currentCount + 1;
                 break;
             }
             case ConnectionTypeUpload:
@@ -2278,6 +2394,7 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
             if (request->startTime != 0 && abs(currentTime - requestStartTime) >= timeout) {
                 if (LOGS_ENABLED) DEBUG_D("move %s to requestsQueue", typeid(*request->rawRequest).name());
                 requestsQueue.push_back(std::move(*iter));
+                DEBUG_D("10) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                 iter = runningRequests.erase(iter);
                 continue;
             }
@@ -2301,6 +2418,7 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
             if (request->needInitRequest(requestDatacenter, currentVersion) && !request->hasInitFlag() && request->rawRequest->isNeedLayer()) {
                 if (LOGS_ENABLED) DEBUG_D("move %p - %s to requestsQueue because of initConnection", request->rawRequest, typeid(*request->rawRequest).name());
                 requestsQueue.push_back(std::move(*iter));
+                DEBUG_D("11) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                 iter = runningRequests.erase(iter);
                 continue;
             }
@@ -2340,12 +2458,13 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
             forceThisRequest = false;
         }
 
-        if (forceThisRequest || (abs(currentTime - request->startTime) > maxTimeout &&
-                                 (currentTime >= request->minStartTime ||
-                                  (request->failedByFloodWait != 0 && (request->minStartTime - currentTime) > request->failedByFloodWait) ||
-                                  (request->failedByFloodWait == 0 && abs(currentTime - request->minStartTime) >= 60))
-        )
-                ) {
+        if (forceThisRequest || (
+            abs(currentTime - request->startTime) > maxTimeout && (
+                currentTime >= request->minStartTime ||
+                (request->failedByFloodWait != 0 && (request->minStartTime - currentTime) > request->failedByFloodWait) ||
+                (request->failedByFloodWait == 0 && abs(currentTime - request->minStartTime) >= 60)
+            )
+        )) {
             if (!forceThisRequest && request->connectionToken > 0) {
                 if ((request->connectionType & ConnectionTypeGeneric || request->connectionType & ConnectionTypeTemp) && request->connectionToken == connection->getConnectionToken()) {
                     if (LOGS_ENABLED) DEBUG_D("request token is valid, not retrying %s (%p)", typeInfo.name(), request->rawRequest);
@@ -2378,12 +2497,13 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
                         }
                     }
                     if (request->retryCount >= retryMax) {
-                        if (LOGS_ENABLED) DEBUG_E("timed out %s", typeInfo.name());
+                        if (LOGS_ENABLED) DEBUG_E("timed out %s, message_id = 0x%" PRIx64, typeInfo.name(), request->messageId);
                         auto error = new TL_error();
                         error->code = -123;
                         error->text = "RETRY_LIMIT";
                         request->onComplete(nullptr, error, connection->currentNetworkType, 0, request->messageId);
                         delete error;
+                        DEBUG_D("12) erase request %d 0x%" PRIx64, request->requestToken, request->messageId);
                         iter = runningRequests.erase(iter);
                         continue;
                     }
@@ -2473,6 +2593,8 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
         Request *request = iter->get();
         if (request->cancelled) {
             iter = requestsQueue.erase(iter);
+            if (LOGS_ENABLED)
+                DEBUG_D("skip queue, token = %d: cancelled", request->requestToken);
             continue;
         }
         if (hasInvokeWaitMessage && (request->requestFlags & RequestFlagInvokeAfter) != 0 && (request->requestFlags & RequestFlagResendAfter) == 0) {
@@ -2490,6 +2612,8 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
         if (datacenterId == DEFAULT_DATACENTER_ID) {
             if (movingToDatacenterId != DEFAULT_DATACENTER_ID) {
                 iter++;
+                if (LOGS_ENABLED)
+                    DEBUG_D("skip queue, token = %d: moving dc", request->requestToken);
                 continue;
             }
             datacenterId = currentDatacenterId;
@@ -2535,6 +2659,8 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
             if (std::find(unknownDatacenterIds.begin(), unknownDatacenterIds.end(), datacenterId) == unknownDatacenterIds.end()) {
                 unknownDatacenterIds.push_back(datacenterId);
             }
+            if (LOGS_ENABLED)
+                DEBUG_D("skip queue, token = %d: unknown dc", request->requestToken);
             iter++;
             continue;
         } else {
@@ -2548,12 +2674,16 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
                 if (std::find(neededDatacenters.begin(), neededDatacenters.end(), pair) == neededDatacenters.end()) {
                     neededDatacenters.push_back(pair);
                 }
+                if (LOGS_ENABLED)
+                    DEBUG_D("skip queue, token = %d: no authkey for dc", request->requestToken);
                 iter++;
                 continue;
             } else if (!(request->requestFlags & RequestFlagEnableUnauthorized) && !requestDatacenter->authorized && request->datacenterId != DEFAULT_DATACENTER_ID && request->datacenterId != currentDatacenterId) {
                 if (std::find(unauthorizedDatacenters.begin(), unauthorizedDatacenters.end(), requestDatacenter) == unauthorizedDatacenters.end()) {
                     unauthorizedDatacenters.push_back(requestDatacenter);
                 }
+                if (LOGS_ENABLED)
+                    DEBUG_D("skip queue, token = %d: dc is unauthorized", request->requestToken);
                 iter++;
                 continue;
             }
@@ -2563,28 +2693,49 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
 
         if (request->connectionType & ConnectionTypeGeneric && connection->getConnectionToken() == 0) {
             iter++;
+            if (LOGS_ENABLED)
+                DEBUG_D("skip queue, token = %d: generic && connectionToken == 0", request->requestToken);
             continue;
         }
 
         switch (request->connectionType & 0x0000ffff) {
             case ConnectionTypeGeneric:
             case ConnectionTypeGenericMedia:
-                if (!canUseUnboundKey && genericRunningRequestCount >= 60) {
+                if (!canUseUnboundKey && genericRunningRequestCount >= MAX_GENERAL_REQUESTS) {
                     iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: generic type: running generic requests >= 60", request->requestToken);
                     continue;
                 }
                 genericRunningRequestCount++;
                 break;
             case ConnectionTypeDownload: {
                 uint32_t currentCount;
-                auto dcIter = downloadRunningRequestCount.find(datacenterId);
-                if (dcIter != downloadRunningRequestCount.end()) {
+                auto map = request->isCancelRequest() ? downloadCancelRunningRequestCount : downloadRunningRequestCount;
+                auto dcIter = map.find(datacenterId);
+                if (dcIter != map.end()) {
                     currentCount = dcIter->second;
                 } else {
                     currentCount = 0;
                 }
-                if (!networkAvailable || currentCount >= 16) {
+                if (!networkAvailable) {
                     iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: download type: network unavailable", request->requestToken);
+                    continue;
+                }
+                int max;
+                if (request->isCancelRequest()) {
+                    max = MAX_DOWNLOAD_REQUESTS_CANCELS;
+                } else if (currentUserPremium) {
+                    max = MAX_DOWNLOAD_REQUESTS_PREMIUM;
+                } else {
+                    max = MAX_DOWNLOAD_REQUESTS;
+                }
+                if (currentCount >= max) {
+                    iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: download type: running download requests >= %d", request->requestToken, max);
                     continue;
                 }
                 downloadRunningRequestCount[datacenterId] = currentCount + 1;
@@ -2594,12 +2745,22 @@ void ConnectionsManager::processRequestQueue(uint32_t connectionTypes, uint32_t 
             case ConnectionTypeTemp:
                 if (!networkAvailable) {
                     iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: proxy/temp type: network unavailable", request->requestToken);
                     continue;
                 }
                 break;
             case ConnectionTypeUpload:
-                if (!networkAvailable || uploadRunningRequestCount >= 10) {
+                if (!networkAvailable) {
                     iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: upload type: network unavailable", request->requestToken);
+                    continue;
+                }
+                if (uploadRunningRequestCount >= MAX_UPLOAD_REQUESTS) {
+                    iter++;
+                    if (LOGS_ENABLED)
+                        DEBUG_D("skip queue, token = %d: upload type: running upload requests >= 10", request->requestToken);
                     continue;
                 }
                 uploadRunningRequestCount++;
@@ -3057,14 +3218,13 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround, bool 
         if ((!workaround && !updatingDcSettings) || (workaround && !updatingDcSettingsWorkaround)) {
             return;
         }
-        if (!workaround && updatingDcSettingsAgain && updatingDcSettingsAgainDcNum == dcNum) {
+        if (!workaround && updatingDcSettingsAgain) {
+            updatingDcSettings = false;
             updatingDcSettingsAgain = false;
             for (auto & datacenter : datacenters) {
-                if (datacenter.first == dcNum) {
-                    datacenter.second->resetInitVersion();
-                }
+                datacenter.second->resetInitVersion();
             }
-            updateDcSettings(updatingDcSettingsAgainDcNum, false, false);
+            updateDcSettings(0, false, false);
             return;
         }
 
@@ -3170,7 +3330,7 @@ void ConnectionsManager::updateDcSettings(uint32_t dcNum, bool workaround, bool 
         } else {
             updatingDcSettings = false;
         }
-    }, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin | RequestFlagUseUnboundKey | (workaround ? 0 : RequestFlagTryDifferentDc), dcNum == 0 ? currentDatacenterId : dcNum, workaround ? ConnectionTypeTemp : ConnectionTypeGeneric, true);
+    }, nullptr, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin | RequestFlagUseUnboundKey | (workaround ? 0 : RequestFlagTryDifferentDc), dcNum == 0 ? currentDatacenterId : dcNum, workaround ? ConnectionTypeTemp : ConnectionTypeGeneric, true);
 }
 
 void ConnectionsManager::moveToDatacenter(uint32_t datacenterId) {
@@ -3209,7 +3369,7 @@ void ConnectionsManager::authorizeOnMovingDatacenter() {
             } else {
                 moveToDatacenter(movingToDatacenterId);
             }
-        }, nullptr, RequestFlagWithoutLogin, datacenter->getDatacenterId(), ConnectionTypeGeneric, true);
+        }, nullptr, nullptr, RequestFlagWithoutLogin, datacenter->getDatacenterId(), ConnectionTypeGeneric, true);
     } else {
         authorizedOnMovingDatacenter();
     }
@@ -3362,7 +3522,7 @@ void ConnectionsManager::applyDnsConfig(NativeByteBuffer *buffer, std::string ph
     });
 }
 
-void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType, int32_t performanceClass) {
+void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, std::string deviceModel, std::string systemVersion, std::string appVersion, std::string langCode, std::string systemLangCode, std::string configPath, std::string logPath, std::string regId, std::string cFingerpting, std::string installerId, std::string packageId, int32_t timezoneOffset, int64_t userId, bool userPremium, bool isPaused, bool enablePushConnection, bool hasNetwork, int32_t networkType, int32_t performanceClass) {
     currentVersion = version;
     currentLayer = layer;
     currentApiId = apiId;
@@ -3378,6 +3538,7 @@ void ConnectionsManager::init(uint32_t version, int32_t layer, int32_t apiId, st
     currentDeviceTimezone = timezoneOffset;
     currentSystemLangCode = systemLangCode;
     currentUserId = userId;
+    currentUserPremium = userPremium;
     currentLogPath = logPath;
     pushConnectionEnabled = enablePushConnection;
     currentNetworkType = networkType;
@@ -3632,7 +3793,7 @@ void ConnectionsManager::checkProxyInternal(ProxyCheckInfo *proxyCheckInfo) {
             proxyCheckInfo->connectionNum = freeConnectionNum;
             auto request = new TL_ping();
             request->ping_id = proxyCheckInfo->pingId;
-            proxyCheckInfo->requestToken = sendRequest(request, nullptr, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin, DEFAULT_DATACENTER_ID, connectionType, true, 0);
+            proxyCheckInfo->requestToken = sendRequest(request, nullptr, nullptr, nullptr, RequestFlagEnableUnauthorized | RequestFlagWithoutLogin, DEFAULT_DATACENTER_ID, connectionType, true, 0);
             proxyActiveChecks.push_back(std::unique_ptr<ProxyCheckInfo>(proxyCheckInfo));
         } else if (PFS_ENABLED) {
             if (datacenter->isHandshaking(false)) {
@@ -3675,9 +3836,8 @@ void ConnectionsManager::reconnect(int32_t dcId, int32_t connectionType) {
                 Connection *connection = datacenter->getConnectionByType(connectionType, false,
                                                                          0);
                 if (connection != nullptr) {
-                    if (LOGS_ENABLED)
-                        DEBUG_D("discard connection dcId=%d connectionType=%d", dcId,
-                                connectionType);
+                    if (LOGS_ENABLED) DEBUG_D("discard connection dcId=%d connectionType=%d", dcId,
+                            connectionType);
                     connection->suspendConnection(true);
                 }
             }

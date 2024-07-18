@@ -15,7 +15,7 @@ import android.text.TextUtils;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-import org.cloudveil.messenger.GlobalSecuritySettings;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.support.LongSparseIntArray;
 import org.telegram.tgnet.AbstractSerializedData;
@@ -155,7 +155,7 @@ public class SecretChatHelper extends BaseController {
 
         ArrayList<TLRPC.Message> arr = new ArrayList<>();
         arr.add(newMsg);
-        getMessagesStorage().putMessages(arr, false, true, true, 0, false, 0);
+        getMessagesStorage().putMessages(arr, false, true, true, 0, false, 0, 0);
 
         return newMsg;
     }
@@ -477,7 +477,7 @@ public class SecretChatHelper extends BaseController {
             newMsgObj.wasJustSent = true;
             ArrayList<MessageObject> objArr = new ArrayList<>();
             objArr.add(newMsgObj);
-            getMessagesController().updateInterfaceWithMessages(message.dialog_id, objArr, false);
+            getMessagesController().updateInterfaceWithMessages(message.dialog_id, objArr, 0);
             getNotificationCenter().postNotificationName(NotificationCenter.dialogsNeedReload);
         }
         reqSend.random_id = message.random_id;
@@ -507,7 +507,7 @@ public class SecretChatHelper extends BaseController {
             newMsgObj.wasJustSent = true;
             ArrayList<MessageObject> objArr = new ArrayList<>();
             objArr.add(newMsgObj);
-            getMessagesController().updateInterfaceWithMessages(message.dialog_id, objArr, false);
+            getMessagesController().updateInterfaceWithMessages(message.dialog_id, objArr, 0);
             getNotificationCenter().postNotificationName(NotificationCenter.dialogsNeedReload);
         }
         reqSend.random_id = message.random_id;
@@ -535,7 +535,7 @@ public class SecretChatHelper extends BaseController {
                 ImageLoader.getInstance().replaceImageInCache(fileName, fileName2, ImageLocation.getForPhoto(size, newMsg.media.photo), true);
                 ArrayList<TLRPC.Message> arr = new ArrayList<>();
                 arr.add(newMsg);
-                getMessagesStorage().putMessages(arr, false, true, false, 0, false, 0);
+                getMessagesStorage().putMessages(arr, false, true, false, 0, false, 0, 0);
 
                 //getMessagesStorage().putSentFile(originalPath, newMsg.media.photo, 3);
             } else if (newMsg.media instanceof TLRPC.TL_messageMediaDocument && newMsg.media.document != null) {
@@ -569,7 +569,7 @@ public class SecretChatHelper extends BaseController {
 
                 ArrayList<TLRPC.Message> arr = new ArrayList<>();
                 arr.add(newMsg);
-                getMessagesStorage().putMessages(arr, false, true, false, 0, false, 0);
+                getMessagesStorage().putMessages(arr, false, true, false, 0, 0, 0);
             }
         }
     }
@@ -757,26 +757,20 @@ public class SecretChatHelper extends BaseController {
                             if (isSecretInvisibleMessage(newMsgObj)) {
                                 res.date = 0;
                             }
-                            getMessagesStorage().updateMessageStateAndId(newMsgObj.random_id, 0, newMsgObj.id, newMsgObj.id, res.date, false, 0);
+                            getMessagesStorage().updateMessageStateAndId(newMsgObj.random_id, 0, newMsgObj.id, newMsgObj.id, res.date, false, 0, 0);
                             AndroidUtilities.runOnUIThread(() -> {
                                 newMsgObj.send_state = MessageObject.MESSAGE_SEND_STATE_SENT;
                                 getNotificationCenter().postNotificationName(NotificationCenter.messageReceivedByServer, newMsgObj.id, newMsgObj.id, newMsgObj, newMsgObj.dialog_id, 0L, existFlags, false);
                                 getSendMessagesHelper().processSentMessage(newMsgObj.id);
-                                if (MessageObject.isVideoMessage(newMsgObj) || MessageObject.isNewGifMessage(newMsgObj) || MessageObject.isRoundVideoMessage(newMsgObj)) {
-                                    getSendMessagesHelper().stopVideoService(attachPath);
-                                }
                                 getSendMessagesHelper().removeFromSendingMessages(newMsgObj.id, false);
                             });
                         });
                     } else {
-                        getMessagesStorage().markMessageAsSendError(newMsgObj, false);
+                        getMessagesStorage().markMessageAsSendError(newMsgObj, 0);
                         AndroidUtilities.runOnUIThread(() -> {
                             newMsgObj.send_state = MessageObject.MESSAGE_SEND_STATE_SEND_ERROR;
                             getNotificationCenter().postNotificationName(NotificationCenter.messageSendError, newMsgObj.id);
                             getSendMessagesHelper().processSentMessage(newMsgObj.id);
-                            if (MessageObject.isVideoMessage(newMsgObj) || MessageObject.isNewGifMessage(newMsgObj) || MessageObject.isRoundVideoMessage(newMsgObj)) {
-                                getSendMessagesHelper().stopVideoService(newMsgObj.attachPath);
-                            }
                             getSendMessagesHelper().removeFromSendingMessages(newMsgObj.id, false);
                         });
                     }
@@ -1122,13 +1116,15 @@ public class SecretChatHelper extends BaseController {
                         if (serviceMessage.action.ttl_seconds < 0 || serviceMessage.action.ttl_seconds > 60 * 60 * 24 * 365) {
                             serviceMessage.action.ttl_seconds = 60 * 60 * 24 * 365;
                         }
+
                         //CloudVeil start
-                        chat.ttl = Math.max(serviceMessage.action.ttl_seconds, GlobalSecuritySettings.getMinSecretChatTtl());
+                        chat.ttl = Math.max(serviceMessage.action.ttl_seconds, CloudVeilSecuritySettings.getMinSecretChatTtl());
                         if (chat.ttl != serviceMessage.action.ttl_seconds) {
                             chat.ttl = serviceMessage.action.ttl_seconds;
                             SecretChatHelper.getInstance(currentAccount).sendTTLMessage(chat, null);
                         }
                         //CloudVeil end
+
                         newMessage.action.encryptedAction = serviceMessage.action;
                         getMessagesStorage().updateEncryptedChatTTL(chat);
                     } else {

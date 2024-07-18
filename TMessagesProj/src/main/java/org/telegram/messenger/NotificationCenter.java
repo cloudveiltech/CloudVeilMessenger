@@ -137,6 +137,10 @@ public class NotificationCenter {
     public static final int animatedEmojiDocumentLoaded = totalEvents++;
     public static final int recentEmojiStatusesUpdate = totalEvents++;
     public static final int updateSearchSettings = totalEvents++;
+    public static final int updateTranscriptionLock = totalEvents++;
+    public static final int businessMessagesUpdated = totalEvents++;
+    public static final int quickRepliesUpdated = totalEvents++;
+    public static final int quickRepliesDeleted = totalEvents++;
 
     public static final int messageTranslated = totalEvents++;
     public static final int messageTranslating = totalEvents++;
@@ -175,6 +179,8 @@ public class NotificationCenter {
     public static final int recordStarted = totalEvents++;
     public static final int recordStartError = totalEvents++;
     public static final int recordStopped = totalEvents++;
+    public static final int recordPaused = totalEvents++;
+    public static final int recordResumed = totalEvents++;
     public static final int screenshotTook = totalEvents++;
     public static final int albumsDidLoad = totalEvents++;
     public static final int audioDidSent = totalEvents++;
@@ -209,6 +215,10 @@ public class NotificationCenter {
 
     public static final int updateBotMenuButton = totalEvents++;
 
+    public static final int giftsToUserSent = totalEvents++;
+    public static final int didStartedMultiGiftsSelector = totalEvents++;
+    public static final int boostedChannelByUser = totalEvents++;
+    public static final int boostByChannelCreated = totalEvents++;
     public static final int didUpdatePremiumGiftStickers = totalEvents++;
     public static final int didUpdatePremiumGiftFieldIcon = totalEvents++;
     public static final int storiesEnabledUpdate = totalEvents++;
@@ -216,10 +226,23 @@ public class NotificationCenter {
     public static final int storiesLimitUpdate = totalEvents++;
     public static final int storiesSendAsUpdate = totalEvents++;
     public static final int unconfirmedAuthUpdate = totalEvents++;
+    public static final int dialogPhotosUpdate = totalEvents++;
+    public static final int channelRecommendationsLoaded = totalEvents++;
+    public static final int savedMessagesDialogsUpdate = totalEvents++;
+    public static final int savedReactionTagsUpdate = totalEvents++;
+    public static final int userIsPremiumBlockedUpadted = totalEvents++;
+    public static final int savedMessagesForwarded = totalEvents++;
+    public static final int emojiKeywordsLoaded = totalEvents++;
+    public static final int smsJobStatusUpdate = totalEvents++;
+    public static final int storyQualityUpdate = totalEvents++;
+    public static final int openBoostForUsersDialog = totalEvents++;
+    public static final int groupRestrictionsUnlockedByBoosts = totalEvents++;
+    public static final int chatWasBoostedByUser = totalEvents++;
+    public static final int groupPackUpdated = totalEvents++;
+    public static final int timezonesUpdated = totalEvents++;
 
     //global
     public static final int pushMessagesUpdated = totalEvents++;
-    public static final int stopEncodingService = totalEvents++;
     public static final int wallpapersDidLoad = totalEvents++;
     public static final int wallpapersNeedReload = totalEvents++;
     public static final int didReceiveSmsCode = totalEvents++;
@@ -281,26 +304,28 @@ public class NotificationCenter {
     public static final int userEmojiStatusUpdated = totalEvents++;
     public static final int requestPermissions = totalEvents++;
     public static final int permissionsGranted = totalEvents++;
-    public static int topicsDidLoaded = totalEvents++;
-    public static int chatSwithcedToForum = totalEvents++;
-    public static int didUpdateGlobalAutoDeleteTimer = totalEvents++;
-    public static int onDatabaseReset = totalEvents++;
-    public static int wallpaperSettedToUser = totalEvents++;
-    public static int storiesUpdated = totalEvents++;
-    public static int storiesListUpdated = totalEvents++;
-    public static int storiesDraftsUpdated = totalEvents++;
-    public static int chatlistFolderUpdate = totalEvents++;
+    public static final int topicsDidLoaded = totalEvents++;
+    public static final int chatSwithcedToForum = totalEvents++;
+    public static final int didUpdateGlobalAutoDeleteTimer = totalEvents++;
+    public static final int onDatabaseReset = totalEvents++;
+    public static final int wallpaperSettedToUser = totalEvents++;
+    public static final int storiesUpdated = totalEvents++;
+    public static final int storiesListUpdated = totalEvents++;
+    public static final int storiesDraftsUpdated = totalEvents++;
+    public static final int chatlistFolderUpdate = totalEvents++;
     public static final int uploadStoryProgress = totalEvents++;
     public static final int uploadStoryEnd = totalEvents++;
     public static final int customTypefacesLoaded = totalEvents++;
     public static final int stealthModeChanged = totalEvents++;
-    public static final int onReceivedChannelDifference = totalEvents++;;
-
-    public static boolean alreadyLogged;
+    public static final int onReceivedChannelDifference = totalEvents++;
+    public static final int storiesReadUpdated = totalEvents++;
+    public static final int nearEarEvent = totalEvents++;
 
     //CloudVeil start
     public static final int filterDialogsReady = totalEvents++;
     //CloudVeil end
+
+    public static boolean alreadyLogged;
 
     private SparseArray<ArrayList<NotificationCenterDelegate>> observers = new SparseArray<>();
     private SparseArray<ArrayList<NotificationCenterDelegate>> removeAfterBroadcast = new SparseArray<>();
@@ -498,7 +523,7 @@ public class NotificationCenter {
     }
 
     public void postNotificationName(int id, Object... args) {
-        boolean allowDuringAnimation = id == startAllHeavyOperations || id == stopAllHeavyOperations || id == didReplacedPhotoInMemCache || id == closeChats || id == invalidateMotionBackground;
+        boolean allowDuringAnimation = id == startAllHeavyOperations || id == stopAllHeavyOperations || id == didReplacedPhotoInMemCache || id == closeChats || id == invalidateMotionBackground || id == needCheckSystemBarColors;
         ArrayList<Integer> expiredIndices = null;
         if (!allowDuringAnimation && allowedNotifications.size() > 0) {
             int size = allowedNotifications.size();
@@ -732,29 +757,35 @@ public class NotificationCenter {
         }
     }
 
-    public static void listenEmojiLoading(View view) {
-        if (view == null) {
-            return;
+    public Runnable listen(View view, final int id, final Utilities.Callback<Object[]> callback) {
+        if (view == null || callback == null) {
+            return () -> {};
         }
-
-        final NotificationCenterDelegate delegate = (id, account, args) -> {
-            if (id == NotificationCenter.emojiLoaded) {
-                if (view != null && view.isAttachedToWindow()) {
-                    view.invalidate();
-                }
+        final NotificationCenterDelegate delegate = (_id, account, args) -> {
+            if (_id == id) {
+                callback.run(args);
             }
         };
-        view.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+        final View.OnAttachStateChangeListener viewListener = new View.OnAttachStateChangeListener() {
             @Override
             public void onViewAttachedToWindow(View view) {
-                NotificationCenter.getGlobalInstance().addObserver(delegate, NotificationCenter.emojiLoaded);
+                NotificationCenter.getGlobalInstance().addObserver(delegate, id);
             }
-
             @Override
             public void onViewDetachedFromWindow(View view) {
-                NotificationCenter.getGlobalInstance().removeObserver(delegate, NotificationCenter.emojiLoaded);
+                NotificationCenter.getGlobalInstance().removeObserver(delegate, id);
             }
-        });
+        };
+        view.addOnAttachStateChangeListener(viewListener);
+
+        return () -> {
+            view.removeOnAttachStateChangeListener(viewListener);
+            NotificationCenter.getGlobalInstance().removeObserver(delegate, id);
+        };
+    }
+
+    public static void listenEmojiLoading(View view) {
+        getGlobalInstance().listen(view, NotificationCenter.emojiLoaded, args -> view.invalidate());
     }
 
     public void listenOnce(int id, Runnable callback) {

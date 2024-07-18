@@ -104,6 +104,7 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
         } else {
             linkPath = new LinkPath(true);
         }
+        linkPath.setUseCornerPathImplementation(!isLite);
         linkPath.reset();
         mPathes.add(linkPath);
         mPathesCount = mPathes.size();
@@ -206,6 +207,7 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
         mSelectionPaint.setAlpha((int) (mSelectionAlpha * selectionAlpha * Math.min(1, pressT * 5f) * (1f - releaseT)));
         mSelectionPaint.setStrokeWidth(Math.min(1, 1f - longPress) * AndroidUtilities.dp(5));
         for (int i = 0; i < mPathesCount; ++i) {
+            mPathes.get(i).closeRects();
             canvas.drawPath(mPathes.get(i), mSelectionPaint);
         }
 
@@ -563,6 +565,10 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
             return null;
         }
 
+        public int overrideColor() {
+            return Theme.getColor(Theme.key_chat_linkSelectBackground, resourcesProvider);
+        }
+
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             if (links != null) {
@@ -571,6 +577,7 @@ public class LinkSpanDrawable<S extends CharacterStyle> {
                 if ((span = hit((int) event.getX(), (int) event.getY())) != null) {
                     if (event.getAction() == MotionEvent.ACTION_DOWN) {
                         final LinkSpanDrawable link = new LinkSpanDrawable<ClickableSpan>(span, resourcesProvider, event.getX(), event.getY());
+                        link.setColor(overrideColor());
                         pressedLink = link;
                         links.addLink(pressedLink);
                         Spannable buffer = new SpannableString(textLayout.getText());
