@@ -103,11 +103,11 @@ public class OKLCH {
     }
 
     public static double[] oklch2rgb(double[] lch) {
-        return srgbLinear2rgb(xyz2rgbLinear(oklab2xyz(oklch2oklab(lch))));
+        return xyz2rgbLinear(oklab2xyz(oklch2oklab(lch)));
     }
 
     public static double[] rgb2oklch(double[] rgb) {
-        return oklab2oklch(xyz2oklab(rgbLinear2xyz(rgb2srgbLinear(rgb))));
+        return oklab2oklch(xyz2oklab(rgbLinear2xyz(rgb)));
     }
 
     public static double[] rgb(int color) {
@@ -130,8 +130,11 @@ public class OKLCH {
         double[] hueoklch = rgb2oklch(rgb(hueColor));
         double[] oklch = rgb2oklch(rgb(baseColor));
         oklch[2] = hueoklch[2];
-        if (Double.isNaN(hueoklch[2])) {
+        if (Double.isNaN(hueoklch[2]) || hueoklch[1] < .08f) {
             oklch[1] = hueoklch[1];
+            if (!Theme.isCurrentThemeDark() && oklch[0] < .8f) {
+                oklch[0] = Utilities.clamp(oklch[0] - .1, 1, 0);
+            }
         }
         return ColorUtils.setAlphaComponent(rgb(oklch2rgb(oklch)), Color.alpha(baseColor));
     }

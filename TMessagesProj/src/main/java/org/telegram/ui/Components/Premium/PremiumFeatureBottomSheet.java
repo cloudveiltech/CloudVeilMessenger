@@ -9,7 +9,6 @@ import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -395,8 +394,8 @@ public class PremiumFeatureBottomSheet extends BottomSheet implements Notificati
             BaseFragment mainFragment = LaunchActivity.getLastFragment();
             for (int i = 0; i < 2; i++) {
                 BaseFragment currentFragment = i == 0 ? fragment : mainFragment;
-                if (currentFragment != null && currentFragment.storyViewer != null && currentFragment.storyViewer.isShown()) {
-                    currentFragment.storyViewer.dismissVisibleDialogs();
+                if (currentFragment != null && currentFragment.getLastStoryViewer() != null) {
+                    currentFragment.getLastStoryViewer().dismissVisibleDialogs();
                 }
                 if (currentFragment != null && currentFragment.getVisibleDialog() != null) {
                     currentFragment.getVisibleDialog().dismiss();
@@ -515,8 +514,8 @@ public class PremiumFeatureBottomSheet extends BottomSheet implements Notificati
 
     private static Theme.ResourcesProvider getResourceProvider(BaseFragment fragment) {
         if (fragment != null) {
-            if (fragment.storyViewer != null && fragment.storyViewer.isShown()) {
-                return fragment.storyViewer.getResourceProvider();
+            if (fragment.getLastStoryViewer() != null && fragment.getLastStoryViewer().isShown()) {
+                return fragment.getLastStoryViewer().getResourceProvider();
             }
             return fragment.getResourceProvider();
         }
@@ -663,7 +662,7 @@ public class PremiumFeatureBottomSheet extends BottomSheet implements Notificati
             title.setGravity(Gravity.CENTER_HORIZONTAL);
             title.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
-            title.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            title.setTypeface(AndroidUtilities.bold());
 
             addView(title, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 21, 20, 21, 0));
 

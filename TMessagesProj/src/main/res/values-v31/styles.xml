@@ -16,7 +16,7 @@
 
 <resources>
 
-    <style name="Theme.TMessages.Start" parent="@android:style/Theme.Material">
+    <style name="Theme.TMessages.Start" parent="Theme.AppCompat.Light">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:actionBarStyle">@style/ActionBar.Transparent.TMessages.Start</item>
@@ -28,12 +28,12 @@
         <item name="android:navigationBarColor">#000000</item>
         <item name="android:textViewStyle">@style/MyTextViewStyle</item>
         <item name="android:forceDarkAllowed">false</item>
-<!--   CloudVeil disable       <item name="android:windowSplashScreenAnimatedIcon">@drawable/tg_splash_320</item>-->
-<!--        <item name="android:windowSplashScreenAnimationDuration">@integer/splash_screen_duration</item>-->
+        <!--   CloudVeil disable       <item name="android:windowSplashScreenAnimatedIcon">@drawable/tg_splash_320</item>-->
+        <!--        <item name="android:windowSplashScreenAnimationDuration">@integer/splash_screen_duration</item>-->
         <item name="android:windowSplashScreenBackground">?android:windowBackground</item>
     </style>
 
-    <style name="Theme.TMessages" parent="@android:style/Theme.Material.Light">
+    <style name="Theme.TMessages" parent="Theme.AppCompat.Light">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBarOverlay">false</item>
@@ -60,7 +60,7 @@
         <item name="android:forceDarkAllowed">false</item>
     </style>
 
-    <style name="Theme.TMessages.Dark" parent="@android:style/Theme.Material">
+    <style name="Theme.TMessages.Dark" parent="Theme.AppCompat.DayNight">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBarOverlay">false</item>

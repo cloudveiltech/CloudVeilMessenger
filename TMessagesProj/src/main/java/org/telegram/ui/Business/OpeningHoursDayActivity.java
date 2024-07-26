@@ -89,7 +89,7 @@ public class OpeningHoursDayActivity extends BaseFragment {
         FrameLayout contentView = new FrameLayout(context);
         contentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
-        listView = new UniversalRecyclerView(context, currentAccount, this::fillItems, this::onClick, null, getResourceProvider());
+        listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, null);
         contentView.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         return fragmentView = contentView;
@@ -132,7 +132,7 @@ public class OpeningHoursDayActivity extends BaseFragment {
         if (periods.size() >= maxPeriodsCount) {
             return false;
         }
-        return periods.isEmpty() || is24() || periods.get(periods.size() - 1).end < max - 2;
+        return periods.isEmpty() || is24() || periods.get(periods.size() - 1).end < Math.min(24 * 60 - 2, max - 2);
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {

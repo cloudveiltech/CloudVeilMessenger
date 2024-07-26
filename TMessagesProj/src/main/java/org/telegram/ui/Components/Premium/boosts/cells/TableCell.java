@@ -14,7 +14,6 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.method.LinkMovementMethod;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -204,8 +203,8 @@ public class TableCell extends FrameLayout {
     public void setData(TLRPC.TL_payments_checkedGiftCode giftCode, Utilities.Callback<TLObject> onObjectClicked) {
         this.giftCode = giftCode;
         Date date = new Date(giftCode.date * 1000L);
-        String monthTxt = LocaleController.getInstance().formatterYear.format(date);
-        String timeTxt = LocaleController.getInstance().formatterDay.format(date);
+        String monthTxt = LocaleController.getInstance().getFormatterYear().format(date);
+        String timeTxt = LocaleController.getInstance().getFormatterDay().format(date);
 
         dateTextView.setText(LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, monthTxt, timeTxt));
         reasonTextView.setTextColor(Theme.getColor(giftCode.via_giveaway ? Theme.key_dialogTextBlue : Theme.key_dialogTextBlack, resourcesProvider));
@@ -294,7 +293,7 @@ public class TableCell extends FrameLayout {
             textView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
         }
         if (text != null) {
-            textView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            textView.setTypeface(AndroidUtilities.bold());
             textView.setText(text);
             textView.setBackgroundColor(Theme.getColor(Theme.key_graySection, resourcesProvider));
             textView.setPadding(AndroidUtilities.dp(LocaleController.isRTL ? 32 : 12), AndroidUtilities.dp(11), AndroidUtilities.dp(LocaleController.isRTL ? 12 : 32), AndroidUtilities.dp(11));

@@ -49,6 +49,7 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatThemeController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.EmojiThemes;
@@ -1313,9 +1314,7 @@ public class PreviewView extends FrameLayout {
                         allowRotation = Math.round(angle / 90f) * 90f - angle > 20f;
                     }
                     if (!snappedRotation) {
-                        try {
-                            performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-                        } catch (Exception ignore) {}
+                        AndroidUtilities.vibrateCursor(this);
                         snappedRotation = true;
                     }
                 }
@@ -1335,9 +1334,7 @@ public class PreviewView extends FrameLayout {
                 if (Math.abs(rotDiff) < 3.5f) {
                     finalMatrix.postRotate(rotDiff, cx, cy);
                     if (!snappedRotation) {
-                        try {
-                            performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-                        } catch (Exception ignore) {}
+                        AndroidUtilities.vibrateCursor(this);
                         snappedRotation = true;
                     }
                 } else {

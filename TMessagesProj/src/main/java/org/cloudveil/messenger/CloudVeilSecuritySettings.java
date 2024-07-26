@@ -147,16 +147,6 @@ public class CloudVeilSecuritySettings {
         return preferences.getBoolean("isManagingUsers", DEFAULT_MANAGE_USERS);
     }
 
-    public static void setBlockedImageUrl(String blockedImageUrl) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putString("blockedImageUrl", blockedImageUrl).apply();
-    }
-
-    public static String getBlockedImageUrl() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        return preferences.getString("blockedImageUrl", "");
-    }
-
     public static void setProfilePhotoLimit(int profilePhotoLimit) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putInt("profilePhotoLimit", profilePhotoLimit).apply();

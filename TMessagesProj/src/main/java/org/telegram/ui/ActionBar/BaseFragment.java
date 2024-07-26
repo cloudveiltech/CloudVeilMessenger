@@ -22,7 +22,6 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
@@ -33,6 +32,7 @@ import android.view.accessibility.AccessibilityManager;
 import android.widget.FrameLayout;
 
 import androidx.annotation.CallSuper;
+import androidx.annotation.Nullable;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AccountInstance;
@@ -54,9 +54,9 @@ import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.Stories.StoryViewer;
+import org.telegram.ui.bots.BotWebViewAttachedSheet;
 
 import java.util.ArrayList;
 
@@ -64,7 +64,7 @@ public abstract class BaseFragment {
 
     protected boolean isFinished;
     protected boolean finishing;
-    protected Dialog visibleDialog;
+    public Dialog visibleDialog;
     protected int currentAccount = UserConfig.selectedAccount;
 
     public View fragmentView;
@@ -83,8 +83,73 @@ public abstract class BaseFragment {
     private boolean removingFromStack;
     private PreviewDelegate previewDelegate;
     protected Theme.ResourcesProvider resourceProvider;
-    public StoryViewer storyViewer;
-    public StoryViewer overlayStoryViewer;
+//    public ArrayList<StoryViewer> storyViewerStack;
+//    public ArrayList<BotWebViewAttachedSheet> botsStack;
+//
+    public ArrayList<AttachedSheet> sheetsStack;
+
+    public static interface AttachedSheet {
+        public View getWindowView();
+        public boolean isShown();
+        public void dismiss();
+        default void dismiss(boolean tabs) { dismiss(); }
+        public void release();
+
+        public boolean isFullyVisible();
+
+        public boolean attachedToParent();
+
+        public boolean onBackPressed();
+        public boolean showDialog(Dialog dialog);
+
+        public void setKeyboardHeightFromParent(int keyboardHeight);
+
+        public int getNavigationBarColor(int color);
+
+        public void setOnDismissListener(Runnable onDismiss);
+    }
+
+    public static interface AttachedSheetWindow {}
+
+    @Nullable
+    public StoryViewer getLastStoryViewer() {
+        if (sheetsStack == null || sheetsStack.isEmpty())
+            return null;
+        for (int i = sheetsStack.size() - 1; i >= 0; --i) {
+            if (sheetsStack.get(i) instanceof StoryViewer && sheetsStack.get(i).isShown()) {
+                return (StoryViewer) sheetsStack.get(i);
+            }
+        }
+        return null;
+    }
+
+    public AttachedSheet getLastSheet() {
+        if (sheetsStack == null || sheetsStack.isEmpty())
+            return null;
+        for (int i = sheetsStack.size() - 1; i >= 0; --i) {
+            if (sheetsStack.get(i).isShown()) {
+                return sheetsStack.get(i);
+            }
+        }
+        return null;
+    }
+
+    public boolean hasStoryViewer() {
+        return getLastStoryViewer() != null;
+    }
+
+    public boolean hasSheet() {
+        return sheetsStack != null && !sheetsStack.isEmpty();
+    }
+
+    public void clearSheets() {
+        if (sheetsStack == null || sheetsStack.isEmpty())
+            return;
+        for (int i = sheetsStack.size() - 1; i >= 0; --i) {
+            sheetsStack.get(i).dismiss(true);
+        }
+        sheetsStack.clear();
+    }
 
     public BaseFragment() {
         classGuid = ConnectionsManager.generateClassGuid();
@@ -216,19 +281,12 @@ public abstract class BaseFragment {
             }
             actionBar = null;
         }
-        if (storyViewer != null) {
-            storyViewer.release();
-            storyViewer = null;
-        }
-        if (overlayStoryViewer != null) {
-            overlayStoryViewer.release();
-            overlayStoryViewer = null;
-        }
+        clearSheets();
         parentLayout = null;
     }
 
     public void onRemoveFromParent() {
-
+        clearSheets();
     }
 
     public void setParentFragment(BaseFragment fragment) {
@@ -252,14 +310,7 @@ public abstract class BaseFragment {
                 }
                 if (parentLayout != null && parentLayout.getView().getContext() != fragmentView.getContext()) {
                     fragmentView = null;
-                    if (storyViewer != null) {
-                        storyViewer.release();
-                        storyViewer = null;
-                    }
-                    if (overlayStoryViewer != null) {
-                        overlayStoryViewer.release();
-                        overlayStoryViewer = null;
-                    }
+                    clearSheets();
                 }
             }
             if (actionBar != null) {
@@ -394,12 +445,9 @@ public abstract class BaseFragment {
         if (actionBar != null) {
             actionBar.onResume();
         }
-        if (storyViewer != null) {
-            storyViewer.onResume();
-            storyViewer.updatePlayingMode();
-        }
-        if (overlayStoryViewer != null) {
-            overlayStoryViewer.updatePlayingMode();
+        if (getLastStoryViewer() != null) {
+            getLastStoryViewer().onResume();
+            getLastStoryViewer().updatePlayingMode();
         }
     }
 
@@ -417,12 +465,9 @@ public abstract class BaseFragment {
         } catch (Exception e) {
             FileLog.e(e);
         }
-        if (storyViewer != null) {
-            storyViewer.onPause();
-            storyViewer.updatePlayingMode();
-        }
-        if (overlayStoryViewer != null) {
-            overlayStoryViewer.updatePlayingMode();
+        if (getLastStoryViewer() != null) {
+            getLastStoryViewer().onPause();
+            getLastStoryViewer().updatePlayingMode();
         }
     }
 
@@ -454,18 +499,19 @@ public abstract class BaseFragment {
     }
 
     public boolean onBackPressed() {
-        if (closeStoryViewer()) {
+        if (closeSheet()) {
             return false;
         }
         return true;
     }
 
-    public boolean closeStoryViewer() {
-        if (overlayStoryViewer != null && overlayStoryViewer.isShown()) {
-            return overlayStoryViewer.onBackPressed();
-        }
-        if (storyViewer != null && storyViewer.isShown()) {
-            return storyViewer.onBackPressed();
+    public boolean closeSheet() {
+        if (sheetsStack != null) {
+            for (int i = sheetsStack.size() - 1; i >= 0; --i) {
+                if (sheetsStack.get(i).isShown()) {
+                    return sheetsStack.get(i).onBackPressed();
+                }
+            }
         }
         return false;
     }
@@ -620,6 +666,16 @@ public abstract class BaseFragment {
                 }
             }
         }
+        if (fullyVisibleListener != null) {
+            Runnable c = fullyVisibleListener;
+            fullyVisibleListener = null;
+            c.run();
+        }
+    }
+
+    private Runnable fullyVisibleListener;
+    public void whenFullyVisible(Runnable callback) {
+        fullyVisibleListener = callback;
     }
 
     public int getPreviewHeight() {
@@ -650,13 +706,14 @@ public abstract class BaseFragment {
         if (dialog == null || parentLayout == null || parentLayout.isTransitionAnimationInProgress() || parentLayout.isSwipeInProgress() || !allowInTransition && parentLayout.checkTransitionAnimation()) {
             return null;
         }
-        if (overlayStoryViewer != null && overlayStoryViewer.isShown()) {
-            overlayStoryViewer.showDialog(dialog);
-            return dialog;
-        }
-        if (storyViewer != null && storyViewer.isShown()) {
-            storyViewer.showDialog(dialog);
-            return dialog;
+        if (sheetsStack != null) {
+            for (int i = sheetsStack.size() - 1; i >= 0; --i) {
+                if (sheetsStack.get(i).isShown()) {
+                    if (sheetsStack.get(i).showDialog(dialog)) {
+                        return dialog;
+                    }
+                }
+            }
         }
         try {
             if (visibleDialog != null) {
@@ -817,7 +874,7 @@ public abstract class BaseFragment {
             return null;
         }
         BottomSheet[] bottomSheet = new BottomSheet[1];
-        INavigationLayout[] actionBarLayout = new INavigationLayout[]{INavigationLayout.newLayout(getParentActivity(), () -> bottomSheet[0])};
+        INavigationLayout[] actionBarLayout = new INavigationLayout[]{INavigationLayout.newLayout(getParentActivity(), false, () -> bottomSheet[0])};
         actionBarLayout[0].setIsSheet(true);
         LaunchActivity.instance.sheetFragmentsStack.add(actionBarLayout[0]);
         fragment.onTransitionAnimationStart(true, false);
@@ -946,8 +1003,13 @@ public abstract class BaseFragment {
 
     public int getNavigationBarColor() {
         int color = Theme.getColor(Theme.key_windowBackgroundGray, getResourceProvider());
-        if (storyViewer != null && storyViewer.attachedToParent()) {
-            return storyViewer.getNavigationBarColor(color);
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet sheet = sheetsStack.get(i);
+                if (sheet.attachedToParent()) {
+                    color = sheet.getNavigationBarColor(color);
+                }
+            }
         }
         return color;
     }
@@ -966,6 +1028,9 @@ public abstract class BaseFragment {
                     AndroidUtilities.setLightNavigationBar(window, brightness >= 0.721f);
                 }
             }
+        }
+        if (parentLayout != null) {
+            parentLayout.setNavigationBarColor(color);
         }
     }
 
@@ -994,7 +1059,7 @@ public abstract class BaseFragment {
     }
 
     public boolean isLightStatusBar() {
-        if (storyViewer != null && storyViewer.isShown()) {
+        if (getLastStoryViewer() != null && getLastStoryViewer().isShown()) {
             return false;
         }
         if (hasForceLightStatusBar() && !Theme.getCurrentTheme().isDark()) {
@@ -1050,42 +1115,61 @@ public abstract class BaseFragment {
 
     }
 
-    public void attachStoryViewer(ActionBarLayout.LayoutContainer parentLayout) {
-        if (storyViewer != null && storyViewer.attachedToParent()) {
-            AndroidUtilities.removeFromParent(storyViewer.windowView);
-            parentLayout.addView(storyViewer.windowView);
-        }
-        if (overlayStoryViewer != null && overlayStoryViewer.attachedToParent()) {
-            AndroidUtilities.removeFromParent(overlayStoryViewer.windowView);
-            parentLayout.addView(overlayStoryViewer.windowView);
+    public void attachSheets(ActionBarLayout.LayoutContainer parentLayout) {
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet sheet = sheetsStack.get(i);
+                if (sheet != null && sheet.attachedToParent()) {
+                    AndroidUtilities.removeFromParent(sheet.getWindowView());
+                    parentLayout.addView(sheet.getWindowView());
+                }
+            }
         }
     }
 
-    public void detachStoryViewer() {
-        if (storyViewer != null && storyViewer.attachedToParent()) {
-            AndroidUtilities.removeFromParent(storyViewer.windowView);
-        }
-        if (overlayStoryViewer != null && overlayStoryViewer.attachedToParent()) {
-            AndroidUtilities.removeFromParent(overlayStoryViewer.windowView);
+    public void detachSheets() {
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet sheet = sheetsStack.get(i);
+                if (sheet != null && sheet.attachedToParent()) {
+                    AndroidUtilities.removeFromParent(sheet.getWindowView());
+                }
+            }
         }
     }
 
     public boolean isStoryViewer(View child) {
-        if (storyViewer != null && child == storyViewer.windowView) {
-            return true;
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet sheet = sheetsStack.get(i);
+                if (sheet instanceof StoryViewer && child == sheet.getWindowView()) {
+                    return true;
+                }
+            }
         }
-        if (overlayStoryViewer != null && child == overlayStoryViewer.windowView) {
-            return true;
+        return false;
+    }
+
+    public boolean isBotView(View child) {
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet sheet = sheetsStack.get(i);
+                if (sheet instanceof BotWebViewAttachedSheet && child == sheet.getWindowView()) {
+                    return true;
+                }
+            }
         }
         return false;
     }
 
     public void setKeyboardHeightFromParent(int keyboardHeight) {
-        if (storyViewer != null) {
-            storyViewer.setKeyboardHeightFromParent(keyboardHeight);
-        }
-        if (overlayStoryViewer != null) {
-            overlayStoryViewer.setKeyboardHeightFromParent(keyboardHeight);
+        if (sheetsStack != null) {
+            for (int i = 0; i < sheetsStack.size(); ++i) {
+                AttachedSheet storyViewer = sheetsStack.get(i);
+                if (storyViewer != null) {
+                    storyViewer.setKeyboardHeightFromParent(keyboardHeight);
+                }
+            }
         }
     }
 
@@ -1094,20 +1178,46 @@ public abstract class BaseFragment {
     }
 
     public StoryViewer getOrCreateStoryViewer() {
+        if (sheetsStack == null) {
+            sheetsStack = new ArrayList<>();
+        }
+        StoryViewer storyViewer = null;
+        if (!sheetsStack.isEmpty() && sheetsStack.get(sheetsStack.size() - 1) instanceof StoryViewer) {
+            storyViewer = (StoryViewer) sheetsStack.get(sheetsStack.size() - 1);
+        }
         if (storyViewer == null) {
             storyViewer = new StoryViewer(this);
             if (parentLayout != null && parentLayout.isSheet()) {
                 storyViewer.fromBottomSheet = true;
             }
+            sheetsStack.add(storyViewer);
         }
         return storyViewer;
     }
 
-    public StoryViewer getOrCreateOverlayStoryViewer() {
-        if (overlayStoryViewer == null) {
-            overlayStoryViewer = new StoryViewer(this);
+    public StoryViewer createOverlayStoryViewer() {
+        if (sheetsStack == null) {
+            sheetsStack = new ArrayList<>();
         }
-        return overlayStoryViewer;
+        StoryViewer storyViewer = new StoryViewer(this);
+        if (parentLayout != null && parentLayout.isSheet()) {
+            storyViewer.fromBottomSheet = true;
+        }
+        sheetsStack.add(storyViewer);
+        return storyViewer;
+    }
+
+    public BotWebViewAttachedSheet createBotViewer() {
+        if (sheetsStack == null) {
+            sheetsStack = new ArrayList<>();
+        }
+        BotWebViewAttachedSheet botViewer = new BotWebViewAttachedSheet(this);
+        StoryViewer storyViewer = getLastStoryViewer();
+        if (storyViewer != null) {
+            storyViewer.listenToAttachedSheet(botViewer);
+        }
+        sheetsStack.add(botViewer);
+        return botViewer;
     }
 
     public void onBottomSheetCreated() {

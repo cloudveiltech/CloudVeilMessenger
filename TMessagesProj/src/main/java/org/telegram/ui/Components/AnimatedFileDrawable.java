@@ -23,15 +23,18 @@ import android.graphics.Shader;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
+import android.util.Log;
 import android.view.View;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimatedFileDrawableStream;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.DispatchQueue;
 import org.telegram.messenger.DispatchQueuePoolBackground;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.SharedConfig;
@@ -120,10 +123,10 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
 
     private RectF actualDrawRect = new RectF();
 
-    private BitmapShader[] renderingShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private BitmapShader[] nextRenderingShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private BitmapShader[] nextRenderingShader2 = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private BitmapShader[] backgroundShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final BitmapShader[] renderingShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final BitmapShader[] nextRenderingShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final BitmapShader[] nextRenderingShader2 = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final BitmapShader[] backgroundShader = new BitmapShader[1 + DrawingInBackgroundThreadDrawable.THREAD_COUNT];
     ArrayList<Bitmap> unusedBitmaps = new ArrayList<>();
 
     private BitmapShader renderingShaderBackgroundDraw;
@@ -143,6 +146,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
     private volatile boolean isRunning;
     private volatile boolean isRecycled;
     public volatile long nativePtr;
+    private boolean ptrFail;
     private DispatchQueue decodeQueue;
     private float startTime;
     private float endTime;
@@ -152,15 +156,15 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
     private float scaleFactor = 1f;
     public boolean isWebmSticker;
     private final TLRPC.Document document;
-    private RectF[] dstRectBackground = new RectF[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private Paint[] backgroundPaint = new Paint[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private Matrix[] shaderMatrixBackground = new Matrix[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
-    private Path[] roundPathBackground = new Path[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final RectF[] dstRectBackground = new RectF[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final Paint[] backgroundPaint = new Paint[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final Matrix[] shaderMatrixBackground = new Matrix[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
+    private final Path[] roundPathBackground = new Path[DrawingInBackgroundThreadDrawable.THREAD_COUNT];
 
     private View parentView;
-    private ArrayList<View> secondParentViews = new ArrayList<>();
+    private final ArrayList<View> secondParentViews = new ArrayList<>();
 
-    private ArrayList<ImageReceiver> parents = new ArrayList<>();
+    private final ArrayList<ImageReceiver> parents = new ArrayList<>();
 
     private AnimatedFileDrawableStream stream;
 
@@ -354,18 +358,20 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
     }
 
     private int decoderTryCount = 0;
+    private final int MAX_TRIES = 15;
     private Runnable loadFrameRunnable = new Runnable() {
         @Override
         public void run() {
             if (!isRecycled) {
                 if (!decoderCreated && nativePtr == 0) {
                     nativePtr = createDecoder(path.getAbsolutePath(), metaData, currentAccount, streamFileSize, stream, false);
+                    ptrFail = nativePtr == 0 && (!isWebmSticker || decoderTryCount > MAX_TRIES);
                     if (nativePtr != 0 && (metaData[0] > 3840 || metaData[1] > 3840)) {
                         destroyDecoder(nativePtr);
                         nativePtr = 0;
                     }
                     updateScaleFactor();
-                    decoderCreated = !isWebmSticker || nativePtr != 0 || (decoderTryCount++) > 15;
+                    decoderCreated = !isWebmSticker || nativePtr != 0 || (decoderTryCount++) > MAX_TRIES;
                 }
                 try {
                     if (bitmapsCache != null) {
@@ -500,6 +506,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
         }
         if (createDecoder && !this.precache) {
             nativePtr = createDecoder(file.getAbsolutePath(), metaData, currentAccount, streamFileSize, stream, preview);
+            ptrFail = nativePtr == 0 && (!isWebmSticker || decoderTryCount > MAX_TRIES);
             if (nativePtr != 0 && (metaData[0] > 3840 || metaData[1] > 3840)) {
                 destroyDecoder(nativePtr);
                 nativePtr = 0;
@@ -509,6 +516,7 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
         }
         if (this.precache) {
             nativePtr = createDecoder(file.getAbsolutePath(), metaData, currentAccount, streamFileSize, stream, preview);
+            ptrFail = nativePtr == 0 && (!isWebmSticker || decoderTryCount > MAX_TRIES);
             if (nativePtr != 0 && (metaData[0] > 3840 || metaData[1] > 3840)) {
                 destroyDecoder(nativePtr);
                 nativePtr = 0;
@@ -750,7 +758,6 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
             return;
         }
         //CloudVeil end
-
         isRunning = true;
         scheduleNextGetFrame();
         AndroidUtilities.runOnUIThread(mStartTask);
@@ -1092,7 +1099,11 @@ public class AnimatedFileDrawable extends BitmapDrawable implements Animatable, 
     }
 
     public boolean isRecycled() {
-        return isRecycled || decoderTryCount >= 15;
+        return isRecycled || decoderTryCount >= MAX_TRIES;
+    }
+
+    public boolean decoderFailed() {
+        return decoderCreated && ptrFail;
     }
 
     public Bitmap getNextFrame(boolean loop) {

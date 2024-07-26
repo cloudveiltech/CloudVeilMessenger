@@ -486,12 +486,15 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
             }
 
             @Override
-            protected void drawList(Canvas blurCanvas, boolean top) {
+            protected void drawList(Canvas blurCanvas, boolean top, ArrayList<IViewWithInvalidateCallback> views) {
                 for (int i = 0; i < recyclerListView.getChildCount(); i++) {
                     View child = recyclerListView.getChildAt(i);
                     if (child.getY() < AndroidUtilities.dp(100) && child.getVisibility() == View.VISIBLE) {
                         int restore = blurCanvas.save();
                         blurCanvas.translate(recyclerListView.getX() + child.getX(), getY() + recyclerListView.getY() + child.getY());
+                        if (views != null && child instanceof IViewWithInvalidateCallback) {
+                            views.add((IViewWithInvalidateCallback) child);
+                        }
                         child.draw(blurCanvas);
                         blurCanvas.restoreToCount(restore);
                     }
@@ -572,11 +575,22 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
                             bottomSheet.setDelegate((users1, fwdCount) -> {
                                 int N = users1.size();
                                 int[] finished = new int[1];
+                                TLRPC.TL_messages_invitedUsers totalInvitedUsers = new TLRPC.TL_messages_invitedUsers();
+                                totalInvitedUsers.updates = new TLRPC.TL_updates();
                                 for (int a = 0; a < N; a++) {
                                     TLRPC.User user = users1.get(a);
-                                    getMessagesController().addUserToChat(chatId, user, fwdCount, null, TopicsFragment.this, () -> {
-                                        if (++finished[0] == N) {
-                                            BulletinFactory.of(TopicsFragment.this).createUsersAddedBulletin(users1, getMessagesController().getChat(chatId)).show();
+                                    getMessagesController().addUserToChat(chatId, user, fwdCount, null, TopicsFragment.this, false, () -> {}, null, invitedUsers -> {
+                                        if (invitedUsers != null) {
+                                            totalInvitedUsers.missing_invitees.addAll(invitedUsers.missing_invitees);
+                                        }
+                                        finished[0]++;
+                                        if (finished[0] == N) {
+                                            if (totalInvitedUsers.missing_invitees.isEmpty()) {
+                                                BulletinFactory.of(TopicsFragment.this).createUsersAddedBulletin(users1, getMessagesController().getChat(chatId)).show();
+                                            } else {
+                                                TLRPC.Chat chat = getMessagesController().getChat(chatId);
+                                                AlertsCreator.checkRestrictedInviteUsers(currentAccount, chat, totalInvitedUsers);
+                                            }
                                         }
                                     });
                                 }
@@ -1311,7 +1325,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
 
         TLRPC.Chat currentChat = getCurrentChat();
         if (currentChat != null) {
-            pendingRequestsDelegate = new ChatActivityMemberRequestsDelegate(this, currentChat, this::updateTopView);
+            pendingRequestsDelegate = new ChatActivityMemberRequestsDelegate(this, contentView, currentChat, this::updateTopView);
             pendingRequestsDelegate.setChatInfo(chatFull, false);
             topView.addView(pendingRequestsDelegate.getView(), ViewGroup.LayoutParams.MATCH_PARENT, pendingRequestsDelegate.getViewHeight());
         }
@@ -2283,7 +2297,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         }
         selectedDialogsCountTextView = new NumberTextView(actionMode.getContext());
         selectedDialogsCountTextView.setTextSize(18);
-        selectedDialogsCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        selectedDialogsCountTextView.setTypeface(AndroidUtilities.bold());
         selectedDialogsCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon));
         actionMode.addView(selectedDialogsCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 72, 0, 0, 0));
         selectedDialogsCountTextView.setOnTouchListener((v, event) -> true);

@@ -111,7 +111,7 @@ public class FeaturedStickerSetCell2 extends FrameLayout implements Notification
         delButton.setGravity(Gravity.CENTER);
         delButton.setTextColor(Theme.getColor(Theme.key_featuredStickers_removeButtonText));
         delButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        delButton.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        delButton.setTypeface(AndroidUtilities.bold());
         delButton.setText(LocaleController.getString("StickersRemove", R.string.StickersRemove));
         addView(delButton, LayoutHelper.createFrameRelatively(LayoutHelper.WRAP_CONTENT, 28, Gravity.TOP | Gravity.END, 0, 16, 14, 0));
 
@@ -270,7 +270,7 @@ public class FeaturedStickerSetCell2 extends FrameLayout implements Notification
                     imageLocation = ImageLocation.getForSticker(thumb, sticker, set.set.thumb_version);
                 }
 
-                if (object instanceof TLRPC.Document && MessageObject.isAnimatedStickerDocument(sticker, true)) {
+                if (object instanceof TLRPC.Document && (MessageObject.isAnimatedStickerDocument(sticker, true) || MessageObject.isVideoSticker(sticker))) {
                     if (svgThumb != null) {
                         imageView.setImage(ImageLocation.getForDocument(sticker), "50_50", svgThumb, 0, set);
                     } else {

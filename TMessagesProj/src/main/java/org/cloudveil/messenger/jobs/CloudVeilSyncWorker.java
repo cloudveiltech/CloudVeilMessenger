@@ -205,8 +205,13 @@ public class CloudVeilSyncWorker extends Worker {
 
     }
 
+    private static class CloudVeilSyncException extends RuntimeException {
+        public CloudVeilSyncException(String s, Throwable exception) {
+            super(s, exception);
+        }
+    }
     private void sendSentryEvent(Throwable exception, User user, String message) {
-        Exception wrapped = new RuntimeException("Can't sync with CloudVeil server: " + message, exception);
+        Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
         Sentry.captureException(wrapped, scope -> {
             scope.setLevel(SentryLevel.FATAL);
             scope.setUser(user);
@@ -292,7 +297,6 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setDisabledVideoInlineRecording(!settingsResponse.inputToggleVoiceVideo);
         CloudVeilSecuritySettings.setLockDisableStickers(settingsResponse.disableStickers);
         CloudVeilSecuritySettings.setManageUsers(settingsResponse.manageUsers);
-        CloudVeilSecuritySettings.setBlockedImageUrl(settingsResponse.disableStickersImage);
         CloudVeilSecuritySettings.setProfilePhotoLimit(settingsResponse.profilePhotoLimit);
         CloudVeilSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         CloudVeilSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);

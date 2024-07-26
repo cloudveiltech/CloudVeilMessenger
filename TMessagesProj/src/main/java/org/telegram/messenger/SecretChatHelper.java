@@ -761,6 +761,7 @@ public class SecretChatHelper extends BaseController {
                             AndroidUtilities.runOnUIThread(() -> {
                                 newMsgObj.send_state = MessageObject.MESSAGE_SEND_STATE_SENT;
                                 getNotificationCenter().postNotificationName(NotificationCenter.messageReceivedByServer, newMsgObj.id, newMsgObj.id, newMsgObj, newMsgObj.dialog_id, 0L, existFlags, false);
+                                getNotificationCenter().postNotificationName(NotificationCenter.messageReceivedByServer2, newMsgObj.id, newMsgObj.id, newMsgObj, newMsgObj.dialog_id, 0L, existFlags, false);
                                 getSendMessagesHelper().processSentMessage(newMsgObj.id);
                                 getSendMessagesHelper().removeFromSendingMessages(newMsgObj.id, false);
                             });
@@ -960,7 +961,7 @@ public class SecretChatHelper extends BaseController {
                     }
                     newMessage.media.document.thumbs.add(photoSize);
                     newMessage.media.document.flags |= 1;
-                    TLRPC.TL_documentAttributeVideo attributeVideo = new TLRPC.TL_documentAttributeVideo();
+                    TLRPC.TL_documentAttributeVideo_layer159 attributeVideo = new TLRPC.TL_documentAttributeVideo_layer159();
                     attributeVideo.w = decryptedMessage.media.w;
                     attributeVideo.h = decryptedMessage.media.h;
                     attributeVideo.duration = decryptedMessage.media.duration;
@@ -1116,7 +1117,6 @@ public class SecretChatHelper extends BaseController {
                         if (serviceMessage.action.ttl_seconds < 0 || serviceMessage.action.ttl_seconds > 60 * 60 * 24 * 365) {
                             serviceMessage.action.ttl_seconds = 60 * 60 * 24 * 365;
                         }
-
                         //CloudVeil start
                         chat.ttl = Math.max(serviceMessage.action.ttl_seconds, CloudVeilSecuritySettings.getMinSecretChatTtl());
                         if (chat.ttl != serviceMessage.action.ttl_seconds) {
@@ -1124,7 +1124,6 @@ public class SecretChatHelper extends BaseController {
                             SecretChatHelper.getInstance(currentAccount).sendTTLMessage(chat, null);
                         }
                         //CloudVeil end
-
                         newMessage.action.encryptedAction = serviceMessage.action;
                         getMessagesStorage().updateEncryptedChatTTL(chat);
                     } else {

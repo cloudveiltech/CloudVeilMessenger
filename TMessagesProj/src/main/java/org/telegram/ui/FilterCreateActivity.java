@@ -28,7 +28,6 @@ import android.text.TextWatcher;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
 import android.text.style.ReplacementSpan;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -2047,7 +2046,7 @@ public class FilterCreateActivity extends BaseFragment {
         public NewSpan(boolean outline) {
             this.outline = outline;
 
-            textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            textPaint.setTypeface(AndroidUtilities.bold());
             if (outline) {
                 bgPaint.setStyle(Paint.Style.STROKE);
                 bgPaint.setStrokeWidth(dpf2(1.33f));
@@ -2065,7 +2064,7 @@ public class FilterCreateActivity extends BaseFragment {
 
         public NewSpan(float textSize) {
             this.outline = false;
-            textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            textPaint.setTypeface(AndroidUtilities.bold());
             bgPaint.setStyle(Paint.Style.FILL);
             textPaint.setTextSize(dp(textSize));
         }
@@ -2205,7 +2204,7 @@ public class FilterCreateActivity extends BaseFragment {
             button = new TextView(getContext());
             button.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             button.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
-            button.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            button.setTypeface(AndroidUtilities.bold());
             button.setBackground(Theme.AdaptiveRipple.filledRectByKey(Theme.key_featuredStickers_addButton, 8));
             button.setText(LocaleController.getString("FolderLinkShareButton", R.string.FolderLinkShareButton));
             button.setGravity(Gravity.CENTER);
@@ -2256,7 +2255,7 @@ public class FilterCreateActivity extends BaseFragment {
         }
 
         @Override
-        protected RecyclerListView.SelectionAdapter createAdapter() {
+        protected RecyclerListView.SelectionAdapter createAdapter(RecyclerListView listView) {
             return adapter = new AdapterWithDiffUtils() {
 
                 private RecyclerListView.Adapter realAdapter() {
@@ -2364,7 +2363,7 @@ public class FilterCreateActivity extends BaseFragment {
                     } else {
                         view = new HeaderView(getContext());
 //                        TextView textView = new TextView(getContext());
-//                        textView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+//                        textView.setTypeface(AndroidUtilities.medium());
 //                        textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
 //                        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 19);
 //                        textView.setPadding(AndroidUtilities.dp(21), AndroidUtilities.dp(16), AndroidUtilities.dp(21), AndroidUtilities.dp(8));
@@ -2432,7 +2431,7 @@ public class FilterCreateActivity extends BaseFragment {
 
                 titleView = new TextView(context);
                 titleView.setText(getTitle());
-                titleView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+                titleView.setTypeface(AndroidUtilities.bold());
                 titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
                 titleView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
                 titleView.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -2590,7 +2589,7 @@ public class FilterCreateActivity extends BaseFragment {
             };
             animatedColor = new AnimatedColor(previewView, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
             previewView.setTextSize(dp(10));
-            previewView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            previewView.setTypeface(AndroidUtilities.bold());
             previewView.setGravity(Gravity.RIGHT);
             previewView.setPadding(dp(4.66f), 0, dp(4.66f), 0);
             addView(previewView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, padding, 16.66f, padding, bottomMargin));

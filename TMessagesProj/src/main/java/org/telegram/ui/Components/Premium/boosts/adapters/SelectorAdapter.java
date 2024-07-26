@@ -2,6 +2,7 @@ package org.telegram.ui.Components.Premium.boosts.adapters;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Paint;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
@@ -18,6 +21,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.GraySectionCell;
+import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
 import org.telegram.ui.Components.Premium.boosts.BoostRepository;
 import org.telegram.ui.Components.Premium.boosts.cells.selector.SelectorCountryCell;
@@ -25,6 +29,7 @@ import org.telegram.ui.Components.Premium.boosts.cells.selector.SelectorLetterCe
 import org.telegram.ui.Components.Premium.boosts.cells.selector.SelectorUserCell;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.StickerEmptyView;
+import org.telegram.ui.DialogsActivity;
 
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +42,7 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
     public static final int VIEW_TYPE_COUNTRY = 6;
     public static final int VIEW_TYPE_LETTER = 7;
     public static final int VIEW_TYPE_TOP_SECTION = 8;
+    public static final int VIEW_TYPE_BUTTON = 9;
 
     private final Theme.ResourcesProvider resourcesProvider;
     private final Context context;
@@ -78,7 +84,7 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
 
     @Override
     public boolean isEnabled(RecyclerView.ViewHolder holder) {
-        return (holder.getItemViewType() == VIEW_TYPE_USER || holder.getItemViewType() == VIEW_TYPE_COUNTRY);
+        return (holder.getItemViewType() == VIEW_TYPE_USER || holder.getItemViewType() == VIEW_TYPE_COUNTRY || holder.getItemViewType() == VIEW_TYPE_BUTTON);
     }
 
     @NonNull
@@ -101,6 +107,11 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             view = new SelectorCountryCell(context, resourcesProvider);
         } else if (viewType == VIEW_TYPE_TOP_SECTION) {
             view = new GraySectionCell(context, resourcesProvider);
+        } else if (viewType == VIEW_TYPE_BUTTON) {
+            TextCell cell = new TextCell(context, resourcesProvider);
+            cell.leftPadding = 23 - 7;
+            cell.imageLeft = 19;
+            view = cell;
         } else {
             view = new View(context);
         }
@@ -149,10 +160,11 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             }
             userCell.setChecked(item.checked, false);
             userCell.setCheckboxAlpha(1f, false);
-            userCell.setDivider(position < items.size() - 2);
+            userCell.setDivider(position + 1 >= items.size() || items.get(position + 1).viewType == viewType);
             if ((position + 1 < items.size()) && items.get(position + 1).viewType == VIEW_TYPE_LETTER) {
                 userCell.setDivider(false);
             }
+            userCell.setOptions(item.options);
         } else if (viewType == VIEW_TYPE_COUNTRY) {
             SelectorCountryCell cell = (SelectorCountryCell) holder.itemView;
             boolean needDivider = (position < items.size() - 1) && (position + 1 < items.size() - 1) && (items.get(position + 1).viewType != VIEW_TYPE_LETTER);
@@ -176,13 +188,19 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             }
         } else if (viewType == VIEW_TYPE_TOP_SECTION) {
             GraySectionCell cell = (GraySectionCell) holder.itemView;
-            cell.setText(item.text);
-            if (topSectionClickListener == null) {
-                cell.setRightText(null, null);
+            if (TextUtils.equals(cell.getText(), item.text)) {
+                cell.setRightText(item.subtext == null ? "" : item.subtext, true, item.callback);
             } else {
-                cell.setRightText(LocaleController.getString(R.string.UsersDeselectAll), topSectionClickListener);
+                cell.setText(Emoji.replaceWithRestrictedEmoji(item.text, cell.getTextView(), null));
+                if (!TextUtils.isEmpty(item.subtext)) {
+                    cell.setRightText(item.subtext, item.callback);
+                }
             }
             topSectionCell = cell;
+        } else if (viewType == VIEW_TYPE_BUTTON) {
+            TextCell cell = (TextCell) holder.itemView;
+            cell.setColors(Theme.key_windowBackgroundWhiteBlueIcon, Theme.key_windowBackgroundWhiteBlueButton);
+            cell.setTextAndIcon(item.text, item.resId, false);
         }
     }
 
@@ -199,60 +217,60 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
         return items == null ? 0 : items.size();
     }
 
-    private RecyclerListView.Adapter realAdapter() {
-        return listView.getAdapter();
-    }
-
-    @Override
-    public void notifyItemChanged(int position) {
-        realAdapter().notifyItemChanged(position + 1);
-    }
-
-    @Override
-    public void notifyItemChanged(int position, @Nullable Object payload) {
-        realAdapter().notifyItemChanged(position + 1, payload);
-    }
-
-    @Override
-    public void notifyItemInserted(int position) {
-        realAdapter().notifyItemInserted(position + 1);
-    }
-
-    @Override
-    public void notifyItemMoved(int fromPosition, int toPosition) {
-        realAdapter().notifyItemMoved(fromPosition + 1, toPosition);
-    }
-
-    @Override
-    public void notifyItemRangeChanged(int positionStart, int itemCount) {
-        realAdapter().notifyItemRangeChanged(positionStart + 1, itemCount);
-    }
-
-    @Override
-    public void notifyItemRangeChanged(int positionStart, int itemCount, @Nullable Object payload) {
-        realAdapter().notifyItemRangeChanged(positionStart + 1, itemCount, payload);
-    }
-
-    @Override
-    public void notifyItemRangeInserted(int positionStart, int itemCount) {
-        realAdapter().notifyItemRangeInserted(positionStart + 1, itemCount);
-    }
-
-    @Override
-    public void notifyItemRangeRemoved(int positionStart, int itemCount) {
-        realAdapter().notifyItemRangeRemoved(positionStart + 1, itemCount);
-    }
-
-    @Override
-    public void notifyItemRemoved(int position) {
-        realAdapter().notifyItemRemoved(position + 1);
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    @Override
-    public void notifyDataSetChanged() {
-        realAdapter().notifyDataSetChanged();
-    }
+//    private RecyclerListView.Adapter realAdapter() {
+//        return listView.getAdapter();
+//    }
+//
+//    @Override
+//    public void notifyItemChanged(int position) {
+//        realAdapter().notifyItemChanged(position + 1);
+//    }
+//
+//    @Override
+//    public void notifyItemChanged(int position, @Nullable Object payload) {
+//        realAdapter().notifyItemChanged(position + 1, payload);
+//    }
+//
+//    @Override
+//    public void notifyItemInserted(int position) {
+//        realAdapter().notifyItemInserted(position + 1);
+//    }
+//
+//    @Override
+//    public void notifyItemMoved(int fromPosition, int toPosition) {
+//        realAdapter().notifyItemMoved(fromPosition + 1, toPosition);
+//    }
+//
+//    @Override
+//    public void notifyItemRangeChanged(int positionStart, int itemCount) {
+//        realAdapter().notifyItemRangeChanged(positionStart + 1, itemCount);
+//    }
+//
+//    @Override
+//    public void notifyItemRangeChanged(int positionStart, int itemCount, @Nullable Object payload) {
+//        realAdapter().notifyItemRangeChanged(positionStart + 1, itemCount, payload);
+//    }
+//
+//    @Override
+//    public void notifyItemRangeInserted(int positionStart, int itemCount) {
+//        realAdapter().notifyItemRangeInserted(positionStart + 1, itemCount);
+//    }
+//
+//    @Override
+//    public void notifyItemRangeRemoved(int positionStart, int itemCount) {
+//        realAdapter().notifyItemRangeRemoved(positionStart + 1, itemCount);
+//    }
+//
+//    @Override
+//    public void notifyItemRemoved(int position) {
+//        realAdapter().notifyItemRemoved(position + 1);
+//    }
+//
+//    @SuppressLint("NotifyDataSetChanged")
+//    @Override
+//    public void notifyDataSetChanged() {
+//        realAdapter().notifyDataSetChanged();
+//    }
 
     public void notifyChangedLast() {
         if (items == null || items.isEmpty()) {
@@ -266,10 +284,14 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
         public TLRPC.InputPeer peer;
         public TLRPC.Chat chat;
         public TLRPC.TL_help_country country;
-        public String text;
+        public CharSequence text, subtext;
         public int type;
+        public int id;
+        public int resId;
         public boolean checked;
         public int padHeight = -1;
+        public View.OnClickListener callback;
+        public View.OnClickListener options;
 
         private Item(int viewType, boolean selectable) {
             super(viewType, selectable);
@@ -278,6 +300,14 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
         public static Item asPad(int padHeight) {
             Item item = new Item(VIEW_TYPE_PAD, false);
             item.padHeight = padHeight;
+            return item;
+        }
+
+        public static Item asButton(int id, int resId, String text) {
+            Item item = new Item(VIEW_TYPE_BUTTON, false);
+            item.id = id;
+            item.resId = resId;
+            item.text = text;
             return item;
         }
 
@@ -290,16 +320,27 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             return item;
         }
 
+        public Item withOptions(View.OnClickListener onClickListener) {
+            this.options = onClickListener;
+            return this;
+        }
+
         public static Item asLetter(String letter) {
             Item item = new Item(VIEW_TYPE_LETTER, false);
             item.text = letter;
             return item;
         }
 
-        public static Item asTopSection(String text) {
+        public static Item asTopSection(CharSequence text) {
             Item item = new Item(VIEW_TYPE_TOP_SECTION, false);
             item.text = text;
             return item;
+        }
+
+        public Item withRightText(String rightText, View.OnClickListener whenRightTextClicked) {
+            subtext = rightText;
+            callback = whenRightTextClicked;
+            return this;
         }
 
         public static Item asCountry(TLRPC.TL_help_country tlHelpCountry, boolean checked) {
@@ -327,6 +368,13 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             return item;
         }
 
+        public long getDialogId() {
+            if (user != null) return user.id;
+            if (chat != null) return -chat.id;
+            if (peer != null) return DialogObject.getPeerDialogId(peer);
+            return 0;
+        }
+
         public static Item asNoUsers() {
             return new Item(VIEW_TYPE_NO_USERS, false);
         }
@@ -341,14 +389,30 @@ public class SelectorAdapter extends AdapterWithDiffUtils {
             }
             if (viewType == VIEW_TYPE_PAD && (padHeight != i.padHeight)) {
                 return false;
-            } else if (viewType == VIEW_TYPE_USER && (user != i.user || chat != i.chat || peer != i.peer || type != i.type || checked != i.checked)) {
+            } else if (viewType == VIEW_TYPE_USER && (getDialogId() != i.getDialogId() || type != i.type)) {
                 return false;
-            } else if (viewType == VIEW_TYPE_COUNTRY && (country != i.country || checked != i.checked)) {
+            } else if (viewType == VIEW_TYPE_COUNTRY && (country != i.country)) {
                 return false;
             } else if (viewType == VIEW_TYPE_LETTER && (!TextUtils.equals(text, i.text))) {
                 return false;
-            } else if (viewType == VIEW_TYPE_TOP_SECTION && (!TextUtils.equals(text, i.text) || checked != i.checked)) {
+            } else if (viewType == VIEW_TYPE_TOP_SECTION && (!TextUtils.equals(text, i.text))) {
                 return false;
+            } else if (viewType == VIEW_TYPE_BUTTON && (!TextUtils.equals(text, i.text) || id != i.id || resId != i.resId)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        protected boolean contentsEquals(AdapterWithDiffUtils.Item o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Item i = (Item) o;
+            if (checked != i.checked) {
+                return false;
+            }
+            if (viewType == VIEW_TYPE_TOP_SECTION) {
+                return TextUtils.equals(subtext, i.subtext) && (callback == null) == (i.callback == null);
             }
             return true;
         }

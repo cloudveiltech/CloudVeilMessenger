@@ -13,11 +13,13 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AccountInstance;
@@ -51,6 +53,7 @@ import org.telegram.ui.WebviewActivity;
 
 import java.lang.ref.WeakReference;
 import java.net.URLEncoder;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 
@@ -145,6 +148,7 @@ public class Browser {
     private static class NavigationCallback extends CustomTabsCallback {
         @Override
         public void onNavigationEvent(int navigationEvent, Bundle extras) {
+
         }
     }
 
@@ -153,7 +157,7 @@ public class Browser {
         if (url == null) {
             return;
         }
-        openUrl(context, Uri.parse(url), true, false, false, null, fragment);
+        openUrl(context, Uri.parse(url), true, false, false, null, null, fragment);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading) {
@@ -252,20 +256,32 @@ public class Browser {
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, null);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, null, null, null);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null, null);
     }
 
-    public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
+    //CloudVeil start
+    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser) {
+    openUrl(context, uri, _allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, browser, null);
+    }
+    //CloudVeil end
+
+    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
         if (context == null || uri == null) {
             return;
         }
         final int currentAccount = UserConfig.selectedAccount;
         boolean[] forceBrowser = new boolean[]{false};
         boolean internalUri = isInternalUri(uri, forceBrowser);
+        String browserPackage = getBrowserPackageName(browser);
+        if (browserPackage != null) {
+            tryTelegraph = false;
+            _allowCustom = false;
+        }
+        final boolean allowCustom = _allowCustom;
         if (tryTelegraph) {
             try {
                 String host = AndroidUtilities.getHostAuthority(uri);
@@ -332,7 +348,7 @@ public class Browser {
                 String token = "autologin_token=" + URLEncoder.encode(AccountInstance.getInstance(UserConfig.selectedAccount).getMessagesController().autologinToken, "UTF-8");
                 String url = uri.toString();
                 int idx = url.indexOf("://");
-                String path = idx >= 0 ? url.substring(idx + 3) : url;
+                String path = idx >= 0 && idx <= 5 && !url.substring(0, idx).contains(".") ? url.substring(idx + 3) : url;
                 String fragment = uri.getEncodedFragment();
                 String finalPath = fragment == null ? path : path.substring(0, path.indexOf("#" + fragment));
                 if (finalPath.indexOf('?') >= 0) {
@@ -345,7 +361,6 @@ public class Browser {
                 }
                 uri = Uri.parse("https://" + finalPath);
             }
-
             //CloudVeil start
             boolean forceInternal = CloudVeilSecuritySettings.isUrlWhileListedForInternalView(uri.toString());
             boolean allowCustomTab = (allowCustom && SharedConfig.customTabs) || forceInternal;
@@ -417,8 +432,10 @@ public class Browser {
                         }
                     } else {
                         PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
                         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(getSession());
                         builder.addMenuItem(LocaleController.getString("CopyLink", R.string.CopyLink), copy);
+
                         builder.setToolbarColor(Theme.getColor(Theme.key_actionBarBrowser));
                         builder.setShowTitle(true);
                         builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
@@ -439,13 +456,25 @@ public class Browser {
                 ComponentName componentName = new ComponentName(context.getPackageName(), LaunchActivity.class.getName());
                 intent.setComponent(componentName);
             }
+            if (!TextUtils.isEmpty(browserPackage)) {
+                intent.setPackage(browserPackage);
+            }
             intent.putExtra(android.provider.Browser.EXTRA_CREATE_NEW_TAB, true);
             intent.putExtra(android.provider.Browser.EXTRA_APPLICATION_ID, context.getPackageName());
             if (internalUri && context instanceof LaunchActivity) {
                 intent.putExtra(LaunchActivity.EXTRA_FORCE_NOT_INTERNAL_APPS, forceNotInternalForApps);
                 ((LaunchActivity) context).onNewIntent(intent, inCaseLoading);
             } else {
-                context.startActivity(intent);
+                try {
+                    context.startActivity(intent);
+                } catch (Exception e2) {
+                    if (browserPackage != null) {
+                        intent.setPackage(browserPackage = null);
+                        context.startActivity(intent);
+                    } else {
+                        FileLog.e(e2);
+                    }
+                }
             }
         } catch (Exception e) {
             FileLog.e(e);
@@ -566,7 +595,47 @@ public class Browser {
         return false;
     }
 
-    // © ChatGPT. All puns reserved. 🤖📜
+    public static String getBrowserPackageName(String browser) {
+        if (browser == null) return null;
+        switch (browser) {
+            case "google-chrome":
+            case "chrome":
+                return "com.android.chrome";
+            case "mozilla-firefox":
+            case "firefox":
+                return "org.mozilla.firefox";
+            case "microsoft-edge":
+            case "edge":
+                return "com.microsoft.emmx";
+            case "opera":
+                return "com.opera.browser";
+            case "opera-mini":
+                return "com.opera.mini.native";
+            case "brave":
+            case "brave-browser":
+                return "com.brave.browser";
+            case "duckduckgo":
+            case "duckduckgo-browser":
+                return "com.duckduckgo.mobile.android";
+            case "samsung":
+            case "samsung-browser":
+                return "com.sec.android.app.sbrowser";
+            case "vivaldi":
+            case "vivaldi-browser":
+                return "com.vivaldi.browser";
+            case "kiwi":
+            case "kiwi-browser":
+                return "com.kiwibrowser.browser";
+            case "uc":
+            case "uc-browser":
+                return "com.UCMobile.intl";
+            case "tor":
+            case "tor-browser":
+                return "org.torproject.torbrowser";
+        }
+        return null;
+    }
+
     public static String replaceHostname(Uri originalUri, String newHostname) {
         String scheme = originalUri.getScheme();
         String userInfo = originalUri.getUserInfo();

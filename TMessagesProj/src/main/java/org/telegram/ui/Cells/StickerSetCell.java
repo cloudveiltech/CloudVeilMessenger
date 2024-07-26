@@ -135,7 +135,7 @@ public class StickerSetCell extends FrameLayout {
 
         addButtonView = new TextView(context);
         addButtonView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        addButtonView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        addButtonView.setTypeface(AndroidUtilities.bold());
         addButtonView.setText(LocaleController.getString("Add", R.string.Add));
         addButtonView.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider));
         addButtonView.setBackground(Theme.AdaptiveRipple.createRect(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), Theme.getColor(Theme.key_featuredStickers_addButtonPressed, resourcesProvider), 4));
@@ -146,7 +146,7 @@ public class StickerSetCell extends FrameLayout {
 
         removeButtonView = new TextView(context);
         removeButtonView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        removeButtonView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        removeButtonView.setTypeface(AndroidUtilities.bold());
         removeButtonView.setText(LocaleController.getString("StickersRemove", R.string.StickersRemove));
         removeButtonView.setTextColor(Theme.getColor(Theme.key_featuredStickers_removeButtonText, resourcesProvider));
         removeButtonView.setBackground(Theme.AdaptiveRipple.createRect(0, Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider) & 0x1affffff, 4));
@@ -191,7 +191,7 @@ public class StickerSetCell extends FrameLayout {
         NotificationCenter.listenEmojiLoading(textView);
         textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-        textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        textView.setTypeface(AndroidUtilities.bold());
         textView.setLines(1);
         textView.setMaxLines(1);
         textView.setSingleLine(true);
@@ -349,7 +349,7 @@ public class StickerSetCell extends FrameLayout {
 
             boolean allowPlay = LiteMode.isEnabled(emojis ? LiteMode.FLAG_ANIMATED_EMOJI_KEYBOARD : LiteMode.FLAG_ANIMATED_STICKERS_KEYBOARD);
             String filter = "50_50" + (!allowPlay ? "_firstframe" : "");
-            if (object instanceof TLRPC.Document && MessageObject.isAnimatedStickerDocument(sticker, true) || MessageObject.isVideoSticker(sticker)) {
+            if (object instanceof TLRPC.Document && (MessageObject.isAnimatedStickerDocument(sticker, true) || MessageObject.isVideoSticker(sticker))) {
                 if (svgThumb != null) {
                     imageView.setImage(ImageLocation.getForDocument(sticker), filter, svgThumb, 0, set);
                 } else {

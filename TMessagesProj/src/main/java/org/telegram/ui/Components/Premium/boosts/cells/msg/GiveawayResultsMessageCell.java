@@ -145,11 +145,11 @@ public class GiveawayResultsMessageCell {
         giftReceiver.setAllowLoadingOnAttachedOnly(true);
 
         clipRectPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
-        counterTextPaint.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        counterTextPaint.setTypeface(AndroidUtilities.bold());
         counterTextPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
         counterTextPaint.setTextSize(dp(12));
         counterTextPaint.setTextAlign(Paint.Align.CENTER);
-        chatTextPaint.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        chatTextPaint.setTypeface(AndroidUtilities.bold());
         chatTextPaint.setTextSize(dp(13));
         countriesTextPaint.setTextSize(dp(13));
         textPaint.setTextSize(dp(14));
@@ -431,6 +431,7 @@ public class GiveawayResultsMessageCell {
 
         if (selectorDrawable == null) {
             selectorDrawable = Theme.createRadSelectorDrawable(selectorColor = Theme.getColor(Theme.key_listSelector), 12, 12);
+            selectorDrawable.setCallback(parentView);
         }
 
         textPaint.setColor(Theme.chat_msgTextPaint.getColor());
@@ -563,7 +564,8 @@ public class GiveawayResultsMessageCell {
                 Theme.setSelectorDrawableColor(selectorDrawable, selectorColor = rippleColor, true);
             }
             selectorDrawable.setBounds(clickRect[pressedPos]);
-            selectorDrawable.draw(canvas);
+            selectorDrawable.setCallback(parentView);
+//            selectorDrawable.draw(canvas);
         }
 
         if (links != null && links.draw(canvas)) {

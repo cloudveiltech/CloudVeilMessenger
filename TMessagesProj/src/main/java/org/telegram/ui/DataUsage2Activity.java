@@ -346,8 +346,8 @@ public class DataUsage2Activity extends BaseFragment {
 
             itemInners.add(new ItemInner(VIEW_TYPE_CHART));
             final String sinceText = totalSize > 0 ?
-                LocaleController.formatString("YourNetworkUsageSince", R.string.YourNetworkUsageSince, LocaleController.getInstance().formatterStats.format(getResetStatsDate())) :
-                LocaleController.formatString("NoNetworkUsageSince", R.string.NoNetworkUsageSince, LocaleController.getInstance().formatterStats.format(getResetStatsDate()));
+                LocaleController.formatString("YourNetworkUsageSince", R.string.YourNetworkUsageSince, LocaleController.getInstance().getFormatterStats().format(getResetStatsDate())) :
+                LocaleController.formatString("NoNetworkUsageSince", R.string.NoNetworkUsageSince, LocaleController.getInstance().getFormatterStats().format(getResetStatsDate()));
             itemInners.add(ItemInner.asSubtitle(sinceText));
 
             ArrayList<ItemInner> sections = new ArrayList<>();
@@ -359,7 +359,7 @@ public class DataUsage2Activity extends BaseFragment {
                     continue;
                 }
                 SpannableString percent = new SpannableString(formatPercent(tempPercents[index]));
-                percent.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/rmedium.ttf")), 0, percent.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                percent.setSpan(new TypefaceSpan(AndroidUtilities.bold()), 0, percent.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 percent.setSpan(new RelativeSizeSpan(.8f), 0, percent.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 percent.setSpan(new CustomCharacterSpan(.1), 0, percent.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 sections.add(ItemInner.asCell(
@@ -512,7 +512,7 @@ public class DataUsage2Activity extends BaseFragment {
 
         private CharSequence bold(CharSequence text) {
             SpannableString string = new SpannableString(text);
-            string.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/rmedium.ttf")), 0, string.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            string.setSpan(new TypefaceSpan(AndroidUtilities.bold()), 0, string.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             return string;
         }
 

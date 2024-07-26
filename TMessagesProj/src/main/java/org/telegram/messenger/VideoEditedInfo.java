@@ -10,6 +10,7 @@ package org.telegram.messenger;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.text.TextUtils;
 import android.view.View;
 
@@ -20,6 +21,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_stories;
 import org.telegram.ui.Components.AnimatedFileDrawable;
 import org.telegram.ui.Components.Paint.PaintTypeface;
+import org.telegram.ui.Components.Paint.Views.LinkPreview;
 import org.telegram.ui.Components.PhotoFilterView;
 import org.telegram.ui.Components.Point;
 import org.telegram.ui.Components.Reactions.ReactionsLayoutInBubble;
@@ -49,6 +51,7 @@ public class VideoEditedInfo {
     public long estimatedDuration;
     public boolean roundVideo;
     public boolean muted;
+    public float volume = 1f;
     public long originalDuration;
     public TLRPC.InputFile file;
     public TLRPC.InputEncryptedFile encryptedFile;
@@ -61,6 +64,8 @@ public class VideoEditedInfo {
     public boolean isPhoto;
     public boolean isStory;
     public StoryEntry.HDRInfo hdrInfo;
+
+    public boolean isSticker;
 
     public Bitmap thumb;
     public boolean notReadyYet;
@@ -121,6 +126,7 @@ public class VideoEditedInfo {
         public static final byte TYPE_REACTION = 4;
         public static final byte TYPE_ROUND = 5;
         public static final byte TYPE_MESSAGE = 6;
+        public static final byte TYPE_LINK = 7;
 
         public byte type;
         public byte subType;
@@ -148,6 +154,7 @@ public class VideoEditedInfo {
         public float textViewHeight;
         public float textViewX;
         public float textViewY;
+        public boolean customTextView;
 
         public TLRPC.Document document;
         public Object parentObject;
@@ -157,6 +164,7 @@ public class VideoEditedInfo {
         public float currentFrame;
         public float framesPerDraw;
         public Bitmap bitmap;
+        public Matrix matrix;
 
         public View view;
         public Canvas canvas;
@@ -166,7 +174,7 @@ public class VideoEditedInfo {
         public boolean firstSeek;
 
         public TL_stories.MediaArea mediaArea;
-        public TLRPC.MessageMedia mediaGeo;
+        public TLRPC.MessageMedia media;
         public float density;
 
         public long roundOffset;
@@ -176,6 +184,8 @@ public class VideoEditedInfo {
 
         public int W, H;
         public ReactionsLayoutInBubble.VisibleReaction visibleReaction;
+
+        public LinkPreview.WebPagePreview linkSettings;
 
         public MediaEntity() {
 
@@ -222,27 +232,28 @@ public class VideoEditedInfo {
             if (type == TYPE_LOCATION) {
                 density = data.readFloat(exception);
                 mediaArea = TL_stories.MediaArea.TLdeserialize(data, data.readInt32(exception), exception);
-                mediaGeo = TLRPC.MessageMedia.TLdeserialize(data, data.readInt32(exception), exception);
+                media = TLRPC.MessageMedia.TLdeserialize(data, data.readInt32(exception), exception);
                 if (data.remaining() > 0) {
                     int magic = data.readInt32(exception);
                     if (magic == 0xdeadbeef) {
                         String emoji = data.readString(exception);
-                        if (mediaGeo instanceof TLRPC.TL_messageMediaVenue) {
-                            ((TLRPC.TL_messageMediaVenue) mediaGeo).emoji = emoji;
+                        if (media instanceof TLRPC.TL_messageMediaVenue) {
+                            ((TLRPC.TL_messageMediaVenue) media).emoji = emoji;
                         }
                     }
                 }
-            }
-            if (type == TYPE_REACTION) {
+            } else if (type == TYPE_LINK) {
+                density = data.readFloat(exception);
                 mediaArea = TL_stories.MediaArea.TLdeserialize(data, data.readInt32(exception), exception);
-            }
-            if (type == TYPE_ROUND) {
+                linkSettings = LinkPreview.WebPagePreview.TLdeserialize(data, data.readInt32(exception), exception);
+            } else if (type == TYPE_REACTION) {
+                mediaArea = TL_stories.MediaArea.TLdeserialize(data, data.readInt32(exception), exception);
+            } else if (type == TYPE_ROUND) {
                 roundOffset = data.readInt64(exception);
                 roundLeft = data.readInt64(exception);
                 roundRight = data.readInt64(exception);
                 roundDuration = data.readInt64(exception);
-            }
-            if (type == TYPE_PHOTO) {
+            } else if (type == TYPE_PHOTO) {
                 segmentedPath = data.readString(exception);
             }
         }
@@ -281,33 +292,34 @@ public class VideoEditedInfo {
             if (type == TYPE_LOCATION) {
                 data.writeFloat(density);
                 mediaArea.serializeToStream(data);
-                if (mediaGeo.provider == null) {
-                    mediaGeo.provider = "";
+                if (media.provider == null) {
+                    media.provider = "";
                 }
-                if (mediaGeo.venue_id == null) {
-                    mediaGeo.venue_id = "";
+                if (media.venue_id == null) {
+                    media.venue_id = "";
                 }
-                if (mediaGeo.venue_type == null) {
-                    mediaGeo.venue_type = "";
+                if (media.venue_type == null) {
+                    media.venue_type = "";
                 }
-                mediaGeo.serializeToStream(data);
-                if (mediaGeo instanceof TLRPC.TL_messageMediaVenue && ((TLRPC.TL_messageMediaVenue) mediaGeo).emoji != null) {
+                media.serializeToStream(data);
+                if (media instanceof TLRPC.TL_messageMediaVenue && ((TLRPC.TL_messageMediaVenue) media).emoji != null) {
                     data.writeInt32(0xdeadbeef);
-                    data.writeString(((TLRPC.TL_messageMediaVenue) mediaGeo).emoji);
+                    data.writeString(((TLRPC.TL_messageMediaVenue) media).emoji);
                 } else {
                     data.writeInt32(TLRPC.TL_null.constructor);
                 }
-            }
-            if (type == TYPE_REACTION) {
+            } else if (type == TYPE_LINK) {
+                data.writeFloat(density);
                 mediaArea.serializeToStream(data);
-            }
-            if (type == TYPE_ROUND) {
+                linkSettings.serializeToStream(data);
+            } else if (type == TYPE_REACTION) {
+                mediaArea.serializeToStream(data);
+            } else if (type == TYPE_ROUND) {
                 data.writeInt64(roundOffset);
                 data.writeInt64(roundLeft);
                 data.writeInt64(roundRight);
                 data.writeInt64(roundDuration);
-            }
-            if (type == TYPE_PHOTO) {
+            } else if (type == TYPE_PHOTO) {
                 data.writeString(segmentedPath);
             }
         }
@@ -352,7 +364,7 @@ public class VideoEditedInfo {
             entity.animatedFileDrawable = animatedFileDrawable;
             entity.roundRadiusCanvas = roundRadiusCanvas;
             entity.mediaArea = mediaArea;
-            entity.mediaGeo = mediaGeo;
+            entity.media = media;
             entity.density = density;
             entity.W = W;
             entity.H = H;
@@ -361,6 +373,7 @@ public class VideoEditedInfo {
             entity.roundDuration = roundDuration;
             entity.roundLeft = roundLeft;
             entity.roundRight = roundRight;
+            entity.linkSettings = linkSettings;
             return entity;
         }
     }
@@ -387,7 +400,7 @@ public class VideoEditedInfo {
                 blurPathBytes = null;
             }
             SerializedData serializedData = new SerializedData(len);
-            serializedData.writeInt32(8);
+            serializedData.writeInt32(10);
             serializedData.writeInt64(avatarStartTime);
             serializedData.writeInt32(originalBitrate);
             if (filterState != null) {
@@ -478,6 +491,8 @@ public class VideoEditedInfo {
             } else {
                 serializedData.writeByte(0);
             }
+            serializedData.writeFloat(volume);
+            serializedData.writeBool(isSticker);
             filters = Utilities.bytesToHex(serializedData.toByteArray());
             serializedData.cleanup();
         } else {
@@ -604,6 +619,12 @@ public class VideoEditedInfo {
                                 byte[] bytes = serializedData.readByteArray(false);
                                 blurPath = new String(bytes);
                             }
+                        }
+                        if (version >= 9) {
+                            volume = serializedData.readFloat(false);
+                        }
+                        if (version >= 10) {
+                            isSticker = serializedData.readBool(false);
                         }
                         serializedData.cleanup();
                     }

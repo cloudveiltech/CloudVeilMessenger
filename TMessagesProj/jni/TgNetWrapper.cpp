@@ -6,6 +6,12 @@
 #include "tgnet/MTProtoScheme.h"
 #include "tgnet/ConnectionSocket.h"
 #include "tgnet/FileLog.h"
+#include "tgnet/Handshake.h"
+#include <openssl/rand.h>
+#include <openssl/sha.h>
+#include <openssl/bn.h>
+#include <openssl/pem.h>
+#include <openssl/aes.h>
 
 JavaVM *java;
 
@@ -30,6 +36,8 @@ jmethodID jclass_ConnectionsManager_onRequestNewServerIpAndPort;
 jmethodID jclass_ConnectionsManager_onProxyError;
 jmethodID jclass_ConnectionsManager_getHostByName;
 jmethodID jclass_ConnectionsManager_getInitFlags;
+jmethodID jclass_ConnectionsManager_onPremiumFloodWait;
+jmethodID jclass_ConnectionsManager_onIntegrityCheckClassic;
 
 bool check_utf8(const char *data, size_t len);
 
@@ -130,6 +138,40 @@ void cancelRequest(JNIEnv *env, jclass c, jint instanceNum, jint token, jboolean
 
 void failNotRunningRequest(JNIEnv *env, jclass c, jint instanceNum, jint token) {
     return ConnectionsManager::getInstance(instanceNum).failNotRunningRequest(token);
+}
+
+void receivedIntegrityCheckClassic(JNIEnv *env, jclass c, jint instanceNum, jint requestToken, jstring nonce, jstring token) {
+    const char* nonceStr = env->GetStringUTFChars(nonce, 0);
+    const char* tokenStr = env->GetStringUTFChars(token, 0);
+    std::string nonceString = nonceStr;
+    std::string tokenString = tokenStr;
+    ConnectionsManager::getInstance(instanceNum).receivedIntegrityCheckClassic(requestToken, nonceString, tokenString);
+    if (nonceStr != nullptr) {
+        env->ReleaseStringUTFChars(nonce, nonceStr);
+    }
+    if (tokenStr != nullptr) {
+        env->ReleaseStringUTFChars(token, tokenStr);
+    }
+}
+
+jboolean isGoodPrime(JNIEnv *env, jclass c, jbyteArray prime, jint g) {
+    jsize length = env->GetArrayLength(prime);
+    jbyte *bytes = env->GetByteArrayElements(prime, NULL);
+    if (bytes == NULL) {
+        DEBUG_E("isGoodPrime: failed to get byte array");
+        return false;
+    }
+    unsigned char *unsignedBytes = (unsigned char *)bytes;
+    BIGNUM *bn = BN_bin2bn(unsignedBytes, length, NULL);
+    if (bn == NULL) {
+        env->ReleaseByteArrayElements(prime, bytes, 0);
+        DEBUG_E("isGoodPrime: failed to convert byte array into BIGNUM");
+        return false;
+    }
+    bool result = Handshake::isGoodPrime(bn, g);
+    BN_free(bn);
+    env->ReleaseByteArrayElements(prime, bytes, 0);
+    return result;
 }
 
 void cleanUp(JNIEnv *env, jclass c, jint instanceNum, jboolean resetKeys) {
@@ -319,6 +361,19 @@ class Delegate : public ConnectiosManagerDelegate {
     int32_t getInitFlags(int32_t instanceNum) {
         return (int32_t) jniEnv[instanceNum]->CallStaticIntMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getInitFlags);
     }
+
+    void onPremiumFloodWait(int32_t instanceNum, int32_t requestToken, bool isUpload) {
+        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onPremiumFloodWait, instanceNum, requestToken, isUpload);
+    }
+
+    void onIntegrityCheckClassic(int32_t instanceNum, int32_t requestToken, std::string project, std::string nonce) {
+        jstring projectStr = jniEnv[instanceNum]->NewStringUTF(project.c_str());
+        jstring nonceStr = jniEnv[instanceNum]->NewStringUTF(nonce.c_str());
+        jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onIntegrityCheckClassic, instanceNum, requestToken, projectStr, nonceStr);
+        jniEnv[instanceNum]->DeleteLocalRef(projectStr);
+        jniEnv[instanceNum]->DeleteLocalRef(nonceStr);
+    }
+
 };
 
 void onHostNameResolved(JNIEnv *env, jclass c, jstring host, jlong address, jstring ip) {
@@ -460,6 +515,8 @@ static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_onHostNameResolved", "(Ljava/lang/String;JLjava/lang/String;)V", (void *) onHostNameResolved},
         {"native_discardConnection", "(III)V", (void *) discardConnection},
         {"native_failNotRunningRequest", "(II)V", (void *) failNotRunningRequest},
+        {"native_receivedIntegrityCheckClassic", "(IILjava/lang/String;Ljava/lang/String;)V", (void *) receivedIntegrityCheckClassic},
+        {"native_isGoodPrime", "([BI)Z", (void *) isGoodPrime},
 };
 
 inline int registerNativeMethods(JNIEnv *env, const char *className, JNINativeMethod *methods, int methodsCount) {
@@ -566,6 +623,14 @@ extern "C" int registerNativeTgNetFunctions(JavaVM *vm, JNIEnv *env) {
     }
     jclass_ConnectionsManager_getInitFlags = env->GetStaticMethodID(jclass_ConnectionsManager, "getInitFlags", "()I");
     if (jclass_ConnectionsManager_getInitFlags == 0) {
+        return JNI_FALSE;
+    }
+    jclass_ConnectionsManager_onPremiumFloodWait = env->GetStaticMethodID(jclass_ConnectionsManager, "onPremiumFloodWait", "(IIZ)V");
+    if (jclass_ConnectionsManager_onPremiumFloodWait == 0) {
+        return JNI_FALSE;
+    }
+    jclass_ConnectionsManager_onIntegrityCheckClassic = env->GetStaticMethodID(jclass_ConnectionsManager, "onIntegrityCheckClassic", "(IILjava/lang/String;Ljava/lang/String;)V");
+    if (jclass_ConnectionsManager_onIntegrityCheckClassic == 0) {
         return JNI_FALSE;
     }
 

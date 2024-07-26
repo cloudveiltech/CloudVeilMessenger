@@ -5,6 +5,7 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
+import android.text.TextPaint;
 import android.text.style.ReplacementSpan;
 
 import androidx.annotation.NonNull;
@@ -18,12 +19,14 @@ import org.telegram.ui.ActionBar.Theme;
 public class ColoredImageSpan extends ReplacementSpan {
 
     int drawableColor;
-    Drawable drawable;
+    public Drawable drawable;
+    public boolean recolorDrawable = true;
 
     boolean usePaintColor = true;
+    public boolean useLinkPaintColor = false;
     int colorKey;
     private int topOffset = 0;
-    private float translateX, translateY;
+    private float translateX, translateY, rotate;
     private float alpha = 1f;
     private int overrideColor;
 
@@ -58,6 +61,19 @@ public class ColoredImageSpan extends ReplacementSpan {
         this.verticalAlignment = verticalAlignment;
     }
 
+    private boolean isRelativeSize;
+    private Paint.FontMetricsInt fontMetrics;
+    public void setRelativeSize(Paint.FontMetricsInt fontMetricsInt) {
+        this.isRelativeSize = true;
+        this.fontMetrics = fontMetricsInt;
+        if (fontMetrics != null) {
+            setSize(Math.abs(fontMetrics.descent) + Math.abs(fontMetrics.ascent));
+            if (size == 0) {
+                setSize(AndroidUtilities.dp(20));
+            }
+        }
+    }
+
     public void setSize(int size) {
         this.size = size;
         drawable.setBounds(0, 0, size, size);
@@ -76,12 +92,29 @@ public class ColoredImageSpan extends ReplacementSpan {
         translateY = ty;
     }
 
+    public void rotate(float r) {
+        rotate = r;
+    }
+
     public void setWidth(int width) {
         sizeWidth = width;
     }
 
     @Override
-    public int getSize(@NonNull Paint paint, CharSequence charSequence, int i, int i1, @Nullable Paint.FontMetricsInt fontMetricsInt) {
+    public int getSize(@NonNull Paint paint, CharSequence charSequence, int i, int i1, @Nullable Paint.FontMetricsInt fm) {
+        if (isRelativeSize && fontMetrics != null) {
+            if (fm == null) {
+                fm = new Paint.FontMetricsInt();
+            }
+            if (fm != null) {
+                fm.ascent = fontMetrics.ascent;
+                fm.descent = fontMetrics.descent;
+
+                fm.top = fontMetrics.top;
+                fm.bottom = fontMetrics.bottom;
+            }
+            return (int) (Math.abs(scaleX) * Math.abs(spaceScaleX) * size);
+        }
         if (sizeWidth != 0)
             return (int) (Math.abs(scaleX) * sizeWidth);
         return (int) (Math.abs(scaleX) * Math.abs(spaceScaleX) * (size != 0 ? size : drawable.getIntrinsicWidth()));
@@ -92,9 +125,11 @@ public class ColoredImageSpan extends ReplacementSpan {
         int color;
         if (checkColorDelegate != null) {
             checkColorDelegate.run();
-        } else {
+        } else if (recolorDrawable) {
             if (overrideColor != 0) {
                 color = overrideColor;
+            } else if (useLinkPaintColor && paint instanceof TextPaint) {
+                color = ((TextPaint) paint).linkColor;
             } else if (usePaintColor) {
                 color = paint.getColor();
             } else {
@@ -123,8 +158,11 @@ public class ColoredImageSpan extends ReplacementSpan {
             if (scaleX != 1f || scaleY != 1f) {
                 canvas.scale(scaleX, scaleY, 0, drawable.getBounds().centerY());
             }
-            if (alpha != 1f) {
-                drawable.setAlpha((int) (alpha * 255));
+            if (rotate != 1f) {
+                canvas.rotate(rotate, drawable.getBounds().centerX(), drawable.getBounds().centerY());
+            }
+            if (alpha != 1f || paint.getAlpha() != 0xFF) {
+                drawable.setAlpha((int) (alpha * paint.getAlpha()));
             }
             drawable.draw(canvas);
         }

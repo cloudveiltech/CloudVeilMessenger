@@ -83,6 +83,7 @@ public class ContactsController extends BaseController {
     private ArrayList<TLRPC.PrivacyRule> phonePrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> addedByPhonePrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> voiceMessagesRules;
+    private ArrayList<TLRPC.PrivacyRule> birthdayPrivacyRules;
     private TLRPC.TL_globalPrivacySettings globalPrivacySettings;
 
     public final static int PRIVACY_RULES_TYPE_LASTSEEN = 0;
@@ -96,8 +97,9 @@ public class ContactsController extends BaseController {
     public final static int PRIVACY_RULES_TYPE_VOICE_MESSAGES = 8;
     public final static int PRIVACY_RULES_TYPE_BIO = 9;
     public final static int PRIVACY_RULES_TYPE_MESSAGES = 10;
+    public final static int PRIVACY_RULES_TYPE_BIRTHDAY = 11;
 
-    public final static int PRIVACY_RULES_TYPE_COUNT = 10;
+    public final static int PRIVACY_RULES_TYPE_COUNT = 12;
 
     private class MyContentObserver extends ContentObserver {
 
@@ -328,6 +330,7 @@ public class ContactsController extends BaseController {
         p2pPrivacyRules = null;
         profilePhotoPrivacyRules = null;
         bioPrivacyRules = null;
+        birthdayPrivacyRules = null;
         forwardsPrivacyRules = null;
         phonePrivacyRules = null;
 
@@ -376,48 +379,50 @@ public class ContactsController extends BaseController {
     }
 
     public void checkAppAccount() {
-        AccountManager am = AccountManager.get(ApplicationLoader.applicationContext);
-        try {
-            Account[] accounts = am.getAccountsByType("org.telegram.messenger");
-            systemAccount = null;
-            for (int a = 0; a < accounts.length; a++) {
-                Account acc = accounts[a];
-                boolean found = false;
-                for (int b = 0; b < UserConfig.MAX_ACCOUNT_COUNT; b++) {
-                    TLRPC.User user = UserConfig.getInstance(b).getCurrentUser();
-                    if (user != null) {
-                        if (acc.name.equals("" + user.id)) {
-                            if (b == currentAccount) {
-                                systemAccount = acc;
+        systemAccount = null;
+        Utilities.globalQueue.postRunnable(() -> {
+            AccountManager am = AccountManager.get(ApplicationLoader.applicationContext);
+            try {
+                Account[] accounts = am.getAccountsByType("org.telegram.messenger");
+                for (int a = 0; a < accounts.length; a++) {
+                    Account acc = accounts[a];
+                    boolean found = false;
+                    for (int b = 0; b < UserConfig.MAX_ACCOUNT_COUNT; b++) {
+                        TLRPC.User user = UserConfig.getInstance(b).getCurrentUser();
+                        if (user != null) {
+                            if (acc.name.equals("" + user.id)) {
+                                if (b == currentAccount) {
+                                    systemAccount = acc;
+                                }
+                                found = true;
+                                break;
                             }
-                            found = true;
-                            break;
                         }
                     }
+                    if (!found) {
+                        try {
+                            am.removeAccount(accounts[a], null, null);
+                        } catch (Exception ignore) {
+
+                        }
+                    }
+
                 }
-                if (!found) {
+            } catch (Throwable ignore) {
+
+            }
+            if (getUserConfig().isClientActivated()) {
+                readContacts();
+                if (systemAccount == null) {
                     try {
-                        am.removeAccount(accounts[a], null, null);
+                        systemAccount = new Account("" + getUserConfig().getClientUserId(), "org.telegram.messenger");
+                        am.addAccountExplicitly(systemAccount, "", null);
                     } catch (Exception ignore) {
 
                     }
                 }
-
             }
-        } catch (Throwable ignore) {
-
-        }
-        if (getUserConfig().isClientActivated()) {
-            readContacts();
-            if (systemAccount == null) {
-                try {
-                    systemAccount = new Account("" + getUserConfig().getClientUserId(), "org.telegram.messenger");
-                    am.addAccountExplicitly(systemAccount, "", null);
-                } catch (Exception ignore) {
-
-                }
-            }
-        }
+        });
     }
 
     public void deleteUnknownAppAccounts() {
@@ -2682,10 +2687,14 @@ public class ContactsController extends BaseController {
                 case PRIVACY_RULES_TYPE_VOICE_MESSAGES:
                     req.key = new TLRPC.TL_inputPrivacyKeyVoiceMessages();
                     break;
+                case PRIVACY_RULES_TYPE_BIRTHDAY:
+                    req.key = new TLRPC.TL_inputPrivacyKeyBirthday();
+                    break;
                 case PRIVACY_RULES_TYPE_ADDED_BY_PHONE:
-                default:
                     req.key = new TLRPC.TL_inputPrivacyKeyAddedByPhone();
                     break;
+                default:
+                    continue;
             }
 
             getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
@@ -2712,6 +2721,9 @@ public class ContactsController extends BaseController {
                             break;
                         case PRIVACY_RULES_TYPE_BIO:
                             bioPrivacyRules = rules.rules;
+                            break;
+                        case PRIVACY_RULES_TYPE_BIRTHDAY:
+                            birthdayPrivacyRules = rules.rules;
                             break;
                         case PRIVACY_RULES_TYPE_FORWARDS:
                             forwardsPrivacyRules = rules.rules;
@@ -2775,6 +2787,8 @@ public class ContactsController extends BaseController {
                 return profilePhotoPrivacyRules;
             case PRIVACY_RULES_TYPE_BIO:
                 return bioPrivacyRules;
+            case PRIVACY_RULES_TYPE_BIRTHDAY:
+                return birthdayPrivacyRules;
             case PRIVACY_RULES_TYPE_FORWARDS:
                 return forwardsPrivacyRules;
             case PRIVACY_RULES_TYPE_PHONE:
@@ -2806,6 +2820,9 @@ public class ContactsController extends BaseController {
                 break;
             case PRIVACY_RULES_TYPE_BIO:
                 bioPrivacyRules = rules;
+                break;
+            case PRIVACY_RULES_TYPE_BIRTHDAY:
+                birthdayPrivacyRules = rules;
                 break;
             case PRIVACY_RULES_TYPE_FORWARDS:
                 forwardsPrivacyRules = rules;
@@ -2960,7 +2977,7 @@ public class ContactsController extends BaseController {
             TLRPC.Chat chat = (TLRPC.Chat) object;
             return chat.title;
         } else {
-            return "DELETED";
+            return LocaleController.getString(R.string.HiddenName);
         }
     }
 

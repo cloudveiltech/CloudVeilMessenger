@@ -184,6 +184,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
     private boolean wasSend;
     private long wasSendPeer = 0;
     private ClosingViewProvider closingSourceProvider;
+    private Runnable closeListener;
 
     public static StoryRecorder getInstance(Activity activity, int currentAccount) {
         if (instance != null && (instance.activity != activity || instance.currentAccount != currentAccount)) {
@@ -431,6 +432,11 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
     }
 
+    public StoryRecorder whenSent(Runnable listener) {
+        closeListener = listener;
+        return this;
+    }
+
     public StoryRecorder closeToWhenSent(ClosingViewProvider closingSourceProvider) {
         this.closingSourceProvider = closingSourceProvider;
         return this;
@@ -459,12 +465,12 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         if (isShown) {
             return;
         }
+
         //CloudVeil start
         if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
         }
         //CloudVeil end
-
         prepareClosing = false;
 //        privacySelectorHintOpened = false;
         forceBackgroundVisible = false;
@@ -2289,7 +2295,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         titleTextView.setTextSize(20);
         titleTextView.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
         titleTextView.setTextColor(0xffffffff);
-        titleTextView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        titleTextView.setTypeface(AndroidUtilities.bold());
         titleTextView.setText(LocaleController.getString("RecorderNewStory", R.string.RecorderNewStory));
         titleTextView.getPaint().setShadowLayer(dpf2(1), 0, 1, 0x40000000);
         titleTextView.setAlpha(0f);
@@ -2712,9 +2718,12 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
         destroyPhotoFilterView();
         prepareThumb(outputEntry, false);
-        CharSequence caption = captionEdit.getText();
-        outputEntry.editedCaption = !TextUtils.equals(outputEntry.caption, caption);
-        outputEntry.caption = caption;
+        CharSequence[] caption = new CharSequence[] { captionEdit.getText() };
+        ArrayList<TLRPC.MessageEntity> captionEntities = MessagesController.getInstance(currentAccount).storyEntitiesAllowed() ? MediaDataController.getInstance(currentAccount).getEntities(caption, true) : new ArrayList<>();
+        CharSequence[] pastCaption = new CharSequence[] { outputEntry.caption };
+        ArrayList<TLRPC.MessageEntity> pastEntities = MessagesController.getInstance(currentAccount).storyEntitiesAllowed() ? MediaDataController.getInstance(currentAccount).getEntities(pastCaption, true) : new ArrayList<>();
+        outputEntry.editedCaption = !TextUtils.equals(outputEntry.caption, caption[0]) || !MediaDataController.entitiesEqual(captionEntities, pastEntities);
+        outputEntry.caption = new SpannableString(captionEdit.getText());
         MessagesController.getInstance(currentAccount).getStoriesController().uploadStory(outputEntry, asStory);
         if (outputEntry.isDraft && !outputEntry.isEdit) {
             MessagesController.getInstance(currentAccount).getStoriesController().getDraftsController().delete(outputEntry);
@@ -2738,6 +2747,10 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
                 if (fromSourceView != null) {
                     fromSourceView.show();
                     fromSourceView = null;
+                }
+                if (closeListener != null) {
+                    closeListener.run();
+                    closeListener = null;
                 }
                 fromSourceView = closingSourceProvider != null ? closingSourceProvider.getView(finalSendAsDialogId) : null;
                 if (fromSourceView != null) {
@@ -3047,6 +3060,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         }
 
         private void startRecording(boolean byLongPress, Runnable whenStarted) {
+            if (cameraView == null) {
+                return;
+            }
             CameraController.getInstance().recordVideo(cameraView.getCameraSessionObject(), outputFile, false, (thumbPath, duration) -> {
                 if (recordControl != null) {
                     recordControl.stopRecordingLoading(true);
@@ -4264,7 +4280,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             }
         }
         if (paintViewBlurBitmap == null) {
-            paintViewBlurBitmap = Bitmap.createBitmap(size.first, size.second, Bitmap.Config.ALPHA_8);
+            paintViewBlurBitmap = Bitmap.createBitmap(size.first, size.second, Bitmap.Config.ARGB_8888);
         }
 
         int w = previewContainer.getMeasuredWidth(), h = previewContainer.getMeasuredHeight();
@@ -4287,7 +4303,8 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
             null,
             blurManager,
             resourcesProvider,
-            videoTextureHolder
+            videoTextureHolder,
+            previewView
         ) {
             @Override
             public void onEntityDraggedTop(boolean value) {

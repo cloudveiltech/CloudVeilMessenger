@@ -135,7 +135,6 @@ public class ImageLocation {
         if (user == null || user.access_hash == 0 || user.photo == null) {
             return null;
         }
-
         //CloudVeil start
         boolean allowPhoto = !CloudVeilSecuritySettings.getLockDisableOthersPhoto();
         if(user != null && user.self) {
@@ -148,7 +147,6 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil end
-
         if (type == TYPE_VIDEO_BIG || type == TYPE_VIDEO_SMALL) {
             int currentAccount = UserConfig.selectedAccount;
             if (MessagesController.getInstance(currentAccount).isPremiumUser(user) && user.photo.has_video) {
@@ -204,7 +202,6 @@ public class ImageLocation {
         if (chat == null || chat.photo == null) {
             return null;
         }
-
         //CloudVeil start
         if(CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
             return null;
@@ -213,7 +210,6 @@ public class ImageLocation {
             return null;
         }
         //CloudVeil end
-
         if (type == TYPE_STRIPPED) {
             if (chat.photo.stripped_thumb == null) {
                 return null;
@@ -264,8 +260,10 @@ public class ImageLocation {
             return null;
         }
         ImageLocation imageLocation = getForPhoto(photoSize.location, photoSize.size, null, null, null, TYPE_SMALL, sticker.dc_id, stickerSet, photoSize.type);
-        if (MessageObject.isAnimatedStickerDocument(sticker, true)) {
+        if (photoSize.type.equalsIgnoreCase("a")) {
             imageLocation.imageType = FileLoader.IMAGE_TYPE_LOTTIE;
+        } else if (photoSize.type.equalsIgnoreCase("v")) {
+            imageLocation.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
         }
         imageLocation.thumbVersion = thumbVersion;
         return imageLocation;
@@ -320,6 +318,22 @@ public class ImageLocation {
         return imageLocation;
     }
 
+    public static ImageLocation getForStickerSet(TLRPC.StickerSet set) {
+        if (set == null) return null;
+        TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(set.thumbs, 90);
+        if (photoSize == null) return null;
+        TLRPC.InputStickerSet inputStickerSet;
+        if (set.access_hash != 0) {
+            inputStickerSet = new TLRPC.TL_inputStickerSetID();
+            inputStickerSet.id = set.id;
+            inputStickerSet.access_hash = set.access_hash;
+        } else {
+            inputStickerSet = new TLRPC.TL_inputStickerSetShortName();
+            inputStickerSet.short_name = set.short_name;
+        }
+        return getForPhoto(photoSize.location, photoSize.size, null, null, null, TYPE_SMALL, photoSize.location.dc_id, inputStickerSet, photoSize.type);
+    }
+
     private static ImageLocation getForPhoto(TLRPC.FileLocation location, int size, TLRPC.Photo photo, TLRPC.Document document, TLRPC.InputPeer photoPeer, int photoPeerType, int dc_id, TLRPC.InputStickerSet stickerSet, String thumbSize) {
         if (location == null || photo == null && photoPeer == null && stickerSet == null && document == null) {
             return null;
@@ -359,7 +373,7 @@ public class ImageLocation {
     }
 
     public static String getStrippedKey(Object parentObject, Object fullObject, Object strippedObject) {
-        if (parentObject instanceof TLRPC.WebPage) {
+        if (parentObject instanceof TLRPC.WebPage || parentObject instanceof MessageObject && ((MessageObject) parentObject).type == MessageObject.TYPE_PAID_MEDIA) {
             if (fullObject instanceof ImageLocation) {
                 ImageLocation imageLocation = (ImageLocation) fullObject;
                 if (imageLocation.document != null) {
@@ -398,7 +412,7 @@ public class ImageLocation {
             return secureDocument.secureFile.dc_id + "_" + secureDocument.secureFile.id;
         } else if (photoSize instanceof TLRPC.TL_photoStrippedSize || photoSize instanceof TLRPC.TL_photoPathSize) {
             if (photoSize.bytes.length > 0) {
-                return getStrippedKey(parentObject, fullObject, photoSize);
+                return getStrippedKey(parentObject, fullObject == null ? this : fullObject, photoSize);
             }
         } else if (location != null) {
             return location.volume_id + "_" + location.local_id;

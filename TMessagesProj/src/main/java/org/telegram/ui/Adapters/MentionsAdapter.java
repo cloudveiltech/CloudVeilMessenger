@@ -254,7 +254,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil end
-
         String key = document.dc_id + "_" + document.id;
         if (stickersMap != null && stickersMap.containsKey(key)) {
             return;
@@ -283,7 +282,6 @@ public class MentionsAdapter extends RecyclerListView.SelectionAdapter implement
             return;
         }
         //CloudVeil end
-
         for (int a = 0, size = documents.size(); a < size; a++) {
             TLRPC.Document document = documents.get(a);
             String key = document.dc_id + "_" + document.id;

@@ -432,10 +432,12 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
 
     public void reset(boolean force) {
         areaView.resetAnimator();
-        areaView.setBitmap(getCurrentWidth(), getCurrentHeight(), state.getBaseRotation() % 180 != 0, freeform);
+        areaView.setBitmap(getCurrentWidth(), getCurrentHeight(), state != null && state.getBaseRotation() % 180 != 0, freeform);
         areaView.setLockedAspectRatio(freeform ? 0.0f : 1.0f);
-        state.reset(areaView, 0, freeform);
-        state.mirrored = false;
+        if (state != null) {
+            state.reset(areaView, 0, freeform);
+            state.mirrored = false;
+        }
         areaView.getCropRect(initialAreaRect);
         updateMatrix(force);
 
@@ -714,6 +716,7 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
         if (videoEditTextureView != null) {
             return videoEditTextureView.getVideoWidth();
         }
+        if (bitmap == null) return 1;
         return bitmapRotation == 90 || bitmapRotation == 270 ? bitmap.getHeight() : bitmap.getWidth();
     }
 
@@ -721,6 +724,7 @@ public class CropView extends FrameLayout implements CropAreaView.AreaViewListen
         if (videoEditTextureView != null) {
             return videoEditTextureView.getVideoHeight();
         }
+        if (bitmap == null) return 1;
         return bitmapRotation == 90 || bitmapRotation == 270 ? bitmap.getWidth() : bitmap.getHeight();
     }
 

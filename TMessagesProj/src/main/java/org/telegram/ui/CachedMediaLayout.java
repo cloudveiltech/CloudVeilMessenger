@@ -285,7 +285,7 @@ public class CachedMediaLayout extends FrameLayout implements NestedSizeNotifier
 
         selectedMessagesCountTextView = new AnimatedTextView(context, true, true, true);
         selectedMessagesCountTextView.setTextSize(AndroidUtilities.dp(18));
-        selectedMessagesCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        selectedMessagesCountTextView.setTypeface(AndroidUtilities.bold());
         selectedMessagesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon));
         actionModeLayout.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 18, 0, 0, 0));
         actionModeViews.add(selectedMessagesCountTextView);
@@ -332,7 +332,7 @@ public class CachedMediaLayout extends FrameLayout implements NestedSizeNotifier
                 photoEntries.add(new MediaController.PhotoEntry(0, 0, 0, fileInfo.file.getPath(), 0, fileInfo.type == TYPE_VIDEOS, 0, 0, 0));
                 PhotoViewer.getInstance().openPhotoForSelect(photoEntries, 0, PhotoViewer.SELECT_TYPE_NO_SELECT, false, placeProvider, null);
             } else {
-                AndroidUtilities.openForView(fileInfo.file, fileInfo.file.getName(), null, parentFragment.getParentActivity(), null);
+                AndroidUtilities.openForView(fileInfo.file, fileInfo.file.getName(), null, parentFragment.getParentActivity(), null, false);
             }
         }
         if (cacheCell.type == TYPE_MUSIC) {

@@ -125,7 +125,7 @@ public class AvatarDrawable extends Drawable {
         super();
         this.resourcesProvider = resourcesProvider;
         namePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        namePaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        namePaint.setTypeface(AndroidUtilities.bold());
         namePaint.setTextSize(dp(18));
     }
 
@@ -174,9 +174,6 @@ public class AvatarDrawable extends Drawable {
     }
 
     public static int getColorIndex(long id) {
-        if (id >= 0 && id < Theme.keys_avatar_background.length) {
-            return (int) id;
-        }
         return (int) Math.abs(id % Theme.keys_avatar_background.length);
     }
 

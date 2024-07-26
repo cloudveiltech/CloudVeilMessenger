@@ -26,6 +26,7 @@ import android.util.Pair;
 import android.view.View;
 
 import androidx.core.content.FileProvider;
+import androidx.exifinterface.media.ExifInterface;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
@@ -368,7 +369,6 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
             return;
         }
         //CloudVeil end
-
         final HashMap<Object, Object> photos = new HashMap<>();
         final ArrayList<Object> order = new ArrayList<>();
         PhotoPickerActivity fragment = new PhotoPickerActivity(0, null, photos, order, 1, false, null, forceDarkTheme);
@@ -464,7 +464,7 @@ public class ImageUpdater implements NotificationCenter.NotificationCenterDelega
             chatAttachAlert.setDelegate(new ChatAttachAlert.ChatAttachViewDelegate() {
 
                 @Override
-                public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, boolean forceDocument) {
+                public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, long effectId, boolean invertMedia, boolean forceDocument) {
                     if (parentFragment == null || parentFragment.getParentActivity() == null || chatAttachAlert == null) {
                         return;
                     }

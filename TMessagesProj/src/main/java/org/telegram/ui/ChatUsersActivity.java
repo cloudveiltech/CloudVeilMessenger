@@ -449,7 +449,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
             }
         } else if (type == TYPE_ADMIN) {
             if (ChatObject.isChannel(currentChat) && currentChat.megagroup && !currentChat.gigagroup && (info == null || info.participants_count <= 200 || !isChannel && info.can_set_stickers)) {
-                recentActionsRow = rowCount++;
+//                recentActionsRow = rowCount++;
                 if (ChatObject.hasAdminRights(currentChat)) {
                     antiSpamRow = rowCount++;
                     antiSpamInfoRow = rowCount++;
@@ -892,7 +892,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
                         GroupCreateActivity fragment = new GroupCreateActivity(args);
                         fragment.setInfo(info);
                         fragment.setIgnoreUsers(contactsMap != null && contactsMap.size() != 0 ? contactsMap : participantsMap);
-                        fragment.setDelegate(new GroupCreateActivity.ContactsAddActivityDelegate() {
+                        fragment.setDelegate2(new GroupCreateActivity.ContactsAddActivityDelegate() {
                             @Override
                             public void didSelectUsers(ArrayList<TLRPC.User> users, int fwdCount) {
                                 if (fragment.getParentActivity() == null) {
@@ -1814,6 +1814,7 @@ public class ChatUsersActivity extends BaseFragment implements NotificationCente
             } else if (type == TYPE_BANNED && ChatObject.canBlockUsers(currentChat)) {
                 if (ChatObject.canAddUsers(currentChat) && peerId > 0) {
                     options.add(R.drawable.msg_contact_add, isChannel ? LocaleController.getString("ChannelAddToChannel", R.string.ChannelAddToChannel) : LocaleController.getString("ChannelAddToGroup", R.string.ChannelAddToGroup), () -> {
+                        deletePeer(peerId);
                         TLRPC.User user = getMessagesController().getUser(peerId);
                         getMessagesController().addUserToChat(chatId, user, 0, null, ChatUsersActivity.this, null);
                     });

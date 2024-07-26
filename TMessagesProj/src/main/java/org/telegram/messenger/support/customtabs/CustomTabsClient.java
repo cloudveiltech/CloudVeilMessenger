@@ -29,7 +29,6 @@ import android.os.Looper;
 import android.os.RemoteException;
 import androidx.annotation.Nullable;
 import android.text.TextUtils;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -182,7 +181,6 @@ public class CustomTabsClient {
 
             @Override
             public void onNavigationEvent(final int navigationEvent, final Bundle extras) {
-                Log.d("111111111", extras.toString());
                 if (callback == null) return;
                 mHandler.post(new Runnable() {
                     @Override

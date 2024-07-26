@@ -8,6 +8,7 @@ import android.os.Build;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
@@ -279,12 +280,6 @@ public class CloudVeilDialogHelper {
         }
         if(messageObject.messageOwner.action instanceof TLRPC.TL_messageActionChatEditPhoto) {
             if(CloudVeilSecuritySettings.getLockDisableOthersPhoto()) {
-                return false;
-            }
-        }
-        if (messageObject.messageOwner.media != null && messageObject.messageOwner.media.document != null
-                && !MediaDataController.getInstance(accountNumber).isStickerAllowed(messageObject.messageOwner.media.document)) {
-            if (TextUtils.isEmpty(CloudVeilSecuritySettings.getBlockedImageUrl())) {
                 return false;
             }
         }

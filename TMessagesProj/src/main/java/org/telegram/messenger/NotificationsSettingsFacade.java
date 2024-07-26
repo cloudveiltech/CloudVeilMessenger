@@ -1,6 +1,8 @@
 package org.telegram.messenger;
 
 import static org.telegram.messenger.NotificationsController.TYPE_PRIVATE;
+import static org.telegram.messenger.NotificationsController.TYPE_REACTIONS_MESSAGES;
+import static org.telegram.messenger.NotificationsController.TYPE_REACTIONS_STORIES;
 
 import android.content.SharedPreferences;
 
@@ -208,6 +210,10 @@ public class NotificationsSettingsFacade {
                 soundPref = "GlobalSound";
                 soundDocPref = "GlobalSoundDocId";
                 soundPathPref = "GlobalSoundPath";
+            } else if (globalType == TYPE_REACTIONS_MESSAGES || globalType == TYPE_REACTIONS_STORIES) {
+                soundPref = "ReactionSound";
+                soundDocPref = "ReactionSoundDocId";
+                soundPathPref = "ReactionSoundPath";
             } else {
                 soundPref = "ChannelSound";
                 soundDocPref = "ChannelSoundDocId";
@@ -256,8 +262,7 @@ public class NotificationsSettingsFacade {
         }
     }
 
-    public void setSettingsForDialog(TLRPC.Dialog dialog, TLRPC.PeerNotifySettings notify_settings) {
-        SharedPreferences.Editor editor = getPreferences().edit();
+    public void setSettingsForDialog(SharedPreferences.Editor editor, TLRPC.Dialog dialog, TLRPC.PeerNotifySettings notify_settings) {
         long dialogId = MessageObject.getPeerId(dialog.peer);
 
         if ((dialog.notify_settings.flags & 2) != 0) {
@@ -281,7 +286,5 @@ public class NotificationsSettingsFacade {
         } else {
             editor.remove(PROPERTY_NOTIFY + dialogId);
         }
-
-        editor.apply();
     }
 }

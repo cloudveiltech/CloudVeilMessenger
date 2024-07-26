@@ -23,14 +23,10 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.SpannableString;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
-import android.util.Log;
 import android.util.Property;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -103,6 +99,13 @@ public class Bulletin {
 
     public static Bulletin make(@NonNull FrameLayout containerLayout, @NonNull Layout contentLayout, int duration) {
         return new Bulletin(null, containerLayout, contentLayout, duration);
+    }
+
+    public Bulletin setOnClickListener(View.OnClickListener onClickListener) {
+        if (layout != null) {
+            layout.setOnClickListener(onClickListener);
+        }
+        return this;
     }
 
     @SuppressLint("RtlHardcoded")
@@ -620,6 +623,10 @@ public class Bulletin {
             return 0;
         }
 
+        default boolean bottomOffsetAnimated() {
+            return true;
+        }
+
         default int getLeftPadding() {
             return 0;
         }
@@ -662,7 +669,7 @@ public class Bulletin {
 
         protected Bulletin bulletin;
         Drawable background;
-        private boolean top;
+        public boolean top;
 
         public boolean isTransitionRunning() {
             return transitionRunningEnter || transitionRunningExit;
@@ -682,6 +689,12 @@ public class Bulletin {
             updateSize();
             setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
             setWillNotDraw(false);
+            ScaleStateListAnimator.apply(this, .02f, 1.5f);
+        }
+
+        @Override
+        protected boolean verifyDrawable(@NonNull Drawable who) {
+            return background == who || super.verifyDrawable(who);
         }
 
         protected void setBackground(int color) {
@@ -723,7 +736,7 @@ public class Bulletin {
             updateSize();
         }
 
-        private void setTop(boolean top) {
+        public void setTop(boolean top) {
             this.top = top;
             updateSize();
         }
@@ -862,7 +875,7 @@ public class Bulletin {
         }
 
         public float getBottomOffset() {
-            if (bulletin != null && bulletin.bottomOffsetSpring != null && bulletin.bottomOffsetSpring.isRunning()) {
+            if (bulletin != null && (delegate == null || delegate.bottomOffsetAnimated()) && bulletin.bottomOffsetSpring != null && bulletin.bottomOffsetSpring.isRunning()) {
                 return bulletin.lastBottomOffset;
             }
             return delegate.getBottomOffset(bulletin != null ? bulletin.tag : 0);
@@ -1231,7 +1244,7 @@ public class Bulletin {
             titleTextView.setSingleLine();
             titleTextView.setTextColor(undoInfoColor);
             titleTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            titleTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            titleTextView.setTypeface(AndroidUtilities.bold());
             linearLayout.addView(titleTextView);
 
             subtitleTextView = new TextView(context);
@@ -1284,7 +1297,7 @@ public class Bulletin {
             titleTextView.setSingleLine();
             titleTextView.setTextColor(undoInfoColor);
             titleTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            titleTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            titleTextView.setTypeface(AndroidUtilities.bold());
             linearLayout.addView(titleTextView);
 
             subtitleTextView = new LinkSpanDrawable.LinksTextView(context);
@@ -1432,7 +1445,7 @@ public class Bulletin {
             reactionsContainerLayout.setBubbleOffset(-AndroidUtilities.dp(80));
             reactionsContainerLayout.setHint(LocaleController.getString(R.string.SavedTagReactionsHint));
             addView(reactionsContainerLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 92.5f, Gravity.CENTER_HORIZONTAL, 0, 36, 0, 0));
-            reactionsContainerLayout.setMessage(null, null);
+            reactionsContainerLayout.setMessage(null, null, true);
         }
 
         @Override
@@ -1754,7 +1767,7 @@ public class Bulletin {
                 undoTextView = new TextView(context);
                 undoTextView.setBackground(Theme.createSelectorDrawable((undoCancelColor & 0x00ffffff) | 0x19000000, Theme.RIPPLE_MASK_ROUNDRECT_6DP));
                 undoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-                undoTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+                undoTextView.setTypeface(AndroidUtilities.bold());
                 undoTextView.setTextColor(undoCancelColor);
                 undoTextView.setText(LocaleController.getString("Undo", R.string.Undo));
                 undoTextView.setGravity(Gravity.CENTER_VERTICAL);
@@ -1872,7 +1885,7 @@ public class Bulletin {
 
             textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
             textPaint.setTextSize(AndroidUtilities.dp(12));
-            textPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            textPaint.setTypeface(AndroidUtilities.bold());
             textPaint.setColor(Theme.getColor(Theme.key_undo_infoColor, resourcesProvider));
 
             progressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -2028,6 +2041,12 @@ public class Bulletin {
                 window.setAttributes(params);
                 AndroidUtilities.setLightNavigationBar(window, AndroidUtilities.computePerceivedBrightness(Theme.getColor(Theme.key_windowBackgroundGray)) > 0.721f);
             } catch (Exception ignore) {}
+        }
+
+        @Override
+        public void show() {
+            if (!AndroidUtilities.isSafeToShow(getContext())) return;
+            super.show();
         }
 
         @RequiresApi(api = Build.VERSION_CODES.KITKAT_WATCH)

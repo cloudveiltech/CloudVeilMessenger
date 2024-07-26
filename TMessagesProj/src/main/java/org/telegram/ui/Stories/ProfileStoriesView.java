@@ -19,7 +19,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
-import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -163,7 +162,7 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
 
         titleDrawable.setTextSize(dp(18));
         titleDrawable.setAnimationProperties(.4f, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
-        titleDrawable.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        titleDrawable.setTypeface(AndroidUtilities.bold());
         titleDrawable.setTextColor(Theme.getColor(Theme.key_actionBarDefaultTitle, resourcesProvider));
         titleDrawable.setEllipsizeByGradient(true);
         titleDrawable.setCallback(this);
@@ -435,13 +434,9 @@ public class ProfileStoriesView extends View implements NotificationCenter.Notif
         if (SharedConfig.getDevicePerformanceClass() <= SharedConfig.PERFORMANCE_CLASS_LOW) {
             return;
         }
-        try {
-            performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-        } catch (Exception ignore) {}
+        AndroidUtilities.vibrateCursor(this);
         AndroidUtilities.runOnUIThread(() -> {
-            try {
-                performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-            } catch (Exception ignore2) {}
+            AndroidUtilities.vibrateCursor(this);
         }, 180);
     }
 

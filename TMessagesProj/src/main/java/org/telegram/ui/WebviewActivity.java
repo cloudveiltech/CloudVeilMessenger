@@ -21,7 +21,6 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewParent;
@@ -220,6 +219,7 @@ public class WebviewActivity extends BaseFragment {
         FrameLayout frameLayout = (FrameLayout) fragmentView;
         if (Build.VERSION.SDK_INT >= 19) {
             webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            webView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
         }
 
         if (Build.VERSION.SDK_INT >= 17) {
@@ -266,6 +266,7 @@ public class WebviewActivity extends BaseFragment {
                 }
                 return false;
             }
+
             //CloudVeil start
             private boolean maybeLaunchExternalBrowser(String url) {
                 if (!CloudVeilSecuritySettings.isUrlWhileListedForInternalView(url)) {
@@ -285,6 +286,7 @@ public class WebviewActivity extends BaseFragment {
                 return false;
             }
             //CloudVeil end
+
             @Override
             public void onLoadResource(WebView view, String url) {
                 if (isInternalUrl(url)) {

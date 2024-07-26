@@ -25,7 +25,6 @@ import android.os.Bundle;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -158,7 +157,7 @@ public class ChatThemeBottomSheet extends BottomSheet implements NotificationCen
         titleView.setText(LocaleController.getString("SelectTheme", R.string.SelectTheme));
         titleView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
-        titleView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        titleView.setTypeface(AndroidUtilities.bold());
         titleView.setPadding(dp(12), dp(6), dp(12), dp(8));
 
         backButtonView = new ImageView(getContext());
@@ -294,7 +293,7 @@ public class ChatThemeBottomSheet extends BottomSheet implements NotificationCen
         applyTextView.setGravity(Gravity.CENTER);
         applyTextView.setTextColor(getThemedColor(Theme.key_featuredStickers_buttonText));
         applyTextView.setTextSize(dp(15));
-        applyTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        applyTextView.setTypeface(AndroidUtilities.bold());
         rootLayout.addView(applyTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.START, 16, 162, 16, 16));
 
         applySubTextView = new AnimatedTextView(getContext(), true, true, true);
@@ -1252,7 +1251,7 @@ public class ChatThemeBottomSheet extends BottomSheet implements NotificationCen
             }
 
             @Override
-            public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, boolean forceDocument) {
+            public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, long effectId, boolean invertMedia, boolean forceDocument) {
                 try {
                     HashMap<Object, Object> photos = chatAttachAlert.getPhotoLayout().getSelectedPhotos();
                     if (!photos.isEmpty()) {
@@ -1330,45 +1329,6 @@ public class ChatThemeBottomSheet extends BottomSheet implements NotificationCen
         chatAttachAlert.init();
         chatAttachAlert.getPhotoLayout().loadGalleryPhotos();
         chatAttachAlert.show();
-
-        FrameLayout chatAttachButton = new FrameLayout(activity) {
-
-            Paint paint = new Paint();
-
-            @Override
-            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(dp(48), MeasureSpec.EXACTLY));
-            }
-
-            @Override
-            protected void dispatchDraw(Canvas canvas) {
-                super.dispatchDraw(canvas);
-                paint.setColor(Theme.getColor(Theme.key_divider, resourcesProvider));
-                canvas.drawRect(0, 0, getMeasuredWidth(), 1, paint);
-            }
-        };
-        AnimatedTextView chatAttachButtonText = new AnimatedTextView(activity, true, true, true);
-        chatAttachButtonText.setTextSize(dp(14));
-        chatAttachButtonText.setText(LocaleController.getString(R.string.SetColorAsBackground));
-        chatAttachButtonText.setGravity(Gravity.CENTER);
-        chatAttachButtonText.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider));
-        chatAttachButton.addView(chatAttachButtonText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
-        chatAttachButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(dp(0), Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider), ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), (int) (0.3f * 255))));
-        chatAttachButton.setOnClickListener(v -> {
-            if (chatAttachAlert.getCurrentAttachLayout() == chatAttachAlert.getPhotoLayout()) {
-                chatAttachButtonText.setText(LocaleController.getString(R.string.ChooseBackgroundFromGallery));
-                chatAttachAlert.openColorsLayout();
-//                chatAttachAlert.colorsLayout.updateColors(forceDark);
-            } else {
-                chatAttachButtonText.setText(LocaleController.getString(R.string.SetColorAsBackground));
-                chatAttachAlert.showLayout(chatAttachAlert.getPhotoLayout());
-            }
-//            WallpapersListActivity wallpapersListActivity = new WallpapersListActivity(WallpapersListActivity.TYPE_ALL, chatActivity.getDialogId());
-//            chatActivity.presentFragment(wallpapersListActivity);
-//            chatAttachAlert.dismiss();
-//            dismiss();
-        });
-        chatAttachAlert.sizeNotifierFrameLayout.addView(chatAttachButton, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
     }
 
 
@@ -1385,7 +1345,7 @@ public class ChatThemeBottomSheet extends BottomSheet implements NotificationCen
             }
 
             @Override
-            public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, boolean forceDocument) {
+            public void didPressedButton(int button, boolean arg, boolean notify, int scheduleDate, long effectId, boolean invertMedia, boolean forceDocument) {
                 try {
                     HashMap<Object, Object> photos = chatAttachAlert.getPhotoLayout().getSelectedPhotos();
                     if (!photos.isEmpty()) {
