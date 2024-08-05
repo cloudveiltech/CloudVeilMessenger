@@ -53,8 +53,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+    <!--
+    CloudVeil removed
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
@@ -480,12 +482,6 @@
             <intent-filter>
                 <action android:name="org.telegram.start" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <receiver android:name=".RefererReceiver" android:exported="true" android:permission="android.permission.INSTALL_PACKAGES">
-            <intent-filter>
-                <action android:name="com.android.vending.INSTALL_REFERRER" />
             </intent-filter>
         </receiver>
 
