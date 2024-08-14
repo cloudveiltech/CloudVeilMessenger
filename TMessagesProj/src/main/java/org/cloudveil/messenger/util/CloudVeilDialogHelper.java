@@ -29,6 +29,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 
@@ -126,7 +127,7 @@ public class CloudVeilDialogHelper {
         return true;
     }
 
-    public boolean isBotAllowed(TLRPC.BotInfo bot) {
+    public boolean isBotAllowed(TL_bots.BotInfo bot) {
         if (bot == null) {
             return true;
         }
@@ -249,7 +250,7 @@ public class CloudVeilDialogHelper {
 
         @Override
         public void didReceivedNotification(int id, int account, Object... args) {
-            MessagesController.openChatOrProfileWith(user, chat, fragment, type, closeLast);
+            MessagesController.getInstance(account).openChatOrProfileWith(user, chat, fragment, type, closeLast);
 
             NotificationCenter.getInstance(fragment.getCurrentAccount()).removeObserver(this, NotificationCenter.filterDialogsReady);
             delegateInstance = null;
