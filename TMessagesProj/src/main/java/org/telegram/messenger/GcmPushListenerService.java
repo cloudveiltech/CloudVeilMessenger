@@ -8,6 +8,8 @@
 
 package org.telegram.messenger;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -22,7 +24,6 @@ public class GcmPushListenerService extends FirebaseMessagingService {
         String from = message.getFrom();
         Map<String, String> data = message.getData();
         long time = message.getSentTime();
-
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("FCM received data: " + data + " from: " + from);
         }

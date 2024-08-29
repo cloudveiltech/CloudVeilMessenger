@@ -17,6 +17,7 @@ import com.google.gson.LongSerializationPolicy;
 import org.cloudveil.messenger.api.service.interceptor.HttpLoggingInterceptor;
 
 import java.lang.reflect.Type;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -43,6 +44,7 @@ class ServiceClientHolder<T> {
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         final OkHttpClient.Builder okHttpClientBuilder = new OkHttpClient.Builder();
+        okHttpClientBuilder.proxy(Proxy.NO_PROXY);
         okHttpClientBuilder.connectTimeout(10, TimeUnit.MINUTES);
         okHttpClientBuilder.readTimeout(10, TimeUnit.MINUTES);
         okHttpClientBuilder.writeTimeout(10, TimeUnit.MINUTES);

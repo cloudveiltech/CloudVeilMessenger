@@ -3,6 +3,11 @@ package org.cloudveil.messenger.jobs;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -26,6 +31,7 @@ import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
@@ -40,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import io.sentry.Scope;
 import io.sentry.Sentry;
 import io.sentry.SentryLevel;
 import io.sentry.protocol.User;
@@ -188,7 +195,7 @@ public class CloudVeilSyncWorker extends Worker {
                     sendSentryEvent(throwable, user, "Settings sync request failed.");
                     throwable.printStackTrace();
                     freeSubscription();
-                    subscription = ServiceClientHolders.getSettingsService().ping().
+                   /*todo remove subscription = ServiceClientHolders.getSettingsService().ping().
                             subscribeOn(Schedulers.io()).
                             subscribe(response -> {
                                 freeSubscription();
@@ -201,6 +208,7 @@ public class CloudVeilSyncWorker extends Worker {
                                 throwable1.printStackTrace();
                                 freeSubscription();
                             });
+                            */
                 });
 
     }
@@ -210,12 +218,40 @@ public class CloudVeilSyncWorker extends Worker {
             super(s, exception);
         }
     }
+
     private void sendSentryEvent(Throwable exception, User user, String message) {
         Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
+        FileLog.e(wrapped);
         Sentry.captureException(wrapped, scope -> {
             scope.setLevel(SentryLevel.FATAL);
             scope.setUser(user);
+            addNetworkDataToSentry(scope);
         });
+    }
+
+    private void addNetworkDataToSentry(@NonNull Scope scope) {
+        ConnectivityManager connectivityManager = (ConnectivityManager)getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        Network[] networks = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            networks = connectivityManager.getAllNetworks();
+            for (Network network : networks) {
+                NetworkInfo networkInfo = connectivityManager.getNetworkInfo(network);
+                if (networkInfo != null && networkInfo.isConnectedOrConnecting()) {
+                    NetworkCapabilities networkCapabilities = connectivityManager.getNetworkCapabilities(network);
+                    if(networkCapabilities != null) {
+                        scope.setExtra("VPN", networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) + "");
+                        FileLog.e("CloudVeilSyncWorker VPN: " + networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
+                    }
+
+                    LinkProperties linkProperties = connectivityManager.getLinkProperties(network);
+                    if (linkProperties != null) {
+                        scope.setExtra("DNS", "dns = " + linkProperties.getDnsServers());
+                        scope.setExtra("PROXY", "" + linkProperties.getHttpProxy());
+                    }
+                    FileLog.e("CloudVeilSyncWorker: " + "dns=" + linkProperties.getDnsServers());
+                }
+            }
+        }
     }
 
     private void postFilterDialogsReady() {
