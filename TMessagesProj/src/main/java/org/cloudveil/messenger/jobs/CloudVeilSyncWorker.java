@@ -24,6 +24,7 @@ import androidx.work.WorkerParameters;
 import com.google.gson.Gson;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.api.model.NetworkHelper;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.MessengerHttpInterface;
@@ -78,7 +79,8 @@ public class CloudVeilSyncWorker extends Worker {
         if (context == null) {
             return;
         }
-        OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestWithNetwork(CloudVeilSyncWorker.class);
+        FileLog.d("CloudVeilSyncWorker startDataChecking");
+        OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestNoRestrictions(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 build();
@@ -193,22 +195,7 @@ public class CloudVeilSyncWorker extends Worker {
                         processResponse(cached);
                     }
                     sendSentryEvent(throwable, user, "Settings sync request failed.");
-                    throwable.printStackTrace();
                     freeSubscription();
-                   /*todo remove subscription = ServiceClientHolders.getSettingsService().ping().
-                            subscribeOn(Schedulers.io()).
-                            subscribe(response -> {
-                                freeSubscription();
-                                String responseString = response.string();
-                                if(!responseString.equalsIgnoreCase(MessengerHttpInterface.PING_SUCCCESS)) {
-                                    sendSentryEvent(new Exception("Ping failed! " + responseString), user, "Ping request failed " + responseString);
-                                }
-                            }, throwable1 -> {
-                                sendSentryEvent(throwable1, user, "Ping request failed.");
-                                throwable1.printStackTrace();
-                                freeSubscription();
-                            });
-                            */
                 });
 
     }
@@ -220,39 +207,19 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
     private void sendSentryEvent(Throwable exception, User user, String message) {
+        if(!NetworkHelper.hasAnyInternetConnection(getApplicationContext())) {
+            return;
+        }
+
         Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
         FileLog.e(wrapped);
         Sentry.captureException(wrapped, scope -> {
             scope.setLevel(SentryLevel.FATAL);
             scope.setUser(user);
-            addNetworkDataToSentry(scope);
+            NetworkHelper.addNetworkDataToSentry(getApplicationContext(), scope);
         });
     }
 
-    private void addNetworkDataToSentry(@NonNull Scope scope) {
-        ConnectivityManager connectivityManager = (ConnectivityManager)getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-        Network[] networks = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            networks = connectivityManager.getAllNetworks();
-            for (Network network : networks) {
-                NetworkInfo networkInfo = connectivityManager.getNetworkInfo(network);
-                if (networkInfo != null && networkInfo.isConnectedOrConnecting()) {
-                    NetworkCapabilities networkCapabilities = connectivityManager.getNetworkCapabilities(network);
-                    if(networkCapabilities != null) {
-                        scope.setExtra("VPN", networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) + "");
-                        FileLog.e("CloudVeilSyncWorker VPN: " + networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
-                    }
-
-                    LinkProperties linkProperties = connectivityManager.getLinkProperties(network);
-                    if (linkProperties != null) {
-                        scope.setExtra("DNS", "dns = " + linkProperties.getDnsServers());
-                        scope.setExtra("PROXY", "" + linkProperties.getHttpProxy());
-                    }
-                    FileLog.e("CloudVeilSyncWorker: " + "dns=" + linkProperties.getDnsServers());
-                }
-            }
-        }
-    }
 
     private void postFilterDialogsReady() {
         mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));

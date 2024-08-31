@@ -6922,6 +6922,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         }
 
+        CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         MediaDataController.getInstance(currentAccount).loadStickers(MediaDataController.TYPE_IMAGE, true, false);
         //Cloudveil end
         showFiltersHint();
@@ -10385,6 +10386,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     public void didReceivedNotification(int id, int account, Object... args) {
         //CloudVeil start
         if (id == NotificationCenter.dialogsNeedReload || id == NotificationCenter.stickersDidLoad) {
+            FileLog.d("CloudVeilSyncWorker didReceivedNotification");
             CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         }
 

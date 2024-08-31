@@ -73,7 +73,7 @@ dependencies {
     implementation 'com.squareup.retrofit2:adapter-rxjava2:2.11.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
     implementation files('libs/libgsaverification-client.aar')
-    implementation 'androidx.work:work-runtime:2.8.1'
+    implementation 'androidx.work:work-runtime:2.9.1'
     implementation 'io.sentry:sentry-android:6.32.0'
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
     //cloudveil end
@@ -81,8 +81,8 @@ dependencies {
 
 def isWindows = String.valueOf(DefaultNativePlatform.currentOperatingSystem.toFamilyName() == OperatingSystemFamily.WINDOWS)
 android {
-    compileSdkVersion 33
-    buildToolsVersion '33.0.0'
+    compileSdkVersion 34
+    buildToolsVersion '34.0.0'
     ndkVersion "21.4.7075529"
 
     sourceSets.main.jniLibs.srcDirs = ['./jni/']

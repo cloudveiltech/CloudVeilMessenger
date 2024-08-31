@@ -16,4 +16,8 @@ public class WorkerHelper {
                                 .build()
                 );
     }
+
+    public static OneTimeWorkRequest.Builder getOneTimeWorkRequestNoRestrictions(Class c) {
+        return new OneTimeWorkRequest.Builder(c);
+    }
 }
