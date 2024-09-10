@@ -48,7 +48,7 @@ dependencies {
     implementation 'com.stripe:stripe-android:2.0.2'
     implementation 'com.google.mlkit:language-id:16.1.1'
     implementation 'com.android.billingclient:billing:6.0.1'
-    implementation 'com.google.code.gson:gson:2.10'
+    implementation 'com.google.code.gson:gson:2.11.0'
     implementation 'com.google.guava:guava:31.1-android'
     implementation 'com.google.android.play:integrity:1.3.0'
     implementation 'com.google.android.gms:play-services-safetynet:18.0.1'
@@ -109,12 +109,10 @@ android {
         coreLibraryDesugaringEnabled true
     }
 
-    defaultConfig.versionCode = Integer.parseInt(APP_VERSION_CODE)
 
     defaultConfig {
         minSdkVersion 19
         targetSdkVersion 34
-        versionName "8.9.0"
 
         vectorDrawables.generatedDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi']
 
@@ -137,7 +135,6 @@ android {
 
     buildTypes {
         debug {
-            debuggable true
             jniDebuggable true
             minifyEnabled false
             shrinkResources false
@@ -152,7 +149,6 @@ android {
         }
 
         HA_private {
-            debuggable false
             jniDebuggable false
             minifyEnabled true
             multiDexEnabled true
@@ -166,7 +162,6 @@ android {
         }
 
         HA_public {
-            debuggable false
             jniDebuggable false
             minifyEnabled true
             multiDexEnabled true
@@ -180,7 +175,6 @@ android {
         }
 
         HA_hardcore {
-            debuggable false
             jniDebuggable false
             minifyEnabled true
             multiDexEnabled true
@@ -194,7 +188,6 @@ android {
         }
 
         standalone {
-            debuggable false
             jniDebuggable false
             minifyEnabled true
             multiDexEnabled true
@@ -208,7 +201,6 @@ android {
         }
 
         release {
-            debuggable false
             jniDebuggable false
             minifyEnabled true
             shrinkResources false
@@ -243,6 +235,7 @@ android {
             }
         }
     }
+    namespace 'org.telegram.messenger'
 }
 
 

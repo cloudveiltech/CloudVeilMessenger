@@ -40,6 +40,7 @@ public class NotificationsService extends Service {
         if (preferences.getBoolean("pushService", true) || CloudVeilSecuritySettings.LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE) {
             //CloudVeil end
             Intent intent = new Intent("org.telegram.start");
+            intent.setPackage(getPackageName());
             sendBroadcast(intent);
         }
     }

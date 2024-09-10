@@ -10,6 +10,7 @@ package org.telegram.messenger.browser;
 
 import android.app.Activity;
 import android.app.PendingIntent;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -163,11 +164,11 @@ public class Browser {
         if (url == null) {
             return;
         }
-        openUrl(context, Uri.parse(url), true, false, false, null, null, false, fragment);
+        openUrl(context, Uri.parse(url), true, false, false, null, null, false, true, fragment);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, null, false);
+        openUrl(context, uri, allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, null, false, true);
     }
     //CloudVeil end
 
@@ -272,20 +273,20 @@ public class Browser {
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, null, null, false);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, null, null, false, true);
     }
 
     public static void openUrl(final Context context, Uri uri, final boolean allowCustom, boolean tryTelegraph, Progress inCaseLoading) {
-        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null, false);
+        openUrl(context, uri, allowCustom, tryTelegraph, false, inCaseLoading, null, false, true);
     }
 
     //CloudVeil start
-    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser, boolean allowIntent) {
-        openUrl(context, uri, _allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, browser, false, null);
+    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser, boolean allowIntent, boolean allowInAppBrowser) {
+        openUrl(context, uri, _allowCustom, tryTelegraph, forceNotInternalForApps, inCaseLoading, browser, allowIntent, allowInAppBrowser, null);
     }
     //CloudVeil end
 
-    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser, boolean allowIntent/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
+    public static void openUrl(final Context context, Uri uri, boolean _allowCustom, boolean tryTelegraph, boolean forceNotInternalForApps, Progress inCaseLoading, String browser, boolean allowIntent, boolean allowInAppBrowser/*CloudVeil start */, BaseFragment baseFragment/*CloudVeil end */) {
         if (context == null || uri == null) {
             return;
         }
@@ -406,7 +407,7 @@ public class Browser {
 
                         builder.setToolbarColor(Theme.getColor(Theme.key_actionBarBrowser));
                         builder.setShowTitle(true);
-                        builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString("ShareFile", R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
+                        builder.setActionButton(BitmapFactory.decodeResource(context.getResources(), R.drawable.msg_filled_shareout), LocaleController.getString(R.string.ShareFile), PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, share, PendingIntent.FLAG_MUTABLE ), true);
 
                         CustomTabsIntent intent = builder.build();
                         intent.setUseNewTask();
@@ -421,6 +422,7 @@ public class Browser {
         }
         try {
             final boolean inappBrowser = (
+                allowInAppBrowser &&
                 SharedConfig.inappBrowser &&
                 TextUtils.isEmpty(browserPackage) &&
                 !RestrictedDomainsList.getInstance().isRestricted(AndroidUtilities.getHostAuthority(uri, true)) &&
@@ -428,12 +430,19 @@ public class Browser {
                 ||
                 isTonsite(uri.toString())
             );
+            final boolean isIntentScheme = uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent");
             if (internalUri && LaunchActivity.instance != null) {
-                LaunchActivity.dismissAllWeb();
                 openAsInternalIntent(LaunchActivity.instance, uri.toString(), forceNotInternalForApps, inCaseLoading);
             } else {
                 if (inappBrowser) {
                     if (!openInExternalApp(context, uri.toString(), allowIntent)) {
+                        if (uri != null && uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent")) {
+                            final Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
+                            final String fallbackUrl = intent.getStringExtra("browser_fallback_url");
+                            if (!TextUtils.isEmpty(fallbackUrl)) {
+                                uri = Uri.parse(fallbackUrl);
+                            }
+                        }
                         openInTelegramBrowser(context, uri.toString(), inCaseLoading);
                     }
                 } else {
@@ -557,25 +566,27 @@ public class Browser {
             url = Browser.replace(
                 uri,
                 uri.getScheme() == null ? "https" : uri.getScheme(),
-                uri.getHost() != null ? uri.getHost().toLowerCase() : uri.getHost(),
+                    null, uri.getHost() != null ? uri.getHost().toLowerCase() : uri.getHost(),
                 TextUtils.isEmpty(uri.getPath()) ? "/" : uri.getPath()
             );
             uri = Uri.parse(url);
-            final boolean isIntentScheme = uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent");
+            final boolean isIntentScheme = url.startsWith("intent://") || uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent");
             if (isIntentScheme && !allowIntent) return false;
             final Intent intent = isIntentScheme ?
                 Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME) :
                 new Intent(Intent.ACTION_VIEW, uri);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!isIntentScheme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 intent.addCategory(Intent.CATEGORY_BROWSABLE);
                 intent.addCategory(Intent.CATEGORY_DEFAULT);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 intent.addFlags(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER);
-            } else if (!hasAppToOpen(context, url)) {
+            } else if (!isIntentScheme && !hasAppToOpen(context, url)) {
                 return false;
             }
             context.startActivity(intent);
             return true;
+        } catch (ActivityNotFoundException e) {
+            FileLog.e(e, false);
         } catch (Exception e) {
             FileLog.e(e);
         }
@@ -819,17 +830,21 @@ public class Browser {
     }
 
     public static String replaceHostname(Uri originalUri, String newHostname, String newScheme) {
-        return replace(originalUri, newScheme, newHostname, null);
+        return replace(originalUri, newScheme, null, newHostname, null);
     }
 
-    public static String replace(Uri originalUri, String newScheme, String newHostname, String newPath) {
+    public static String replace(Uri originalUri, String newScheme, String newUserInfo, String newHostname, String newPath) {
         final StringBuilder modifiedUriBuilder = new StringBuilder();
         final String scheme = newScheme == null ? originalUri.getScheme() : newScheme;
         if (scheme != null) {
             modifiedUriBuilder.append(scheme).append("://");
         }
-        if (originalUri.getUserInfo() != null) {
-            modifiedUriBuilder.append(originalUri.getUserInfo()).append("@");
+        if (newUserInfo == null) {
+            if (originalUri.getUserInfo() != null) {
+                modifiedUriBuilder.append(originalUri.getUserInfo()).append("@");
+            }
+        } else if (!TextUtils.isEmpty(newUserInfo)) {
+            modifiedUriBuilder.append(newUserInfo).append("@");
         }
         if (newHostname == null) {
             if (originalUri.getHost() != null) {

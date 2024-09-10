@@ -523,7 +523,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                     AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                     builder.setTitle(LocaleController.formatPluralString("DeleteBackground", selectedWallPapers.size()));
                     builder.setMessage(LocaleController.formatString("DeleteChatBackgroundsAlert", R.string.DeleteChatBackgroundsAlert));
-                    builder.setPositiveButton(LocaleController.getString("Delete", R.string.Delete), (dialogInterface, i) -> {
+                    builder.setPositiveButton(LocaleController.getString(R.string.Delete), (dialogInterface, i) -> {
                         progressDialog = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
                         progressDialog.setCanCancel(false);
                         progressDialog.show();
@@ -582,7 +582,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                         actionBar.hideActionMode();
                         actionBar.closeSearchField();
                     });
-                    builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+                    builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
                     AlertDialog alertDialog = builder.create();
                     showDialog(alertDialog);
                     TextView button = (TextView) alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
@@ -594,7 +594,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                     args.putBoolean("onlySelect", true);
                     args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_FORWARD);
                     DialogsActivity fragment = new DialogsActivity(args);
-                    fragment.setDelegate((fragment1, dids, message, param, topicsFragment) -> {
+                    fragment.setDelegate((fragment1, dids, message, param, notify, scheduleDate, topicsFragment) -> {
                         StringBuilder fmessage = new StringBuilder();
                         for (int b = 0; b < selectedWallPapers.size(); b++) {
                             Object object = selectedWallPapers.valueAt(b);
@@ -658,56 +658,56 @@ public class WallpapersListActivity extends BaseFragment implements Notification
             }
         });
 
-        // CloudVeil start remove background search
-//        if (currentType == TYPE_ALL) {
-//            ActionBarMenu menu = actionBar.createMenu();
-//            searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
-//                @Override
-//                public void onSearchExpand() {
-//                    listView.setAdapter(searchAdapter);
-//                    listView.invalidate();
-//                }
-//
-//                @Override
-//                public void onSearchCollapse() {
-//                    listView.setAdapter(listAdapter);
-//                    listView.invalidate();
-//                    searchAdapter.processSearch(null, true);
-//                    searchItem.setSearchFieldCaption(null);
-//                    onCaptionCleared();
-//                }
-//
-//                @Override
-//                public void onTextChanged(EditText editText) {
-//                    searchAdapter.processSearch(editText.getText().toString(), false);
-//                }
-//
-//                @Override
-//                public void onCaptionCleared() {
-//                    searchAdapter.clearColor();
-//                    searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
-//                }
-//            });
-//            searchItem.setSearchFieldHint(LocaleController.getString("SearchBackgrounds", R.string.SearchBackgrounds));
-//
-//            final ActionBarMenu actionMode = actionBar.createActionMode(false, null);
-//            actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
-//            actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
-//            actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSelector), true);
-//
-//            selectedMessagesCountTextView = new NumberTextView(actionMode.getContext());
-//            selectedMessagesCountTextView.setTextSize(18);
-//            selectedMessagesCountTextView.setTypeface(AndroidUtilities.bold());
-//            selectedMessagesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultIcon));
-//            selectedMessagesCountTextView.setOnTouchListener((v, event) -> true);
-//            actionMode.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 65, 0, 0, 0));
-//
-//            actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.msg_forward, AndroidUtilities.dp(54), LocaleController.getString("Forward", R.string.Forward)));
-//            actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, AndroidUtilities.dp(54), LocaleController.getString("Delete", R.string.Delete)));
-//
-//            selectedWallPapers.clear();
-//        }
-        //CloudVeil end
+        //CloudVeil start remove background search
+        Boolean isCloudVeilDisableBackgroundSearch = true;
+        if (currentType == TYPE_ALL && /*CloudVeil ...*/!isCloudVeilDisableBackgroundSearch/*CloudVeil end*/) {
+            ActionBarMenu menu = actionBar.createMenu();
+            searchItem = menu.addItem(0, R.drawable.ic_ab_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+                @Override
+                public void onSearchExpand() {
+                    listView.setAdapter(searchAdapter);
+                    listView.invalidate();
+                }
+
+                @Override
+                public void onSearchCollapse() {
+                    listView.setAdapter(listAdapter);
+                    listView.invalidate();
+                    searchAdapter.processSearch(null, true);
+                    searchItem.setSearchFieldCaption(null);
+                    onCaptionCleared();
+                }
+
+                @Override
+                public void onTextChanged(EditText editText) {
+                    searchAdapter.processSearch(editText.getText().toString(), false);
+                }
+
+                @Override
+                public void onCaptionCleared() {
+                    searchAdapter.clearColor();
+                    searchItem.setSearchFieldHint(LocaleController.getString(R.string.SearchBackgrounds));
+                }
+            });
+            searchItem.setSearchFieldHint(LocaleController.getString(R.string.SearchBackgrounds));
+
+            final ActionBarMenu actionMode = actionBar.createActionMode(false, null);
+            actionMode.setBackgroundColor(Theme.getColor(Theme.key_actionBarDefault));
+            actionBar.setItemsColor(Theme.getColor(Theme.key_actionBarDefaultIcon), true);
+            actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_actionBarDefaultSelector), true);
+
+            selectedMessagesCountTextView = new NumberTextView(actionMode.getContext());
+            selectedMessagesCountTextView.setTextSize(18);
+            selectedMessagesCountTextView.setTypeface(AndroidUtilities.bold());
+            selectedMessagesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarDefaultIcon));
+            selectedMessagesCountTextView.setOnTouchListener((v, event) -> true);
+            actionMode.addView(selectedMessagesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 65, 0, 0, 0));
+
+            actionModeViews.add(actionMode.addItemWithWidth(forward, R.drawable.msg_forward, AndroidUtilities.dp(54), LocaleController.getString(R.string.Forward)));
+            actionModeViews.add(actionMode.addItemWithWidth(delete, R.drawable.msg_delete, AndroidUtilities.dp(54), LocaleController.getString(R.string.Delete)));
+
+            selectedWallPapers.clear();
+        }
 
         fragmentView = new FrameLayout(context);
 
@@ -776,9 +776,9 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 presentFragment(activity);
             } else if (position == resetRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                builder.setTitle(LocaleController.getString("ResetChatBackgroundsAlertTitle", R.string.ResetChatBackgroundsAlertTitle));
-                builder.setMessage(LocaleController.getString("ResetChatBackgroundsAlert", R.string.ResetChatBackgroundsAlert));
-                builder.setPositiveButton(LocaleController.getString("Reset", R.string.Reset), (dialogInterface, i) -> {
+                builder.setTitle(LocaleController.getString(R.string.ResetChatBackgroundsAlertTitle));
+                builder.setMessage(LocaleController.getString(R.string.ResetChatBackgroundsAlert));
+                builder.setPositiveButton(LocaleController.getString(R.string.Reset), (dialogInterface, i) -> {
                     if (actionBar.isActionModeShowed()) {
                         selectedWallPapers.clear();
                         actionBar.hideActionMode();
@@ -790,7 +790,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                     TLRPC.TL_account_resetWallPapers req = new TLRPC.TL_account_resetWallPapers();
                     ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> loadWallpapers(false)));
                 });
-                builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+                builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
                 AlertDialog dialog = builder.create();
                 showDialog(dialog);
                 TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
@@ -828,7 +828,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
         searchEmptyView.setVisibility(View.GONE);
         searchEmptyView.setShowAtCenter(true);
         searchEmptyView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        searchEmptyView.setText(LocaleController.getString("NoResult", R.string.NoResult));
+        searchEmptyView.setText(LocaleController.getString(R.string.NoResult));
         listView.setEmptyView(searchEmptyView);
         frameLayout.addView(searchEmptyView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
@@ -1771,7 +1771,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                     horizontalListView.setLayoutManager(layoutManager);
                     horizontalListView.setAdapter(new CategoryAdapterRecycler());
                     horizontalListView.setOnItemClickListener((view1, position) -> {
-                        String color = LocaleController.getString("BackgroundSearchColor", R.string.BackgroundSearchColor);
+                        String color = LocaleController.getString(R.string.BackgroundSearchColor);
                         Spannable spannable = new SpannableString(color + " " + LocaleController.getString(searchColorsNames[position], searchColorsNamesR[position]));
                         spannable.setSpan(new ForegroundColorSpan(Theme.getColor(Theme.key_actionBarDefaultSubtitle)), color.length(), spannable.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         searchItem.setSearchFieldCaption(spannable);
@@ -1812,7 +1812,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 }
                 case 2: {
                     GraySectionCell cell = (GraySectionCell) holder.itemView;
-                    cell.setText(LocaleController.getString("SearchByColor", R.string.SearchByColor));
+                    cell.setText(LocaleController.getString(R.string.SearchByColor));
                     break;
                 }
             }
@@ -1898,11 +1898,11 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 case 0: {
                     TextCell textCell = (TextCell) holder.itemView;
                     if (position == uploadImageRow) {
-                        textCell.setTextAndIcon(LocaleController.getString("SelectFromGallery", R.string.SelectFromGallery), R.drawable.msg_photos, true);
+                        textCell.setTextAndIcon(LocaleController.getString(R.string.SelectFromGallery), R.drawable.msg_photos, true);
                     } else if (position == setColorRow) {
-                        textCell.setTextAndIcon(LocaleController.getString("SetColor", R.string.SetColor), R.drawable.msg_palette, true);
+                        textCell.setTextAndIcon(LocaleController.getString(R.string.SetColor), R.drawable.msg_palette, true);
                     } else if (position == resetRow) {
-                        textCell.setText(LocaleController.getString("ResetChatBackgrounds", R.string.ResetChatBackgrounds), false);
+                        textCell.setText(LocaleController.getString(R.string.ResetChatBackgrounds), false);
                     } else if (position == galleryRow) {
                         textCell.setTextAndIcon("Choose from gallery", R.drawable.msg_background, false);
                         textCell.setLockLevel(false, 10);
@@ -1912,7 +1912,7 @@ public class WallpapersListActivity extends BaseFragment implements Notification
                 case 3: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     if (position == resetInfoRow) {
-                        cell.setText(LocaleController.getString("ResetChatBackgroundsInfo", R.string.ResetChatBackgroundsInfo));
+                        cell.setText(LocaleController.getString(R.string.ResetChatBackgroundsInfo));
                     } else if (position == galleryHintRow) {
                         cell.setText("Upload your own background for the channel.");
                     }

@@ -26,7 +26,7 @@ dependencies {
 
 android {
     compileSdkVersion 34
-    buildToolsVersion '33.0.0'
+    buildToolsVersion '34.0.0'
 
     defaultConfig.applicationId = APP_PACKAGE
 
@@ -71,7 +71,7 @@ android {
             jniDebuggable true
             signingConfig signingConfigs.debug
             applicationIdSuffix ".beta"
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'
@@ -84,6 +84,7 @@ android {
             signingConfig signingConfigs.release
             applicationIdSuffix ".web"
             minifyEnabled true
+            shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), '../TMessagesProj/proguard-rules.pro'
             ndk.debugSymbolLevel = 'FULL'
@@ -216,6 +217,7 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    namespace 'org.telegram.messenger.regular'
 
     lintOptions {
         checkReleaseBuilds false
