@@ -3618,7 +3618,6 @@ public class MessageObject {
         }
         message.reactions = reactions;
         message.flags |= 1048576;
-        FileLog.d("msg#"+message.id+" updateReactions out=" + message.out);
     }
 
     public boolean hasReactions() {

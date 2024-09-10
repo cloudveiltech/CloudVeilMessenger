@@ -486,6 +486,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         forceBackgroundVisible = false;
 
         if (windowManager != null && windowView != null && windowView.getParent() == null) {
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, windowLayoutParams);
             windowManager.addView(windowView, windowLayoutParams);
         }
 
@@ -552,6 +553,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         videoTextureHolder.active = false;
 
         if (windowManager != null && windowView != null && windowView.getParent() == null) {
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, windowLayoutParams);
             windowManager.addView(windowView, windowLayoutParams);
         }
 
@@ -609,6 +611,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         forceBackgroundVisible = false;
 
         if (windowManager != null && windowView != null && windowView.getParent() == null) {
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, windowLayoutParams);
             windowManager.addView(windowView, windowLayoutParams);
         }
 
@@ -668,6 +671,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         forceBackgroundVisible = false;
 
         if (windowManager != null && windowView != null && windowView.getParent() == null) {
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, windowLayoutParams);
             windowManager.addView(windowView, windowLayoutParams);
         }
 
@@ -728,6 +732,7 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
         forceBackgroundVisible = false;
 
         if (windowManager != null && windowView != null && windowView.getParent() == null) {
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, windowLayoutParams);
             windowManager.addView(windowView, windowLayoutParams);
         }
 
