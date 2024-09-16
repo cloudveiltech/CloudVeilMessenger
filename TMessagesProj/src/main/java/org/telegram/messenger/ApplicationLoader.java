@@ -40,6 +40,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.json.JSONObject;
 import org.telegram.messenger.voip.VideoCapturerDevice;
 import org.telegram.tgnet.ConnectionsManager;
@@ -280,6 +281,7 @@ public class ApplicationLoader extends Application {
             options.setDsn(BuildConfig.SENTRY_KEY);
         });
         //CloudVeil end
+
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app start time = " + (startTime = SystemClock.elapsedRealtime()));
             try {

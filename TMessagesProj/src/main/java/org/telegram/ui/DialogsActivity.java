@@ -6922,6 +6922,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
         }
 
+        CloudVeilSyncWorker.preloadCachedResponse(ApplicationLoader.applicationContext, currentAccount);
         CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         MediaDataController.getInstance(currentAccount).loadStickers(MediaDataController.TYPE_IMAGE, true, false);
         //Cloudveil end

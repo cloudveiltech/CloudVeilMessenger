@@ -61,7 +61,7 @@ public class CloudVeilSyncWorker extends Worker {
     private static final String EXTRA_ACCOUNT_NUMBER = "extra_account_number";
     private static final long CACHE_TIMEOUT_MS = 30000;
 
-    Handler mainLooperHandler;
+    static Handler mainLooperHandler;
 
     private Disposable subscription;
     private long additionalDialogId = 0;
@@ -72,7 +72,7 @@ public class CloudVeilSyncWorker extends Worker {
 
     public CloudVeilSyncWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
-        this.mainLooperHandler = new Handler(context.getMainLooper());
+        mainLooperHandler = new Handler(context.getMainLooper());
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
@@ -124,13 +124,13 @@ public class CloudVeilSyncWorker extends Worker {
     private void sendDataCheckRequest() {
         UserConfig userConfig = UserConfig.getInstance(accountNumber);
         if (userConfig == null || !userConfig.isConfigLoaded()) {
-            postFilterDialogsReady();
+            postFilterDialogsReady(accountNumber);
             return;
         }
 
         TLRPC.User currentUser = userConfig.getCurrentUser();
         if (currentUser == null) {
-            postFilterDialogsReady();
+            postFilterDialogsReady(accountNumber);
             return;
         }
 
@@ -147,11 +147,11 @@ public class CloudVeilSyncWorker extends Worker {
         addStickersToRequest(request);
 
         if (request.isEmpty()) {
-            postFilterDialogsReady();
+            postFilterDialogsReady(accountNumber);
             return;
         }
 
-        final SettingsResponse cached = loadFromCache();
+        final SettingsResponse cached = loadFromCache(accountNumber);
         long now = System.currentTimeMillis();
         boolean cacheIsFreshEnough = (now-lastServerCallTime) < CACHE_TIMEOUT_MS;
         boolean cachedResponseCalled = false;
@@ -162,14 +162,15 @@ public class CloudVeilSyncWorker extends Worker {
         if(request.equals(cachedRequest)) {
             Log.d("CloudVeil", "requests are equal");
             if (cached != null && forceCache && !hasAdditionalDialog) {
-                processResponse(cached);
+                processResponse(cached, accountNumber);
                 firstCall = false;
                 cachedResponseCalled = true;
             }
         }
+
         cachedRequest = request;
         if (cachedResponseCalled && cacheIsFreshEnough) {
-            postFilterDialogsReady();
+            postFilterDialogsReady(accountNumber);
             return;
         }
 
@@ -180,7 +181,7 @@ public class CloudVeilSyncWorker extends Worker {
         user.setId("" + request.userId);
         user.setUsername(request.userName);
         sendDataAndPingServer(user, request, cached);
-        postFilterDialogsReady();
+        postFilterDialogsReady(accountNumber);
     }
 
     private void sendDataAndPingServer(@NonNull User user, @NonNull SettingsRequest request, SettingsResponse cached) {
@@ -188,11 +189,11 @@ public class CloudVeilSyncWorker extends Worker {
                 subscribeOn(Schedulers.io()).
                 subscribe(settingsResponse -> {
                     saveToCache(settingsResponse);
-                    processResponse(settingsResponse);
+                    processResponse(settingsResponse, accountNumber);
                     freeSubscription();
                 }, throwable -> {
                     if (cached != null) {
-                        processResponse(cached);
+                        processResponse(cached, accountNumber);
                     }
                     sendSentryEvent(throwable, user, "Settings sync request failed.");
                     freeSubscription();
@@ -221,8 +222,10 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
 
-    private void postFilterDialogsReady() {
-        mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));
+    private static void postFilterDialogsReady(int accountNumber) {
+        if (mainLooperHandler != null) {
+            mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));
+        }
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {
@@ -267,7 +270,18 @@ public class CloudVeilSyncWorker extends Worker {
         request.addSticker(row);
     }
 
-    private void processResponse(@NonNull SettingsResponse settingsResponse) {
+    public static void preloadCachedResponse(@NonNull Context context, int accountNumber) {
+        SettingsResponse settingsResponse = loadFromCache(accountNumber);
+        if(settingsResponse != null) {
+            if (mainLooperHandler == null) {
+                mainLooperHandler = new Handler(context.getMainLooper());
+            }
+            processResponse(settingsResponse, accountNumber);
+            postFilterDialogsReady(accountNumber);
+        }
+    }
+
+    private static void processResponse(@NonNull SettingsResponse settingsResponse, int accountNumber) {
         if (settingsResponse == null || settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
@@ -312,10 +326,10 @@ public class CloudVeilSyncWorker extends Worker {
             CloudVeilSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
         }
 
-        postFilterDialogsReady();
+        postFilterDialogsReady(accountNumber);
     }
 
-    private void appendAllowedDialogs(ConcurrentHashMap<Long, Boolean> allowedDialogs, ArrayList<HashMap<Long, Boolean>> groups) {
+    private static void appendAllowedDialogs(ConcurrentHashMap<Long, Boolean> allowedDialogs, ArrayList<HashMap<Long, Boolean>> groups) {
         for (HashMap<Long, Boolean> data : groups) {
             Long id = data.keySet().iterator().next();
             Boolean value = data.values().iterator().next();
@@ -323,8 +337,8 @@ public class CloudVeilSyncWorker extends Worker {
         }
     }
 
-    private SettingsResponse loadFromCache() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(this.getClass().getCanonicalName(), Activity.MODE_PRIVATE);
+    private static SettingsResponse loadFromCache(int accountNumber) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSyncWorker.class.getCanonicalName(), Activity.MODE_PRIVATE);
         String json = preferences.getString("settings." + accountNumber, null);
         if (json == null) {
             return null;
