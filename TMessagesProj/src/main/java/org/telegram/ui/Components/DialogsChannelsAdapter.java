@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.checkerframework.checker.units.qual.A;
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
@@ -243,7 +244,9 @@ public class DialogsChannelsAdapter extends UniversalAdapter {
             }));
         }, next ? 800 : 0);
 
-        if (!next) {
+        //CloudVeil start
+        if (!CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH && !next) {
+            //CloudVeil End
             loadingChannels = true;
             TLRPC.TL_contacts_search req2 = new TLRPC.TL_contacts_search();
             req2.limit = 20;
@@ -316,7 +319,6 @@ public class DialogsChannelsAdapter extends UniversalAdapter {
                         searchChannels.add(channel);
                     }
                 }
-
                 update(true);
             }));
         }

@@ -20841,6 +20841,11 @@ public class MessagesController extends BaseController implements NotificationCe
 
     private HashMap<Long, ChannelRecommendations> cachedChannelRecommendations;
     public ChannelRecommendations getCachedChannelRecommendations(long chatId) {
+        //CloudVeil start
+        if(CloudVeilSecuritySettings.LOCK_DISABLE_GLOBAL_SEARCH) {
+            return new ChannelRecommendations();
+        }
+        //CloudVeil end
         if (cachedChannelRecommendations == null) {
             return null;
         }
@@ -20864,6 +20869,7 @@ public class MessagesController extends BaseController implements NotificationCe
             }
         }
         cachedChannelRecommendations.put(chatId, null);
+
         TLRPC.TL_channels_getChannelRecommendations req = new TLRPC.TL_channels_getChannelRecommendations();
         if (chatId != 0) {
             req.flags |= 1;
