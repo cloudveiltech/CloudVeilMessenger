@@ -5947,10 +5947,13 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 forwardedNameLayout[0] = null;
                 forwardedNameLayout[1] = null;
                 drawName = false;
-                if (channelRecommendationsCell == null) {
-                    channelRecommendationsCell = new ChannelRecommendationsCell(this);
-                }
-                channelRecommendationsCell.setMessageObject(messageObject);
+                //CloudVeil start
+                //Block access to Similar Channels.
+                //if (channelRecommendationsCell == null) {
+                //    channelRecommendationsCell = new ChannelRecommendationsCell(this);
+                //}
+                //channelRecommendationsCell.setMessageObject(messageObject);
+                //CloudVeil end
             } else if (messageObject.isExpiredStory()) {
                 if (!messageIdChanged) {
                     requestLayout();
