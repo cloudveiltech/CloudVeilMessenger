@@ -5974,11 +5974,14 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                         scrollSlidingTextTabStrip.addTextTab(TAB_COMMON_GROUPS, getString("SharedGroupsTab2", R.string.SharedGroupsTab2), idToView);
                     }
                 }
-                if (hasRecommendations) {
-                    if (!scrollSlidingTextTabStrip.hasTab(TAB_RECOMMENDED_CHANNELS)) {
-                        scrollSlidingTextTabStrip.addTextTab(TAB_RECOMMENDED_CHANNELS, getString(R.string.SimilarChannelsTab), idToView);
-                    }
-                }
+                //CloudVeil start
+                //Block access to Similar Channels.
+                //if (hasRecommendations) {
+                //    if (!scrollSlidingTextTabStrip.hasTab(TAB_RECOMMENDED_CHANNELS)) {
+                //        scrollSlidingTextTabStrip.addTextTab(TAB_RECOMMENDED_CHANNELS, getString(R.string.SimilarChannelsTab), idToView);
+                //    }
+                //}
+                //CloudVeil end
             }
         }
         int id = scrollSlidingTextTabStrip.getCurrentTabId();
