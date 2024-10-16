@@ -26955,8 +26955,6 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
             CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
-        } else {
-            CloudVeilDialogHelper.showBatteryWarning(this, currentAccount, getParentActivity());
         }
         //CloudVeil end
         checkShowBlur(false);

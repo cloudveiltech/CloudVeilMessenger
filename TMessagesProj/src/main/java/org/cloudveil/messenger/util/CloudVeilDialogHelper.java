@@ -68,7 +68,6 @@ public class CloudVeilDialogHelper {
     public ConcurrentHashMap<Long, Boolean> allowedDialogs = new ConcurrentHashMap<>();
     public ConcurrentHashMap<Long, Boolean> allowedBots = new ConcurrentHashMap<>();
 
-
     /*
     {
         "is_public": true,d
@@ -77,6 +76,7 @@ public class CloudVeilDialogHelper {
         "user_name": "CloudVeilMessenger"
     }
      */
+    @Deprecated
     public void loadNotificationChannelDialog(SettingsRequest request) {
         if (isCloudVeilChannelLoaded(request)) {
             return;
@@ -99,6 +99,7 @@ public class CloudVeilDialogHelper {
         }));
     }
 
+    @Deprecated
     private boolean isCloudVeilChannelLoaded(SettingsRequest request) {
         if (request == null) {
             return false;
@@ -111,7 +112,6 @@ public class CloudVeilDialogHelper {
         }
         return false;
     }
-
 
     public boolean isUserAllowed(TLRPC.User user) {
         if (user == null) {
@@ -323,45 +323,6 @@ public class CloudVeilDialogHelper {
             }
         }
         return filtered;
-    }
-
-    public static boolean isBatteryOptimized(final Context context) {
-        return false;
-//disabled for now, maybe remove in the future        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-//        String name = context.getPackageName();
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//            return !powerManager.isIgnoringBatteryOptimizations(name);
-//        }
-//        return false;
-    }
-
-    public static void showBatteryWarning(BaseFragment fragment, int currentAccount, final Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {//not used
-            return;
-        }
-        if (!isBatteryOptimized(context)) {
-            return;
-        }
-
-        SharedPreferences preferences = MessagesController.getNotificationsSettings(currentAccount);
-        boolean alertEnabled = preferences.getBoolean("checkPowerSavingOnStart", true);
-        if(!alertEnabled) {
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(context.getString(R.string.warning))
-                .setMessage(context.getString(R.string.cloudveil_battery_warning))
-                .setPositiveButton(context.getString(R.string.resolve), (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:" + context.getPackageName()));
-                    context.startActivity(intent);
-
-                    dialog.dismiss();
-                    fragment.finishFragment();
-                })
-                .setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> fragment.finishFragment());
-        fragment.showDialog(builder.create());
     }
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {

@@ -174,8 +174,6 @@ public class CloudVeilSyncWorker extends Worker {
             return;
         }
 
-        CloudVeilDialogHelper.getInstance(accountNumber).loadNotificationChannelDialog(request);
-
         lastServerCallTime = System.currentTimeMillis();
         User user = new User();
         user.setId("" + request.userId);
