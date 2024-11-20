@@ -2376,6 +2376,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 //                privacySelector.setStoryPeriod(period);
             }
         });
+        if (selectedDialogId != 0) {
+            captionEdit.setDialogId(selectedDialogId);
+        }
         captionEdit.setOnPremiumHint(this::showPremiumPeriodBulletin);
         captionEdit.setOnKeyboardOpen(open -> {
             if (open && timelineView != null) {
@@ -6243,6 +6246,9 @@ public class StoryRecorder implements NotificationCenter.NotificationCenterDeleg
 
     public StoryRecorder selectedPeerId(long dialogId) {
         this.selectedDialogId = dialogId;
+        if (captionEdit != null) {
+            captionEdit.setDialogId(dialogId);
+        }
         return this;
     }
 
