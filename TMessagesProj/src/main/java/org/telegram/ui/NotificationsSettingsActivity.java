@@ -135,9 +135,9 @@ public class NotificationsSettingsActivity extends BaseFragment implements Notif
     private int resetSectionRow;
     private int resetNotificationsRow;
     private int resetNotificationsSectionRow;
-    //Cloudveil start
+    //CloudVeil start
     private int checkPowerSavingOnStartRow;
-    //Cloudveil end
+    //CloudVeil end
     private int rowCount = 0;
 
     private boolean updateVibrate;

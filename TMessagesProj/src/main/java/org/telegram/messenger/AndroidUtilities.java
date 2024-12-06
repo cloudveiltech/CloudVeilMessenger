@@ -2728,7 +2728,7 @@ public class AndroidUtilities {
                 return String.format(Locale.US, "https://static-maps.yandex.ru/1.x/?ll=%.6f,%.6f&z=%d&size=%d,%d&l=map&scale=%d&lang=%s", lon, lat, zoom, width * scale, height * scale, scale, lang);
             }
         } else {
-            //Cloudveil changed key
+            //CloudVeil changed key
             String k = CloudVeilSecuritySettings.getGoogleMapsKey();
             if (!TextUtils.isEmpty(k)) {
                 if (marker) {
@@ -4883,6 +4883,10 @@ public class AndroidUtilities {
         return -1;
     }
 
+    public static float distance(float x1, float y1, float x2, float y2) {
+        return (float) Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+    }
+
     public static int lerp(int a, int b, float f) {
         return (int) (a + f * (b - a));
     }
@@ -5860,6 +5864,10 @@ public class AndroidUtilities {
     }
 
     public static boolean intersect1d(int x1, int x2, int y1, int y2) {
+        return Math.max(x1, x2) > Math.min(y1, y2) && Math.max(y1, y2) > Math.min(x1, x2);
+    }
+
+    public static boolean intersect1d(float x1, float x2, float y1, float y2) {
         return Math.max(x1, x2) > Math.min(y1, y2) && Math.max(y1, y2) > Math.min(x1, x2);
     }
 
