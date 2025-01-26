@@ -399,7 +399,10 @@ public class CloudVeilSyncWorker extends Worker {
             row.userName = chat.username;
             row.id = currentDialogId;
 
-            row.isPublic = (chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
+            // this logic is not correct any more //(chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
+            // because the value TLRPC.CHAT_FLAG_IS_PUBLIC has been removed from a TLRPC.java file
+            // row.isPublic logic is now referred from iOS code
+            row.isPublic = chat.username != null && !chat.username.isEmpty();
             if (isChannel) {
                 request.addChannel(row);
             } else {

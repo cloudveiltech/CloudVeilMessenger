@@ -461,7 +461,9 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
                             if (swipeToReplyOffset > maxOffset && !swipeToReplyWaitingKeyboard) {
                                 swipeToReplyWaitingKeyboard = true;
                                 showKeyboard();
-                                windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                                try {
+                                    windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                                } catch (Exception ignored) {}
                             }
                             swipeToReplyProgress = Utilities.clamp(swipeToReplyOffset / maxOffset, 1f, 0);
                             if (storiesViewPager.getCurrentPeerView() != null) {
@@ -514,7 +516,9 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
                     if (swipeToReplyOffset != 0 && storiesIntro == null) {
                         if (velocityY < -1000 && !swipeToReplyWaitingKeyboard) {
                             swipeToReplyWaitingKeyboard = true;
-                            windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                            try {
+                                windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                            } catch (Exception ignored) {}
                             showKeyboard();
                         }
                     }
@@ -968,8 +972,7 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
                                     if ((int) (nowSeek * 10) != (int) (wasSeek * 10)) {
                                         try {
                                             peerView.performHapticFeedback(9, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-                                        } catch (Exception ignore) {
-                                        }
+                                        } catch (Exception ignore) {}
                                     }
                                     peerView.storyContainer.invalidate();
                                     lastTouchX = x;
