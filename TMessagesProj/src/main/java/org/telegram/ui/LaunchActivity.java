@@ -5434,7 +5434,16 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         boolean forceRequest,
         String referrer
     ) {
-
+        //CloudVeil start
+        long botAppMaybeId = user.id;
+        boolean isBotAppMaybeIdAllowed = CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user);
+        if (!isBotAppMaybeIdAllowed) {
+            BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(botAppMaybeId);
+            CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, botAppMaybeId, null, null);
+            return;
+        }
+        //CloudVeil end
         TLRPC.TL_messages_getBotApp getBotApp = new TLRPC.TL_messages_getBotApp();
         TLRPC.TL_inputBotAppShortName app = new TLRPC.TL_inputBotAppShortName();
         app.bot_id = MessagesController.getInstance(intentAccount).getInputUser(user);
@@ -8030,6 +8039,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return false;
     }
 
+    //CloudVeil start
+    @SuppressLint("RestrictedApi")
+    //CloudVeil end
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
