@@ -40697,6 +40697,15 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 isGroup = !isChannel;
             } else did = 0;
 
+            //Cloudveil start
+            boolean canHandleLongPress = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(did) || did == 0;
+            if (!canHandleLongPress) {
+                Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(did);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, did, null ,null);
+                return;
+            }
+            //Cloudveil end
+
             final ItemOptions options = ItemOptions.makeOptions(ChatActivity.this, cell, true);
             final ScrimOptions dialog = new ScrimOptions(getContext(), themeDelegate);
             options.setOnDismiss(dialog::dismissFast);
