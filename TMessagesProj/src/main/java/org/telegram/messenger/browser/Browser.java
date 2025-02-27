@@ -23,6 +23,8 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+import org.cloudveil.messenger.util.CloudVeilUriFilter;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -524,6 +526,13 @@ public class Browser {
     }
 
     public static boolean openInTelegramBrowser(Context context, String url, Browser.Progress progress) {
+        //CloudVeil start
+        if (CloudVeilUriFilter.shouldIgnoreUrl(url)) {
+            BaseFragment fragment = LaunchActivity.getSafeLastFragment();
+            CloudVeilDialogHelper.showWarningAboutContentDisable(fragment);
+            return false;
+        }
+        //CloudVeil end
         if (LaunchActivity.instance != null) {
             BottomSheetTabs tabs = LaunchActivity.instance.getBottomSheetTabs();
             if (tabs != null && tabs.tryReopenTab(url) != null) {

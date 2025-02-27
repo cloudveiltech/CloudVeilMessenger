@@ -94,6 +94,7 @@ import com.google.firebase.appindexing.builders.AssistActionBuilder;
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+import org.cloudveil.messenger.util.CloudVeilUriFilter;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -2211,6 +2212,13 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         int storyId = 0;
                         final String scheme = data.getScheme();
                         if (scheme != null) {
+                            //CloudVeil start
+                            if (CloudVeilUriFilter.shouldIgnoreUri(data)) {
+                                BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                CloudVeilDialogHelper.showWarningAboutContentDisable(fragment);
+                                return false;
+                            }
+                            //CloudVeil end
                             switch (scheme) {
                                 case "tonsite":
                                     Browser.openUrl(this, data);
