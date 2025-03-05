@@ -45,6 +45,7 @@ public class SettingsRequest {
         public long id;
         public String title;
         public String userName;
+        public ArrayList<String> userNames = new ArrayList<>();
 
         @Override
         public boolean equals(Object o) {

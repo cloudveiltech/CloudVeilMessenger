@@ -122,7 +122,7 @@ public class CloudVeilDialogHelper {
         if (user.bot) {
             return isBotIdAllowed(id);
         } else if (CloudVeilSecuritySettings.getManageUsers()) {
-            return allowedDialogs.containsKey(id) && allowedDialogs.get(id);
+            return allowedDialogs.containsKey(id) && Boolean.TRUE.equals(allowedDialogs.get(id));
         }
         return true;
     }
@@ -142,7 +142,7 @@ public class CloudVeilDialogHelper {
         if(!allowedBots.containsKey(id)) {
             return false;
         }
-        return allowedBots.get(id);
+        return Boolean.TRUE.equals(allowedBots.get(id));
     }
 
     public Pair<TLObject, DialogType> getObjectByDialogId(long currentDialogId) {
@@ -179,10 +179,7 @@ public class CloudVeilDialogHelper {
             return true;
         }
         if (DialogObject.isEncryptedDialog(currentDialogId)) {
-            if(CloudVeilSecuritySettings.isDisabledSecretChat()) {
-                return false;
-            }
-            return true;
+            return !CloudVeilSecuritySettings.isDisabledSecretChat();
         } else if (DialogObject.isUserDialog(currentDialogId)) {
             return isUserAllowed(MessagesController.getInstance(accountNumber).getUser(currentDialogId));
         } else {
