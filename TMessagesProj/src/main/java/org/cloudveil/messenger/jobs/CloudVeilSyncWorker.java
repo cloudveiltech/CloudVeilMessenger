@@ -399,7 +399,7 @@ public class CloudVeilSyncWorker extends Worker {
             row.userName = chat.username;
             row.id = currentDialogId;
 
-            row.isPublic = (chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
+            row.isPublic = ChatObject.isPublic(chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
