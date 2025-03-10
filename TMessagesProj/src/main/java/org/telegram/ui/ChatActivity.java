@@ -17821,7 +17821,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             }
                         }
                         if (!canSave) {
-                            if (messageObject.mediaExists) {
+                            if (messageObject.mediaExists()) {
                                 canSave = true;
                             }
                         }
@@ -31755,12 +31755,25 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
         }
         if (TextUtils.isEmpty(path)) {
-            path = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner).toString();
+            File f = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
+            if (f != null && f.exists()) {
+                path = f.getPath();
+            }
         }
-        if (messageObject.qualityToSave != null) {
+        if (TextUtils.isEmpty(path) && messageObject.cachedQuality != null && messageObject.cachedQuality.isCached()) {
+            File f = new File(messageObject.cachedQuality.uri.getPath());
+            if (f != null && f.exists()) {
+                path = f.getPath();
+            }
+        }
+        if (TextUtils.isEmpty(path) && messageObject.qualityToSave != null) {
             File f = FileLoader.getInstance(currentAccount).getPathToAttach(messageObject.qualityToSave, null, false, true);
-            if (f == null) return;
-            path = f.getPath();
+            if (f != null && f.exists()) {
+                path = f.getPath();
+            }
+        }
+        if (TextUtils.isEmpty(path)) {
+            return;
         }
         MediaController.saveFile(path, getParentActivity(), messageObject.isVideo() ? 1 : 0, null, null);
     }
@@ -31972,14 +31985,32 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         path = null;
                     }
                 }
-                if (path == null || path.length() == 0) {
-                    path = getFileLoader().getPathToMessage(selectedObject.messageOwner).toString();
+                if (TextUtils.isEmpty(path)) {
+                    File f = FileLoader.getInstance(currentAccount).getPathToMessage(selectedObject.messageOwner);
+                    if (f != null && f.exists()) {
+                        path = f.getPath();
+                    }
+                }
+                if (TextUtils.isEmpty(path) && selectedObject.cachedQuality != null && selectedObject.cachedQuality.isCached()) {
+                    File f = new File(selectedObject.cachedQuality.uri.getPath());
+                    if (f != null && f.exists()) {
+                        path = f.getPath();
+                    }
+                }
+                if (TextUtils.isEmpty(path) && selectedObject.qualityToSave != null) {
+                    File f = FileLoader.getInstance(currentAccount).getPathToAttach(selectedObject.qualityToSave, null, false, true);
+                    if (f != null && f.exists()) {
+                        path = f.getPath();
+                    }
                 }
                 if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
                     selectedObject = null;
                     selectedObjectGroup = null;
                     selectedObjectToEditCaption = null;
+                    return;
+                }
+                if (TextUtils.isEmpty(path)) {
                     return;
                 }
                 MediaController.saveFile(path, getParentActivity(), 0, null, null);
@@ -32064,8 +32095,23 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                             path = null;
                         }
                     }
-                    if (path == null || path.length() == 0) {
-                        path = getFileLoader().getPathToMessage(selectedObject.messageOwner).toString();
+                    if (TextUtils.isEmpty(path)) {
+                        File f = FileLoader.getInstance(currentAccount).getPathToMessage(selectedObject.messageOwner);
+                        if (f != null && f.exists()) {
+                            path = f.getPath();
+                        }
+                    }
+                    if (TextUtils.isEmpty(path) && selectedObject.cachedQuality != null && selectedObject.cachedQuality.isCached()) {
+                        File f = new File(selectedObject.cachedQuality.uri.getPath());
+                        if (f != null && f.exists()) {
+                            path = f.getPath();
+                        }
+                    }
+                    if (TextUtils.isEmpty(path) && selectedObject.qualityToSave != null) {
+                        File f = FileLoader.getInstance(currentAccount).getPathToAttach(selectedObject.qualityToSave, null, false, true);
+                        if (f != null && f.exists()) {
+                            path = f.getPath();
+                        }
                     }
                     MediaController.saveFile(path, getParentActivity(), 2, fileName, selectedObject.getDocument() != null ? selectedObject.getDocument().mime_type : "", uri -> {
                         if (getParentActivity() == null) {
