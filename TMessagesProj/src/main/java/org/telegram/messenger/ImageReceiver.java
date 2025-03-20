@@ -1851,7 +1851,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     public void skipDraw() {
 //        RLottieDrawable lottieDrawable = getLottieAnimation();
 //        if (lottieDrawable != null) {
-//            lottieDrawable.setCurrentParentView(parentView);
 //            lottieDrawable.updateCurrentFrame();
 //        }
     }
@@ -1939,9 +1938,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
             if (animation != null) {
                 animation.setRoundRadius(roundRadius);
-            }
-            if (lottieDrawable != null && !drawInBackground) {
-                lottieDrawable.setCurrentParentView(parentView);
             }
             if ((animation != null || lottieDrawable != null) && !animationNotReady && !animationReadySent && !drawInBackground) {
                 animationReadySent = true;
