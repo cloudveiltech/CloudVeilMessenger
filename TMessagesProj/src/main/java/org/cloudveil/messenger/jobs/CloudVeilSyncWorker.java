@@ -140,6 +140,14 @@ public class CloudVeilSyncWorker extends Worker {
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
         request.userName = currentUser.username;
+        ArrayList<String> userNames = new ArrayList<>();
+        for (TLRPC.TL_username un : currentUser.usernames) {
+            userNames.add(un.username);
+        }
+        if (!userNames.contains(currentUser.username)) {
+            userNames.add(currentUser.username);
+        }
+        request.userNames = userNames;
         request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
 
         addDialogsToRequest(request);
