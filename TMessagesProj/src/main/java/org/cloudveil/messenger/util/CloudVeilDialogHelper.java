@@ -106,9 +106,12 @@ public class CloudVeilDialogHelper {
             return false;
         }
         for (int i = 0; i < request.channels.size(); i++) {
-            String userName = request.channels.get(i).userName;
-            if (userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
-                return true;
+            SettingsRequest.GroupChannelRow channel = request.channels.get(i);
+            //loop in channel.userNames
+            for (String userName : channel.userNames) {
+                if (userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
+                    return true;
+                }
             }
         }
         return false;

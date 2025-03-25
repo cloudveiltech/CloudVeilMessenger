@@ -234,11 +234,13 @@ public class CloudVeilSyncWorker extends Worker {
                 row.id = user.id;
 
                 row.title = user.username;
-                row.userName = user.username;
 
                 ArrayList<String> userNames = new ArrayList<>();
                 for (TLRPC.TL_username un : user.usernames) {
                     userNames.add(un.username);
+                }
+                if (!userNames.contains(user.username)) {
+                    userNames.add(user.username);
                 }
                 row.userNames = userNames;
 
@@ -270,7 +272,10 @@ public class CloudVeilSyncWorker extends Worker {
         SettingsRequest.Row row = new SettingsRequest.Row();
         row.id = stickerSet.id;
         row.title = stickerSet.title;
-        row.userName = stickerSet.short_name;
+
+        ArrayList<String> userNames = new ArrayList<>();
+        userNames.add(stickerSet.short_name);
+        row.userNames = userNames;
 
         request.addSticker(row);
     }
@@ -403,12 +408,14 @@ public class CloudVeilSyncWorker extends Worker {
                 row = new SettingsRequest.GroupRow();
             }
             row.title = chat.title;
-            row.userName = chat.username;
             row.id = currentDialogId;
 
             ArrayList<String> userNames = new ArrayList<>();
             for (TLRPC.TL_username un : chat.usernames) {
                 userNames.add(un.username);
+            }
+            if (!userNames.contains(chat.username)) {
+                userNames.add(chat.username);
             }
             row.userNames = userNames;
 
@@ -437,11 +444,13 @@ public class CloudVeilSyncWorker extends Worker {
                     }
                     row.title += user.last_name;
                 }
-                row.userName = user.username;
 
                 ArrayList<String> userNames = new ArrayList<>();
                 for (TLRPC.TL_username un : user.usernames) {
                     userNames.add(un.username);
+                }
+                if (!userNames.contains(user.username)) {
+                    userNames.add(user.username);
                 }
                 row.userNames = userNames;
 

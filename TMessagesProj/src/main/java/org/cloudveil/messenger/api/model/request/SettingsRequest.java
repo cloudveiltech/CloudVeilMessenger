@@ -44,7 +44,6 @@ public class SettingsRequest {
     public static class Row {
         public long id;
         public String title;
-        public String userName;
         public ArrayList<String> userNames = new ArrayList<>();
 
         @Override
