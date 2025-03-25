@@ -346,6 +346,16 @@ public class ConnectionsManager extends BaseController {
     }
 
     private void sendRequestInternal(TLObject object, RequestDelegate onComplete, RequestDelegateTimestamp onCompleteTimestamp, QuickAckDelegate onQuickAck, WriteToSocketDelegate onWriteToSocket, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken) {
+        //CloudVeil start - disable channel search post using hashtag
+        if (object instanceof  TLRPC.TL_channels_searchPosts) {
+            Utilities.stageQueue.postRunnable(() -> {
+                if (onComplete != null) {
+                    onComplete.run(object, null);
+                }
+            });
+            return;
+        }
+        //CloudVeil end
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("send request " + object + " with token = " + requestToken);
         }
