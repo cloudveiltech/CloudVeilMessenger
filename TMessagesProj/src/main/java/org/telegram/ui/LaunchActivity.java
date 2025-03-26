@@ -664,6 +664,10 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     presentFragment(new ChatActivity(args));
                     drawerLayoutContainer.closeDrawer(false);
                 } else if (id == 13) {
+                    if (MessagesController.getInstance(currentAccount).isFrozen()) {
+                        AccountFrozenAlert.show(currentAccount);
+                        return;
+                    }
                     //CloudVeil start
                     Browser.openUrl(LaunchActivity.this, "https://messenger.cloudveil.org/");
                     //CloudVeil end
@@ -5906,6 +5910,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return foundContacts;
     }
 
+    private boolean firstAppUpdateCheck = true;
     public void checkAppUpdate(boolean force, Browser.Progress progress) {
         if (!ApplicationLoader.isStandaloneBuild() && !ApplicationLoader.isBetaBuild()) {
             return;
@@ -5914,6 +5919,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             return;
         }
         if (ApplicationLoader.applicationLoaderInstance.isCustomUpdate()) {
+            final BetaUpdate prevUpdate = ApplicationLoader.applicationLoaderInstance.getUpdate();
+            final boolean first = firstAppUpdateCheck;
+            firstAppUpdateCheck = false;
             ApplicationLoader.applicationLoaderInstance.checkUpdate(force, () -> {
                 final BetaUpdate pendingUpdate = ApplicationLoader.applicationLoaderInstance.getUpdate();
                 if (progress != null) {
@@ -5925,7 +5933,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                         }
                     }
                 }
-                if (pendingUpdate != null) {
+                if (pendingUpdate != null && !ApplicationLoader.applicationLoaderInstance.isDownloadingUpdate() && (first || prevUpdate == null || pendingUpdate.higherThan(prevUpdate))) {
                     ApplicationLoader.applicationLoaderInstance.showCustomUpdateAppPopup(LaunchActivity.this, pendingUpdate, currentAccount);
                 }
             });
@@ -8434,6 +8442,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         }
         if (instance != null && instance.getActionBarLayout() != null) {
             return instance.getActionBarLayout().getLastFragment();
+        }
+        return null;
+    }
+
+    // last fragment that is not finishing itself
+    public static <T extends BaseFragment> T findFragment(Class<T> clazz) {
+        if (BubbleActivity.instance != null && BubbleActivity.instance.actionBarLayout != null) {
+            return BubbleActivity.instance.actionBarLayout.findFragment(clazz);
+        }
+        if (instance != null && !instance.sheetFragmentsStack.isEmpty()) {
+            return instance.sheetFragmentsStack.get(instance.sheetFragmentsStack.size() - 1).findFragment(clazz);
+        }
+        if (instance != null && instance.getActionBarLayout() != null) {
+            return instance.getActionBarLayout().findFragment(clazz);
         }
         return null;
     }
