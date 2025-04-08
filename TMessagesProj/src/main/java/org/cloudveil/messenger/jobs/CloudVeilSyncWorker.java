@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.exceptions.Exceptions;
 import io.sentry.Scope;
 import io.sentry.Sentry;
 import io.sentry.SentryLevel;
@@ -79,6 +80,14 @@ public class CloudVeilSyncWorker extends Worker {
         if (context == null) {
             return;
         }
+        //  Prevent sync while device is idle
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
+            FileLog.w("CloudVeilSyncWorker", "Device is in idle mode. Skipping sync.");
+            Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
+            Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
+            return;
+        }
         FileLog.d("CloudVeilSyncWorker startDataChecking");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestNoRestrictions(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
@@ -92,6 +101,14 @@ public class CloudVeilSyncWorker extends Worker {
 
     public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
         if (context == null) {
+            return;
+        }
+        //  Prevent sync while device is idle
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
+            FileLog.w("CloudVeilSyncWorker", "Device is in idle mode. Skipping sync.");
+            Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
+            Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestWithNetwork(CloudVeilSyncWorker.class);
@@ -133,6 +150,12 @@ public class CloudVeilSyncWorker extends Worker {
             postFilterDialogsReady(accountNumber);
             return;
         }
+
+        /* A suggestion, but I don't have a good feeling about it.
+        if (!MessagesController.getInstance(accountNumber).dialogsLoaded) {
+            FileLog.w("CloudVeilSyncWorker", "Dialogs not yet loaded. Skipping sync.");
+            return;
+        } */
 
         final SettingsRequest request = new SettingsRequest();
         boolean hasAdditionalDialog = additionalDialogId != 0;
@@ -192,18 +215,31 @@ public class CloudVeilSyncWorker extends Worker {
 
     private void sendDataAndPingServer(@NonNull User user, @NonNull SettingsRequest request, SettingsResponse cached) {
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
-                subscribeOn(Schedulers.io()).
-                subscribe(settingsResponse -> {
-                    saveToCache(settingsResponse);
-                    processResponse(settingsResponse, accountNumber);
-                    freeSubscription();
-                }, throwable -> {
-                    if (cached != null) {
-                        processResponse(cached, accountNumber);
-                    }
-                    sendSentryEvent(throwable, user, "Settings sync request failed.");
-                    freeSubscription();
-                });
+        subscribeOn(Schedulers.io()).
+        retryWhen(errors -> errors
+            .zipWith(io.reactivex.Observable.range(1, 3), (err, attempt) -> {
+                if (err instanceof IOException && attempt < 3) {
+                    return attempt;
+                } else {
+                    throw Exceptions.propagate(err);
+                }
+            })
+            .flatMap(attempt -> {
+                long delay = (long) Math.pow(2, attempt); // exponential backoff: 2s, 4s, 8s
+                return io.reactivex.Observable.timer(delay, java.util.concurrent.TimeUnit.SECONDS);
+            })
+        )
+        .subscribe(settingsResponse -> {
+            saveToCache(settingsResponse);
+            processResponse(settingsResponse, accountNumber);
+            freeSubscription();
+        }, throwable -> {
+            if (cached != null) {
+                processResponse(cached, accountNumber);
+            }
+            sendSentryEvent(throwable, user, "Settings sync request failed.");
+            freeSubscription();
+        });
 
     }
 
@@ -430,6 +466,7 @@ public class CloudVeilSyncWorker extends Worker {
             // this logic is not correct any more //(chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
             // because the value TLRPC.CHAT_FLAG_IS_PUBLIC has been removed from a TLRPC.java file
             // row.isPublic logic is now referred from iOS code
+            // row.isPublic = ChatObject.isPublic(chat); // patriciy commit b6dc30b
             row.isPublic = chat.username != null && !chat.username.isEmpty();
             if (isChannel) {
                 request.addChannel(row);
