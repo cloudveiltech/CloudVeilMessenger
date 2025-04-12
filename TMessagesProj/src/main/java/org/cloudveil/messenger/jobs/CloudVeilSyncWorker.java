@@ -89,7 +89,6 @@ public class CloudVeilSyncWorker extends Worker {
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
             FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
-            Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
@@ -115,7 +114,6 @@ public class CloudVeilSyncWorker extends Worker {
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
             FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
-            Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
