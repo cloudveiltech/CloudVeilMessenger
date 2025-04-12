@@ -11,6 +11,8 @@ import android.net.NetworkInfo;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
+import android.os.Build;
+import android.os.PowerManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -39,6 +41,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -77,47 +80,55 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
+        FileLog.d("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + "(no dialogId)");
         if (context == null) {
+            FileLog.d("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
         //  Prevent sync while device is idle
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
-            FileLog.w("CloudVeilSyncWorker", "Device is in idle mode. Skipping sync.");
+            FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
             Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
-        FileLog.d("CloudVeilSyncWorker startDataChecking");
+        FileLog.d("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestNoRestrictions(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
-
-        WorkManager.getInstance(context).pruneWork();
+        FileLog.d("CloudVeilSyncWorker: Enqueuing work request");
+        //WorkManager.getInstance(context).pruneWork();
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.REPLACE, requestBuilder.build());
+        FileLog.d("CloudVeilSyncWorker: startDataChecking done");
     }
 
     public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
+        FileLog.d("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + ", dialogId: " + dialogId);
         if (context == null) {
+            FileLog.d("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
         //  Prevent sync while device is idle
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
-            FileLog.w("CloudVeilSyncWorker", "Device is in idle mode. Skipping sync.");
+            FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
             Sentry.captureMessage("Sync skipped: device in idle mode", SentryLevel.INFO);
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
+        FileLog.d("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestWithNetwork(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 putLong(EXTRA_ADDITION_DIALOG_ID, dialogId).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
+        FileLog.d("CloudVeilSyncWorker: Enqueuing work request for dialogId: " + dialogId);
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.KEEP, requestBuilder.build());
+        FileLog.d("CloudVeilSyncWorker: startDataChecking done");
     }
 
 
@@ -153,7 +164,7 @@ public class CloudVeilSyncWorker extends Worker {
 
         /* A suggestion, but I don't have a good feeling about it.
         if (!MessagesController.getInstance(accountNumber).dialogsLoaded) {
-            FileLog.w("CloudVeilSyncWorker", "Dialogs not yet loaded. Skipping sync.");
+            FileLog.w("CloudVeilSyncWorker: Dialogs not yet loaded. Skipping sync.");
             return;
         } */
 

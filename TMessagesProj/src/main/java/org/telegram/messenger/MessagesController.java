@@ -20579,20 +20579,20 @@ public class MessagesController extends BaseController implements NotificationCe
         //CloudVeil start
         if (chat != null) {
             long dialogId = chat.id > 0 ? -chat.id : chat.id;
-            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
+                CloudVeilDialogHelper.openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(dialogId)) {
                 Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).getObjectByDialogId(dialogId);
                 CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialogId,null, null);
                 return;
-            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(dialogId)) {
-                CloudVeilDialogHelper.openUncheckedDialog(dialogId, user, chat, fragment, type, closeLast);
-                return;
             }
         } else if (user != null) {
-            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
-                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.user, user.id, null, null);
-                return;
-            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
+            if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogCheckedOnServer(user.id)) {
                 CloudVeilDialogHelper.openUncheckedDialog(user.id, user, chat, fragment, type, closeLast);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(fragment.getCurrentAccount()).isDialogIdAllowed(user.id)) {
+                CloudVeilDialogHelper.showWarning(fragment, CloudVeilDialogHelper.DialogType.user, user.id, null, null);
                 return;
             }
         }

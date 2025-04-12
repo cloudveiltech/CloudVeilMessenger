@@ -45,9 +45,9 @@ class ServiceClientHolder<T> {
 
         final OkHttpClient.Builder okHttpClientBuilder = new OkHttpClient.Builder();
         okHttpClientBuilder.proxy(Proxy.NO_PROXY);
-        okHttpClientBuilder.connectTimeout(10, TimeUnit.MINUTES);
-        okHttpClientBuilder.readTimeout(10, TimeUnit.MINUTES);
-        okHttpClientBuilder.writeTimeout(10, TimeUnit.MINUTES);
+        okHttpClientBuilder.connectTimeout(10, TimeUnit.SECONDS);
+        okHttpClientBuilder.readTimeout(15, TimeUnit.SECONDS);
+        okHttpClientBuilder.writeTimeout(15, TimeUnit.SECONDS);
         okHttpClientBuilder.callTimeout(0, TimeUnit.SECONDS);
 
         okHttpClientBuilder.interceptors().add(interceptor);
