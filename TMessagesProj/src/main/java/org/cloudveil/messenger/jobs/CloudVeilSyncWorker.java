@@ -160,12 +160,6 @@ public class CloudVeilSyncWorker extends Worker {
             return;
         }
 
-        /* A suggestion, but I don't have a good feeling about it.
-        if (!MessagesController.getInstance(accountNumber).dialogsLoaded) {
-            FileLog.w("CloudVeilSyncWorker: Dialogs not yet loaded. Skipping sync.");
-            return;
-        } */
-
         final SettingsRequest request = new SettingsRequest();
         boolean hasAdditionalDialog = additionalDialogId != 0;
 
