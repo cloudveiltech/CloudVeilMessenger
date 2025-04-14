@@ -80,9 +80,9 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
-        FileLog.d("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + "(no dialogId)");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + "(no dialogId)");
         if (context == null) {
-            FileLog.d("CloudVeilSyncWorker: startDataChecking cancelled; null context");
+            Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
         //  Prevent sync while device is idle
@@ -92,22 +92,22 @@ public class CloudVeilSyncWorker extends Worker {
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
-        FileLog.d("CloudVeilSyncWorker: startDataChecking passed idle mode check");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestNoRestrictions(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
-        FileLog.d("CloudVeilSyncWorker: Enqueuing work request");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: Enqueuing work request");
         //WorkManager.getInstance(context).pruneWork();
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.REPLACE, requestBuilder.build());
-        FileLog.d("CloudVeilSyncWorker: startDataChecking done");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking done");
     }
 
     public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
-        FileLog.d("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + ", dialogId: " + dialogId);
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + ", dialogId: " + dialogId);
         if (context == null) {
-            FileLog.d("CloudVeilSyncWorker: startDataChecking cancelled; null context");
+            Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
         //  Prevent sync while device is idle
@@ -117,16 +117,16 @@ public class CloudVeilSyncWorker extends Worker {
             Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
             return;
         }
-        FileLog.d("CloudVeilSyncWorker: startDataChecking passed idle mode check");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestWithNetwork(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 putLong(EXTRA_ADDITION_DIALOG_ID, dialogId).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
-        FileLog.d("CloudVeilSyncWorker: Enqueuing work request for dialogId: " + dialogId);
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: Enqueuing work request for dialogId: " + dialogId);
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.KEEP, requestBuilder.build());
-        FileLog.d("CloudVeilSyncWorker: startDataChecking done");
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking done");
     }
 
 
