@@ -59,6 +59,7 @@ import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.text.method.LinkMovementMethod;
 import android.text.method.PasswordTransformationMethod;
 import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
@@ -359,9 +360,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     private boolean[] postedEditDoneCallback = new boolean[2];
 
     private boolean forceDisableSafetyNet;
-    //CloudVeil start
-    private TextView codeNoteText;
-    //CloudVeil end
     private static class ProgressView extends View {
 
         private final Path path = new Path();
@@ -3582,26 +3580,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (currentType == AUTH_TYPE_FLASH_CALL) {
                 codeFieldContainer.setVisibility(GONE);
             }
-            //CloudVeil start
-            codeNoteText = new TextView(context);
-            codeNoteText.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
-            codeNoteText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-            codeNoteText.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
-            codeNoteText.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(4), AndroidUtilities.dp(8), AndroidUtilities.dp(4));
-            codeNoteText.setText(context.getString(R.string.sms_code_note_title));
-            codeNoteText.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
-            addView(codeNoteText, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 12, 0, 0));
-            codeNoteText.setOnClickListener(v -> {
-                if (nextPressed) {
-                    return;
-                }
-                new AlertDialog.Builder(context)
-                        .setTitle(LocaleController.getString(R.string.sms_code_note_title))
-                        .setMessage(Html.fromHtml(context.getString(R.string.sms_code_alert_body)))
-                        .setPositiveButton(LocaleController.getString(R.string.Close), null)
-                        .show();
-            });
-            //CloudVeil end
 
             prevTypeTextView = new LoadingTextView(context);
             prevTypeTextView.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
@@ -3770,6 +3748,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             VerticalPositionAutoAnimator.attach(errorViewSwitcher);
 
             if (currentType != AUTH_TYPE_FRAGMENT_SMS) {
+                /* CloudVeil start comment
                 problemText.setOnClickListener(v -> {
                     if (nextCodeParams != null && nextCodeAuth != null) {
                         fillNextCodeParams(nextCodeParams, nextCodeAuth);
@@ -3827,6 +3806,58 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 .show();
                     }
                 });
+                */
+                problemText.setOnClickListener(v -> {
+                    if (nextPressed) {
+                        return;
+                    }
+                    LinearLayout rootLayout = new LinearLayout(context);
+                    rootLayout.setOrientation(LinearLayout.VERTICAL);
+                    rootLayout.setPadding(50, 50, 50, 50);
+
+                    // Add the logo
+                    ImageView logo = new ImageView(context);
+                    logo.setImageResource(R.drawable.logo_fg); // Replace with your drawable
+                    LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
+                            AndroidUtilities.dp(80), // Width in dp
+                            AndroidUtilities.dp(80)  // Height in dp
+                    );
+                    logoParams.gravity = Gravity.CENTER_HORIZONTAL; // Center horizontally
+                    logoParams.setMargins(0, 0, 0, AndroidUtilities.dp(20)); // Margin in dp
+                    logo.setLayoutParams(logoParams);
+                    rootLayout.addView(logo);
+
+                    // Add the app title
+                    TextView appTitle = new TextView(context);
+                    appTitle.setText(getString(R.string.AppName));
+                    appTitle.setTextSize(20);
+                    appTitle.setTextColor(context.getResources().getColor(android.R.color.black));
+                    appTitle.setGravity(Gravity.CENTER); // Center text
+                    appTitle.setPadding(0, 0, 0, AndroidUtilities.dp(20)); // Padding in dp
+                    rootLayout.addView(appTitle);
+
+                    // Add the HTML content
+                    TextView htmlTextView = new TextView(context);
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                        htmlTextView.setText(Html.fromHtml(context.getString(R.string.sms_code_alert_body), Html.FROM_HTML_MODE_LEGACY));
+                    } else {
+                        htmlTextView.setText(Html.fromHtml(context.getString(R.string.sms_code_alert_body)));
+                    }
+                    htmlTextView.setMovementMethod(LinkMovementMethod.getInstance()); // Enable clickable links
+                    htmlTextView.setPadding(0, 0, 0, 20);
+
+                    // Wrap the HTML content in a ScrollView for better handling of long text
+                    ScrollView scrollView = new ScrollView(context);
+                    scrollView.addView(htmlTextView);
+                    rootLayout.addView(scrollView);
+
+                    // Build and show the AlertDialog
+                    new android.app.AlertDialog.Builder(context)
+                            .setView(rootLayout)
+                            .setPositiveButton("Ok", null)
+                            .show();
+                });
+                //CloudVeil end
             }
         }
 
@@ -4143,7 +4174,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 str = spanned;
             } else {
                 if (currentType == AUTH_TYPE_MESSAGE) {
-                    str = AndroidUtilities.replaceTags(LocaleController.formatString("SentAppCodeWithPhone", R.string.SentAppCodeWithPhone, LocaleController.addNbsp(number)));
+                    //CloudVeil start comment
+                    //str = AndroidUtilities.replaceTags(LocaleController.formatString("SentAppCodeWithPhone", R.string.SentAppCodeWithPhone, LocaleController.addNbsp(number)));
+                    str =AndroidUtilities.replaceTags(String.format(getString(R.string.sent_app_code_with_phone), LocaleController.addNbsp(number)));
+                    //CloudVeil end
                 } else if (currentType == AUTH_TYPE_SMS) {
                     str = AndroidUtilities.replaceTags(LocaleController.formatString("SentSmsCode", R.string.SentSmsCode, LocaleController.addNbsp(number)));
                 } else if (currentType == AUTH_TYPE_FLASH_CALL) {
@@ -4163,7 +4197,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     } else if (nextType == AUTH_TYPE_FRAGMENT_SMS) {
                         problemText.setText(getString("DidNotGetTheCodeFragment", R.string.DidNotGetTheCodeFragment));
                     } else if (nextType == 0) {
-                        problemText.setText(getString("DidNotGetTheCode", R.string.DidNotGetTheCode));
+                        //CloudVeil start comment
+                        //problemText.setText(getString("DidNotGetTheCode", R.string.DidNotGetTheCode));
+                        problemText.setText(getString(R.string.did_not_get_the_code));
+                        //CloudVeil end
                     } else {
                         problemText.setText(getString("DidNotGetTheCodeSms", R.string.DidNotGetTheCodeSms));
                     }
