@@ -4750,8 +4750,15 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                         CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialog_id, null, null);
                                     }
                                 }
-                                //CloudVeil end
+                            } else {
+                                if (!LaunchActivity.this.isFinishing()) {
+                                    BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
+                                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId =
+                                            CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+                                    CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialog_id, null, null);
+                                }
                             }
+                            //CloudVeil end
                         }
                     } else {
                         try {
