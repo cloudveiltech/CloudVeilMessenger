@@ -22,7 +22,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!--
+    CloudVeil removed
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
 
 
