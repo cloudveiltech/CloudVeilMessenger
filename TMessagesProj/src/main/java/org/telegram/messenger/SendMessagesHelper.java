@@ -3268,15 +3268,13 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         AlertsCreator.showOpenUrlAlert(parentFragment, button.url, false, true);
                     }
                 } else if (button instanceof TLRPC.TL_keyboardButtonBuy) {
-                    //CloudVeil start
-                    AlertDialog.Builder builder = new AlertDialog.Builder(parentFragment.getParentActivity());
-                    builder.setTitle(parentFragment.getParentActivity().getString(R.string.warning))
-                            .setMessage(parentFragment.getParentActivity().getString(R.string.cloudveil_disabled_for_protection))
-                            .setPositiveButton(parentFragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
-
-                    parentFragment.showDialog(builder.create(), dialog -> {
-                    });
-                    //CloudVeil end
+                    if (response instanceof TLRPC.TL_payments_paymentForm) {
+                        final TLRPC.TL_payments_paymentForm form = (TLRPC.TL_payments_paymentForm) response;
+                        getMessagesController().putUsers(form.users, false);
+                        parentFragment.presentFragment(new PaymentFormActivity(form, messageObject, parentFragment));
+                    } else if (response instanceof TLRPC.TL_payments_paymentReceipt) {
+                        parentFragment.presentFragment(new PaymentFormActivity((TLRPC.TL_payments_paymentReceipt) response));
+                    }
                 } else {
                     TLRPC.TL_messages_botCallbackAnswer res = (TLRPC.TL_messages_botCallbackAnswer) response;
                     if (!cacheFinal && res.cache_time != 0 && !button.requires_password) {
