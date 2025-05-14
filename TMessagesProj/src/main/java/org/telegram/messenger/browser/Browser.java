@@ -469,7 +469,10 @@ public class Browser {
             if (internalUri && LaunchActivity.instance != null) {
                 openAsInternalIntent(LaunchActivity.instance, uri.toString(), forceNotInternalForApps, forceRequest, inCaseLoading);
             } else {
-                if (inappBrowser) {
+                //CloudVeil start
+                boolean isAllowInAppBrowser = !CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+                if (inappBrowser && isAllowInAppBrowser) {
+                    //CloudVeil end
                     if (!openInExternalApp(context, uri.toString(), allowIntent)) {
                         if (uri != null && uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent")) {
                             final Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
