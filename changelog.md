@@ -1,3 +1,11 @@
+# v11.7.0 (496329) - 15 May, 2025
+
+Block in-app browser.
+
+# v11.7.0 (496299) - 11 May, 2025
+
+Update source code.
+
 # v10.14.5 (49619) - 19 Oct, 2024
 
 Remove Similar Channels Disable Announcement Channel membership requirement.
