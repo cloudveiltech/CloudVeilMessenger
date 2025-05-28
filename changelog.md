@@ -14,7 +14,8 @@ Many bug fixes and improvements.
 
 # v10.14.5 (49619) - 19 Oct, 2024
 
-Remove Similar Channels Disable Announcement Channel membership requirement.
+Remove Similar Channels  
+Disable the Announcement Channel membership requirement.
 
 #public
 
@@ -44,7 +45,8 @@ Update source code.
 
 # v10.9.2 (44669) - 9 May, 2024
 
-Fixed issue with avatar limits Removed Similar Channels option.
+Fixed issue with avatar limits  
+Removed Similar Channels option.
 
 #public
 
@@ -62,7 +64,8 @@ Organizational Policy added to Settings menu.
 
 # v10.2.9 (40989) - 1 Jan, 2024
 
-Fix issue with notifications Bug fixes Crash fixes.
+Fix issue with notifications  
+Bug fixes Crash fixes.
 
 #public
 
