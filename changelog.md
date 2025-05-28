@@ -6,9 +6,9 @@ Block in-app browser.
 
 # v11.7.0 (496299) - 11 May, 2025
 
-Update source code.
-Improved sign-in instructions.
-Many bug fixes and improvements.
+Update source code.  
+Improved sign-in instructions.  
+Many bug fixes and improvements.  
 
 #public
 
