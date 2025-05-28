@@ -2,9 +2,13 @@
 
 Block in-app browser.
 
+#public
+
 # v11.7.0 (496299) - 11 May, 2025
 
 Update source code.
+
+#public
 
 # v10.14.5 (49619) - 19 Oct, 2024
 
