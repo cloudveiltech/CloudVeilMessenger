@@ -1373,7 +1373,10 @@ public class LocaleController {
         }
         //CloudVeil start
         String appName = ApplicationLoader.applicationContext.getString(R.string.AppName);
-        return value.replace("Telegram", appName);
+        if (value.contains("Telegram Premium") || value.contains("Telegram Business") || value.contains("Telegram Stars")) {
+            return value.replace("Telegram", "TG");  // try to not use the word 'Telegram'
+        }
+        return value.replace("Telegram", appName); // otherwise 'CloudVeil Messenger' branding
         //CloudVeil end
     }
 
