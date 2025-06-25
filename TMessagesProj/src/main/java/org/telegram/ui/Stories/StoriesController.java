@@ -13,6 +13,7 @@ import androidx.collection.LongSparseArray;
 import com.google.android.exoplayer2.util.Consumer;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.SQLite.SQLitePreparedStatement;
@@ -243,6 +244,9 @@ public class StoriesController {
         if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return false;
         }
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+            return false;
+        }
         //CloudVeil end
         if (dialogId == 0) {
             return false;
@@ -280,6 +284,15 @@ public class StoriesController {
         //CloudVeil start
         if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return false;
+        }
+
+        for (int i = 0; i < dialogListStories.size(); i++) {
+            TL_stories.PeerStories peerStories = dialogListStories.get(i);
+            long dialogId = DialogObject.getPeerDialogId(peerStories.peer);
+            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                dialogListStories.remove(i);
+                i--;
+            }
         }
         //CloudVeil end
         return (dialogListStories != null && dialogListStories.size() > 0) || hasSelfStories();
@@ -479,6 +492,11 @@ public class StoriesController {
         for (int i = 0; i < storiesResponse.peer_stories.size(); i++) {
             TL_stories.PeerStories userStories = storiesResponse.peer_stories.get(i);
             final long dialogId = DialogObject.getPeerDialogId(userStories.peer);
+            // CloudVeil start
+            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                continue;
+            }
+            // CloudVeil end
             for (int j = 0; j < userStories.stories.size(); j++) {
                 TL_stories.StoryItem story = userStories.stories.get(j);
                 if (story instanceof TL_stories.TL_storyItemDeleted ||

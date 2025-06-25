@@ -4,6 +4,9 @@ import android.text.TextUtils;
 import android.util.LongSparseArray;
 
 import org.telegram.tgnet.TLRPC;
+// CloudVeil start
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+// CloudVeil end
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -174,6 +177,11 @@ public class CacheByChatsController {
                 if (exception != null) {
                     file.keepMedia = exception.keepMedia;
                 }
+                // CloudVeil start
+                boolean allowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId);
+                boolean checked = CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId);
+                file.shouldRemove = !allowed && checked;
+                // CloudVeil end
             }
         }
     }
@@ -206,6 +214,9 @@ public class CacheByChatsController {
         int keepMedia = -1;
         int dialogType = KEEP_MEDIA_TYPE_CHANNEL;
         boolean isStory;
+        // CloudVeil start
+        boolean shouldRemove = false;
+        // CloudVeil end
 
         public KeepMediaFile(File file) {
             this.file = file;

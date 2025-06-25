@@ -40,6 +40,7 @@ import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -49,6 +50,7 @@ import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BotWebViewVibrationEffect;
 import org.telegram.messenger.BuildVars;
@@ -501,6 +503,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
             ArrayList<DialogFileEntities> entities = new ArrayList<>();
             ArrayList<Long> unknownUsers = new ArrayList<>();
             ArrayList<Long> unknownChats = new ArrayList<>();
+            ArrayList<DialogFileEntities> entitiesToClean = new ArrayList<>();
             for (int i = 0; i < dilogsFilesEntities.size(); i++) {
                 DialogFileEntities dialogEntities = dilogsFilesEntities.valueAt(i);
                 entities.add(dialogEntities);
@@ -536,6 +539,44 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                         i--;
                     }
                 }
+                // CloudVeil start
+                int checkingSize = entities.size();
+                for (int i = 0; i < entities.size(); i++) {
+                    long checkingId = entities.get(i).dialogId;
+                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(checkingId)) { //&& CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)
+                        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)) {
+                            entitiesToClean.add(entities.get(i));
+                        }
+                        entities.remove(i);
+                        i--;
+                    }
+                }
+                if (!entitiesToClean.isEmpty()) {
+                    DialogFileEntities merged = new DialogFileEntities(UNKNOWN_CHATS_DIALOG_ID);
+                    for (DialogFileEntities d : entitiesToClean) {
+                        merged.merge(d);
+                    }
+                    HashSet<CacheModel.FileInfo> filesToRemoveCv = new HashSet<>();
+                    for (int a = 0; a < 8; a++) {
+                        FileEntities entitiesToDeleteCv = merged.entitiesByType.get(a);
+                        if (entitiesToDeleteCv == null) {
+                            continue;
+                        }
+                        filesToRemoveCv.addAll(entitiesToDeleteCv.files);
+                    }
+                    ArrayList<CacheModel.FileInfo> fileInfos = new ArrayList<>(filesToRemoveCv);
+                    getFileLoader().getFileDatabase().removeFiles(fileInfos);
+                    //for (CacheModel.FileInfo fileInfoCv : filesToRemoveCv) {
+                    //    cacheModel.onFileDeleted(fileInfoCv);
+                    //}
+
+                    //cleanupDialogFiles(merged, null, cacheModel);
+                }
+                int removedSize = checkingSize - entities.size();
+                if (removedSize > 0 && BuildVars.DEBUG_PRIVATE_VERSION) {
+                    Toast.makeText(getParentActivity(), "Removed " + removedSize + " entries", Toast.LENGTH_LONG).show();
+                }
+                // CloudVeil end
                 sort(entities);
                 AndroidUtilities.runOnUIThread(() -> {
                     loadingDialogs = false;

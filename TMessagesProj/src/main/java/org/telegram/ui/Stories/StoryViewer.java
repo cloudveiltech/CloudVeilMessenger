@@ -46,6 +46,7 @@ import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.BotWebViewVibrationEffect;
@@ -367,6 +368,11 @@ public class StoryViewer implements NotificationCenter.NotificationCenterDelegat
         //CloudVeil start
         if(CloudVeilSecuritySettings.getIsDisableStories()) {
             return;
+        }
+        for (Long dialogId : peerIds) {
+            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                return;
+            }
         }
         //CloudVeil end
 

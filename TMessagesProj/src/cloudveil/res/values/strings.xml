@@ -8,6 +8,8 @@
     <string name="warning">Warning</string>
     <string name="cloudveil_message_dialog_forbidden">This %1$s is blocked by server policy. Please fill out the form to request it be unblocked.</string>
     <string name="cloudveil_hidden_for_protection">Content blocked for your protection.</string>
+    <string name="cloudveil_checking_server_policy">Checking server policy for %1$s, try again in a few seconds.</string>
+    <string name="cloudveil">CloudVeil</string>
     <string name="cloudveil_disabled_for_protection">This is disabled for your protection.</string>
     <string name="continue_label">Continue</string>
     <string name="cancel">Cancel</string>

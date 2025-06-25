@@ -169,7 +169,11 @@ public class CloudVeilDialogHelper {
         if (encryptedChat != null && CloudVeilSecuritySettings.isDisabledSecretChat()) {
             return new Pair<>(encryptedChat, DialogType.group);
         } else if (chat != null) {
-            return new Pair<>(chat,  ChatObject.isChannel(chat) ? DialogType.channel : DialogType.group);
+            if (ChatObject.isChannel(chat)) {
+                return new Pair<>(chat, chat.megagroup ? DialogType.group : DialogType.channel);
+            } else {
+                return new Pair<>(chat, DialogType.group);
+            }
         } else if (user != null) {
             return new Pair<>(user, user.bot ? DialogType.bot : DialogType.user);
         }
@@ -359,6 +363,22 @@ public class CloudVeilDialogHelper {
                 onDismissRunnable.run();
             }
         });
+    }
+
+    public static void showCheckingServerPolicy(BaseFragment fragment, DialogType type, Runnable onOkRunnable) {
+        if (fragment.getParentActivity() == null) {
+            return;
+        }
+        AlertDialog dialog = new AlertDialog(fragment.getParentActivity(), 3);
+        dialog.setTitle(fragment.getParentActivity().getString(R.string.cloudveil));
+        dialog.setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, type.toString()));
+        dialog.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog2, which) -> {
+                    dialog2.dismiss();
+                    if (onOkRunnable != null) {
+                        onOkRunnable.run();
+                    }
+                });
+        fragment.showDialog(dialog);
     }
 
     public static void showWarningAboutContentDisable(BaseFragment fragment) {

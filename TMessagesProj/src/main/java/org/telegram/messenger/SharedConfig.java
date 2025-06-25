@@ -27,6 +27,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.RequiresApi;
 import androidx.core.content.pm.ShortcutManagerCompat;
 
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.json.JSONObject;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.SerializedData;
@@ -283,7 +284,9 @@ public class SharedConfig {
     public static boolean nextMediaTap = true;
     public static boolean recordViaSco = false;
     public static boolean customTabs = true;
-    public static boolean inappBrowser = true;
+    //CloudVeil start
+    public static boolean inappBrowser = false;
+    //CloudVeil end
     public static boolean adaptableColorInBrowser = true;
     public static boolean onlyLocalInstantView = false;
     public static boolean directShare = true;
@@ -1235,7 +1238,14 @@ public class SharedConfig {
     }
 
     public static void toggleInappBrowser() {
-        inappBrowser = !inappBrowser;
+        // CloudVeil start
+        boolean isAllowInAppBrowser = !CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+        if (isAllowInAppBrowser) {
+            inappBrowser = !inappBrowser;
+        } else {
+            inappBrowser = false;
+        }
+        // CloudVeil end
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         SharedPreferences.Editor editor = preferences.edit();
         editor.putBoolean("inapp_browser", inappBrowser);

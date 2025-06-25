@@ -22,12 +22,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -619,6 +621,24 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     ArrayList<CharSequence> resultArrayNames = new ArrayList<>();
                     ArrayList<TLRPC.User> encUsers = new ArrayList<>();
                     MessagesStorage.getInstance(currentAccount).localSearch(0, query, resultArray, resultArrayNames, encUsers, null, includeFolder ? 1 : 0);
+                    //CloudVeil start. localSearch above has already been checked for blocked dialog ids
+                    if (!resultArray.isEmpty()) {
+                        for (int i = resultArray.size() - 1; i >= 0; i--) {
+                            Object item = resultArray.get(i);
+                            if (item instanceof TLRPC.Chat) {
+                                TLRPC.Chat chat = (TLRPC.Chat) item;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id)) {
+                                    resultArray.remove(i);
+                                }
+                            } else if (item instanceof TLRPC.User) {
+                                TLRPC.User user = (TLRPC.User) item;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(user.id)) {
+                                    resultArray.remove(i);
+                                }
+                            }
+                        }
+                    }
+                    //CloudVeil end
                 }
 
                 final TLRPC.TL_messages_searchGlobal req = new TLRPC.TL_messages_searchGlobal();
@@ -657,6 +677,65 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 ArrayList<MessageObject> messageObjects = new ArrayList<>();
                 if (error == null) {
                     TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
+                    //CloudVeil start
+                    // remove blocked chats from search response
+                    if (res.chats != null && !res.chats.isEmpty()) {
+                        for (int i = res.chats.size() - 1; i >= 0; i--) {
+                            TLRPC.Chat chat = res.chats.get(i);
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id)) {
+                                res.chats.remove(i);
+                            }
+                        }
+                    }
+                    // remove from search response -- messages (images) from blocked chats
+                    // work backward so removed messages don't affect index
+                    if (res.messages != null && !res.messages.isEmpty()) {
+                        TLRPC.Message lastMessageInSearch = res.messages.get(res.messages.size() - 1);
+                        int lastIdInSearch = lastMessageInSearch.id;
+                        for (int i = res.messages.size() - 1; i >= 0; i--) {
+                            TLRPC.Message message = res.messages.get(i);
+                            if (message.peer_id instanceof TLRPC.TL_peerChannel) {
+                                TLRPC.TL_peerChannel peer = (TLRPC.TL_peerChannel) message.peer_id;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-peer.channel_id)) {
+                                    if (message.id == lastIdInSearch) {
+                                        message.media = new TLRPC.TL_messageMediaEmpty();
+                                        message.message = "";
+                                    } else {
+                                        res.messages.remove(i);
+                                        res.count--;
+                                    }
+                                }
+                            } else if (message.peer_id instanceof TLRPC.TL_peerChat) {
+                                TLRPC.TL_peerChat peer = (TLRPC.TL_peerChat) message.peer_id;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-peer.chat_id)) {
+                                    if (message.id == lastIdInSearch) {
+                                        message.media = new TLRPC.TL_messageMediaEmpty();
+                                        message.message = "";
+                                    } else {
+                                        res.messages.remove(i);
+                                        res.count--;
+                                    }
+                                }
+                            } else if (message.peer_id instanceof TLRPC.TL_peerUser) {
+                                TLRPC.TL_peerUser peer = (TLRPC.TL_peerUser) message.peer_id;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer.user_id)) {
+                                    if (message.id == lastIdInSearch) {
+                                        message.media = new TLRPC.TL_messageMediaEmpty();
+                                        message.message = "";
+                                    } else {
+                                        res.messages.remove(i);
+                                        res.count--;
+                                    }
+                                }
+                            }
+                        }
+                        if (res.messages.size() == 0){
+                            Toast.makeText(ApplicationLoader.applicationContext, "All media removed from request", Toast.LENGTH_SHORT).show();
+                            MessageObject lastMessageInList = messages.get(messages.size() - 1);
+                            lastMessageInList.messageOwner.id = lastIdInSearch;
+                        }
+                    }
+                    //CloudVeil end
                     int n = res.messages.size();
                     for (int i = 0; i < n; i++) {
                         MessageObject messageObject = new MessageObject(currentAccount, res.messages.get(i), false, true);

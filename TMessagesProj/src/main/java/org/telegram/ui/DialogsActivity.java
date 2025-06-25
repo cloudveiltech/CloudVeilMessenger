@@ -55,6 +55,7 @@ import android.text.TextUtils;
 import android.transition.ChangeBounds;
 import android.transition.TransitionManager;
 import android.util.LongSparseArray;
+import android.util.Pair;
 import android.util.Property;
 import android.util.StateSet;
 import android.view.Gravity;
@@ -4429,6 +4430,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 @Override
                 public void onButtonClicked(DialogCell dialogCell) {
                     if (dialogCell.getMessage() != null) {
+                        // CloudVeil start -- this is to catch tapping on a topic or username in the chat list, instead of the chat entry, when the chat has topics and is blocked
+                        long dialogId = dialogCell.getDialogId();
+                        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+                            CloudVeilDialogHelper.openUncheckedDialog(dialogId, null, null, getFragmentForAlert(0), 1, true);
+                            return;
+                        } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+                            CloudVeilDialogHelper.showWarning(DialogsActivity.this, objectByDialogId.second, dialogId, null, null);
+                            return;
+                        }
+                        // CloudVeil end
                         TLRPC.TL_forumTopic topic = getMessagesController().getTopicsController().findTopic(-dialogCell.getDialogId(), MessageObject.getTopicId(currentAccount, dialogCell.getMessage().messageOwner, true));
                         if (topic != null) {
                             if (onlySelect) {
@@ -8142,7 +8154,13 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             } else {
                 //CloudVeil start
-                if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+                    TLRPC.Chat chatToCheck = null;
+                    if (getMessagesController().checkCanOpenChat(args, DialogsActivity.this)) {
+                        chatToCheck = getMessagesController().getChat(-dialogId);
+                    }
+                    CloudVeilDialogHelper.openUncheckedDialog(dialogId, null, chatToCheck, getFragmentForAlert(0), 1, true);
+                } else if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
                     slowedReloadAfterDialogClick = true;
                     if (getMessagesController().checkCanOpenChat(args, DialogsActivity.this)) {
                         TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
@@ -8220,24 +8238,26 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                     if (object instanceof TLRPC.Chat) {
                         TLRPC.Chat chat = (TLRPC.Chat) object;
-                        type = CloudVeilDialogHelper.DialogType.group;
                         if (ChatObject.isChannel(chat)) {
-                            type = CloudVeilDialogHelper.DialogType.channel;
+                            type = chat.megagroup ? CloudVeilDialogHelper.DialogType.group : CloudVeilDialogHelper.DialogType.channel;
+                        } else {
+                            type = CloudVeilDialogHelper.DialogType.group;
                         }
                     } else if (object instanceof TLRPC.User) {
                         TLRPC.User user = (TLRPC.User) object;
-                        type = CloudVeilDialogHelper.DialogType.user;
-                        if (user.bot) {
-                            type = CloudVeilDialogHelper.DialogType.bot;
-                        }
+                        type = user.bot ? CloudVeilDialogHelper.DialogType.bot : CloudVeilDialogHelper.DialogType.user;
                     } else if (object instanceof TLRPC.Dialog) {
                         TLRPC.Dialog dialog = (TLRPC.Dialog) object;
                         if (DialogObject.isUserDialog(dialog.id)) {
-                            type = CloudVeilDialogHelper.DialogType.user;
-                        } else if (DialogObject.isChannel(dialog)) {
-                            type = CloudVeilDialogHelper.DialogType.channel;
+                            TLRPC.User user = getMessagesController().getUser(dialog.id);
+                            type = (user != null && user.bot) ? CloudVeilDialogHelper.DialogType.bot : CloudVeilDialogHelper.DialogType.user;
                         } else {
-                            type = CloudVeilDialogHelper.DialogType.group;
+                            TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
+                            if (chat != null && ChatObject.isChannel(chat)) {
+                                type = chat.megagroup ? CloudVeilDialogHelper.DialogType.group : CloudVeilDialogHelper.DialogType.channel;
+                            } else {
+                                type = CloudVeilDialogHelper.DialogType.group;
+                            }
                         }
                     }
 
