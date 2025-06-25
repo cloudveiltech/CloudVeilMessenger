@@ -461,7 +461,7 @@ public class CloudVeilSyncWorker extends Worker {
             for (TLRPC.TL_username un : chat.usernames) {
                 userNames.add(un.username);
             }
-            if (!userNames.contains(chat.username)) {
+            if (chat.username != null && !userNames.contains(chat.username)) {
                 userNames.add(chat.username);
             }
             row.userNames = userNames;

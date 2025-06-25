@@ -230,6 +230,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -4803,6 +4804,20 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                                 MessagesStorage.getInstance(intentAccount).putUsersAndChats(null, chats, false, true);
                                 Bundle args = new Bundle();
                                 args.putLong("chat_id", invite.chat.id);
+                                // CloudVeil start
+                                long dialogId = -invite.chat.id;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+                                    CloudVeilSyncWorker.startDataChecking(currentAccount, dialogId, this );
+                                    // at this point, can we wait for the CV response, then continue somehow?
+                                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+                                    CloudVeilDialogHelper.showCheckingServerPolicy(Objects.requireNonNull(LaunchActivity.getLastFragment()), objectByDialogId.second, null);
+                                    return;
+                                } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+                                    CloudVeilDialogHelper.showWarning(Objects.requireNonNull(LaunchActivity.getLastFragment()), objectByDialogId.second, dialogId, null, null);
+                                    return;
+                                }
+                                // CloudVeil end
                                 if (mainFragmentsStack.isEmpty() || MessagesController.getInstance(intentAccount).checkCanOpenChat(args, mainFragmentsStack.get(mainFragmentsStack.size() - 1))) {
                                     boolean[] canceled = new boolean[1];
                                     progressDialog.setOnCancelListener(dialog -> canceled[0] = true);

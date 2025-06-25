@@ -27901,13 +27901,20 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
     @Override
     public void onResume() {
-        super.onResume();
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+            CloudVeilSyncWorker.startDataChecking(currentAccount, dialog_id, getParentActivity());
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+            CloudVeilDialogHelper.showCheckingServerPolicy(this, objectByDialogId.second, this::finishFragment);
+            return;
+        } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
             Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
             CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+            return;
         }
         //CloudVeil end
+        super.onResume();
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
@@ -36848,11 +36855,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         private void openChat(ChatMessageCell cell, TLRPC.Chat chat, int postId, boolean asForward) {
             //CloudVeil start
-            if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogIdAllowed(chat.id)) {
-                CloudVeilDialogHelper.showWarning(getFragmentForAlert(0), CloudVeilDialogHelper.DialogType.group, chat.id,null, null);
-                return;
-            } else if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogCheckedOnServer(chat.id)) {
+            if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogCheckedOnServer(chat.id)) {
                 CloudVeilDialogHelper.openUncheckedDialog(chat.id, null, chat, getFragmentForAlert(0), 1, true);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(getCurrentAccount()).isDialogIdAllowed(chat.id)) {
+                CloudVeilDialogHelper.showWarning(getFragmentForAlert(0), CloudVeilDialogHelper.DialogType.group, chat.id,null, null);
                 return;
             }
             //CloudVeil end
