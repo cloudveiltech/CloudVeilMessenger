@@ -469,10 +469,7 @@ public class Browser {
             if (internalUri && LaunchActivity.instance != null) {
                 openAsInternalIntent(LaunchActivity.instance, uri.toString(), forceNotInternalForApps, forceRequest, inCaseLoading);
             } else {
-                //CloudVeil start
-                boolean isAllowInAppBrowser = !CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
-                if (inappBrowser && isAllowInAppBrowser) {
-                    //CloudVeil end
+                if (inappBrowser) {
                     if (!openInExternalApp(context, uri.toString(), allowIntent)) {
                         if (uri != null && uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent")) {
                             final Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
@@ -535,6 +532,10 @@ public class Browser {
             CloudVeilDialogHelper.showWarningAboutContentDisable(fragment);
             return false;
         }
+        boolean isDisableInAppBrowser = CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER;
+        if (isDisableInAppBrowser) {
+            return openInExternalBrowser(context, url, false, null);
+        }
         //CloudVeil end
         if (LaunchActivity.instance != null) {
             BottomSheetTabs tabs = LaunchActivity.instance.getBottomSheetTabs();
@@ -558,6 +559,13 @@ public class Browser {
     }
     public static boolean openInExternalBrowser(Context context, String url, boolean allowIntent, String browser) {
         if (url == null) return false;
+        //CloudVeil start
+        if (CloudVeilUriFilter.shouldIgnoreUrl(url)) {
+            BaseFragment fragment = LaunchActivity.getSafeLastFragment();
+            CloudVeilDialogHelper.showWarningAboutContentDisable(fragment);
+            return false;
+        }
+        //CloudVeil end
         try {
             Uri uri = Uri.parse(url);
             final boolean isIntentScheme = uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("intent");

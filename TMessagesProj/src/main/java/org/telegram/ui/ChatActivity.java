@@ -130,6 +130,7 @@ import com.google.zxing.common.detector.MathUtils;
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+import org.cloudveil.messenger.util.CloudVeilUriFilter;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -40525,7 +40526,11 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         final boolean isMail = str.startsWith("mailto:");
 
         if (!isMail) {
-            options.add(R.drawable.msg_openin, getString(customTabs && !isHashtag ? R.string.OpenInTelegramBrowser : R.string.Open), () -> {
+            //CloudVeil start
+            int labelForOpenIn = CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER ?
+                            R.string.cloudveil_open_in_external_browser : R.string.OpenInTelegramBrowser;
+            options.add(R.drawable.msg_openin, getString(customTabs && !isHashtag ? labelForOpenIn : R.string.Open), () -> {
+            //CloudVeil end
                 if (str.startsWith("video?")) {
                     didPressMessageUrl(span, false, messageObject, cell);
                 } else if (customTabs && !isHashtag) {
