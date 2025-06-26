@@ -27903,15 +27903,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     public void onResume() {
         //CloudVeil start
         if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
-            CloudVeilSyncWorker.startDataChecking(currentAccount, dialog_id, getParentActivity());
-            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
-            CloudVeilDialogHelper.showCheckingServerPolicy(this, objectByDialogId.second, this::finishFragment);
-            return;
-        } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
-            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
-            CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
-            return;
+            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
+                CloudVeilSyncWorker.startDataChecking(currentAccount, dialog_id, getParentActivity());
+                Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+                CloudVeilDialogHelper.showCheckingServerPolicy(this, objectByDialogId.second, this::finishFragment);
+                return;
+            } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
+                Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+                return;
+            }
         }
         //CloudVeil end
         super.onResume();
