@@ -1,3 +1,9 @@
+# v11.7.0 (496339) - 28 Jun, 2025
+
+*  Block in-app browser.
+
+#public
+
 # v11.7.0 (496329) - 15 May, 2025
 
 *  Block in-app browser.
