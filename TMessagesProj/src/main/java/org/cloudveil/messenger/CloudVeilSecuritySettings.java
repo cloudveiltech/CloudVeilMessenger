@@ -219,7 +219,7 @@ public class CloudVeilSecuritySettings {
         }
     }
 
-    public static SettingsResponse.Organization getOrganization() {
+    public @NonNull static SettingsResponse.Organization getOrganization() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         SettingsResponse.Organization organization = new Gson().fromJson(preferences.getString("organization", ""), SettingsResponse.Organization.class);
         if(organization == null) {

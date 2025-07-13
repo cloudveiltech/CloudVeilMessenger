@@ -344,7 +344,15 @@ public class CloudVeilSyncWorker extends Worker {
         }
 
         ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
-        allowedDialogs.clear();
+        // if last response's org is this response's org,
+        // keep old peers around even when this response doesn't have them
+        // otherwise clear them
+        @NonNull
+        SettingsResponse.Organization currentOrg = CloudVeilSecuritySettings.getOrganization();
+        if (settingsResponse.organization != null
+                && currentOrg.id != settingsResponse.organization.id) {
+            allowedDialogs.clear();
+        }
 
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.channels);
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.groups);
