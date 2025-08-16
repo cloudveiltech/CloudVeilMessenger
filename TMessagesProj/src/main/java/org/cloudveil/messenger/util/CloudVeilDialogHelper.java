@@ -335,12 +335,11 @@ public class CloudVeilDialogHelper {
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
                 .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
-                    dialog.dismiss();
+                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
                     if (onOkRunnable != null) {
                         onOkRunnable.run();
                     }
-
-                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
+                    dialog.dismiss();
                 })
                 .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
                     dialog.dismiss();
@@ -369,16 +368,17 @@ public class CloudVeilDialogHelper {
         if (fragment.getParentActivity() == null) {
             return;
         }
-        AlertDialog dialog = new AlertDialog(fragment.getParentActivity(), 3);
-        dialog.setTitle(fragment.getParentActivity().getString(R.string.cloudveil));
-        dialog.setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, type.toString()));
-        dialog.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog2, which) -> {
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.cloudveil));
+        builder.setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, type.toString()));
+        builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog2, which) -> {
                     dialog2.dismiss();
                     if (onOkRunnable != null) {
                         onOkRunnable.run();
                     }
                 });
-        fragment.showDialog(dialog);
+        fragment.showDialog(builder.create(), dialog -> {
+        });
     }
 
     public static void showWarningAboutContentDisable(BaseFragment fragment) {
