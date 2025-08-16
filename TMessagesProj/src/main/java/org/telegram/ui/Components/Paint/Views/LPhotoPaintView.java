@@ -52,6 +52,9 @@ import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
+//CloudVeil imports
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+//CloudVeil imports end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Bitmaps;
 import org.telegram.messenger.BuildVars;
@@ -1299,20 +1302,22 @@ public class LPhotoPaintView extends SizeNotifierFrameLayoutPhoto implements IPh
             }
         });
         tabsLayout.addView(drawTab, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
-
-        stickerTab = new TextView(context);
-        stickerTab.setText(LocaleController.getString(R.string.PhotoEditorSticker).toUpperCase());
-        stickerTab.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
-        stickerTab.setPadding(0, dp(8), 0, dp(8));
-        stickerTab.setOnClickListener(v -> openStickersView());
-        stickerTab.setTextColor(Color.WHITE);
-        stickerTab.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        stickerTab.setGravity(Gravity.CENTER_HORIZONTAL);
-        stickerTab.setTypeface(AndroidUtilities.bold());
-        stickerTab.setAlpha(0.6f);
-        stickerTab.setSingleLine();
-        tabsLayout.addView(stickerTab, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
-
+        //CloudVeil start disable stickers tab
+        if (!CloudVeilSecuritySettings.isLockDisableStickers()) {
+            stickerTab = new TextView(context);
+            stickerTab.setText(LocaleController.getString(R.string.PhotoEditorSticker).toUpperCase());
+            stickerTab.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
+            stickerTab.setPadding(0, dp(8), 0, dp(8));
+            stickerTab.setOnClickListener(v -> openStickersView());
+            stickerTab.setTextColor(Color.WHITE);
+            stickerTab.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            stickerTab.setGravity(Gravity.CENTER_HORIZONTAL);
+            stickerTab.setTypeface(AndroidUtilities.bold());
+            stickerTab.setAlpha(0.6f);
+            stickerTab.setSingleLine();
+            tabsLayout.addView(stickerTab, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+        }
+        //CloudVeil end
         textTab = new TextView(context);
         textTab.setText(LocaleController.getString(R.string.PhotoEditorText).toUpperCase());
         textTab.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
