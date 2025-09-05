@@ -256,7 +256,7 @@ public class CloudVeilSyncWorker extends Worker {
         if(!NetworkHelper.hasAnyInternetConnection(getApplicationContext())) {
             return;
         }
-
+/* TODO: Remove, a lot of useless reports here
         Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
         FileLog.e(wrapped);
         Sentry.captureException(wrapped, scope -> {
@@ -264,6 +264,8 @@ public class CloudVeilSyncWorker extends Worker {
             scope.setUser(user);
             NetworkHelper.addNetworkDataToSentry(getApplicationContext(), scope);
         });
+        */
+
     }
 
 
