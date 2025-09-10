@@ -157,6 +157,12 @@ public class CachedMediaLayout extends FrameLayout implements NestedSizeNotifier
                     public void onItemClick(View view, int position) {
                         BaseAdapter adapter = (BaseAdapter) recyclerListView.getAdapter();
                         ItemInner itemInner = adapter.itemInners.get(position);
+                        // CloudVeil start: moved this section up - eliminates viewing media
+                        if (delegate != null) {
+                            delegate.onItemSelected(itemInner.entities, itemInner.file, false);
+                            return;
+                        }
+                        // CLoudVeil end
                         //if (cacheModel.getSelectedFiles() == 0) {
                         if (view instanceof SharedPhotoVideoCell2) {
                             boolean isStory = ((MediaAdapter) adapter).isStories;
@@ -182,6 +188,12 @@ public class CachedMediaLayout extends FrameLayout implements NestedSizeNotifier
                 recyclerListView.setOnItemLongClickListener((view, position, x, y) -> {
                     BaseAdapter adapter = (BaseAdapter) recyclerListView.getAdapter();
                     ItemInner itemInner = adapter.itemInners.get(position);
+                    // CloudVeil start: moved this section up - eliminates viewing media
+                    if (delegate != null) {
+                        delegate.onItemSelected(itemInner.entities, itemInner.file, true);
+                        return true;
+                    }
+                    // CloudVeil end
                     if (view instanceof CacheCell || view instanceof SharedPhotoVideoCell2) {
                         ActionBarPopupWindow.ActionBarPopupWindowLayout popupWindowLayout = new ActionBarPopupWindow.ActionBarPopupWindowLayout(getContext());
                         if (view instanceof SharedPhotoVideoCell2) {

@@ -1527,7 +1527,8 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                 } else {
                     args.putLong("chat_id", -entities.dialogId);
                 }
-                presentFragment(new ProfileActivity(args, null));
+                // CloudVeil: block opening profile from cache
+                //presentFragment(new ProfileActivity(args, null));
             }
 
             @Override
