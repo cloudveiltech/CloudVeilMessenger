@@ -1000,6 +1000,11 @@ public class NotificationsController extends BaseController {
                     long date = messageObject.messageOwner == null ? System.currentTimeMillis() : messageObject.messageOwner.date * 1000L;
                     long dialogId = messageObject.getDialogId();
                     int id = messageObject.getId();
+                    // CloudVeil start
+                    if (CloudVeilSecuritySettings.getIsDisableStories() || !CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                        continue;
+                    }
+                    // CloudVeil end
                     StoryNotification oldNotification = storyPushMessagesDict.get(dialogId);
                     StoryNotification notification;
                     if (oldNotification != null) {
@@ -1129,7 +1134,7 @@ public class NotificationsController extends BaseController {
                         hasScheduled = messageObject.messageOwner.from_scheduled;
                     }
                     //CloudVeil start
-                    if(CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                    if(CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId) && CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
                         delayedPushMessages.add(messageObject);
                         appendMessage(messageObject);
                         if (mid != 0) {
