@@ -56,6 +56,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSmoothScrollerCustom;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLoader;
@@ -1551,6 +1552,11 @@ public class EmojiBottomSheet extends BottomSheet implements NotificationCenter.
                 savedPosition = viewPager.getCurrentPosition();
             }
         };
+        //CloudVeil start
+        if (CloudVeilSecuritySettings.isLockDisableStickers()) {
+            return;
+        }
+        // CloudVeil end
         viewPager.currentPosition = onlyStickers ? 0 : savedPosition;
         viewPager.setAdapter(new ViewPagerFixed.Adapter() {
             @Override

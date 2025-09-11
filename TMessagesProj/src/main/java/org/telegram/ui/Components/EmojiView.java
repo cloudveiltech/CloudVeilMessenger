@@ -7351,7 +7351,8 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                 itemCount++;
                 rowHashCodes.add(-1);
             }
-            if (isPremium && allowAnimatedEmoji && featuredEmojiSets.size() > 0 && featuredEmojiSets.get(0).set != null && MessagesController.getEmojiSettings(currentAccount).getLong("emoji_featured_hidden", 0) != featuredEmojiSets.get(0).set.id && needEmojiSearch) {
+            // CloudVeil: remove featured emoji from suggestions. This could be implemented in settings->"emoji_featured_hidden" instead
+            if (!CloudVeilSecuritySettings.isLockDisableGifs() && isPremium && allowAnimatedEmoji && featuredEmojiSets.size() > 0 && featuredEmojiSets.get(0).set != null && MessagesController.getEmojiSettings(currentAccount).getLong("emoji_featured_hidden", 0) != featuredEmojiSets.get(0).set.id && needEmojiSearch) {
                 trendingHeaderRow = itemCount++;
                 trendingRow = itemCount++;
                 recentlyUsedHeaderRow = itemCount++;
@@ -7791,7 +7792,11 @@ public class EmojiView extends FrameLayout implements NotificationCenter.Notific
                                         MediaDataController.KeywordResult keywordResult = new MediaDataController.KeywordResult();
                                         keywordResult.emoji = "animated_" + emoji.id;
                                         keywordResult.keyword = null;
-                                        searchResult.add(keywordResult);
+                                        // CloudVeil start: disable animated emoji from search
+                                        if (!CloudVeilSecuritySettings.isLockDisableGifs()) {
+                                            searchResult.add(keywordResult);
+                                        }
+                                        // CloudVeil end
                                     }
                                     next.run();
                                 });

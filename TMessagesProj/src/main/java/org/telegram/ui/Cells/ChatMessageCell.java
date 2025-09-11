@@ -4901,7 +4901,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     }
                 }
             }
-        } else if (currentMessageObject.type == MessageObject.TYPE_PHOTO || currentMessageObject.isAnyKindOfSticker()) {
+        } else if (currentMessageObject.type == MessageObject.TYPE_PHOTO || currentMessageObject.isAnyKindOfSticker()) { //  CloudVeil: can we disable this for stickers?
+            // CloudVeil start: disable action on tapping sticker
+            if (currentMessageObject.isAnyKindOfSticker()) {
+                return;
+            }
+            // CloudVeil end
             if (buttonState == -1) {
                 delegate.didPressImage(this, lastTouchX, lastTouchY);
             } else if (buttonState == 0) {

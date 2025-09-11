@@ -8907,7 +8907,7 @@ public class MediaDataController extends BaseController {
                 }
             });
             String aliasFinal = alias;
-            if (allowAnimated) {
+            if (allowAnimated && !CloudVeilSecuritySettings.isLockDisableGifs()) { // CloudVeil block animated emoji
                 fillWithAnimatedEmoji(result, maxAnimatedPerEmoji, allowTopicIcons, forcePremium, includeOnlyTextColor, () -> {
                     if (sync != null) {
                         callback.run(result, aliasFinal);
