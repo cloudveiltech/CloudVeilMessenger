@@ -393,6 +393,18 @@ public class CloudVeilDialogHelper {
         });
     }
 
+    public static void showCheckingServerPolicy(BaseFragment fragment) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.one_moment))
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
+                    //dialog.dismiss();
+                });
+
+        fragment.showDialog(builder.create(), dialog -> {
+        });
+    }
+
     private static void sendUnlockRequest(long itemId, int currentAccount, BaseFragment fragment) {
         long currentUserId = UserConfig.getInstance(currentAccount).getCurrentUser().id;
         Browser.openUrl(ApplicationLoader.applicationContext, "https://messenger.cloudveil.org/unblock/" + currentUserId + "/" + itemId, fragment);
