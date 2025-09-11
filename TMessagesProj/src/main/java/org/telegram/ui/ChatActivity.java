@@ -36646,6 +36646,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 if (AvatarPreviewer.canPreview(data)) {
                     AvatarPreviewer.getInstance().show((ViewGroup) fragmentView, themeDelegate, data, item -> {
+                        // CloudVeil start: disable profile thumbnail menu items if blocked
+                        boolean isAllowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(user.id);
+                        if (!isAllowed) return;
+                        // CloudVeil end
                         switch (item) {
                             case SEND_MESSAGE:
                                 openDialog(cell, user);
@@ -36769,6 +36773,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 if (AvatarPreviewer.canPreview(data)) {
                     AvatarPreviewer.getInstance().show((ViewGroup) fragmentView, themeDelegate, data, item -> {
+                        // CloudVeil start: disable profile thumbnail menu items if blocked
+                        boolean isAllowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id);
+                        if (!isAllowed) return;
+                        // CloudVeil end
                         switch (item) {
                             case OPEN_PROFILE:
                                 openProfile(chat);
