@@ -6877,6 +6877,12 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void loadFullChat(long chatId, int classGuid, boolean force) {
+        // CloudVeil start
+        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(-chatId) && !CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chatId)) {
+            //CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialogId,null, null);
+            return;
+        }
+        // CloudVeil end
         long lastLoadedTime = loadedFullChats.get(chatId, 0);
         boolean loaded = lastLoadedTime > 0;
         if (loadingFullChats.contains(chatId) || !force && loaded) {
