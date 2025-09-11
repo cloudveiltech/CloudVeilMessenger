@@ -539,44 +539,6 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
                         i--;
                     }
                 }
-                // CloudVeil start
-                int checkingSize = entities.size();
-                for (int i = 0; i < entities.size(); i++) {
-                    long checkingId = entities.get(i).dialogId;
-                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(checkingId)) { //&& CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)
-                        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)) {
-                            entitiesToClean.add(entities.get(i));
-                        }
-                        entities.remove(i);
-                        i--;
-                    }
-                }
-                if (!entitiesToClean.isEmpty()) {
-                    DialogFileEntities merged = new DialogFileEntities(UNKNOWN_CHATS_DIALOG_ID);
-                    for (DialogFileEntities d : entitiesToClean) {
-                        merged.merge(d);
-                    }
-                    HashSet<CacheModel.FileInfo> filesToRemoveCv = new HashSet<>();
-                    for (int a = 0; a < 8; a++) {
-                        FileEntities entitiesToDeleteCv = merged.entitiesByType.get(a);
-                        if (entitiesToDeleteCv == null) {
-                            continue;
-                        }
-                        filesToRemoveCv.addAll(entitiesToDeleteCv.files);
-                    }
-                    ArrayList<CacheModel.FileInfo> fileInfos = new ArrayList<>(filesToRemoveCv);
-                    getFileLoader().getFileDatabase().removeFiles(fileInfos);
-                    //for (CacheModel.FileInfo fileInfoCv : filesToRemoveCv) {
-                    //    cacheModel.onFileDeleted(fileInfoCv);
-                    //}
-
-                    //cleanupDialogFiles(merged, null, cacheModel);
-                }
-                int removedSize = checkingSize - entities.size();
-                if (removedSize > 0 && BuildVars.DEBUG_PRIVATE_VERSION) {
-                    Toast.makeText(getParentActivity(), "Removed " + removedSize + " entries", Toast.LENGTH_LONG).show();
-                }
-                // CloudVeil end
                 sort(entities);
                 AndroidUtilities.runOnUIThread(() -> {
                     loadingDialogs = false;
@@ -605,6 +567,51 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
 
                     if (!canceled) {
                         setCacheModel(cacheModel);
+
+                        // CloudVeil start
+                        int checkingSize = entities.size();
+                        for (int i = 0; i < entities.size(); i++) {
+                            long checkingId = entities.get(i).dialogId;
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(checkingId)) { //&& CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)
+                                if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(checkingId)) {
+                                    entitiesToClean.add(entities.get(i));
+                                }
+                                entities.remove(i);
+                                i--;
+                            }
+                        }
+                        if (unknownChatsEntity != null){
+                            entitiesToClean.add(unknownChatsEntity);
+                        }
+                        if (!entitiesToClean.isEmpty()) {
+                            DialogFileEntities merged = new DialogFileEntities(0);
+                            for (DialogFileEntities d : entitiesToClean) {
+                                merged.merge(d);
+                            }
+                            HashSet<CacheModel.FileInfo> filesToRemoveCv = new HashSet<>();
+                            for (int a = 0; a < 8; a++) {
+                                FileEntities entitiesToDeleteCv = merged.entitiesByType.get(a);
+                                if (entitiesToDeleteCv == null) {
+                                    continue;
+                                }
+                                filesToRemoveCv.addAll(entitiesToDeleteCv.files);
+                            }
+                            ArrayList<CacheModel.FileInfo> fileInfos = new ArrayList<>(filesToRemoveCv);
+                            getFileLoader().getFileDatabase().removeFiles(fileInfos);
+                            //for (CacheModel.FileInfo fileInfoCv : filesToRemoveCv) {
+                            //    cacheModel.onFileDeleted(fileInfoCv);
+                            //}
+
+                            if (cacheModel != null) {
+                                cleanupDialogFiles(merged, null, cacheModel);
+                            }
+
+                        }
+                        int removedSize = checkingSize - entities.size();
+                        if (removedSize > 0 && BuildVars.DEBUG_PRIVATE_VERSION) {
+                            Toast.makeText(getParentActivity(), "Removed " + removedSize + " entries", Toast.LENGTH_LONG).show();
+                        }
+                        // CloudVeil end
                         updateRows();
                         updateChart();
                         if (cacheChartHeader != null && !calculating && System.currentTimeMillis() - fragmentCreateTime > 120) {
