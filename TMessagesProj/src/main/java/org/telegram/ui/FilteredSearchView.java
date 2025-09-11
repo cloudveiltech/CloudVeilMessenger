@@ -22,7 +22,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
@@ -694,45 +693,28 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                         int lastIdInSearch = lastMessageInSearch.id;
                         for (int i = res.messages.size() - 1; i >= 0; i--) {
                             TLRPC.Message message = res.messages.get(i);
+                            long peerId = 0;
                             if (message.peer_id instanceof TLRPC.TL_peerChannel) {
-                                TLRPC.TL_peerChannel peer = (TLRPC.TL_peerChannel) message.peer_id;
-                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-peer.channel_id)) {
-                                    if (message.id == lastIdInSearch) {
-                                        message.media = new TLRPC.TL_messageMediaEmpty();
-                                        message.message = "";
-                                    } else {
-                                        res.messages.remove(i);
-                                        res.count--;
-                                    }
-                                }
+                                peerId = -((TLRPC.TL_peerChannel) message.peer_id).channel_id;
                             } else if (message.peer_id instanceof TLRPC.TL_peerChat) {
-                                TLRPC.TL_peerChat peer = (TLRPC.TL_peerChat) message.peer_id;
-                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-peer.chat_id)) {
-                                    if (message.id == lastIdInSearch) {
-                                        message.media = new TLRPC.TL_messageMediaEmpty();
-                                        message.message = "";
-                                    } else {
-                                        res.messages.remove(i);
-                                        res.count--;
-                                    }
-                                }
+                                peerId = -((TLRPC.TL_peerChat) message.peer_id).chat_id;
                             } else if (message.peer_id instanceof TLRPC.TL_peerUser) {
-                                TLRPC.TL_peerUser peer = (TLRPC.TL_peerUser) message.peer_id;
-                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peer.user_id)) {
-                                    if (message.id == lastIdInSearch) {
-                                        message.media = new TLRPC.TL_messageMediaEmpty();
-                                        message.message = "";
-                                    } else {
-                                        res.messages.remove(i);
-                                        res.count--;
-                                    }
+                                peerId = ((TLRPC.TL_peerUser) message.peer_id).user_id;
+                            }
+
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peerId)) {
+                                if (message.id == lastIdInSearch) {
+                                    message.media = new TLRPC.TL_messageMediaEmpty();
+                                    message.message = "";
+                                    TLRPC.TL_peerUser selfPeer = new TLRPC.TL_peerUser();
+                                    selfPeer.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+                                    message.peer_id = selfPeer;
+                                    message.from_id = selfPeer;
+                                } else {
+                                    res.messages.remove(i);
+                                    res.count--;
                                 }
                             }
-                        }
-                        if (res.messages.size() == 0){
-                            Toast.makeText(ApplicationLoader.applicationContext, "All media removed from request", Toast.LENGTH_SHORT).show();
-                            MessageObject lastMessageInList = messages.get(messages.size() - 1);
-                            lastMessageInList.messageOwner.id = lastIdInSearch;
                         }
                     }
                     //CloudVeil end
