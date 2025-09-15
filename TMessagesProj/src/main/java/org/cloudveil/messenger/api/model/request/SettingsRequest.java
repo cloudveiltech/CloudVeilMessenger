@@ -8,9 +8,6 @@ import org.telegram.messenger.ApplicationLoader;
 
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.Set;
-
-import io.sentry.protocol.App;
 
 /**
  * Created by Dmitriy on 05.02.2018.
@@ -82,6 +79,9 @@ public class SettingsRequest {
 
     public static class GroupRow extends GroupChannelRow {
         public boolean isMegagroup;
+    }
+
+    public static class SuperGroupRow extends GroupRow {
         public long migratedFromTelegramId;
     }
 

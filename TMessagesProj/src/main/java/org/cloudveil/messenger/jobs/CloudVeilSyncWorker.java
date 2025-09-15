@@ -3,11 +3,6 @@ package org.cloudveil.messenger.jobs;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.LinkProperties;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkInfo;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
@@ -29,7 +24,6 @@ import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.NetworkHelper;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
-import org.cloudveil.messenger.api.service.MessengerHttpInterface;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
@@ -51,9 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.exceptions.Exceptions;
-import io.sentry.Scope;
 import io.sentry.Sentry;
-import io.sentry.SentryLevel;
 import io.sentry.protocol.User;
 
 /**
@@ -449,11 +441,13 @@ public class CloudVeilSyncWorker extends Worker {
         TLRPC.Chat chat = null;
         TLRPC.ChatFull chatFull = null;
         TLRPC.User user = null;
+        boolean isSuperGroup = false;
 
         TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
         if(object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
             chatFull = MessagesController.getInstance(accountNumber).getChatFull(chat.id);
+            isSuperGroup = chatFull != null && chatFull.migrated_from_chat_id != 0;
         } else {
             user = (TLRPC.User) object;
         }
@@ -463,7 +457,9 @@ public class CloudVeilSyncWorker extends Worker {
             SettingsRequest.GroupChannelRow row = null;
             if(isChannel) {
                 row = new SettingsRequest.GroupChannelRow();
-            } else {
+            } else if (isSuperGroup) {
+                row = new SettingsRequest.SuperGroupRow();
+            } else  {
                 row = new SettingsRequest.GroupRow();
             }
             row.title = chat.title;
@@ -483,8 +479,9 @@ public class CloudVeilSyncWorker extends Worker {
             } else {
                 SettingsRequest.GroupRow groupRow = (SettingsRequest.GroupRow)row;
                 groupRow.isMegagroup = chat.megagroup;
-                if (chatFull != null && chatFull.migrated_from_chat_id != 0) {
-                    groupRow.migratedFromTelegramId = chatFull.migrated_from_chat_id;
+                if (groupRow instanceof SettingsRequest.SuperGroupRow) {
+                    SettingsRequest.SuperGroupRow superGroupRow = (SettingsRequest.SuperGroupRow)groupRow;
+                    superGroupRow.migratedFromTelegramId = chatFull.migrated_from_chat_id;
                 }
                 request.addGroup(groupRow);
             }
