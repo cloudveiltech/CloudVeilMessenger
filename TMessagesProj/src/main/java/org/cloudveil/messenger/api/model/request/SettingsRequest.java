@@ -85,6 +85,7 @@ public class SettingsRequest {
 
     public static class GroupRow extends GroupChannelRow {
         public boolean isMegagroup;
+        public long migratedFromTelegramId;
     }
 
     public void addChannel(GroupChannelRow channel) {

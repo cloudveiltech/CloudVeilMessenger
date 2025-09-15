@@ -256,7 +256,7 @@ public class CloudVeilSyncWorker extends Worker {
         if(!NetworkHelper.hasAnyInternetConnection(getApplicationContext())) {
             return;
         }
-
+/* TODO: Remove, a lot of useless reports here
         Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
         FileLog.e(wrapped);
         Sentry.captureException(wrapped, scope -> {
@@ -264,6 +264,8 @@ public class CloudVeilSyncWorker extends Worker {
             scope.setUser(user);
             NetworkHelper.addNetworkDataToSentry(getApplicationContext(), scope);
         });
+        */
+
     }
 
 
@@ -445,11 +447,13 @@ public class CloudVeilSyncWorker extends Worker {
 
     private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
         TLRPC.Chat chat = null;
+        TLRPC.ChatFull chatFull = null;
         TLRPC.User user = null;
 
         TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
         if(object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
+            chatFull = MessagesController.getInstance(accountNumber).getChatFull(chat.id);
         } else {
             user = (TLRPC.User) object;
         }
@@ -482,17 +486,15 @@ public class CloudVeilSyncWorker extends Worker {
                 userNames.add(chat.username);
             }
             row.userNames = userNames;
-
-            // this logic is not correct any more //(chat.flags & TLRPC.CHAT_FLAG_IS_PUBLIC) != 0;
-            // because the value TLRPC.CHAT_FLAG_IS_PUBLIC has been removed from a TLRPC.java file
-            // row.isPublic logic is now referred from iOS code
-            // row.isPublic = ChatObject.isPublic(chat); // patriciy commit b6dc30b
-            row.isPublic = chat.username != null && !chat.username.isEmpty();
+            row.isPublic = ChatObject.isPublic(chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
                 SettingsRequest.GroupRow groupRow = (SettingsRequest.GroupRow)row;
                 groupRow.isMegagroup = chat.megagroup;
+                if (chatFull != null && chatFull.migrated_from_chat_id != 0) {
+                    groupRow.migratedFromTelegramId = chatFull.migrated_from_chat_id;
+                }
                 request.addGroup(groupRow);
             }
         } else if (user != null) {
