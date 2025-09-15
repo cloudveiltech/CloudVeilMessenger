@@ -77,6 +77,7 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.URLSpan;
 import android.text.util.Linkify;
 import android.util.Log;
+import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -124,6 +125,7 @@ import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
@@ -4181,6 +4183,19 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 openLocation(false);
             } else if (position == channelRow) {
                 if (userInfo == null) return;
+                // CloudVeil start
+                long dialogId = -userInfo.personal_channel_id;
+                BaseFragment fragment = this;
+                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+                    CloudVeilDialogHelper.showCheckingServerPolicy(fragment, objectByDialogId.second, null);
+                    return;
+                } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                    Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+                    CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialogId,null, null);
+                    return;
+                }
+                // CloudVeil end
                 Bundle args = new Bundle();
                 args.putLong("chat_id", userInfo.personal_channel_id);
                 presentFragment(new ChatActivity(args));

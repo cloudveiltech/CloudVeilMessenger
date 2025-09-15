@@ -36646,6 +36646,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 if (AvatarPreviewer.canPreview(data)) {
                     AvatarPreviewer.getInstance().show((ViewGroup) fragmentView, themeDelegate, data, item -> {
+                        // CloudVeil start: disable profile thumbnail menu items if blocked
+                        boolean isAllowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(user.id);
+                        if (!isAllowed) return;
+                        // CloudVeil end
                         switch (item) {
                             case SEND_MESSAGE:
                                 openDialog(cell, user);
@@ -36769,6 +36773,10 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 if (AvatarPreviewer.canPreview(data)) {
                     AvatarPreviewer.getInstance().show((ViewGroup) fragmentView, themeDelegate, data, item -> {
+                        // CloudVeil start: disable profile thumbnail menu items if blocked
+                        boolean isAllowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id);
+                        if (!isAllowed) return;
+                        // CloudVeil end
                         switch (item) {
                             case OPEN_PROFILE:
                                 openProfile(chat);
@@ -37659,15 +37667,19 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 SecretMediaViewer.getInstance().setParentActivity(getParentActivity());
                 SecretMediaViewer.getInstance().openMedia(message, photoViewerProvider, openAction, closeAction);
             } else if (MessageObject.isAnimatedEmoji(message.getDocument()) && MessageObject.getInputStickerSet(message.getDocument()) != null) {
+                /* Cloudveil start: block emoji pack popup when tapping emoji
                 ArrayList<TLRPC.InputStickerSet> inputSets = new ArrayList<>(1);
                 inputSets.add(MessageObject.getInputStickerSet(message.getDocument()));
                 EmojiPacksAlert alert = new EmojiPacksAlert(ChatActivity.this, getParentActivity(), themeDelegate, inputSets);
                 alert.setCalcMandatoryInsets(isKeyboardVisible());
                 showDialog(alert);
+                CloudVeil end */
             } else if (message.getInputStickerSet() != null) {
+                /* Cloudveil start: block sticker popup when tapping sticker
                 StickersAlert alert = new StickersAlert(getParentActivity(), ChatActivity.this, message.getInputStickerSet(), null, bottomOverlayChat.getVisibility() != View.VISIBLE && (currentChat == null || ChatObject.canSendStickers(currentChat)) ? chatActivityEnterView : null, themeDelegate, false);
                 alert.setCalcMandatoryInsets(isKeyboardVisible());
                 showDialog(alert);
+                CloudVeil end */
             } else if (message.isVideo() || message.type == MessageObject.TYPE_PHOTO || message.type == MessageObject.TYPE_TEXT && !message.isWebpageDocument() || message.isGif()) {
                 if (message.isSponsored()) {
                     if (message.isGif() || message.isPhoto()) {

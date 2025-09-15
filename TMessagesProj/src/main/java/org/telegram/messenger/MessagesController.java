@@ -6877,6 +6877,12 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void loadFullChat(long chatId, int classGuid, boolean force) {
+        // CloudVeil start
+        if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(-chatId) && !CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chatId)) {
+            //CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialogId,null, null);
+            return;
+        }
+        // CloudVeil end
         long lastLoadedTime = loadedFullChats.get(chatId, 0);
         boolean loaded = lastLoadedTime > 0;
         if (loadingFullChats.contains(chatId) || !force && loaded) {
@@ -22217,6 +22223,19 @@ public class MessagesController extends BaseController implements NotificationCe
     public void openApp(BaseFragment _fragment, TLRPC.User bot, String param, int classGuid, Browser.Progress progress, boolean botCompact, boolean botFullscreen) {
         if (bot == null) return;
 
+        // CloudVeil start
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(bot.id)) {
+            BaseFragment cvFragment = _fragment;
+            if (cvFragment == null) {
+                cvFragment = LaunchActivity.getSafeLastFragment();
+                if (cvFragment == null) {
+                    return;
+                }
+            }
+            CloudVeilDialogHelper.showWarning(cvFragment, CloudVeilDialogHelper. DialogType.bot, bot.id , null, null);
+            return;
+        }
+        // CloudVeil end
         boolean[] cancelled = new boolean[] { false };
         if (progress != null) {
             progress.onCancel(() -> cancelled[0] = true);

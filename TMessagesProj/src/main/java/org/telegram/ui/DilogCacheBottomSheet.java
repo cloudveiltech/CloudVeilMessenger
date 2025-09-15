@@ -93,7 +93,8 @@ public class DilogCacheBottomSheet extends BottomSheetWithRecyclerListView {
 
             @Override
             public int getItemCount() {
-                return cacheModel.isEmpty() ? 1 : 3;
+                // CloudVeil: hide cache items when tapping on a dialog in the cache list
+                return 1; //cacheModel.isEmpty() ? 1 : 3;
             }
         };
     }

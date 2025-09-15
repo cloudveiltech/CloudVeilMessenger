@@ -75,6 +75,9 @@ public class SettingsRequest {
 
     public static class GroupChannelRow extends Row {
         public boolean isPublic;
+        public boolean isCreatorAdmin;
+        public boolean isForum;
+        public boolean isRestricted;
     }
 
     public static class GroupRow extends GroupChannelRow {

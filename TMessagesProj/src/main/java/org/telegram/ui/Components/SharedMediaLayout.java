@@ -39,6 +39,7 @@ import android.transition.TransitionManager;
 import android.transition.TransitionSet;
 import android.transition.TransitionValues;
 import android.transition.Visibility;
+import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 import android.util.TypedValue;
@@ -68,6 +69,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -2860,6 +2862,21 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     if (!profileActivity.getMessagesController().checkCanOpenChat(args, profileActivity)) {
                         return;
                     }
+                    // CloudVeil start
+                    long dialogId = -chat.id;
+                    BaseFragment fragment = profileActivity;
+                    if (!CloudVeilDialogHelper.getInstance(UserConfig.selectedAccount).isDialogCheckedOnServer(dialogId)) {
+                        Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(UserConfig.selectedAccount).getObjectByDialogId(dialogId);
+                        CloudVeilDialogHelper.showCheckingServerPolicy(fragment, objectByDialogId.second, null);
+                        return;
+                    } else if (!CloudVeilDialogHelper.getInstance(UserConfig.selectedAccount).isDialogIdAllowed(dialogId)) {
+                        Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(UserConfig.selectedAccount).getObjectByDialogId(dialogId);
+                        CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, dialogId,null, null);
+                        return;
+                    }
+
+                    // CloudVeil end
+
                     if (chat.forum) {
                         profileActivity.presentFragment(TopicsFragment.getTopicsOrChat(profileActivity, args));
                     } else {

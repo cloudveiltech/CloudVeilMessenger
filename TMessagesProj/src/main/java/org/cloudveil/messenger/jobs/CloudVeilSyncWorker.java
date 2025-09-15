@@ -464,6 +464,15 @@ public class CloudVeilSyncWorker extends Worker {
             }
             row.title = chat.title;
             row.id = currentDialogId;
+            if (chat.creator) { // || chat.adminRights
+                row.isCreatorAdmin = true;
+            }
+            if (chat.forum) {
+                row.isForum = true;
+            }
+            if (chat.restricted || chat.explicit_content) {
+                row.isRestricted = true;
+            }
 
             ArrayList<String> userNames = new ArrayList<>();
             for (TLRPC.TL_username un : chat.usernames) {

@@ -8261,7 +8261,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     }
 
-                    CloudVeilDialogHelper.showWarning(this, type, dialogId, null, null);
+                    if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+                        CloudVeilDialogHelper.showWarning(this, type, dialogId, null, null);
+                    } else {
+                        CloudVeilDialogHelper.showCheckingServerPolicy(this);
+                    }
                     //CloudVeil end
                 }
             }
