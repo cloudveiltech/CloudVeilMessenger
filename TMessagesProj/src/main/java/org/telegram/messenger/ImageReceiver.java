@@ -2269,7 +2269,15 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         isVisible = value;
         if (invalidate) {
             invalidate();
+            if (visibleInvalidate != null) {
+                visibleInvalidate.run();
+            }
         }
+    }
+
+    private Runnable visibleInvalidate;
+    public void setVisibleInvalidate(Runnable invalidate) {
+        visibleInvalidate = invalidate;
     }
 
     public void invalidate() {
