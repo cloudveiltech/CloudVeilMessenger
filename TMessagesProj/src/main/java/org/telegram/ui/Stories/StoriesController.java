@@ -1590,7 +1590,7 @@ public class StoriesController {
     }
 
     public void loadNextStories(boolean hidden) {
-        if (hasMore) {
+        if (hidden ? hasMoreHidden : hasMore) {
             loadFromServer(hidden);
         }
     }
