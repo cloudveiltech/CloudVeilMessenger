@@ -1055,6 +1055,7 @@ public class StoriesUtilities {
             return true;
         }
         //CloudVeil end
+        if (storyItem.media instanceof TLRPC.TL_messageMediaVideoStream) return false;
         return ConnectionsManager.getInstance(currentAccount).getCurrentTime() > storyItem.expire_date;
     }
 
