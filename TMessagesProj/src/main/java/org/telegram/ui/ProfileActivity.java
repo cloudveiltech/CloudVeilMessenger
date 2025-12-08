@@ -82,7 +82,6 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.URLSpan;
 import android.text.util.Linkify;
 import android.util.Log;
-import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -163,6 +162,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
+import org.telegram.messenger.PasskeysController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
@@ -267,6 +267,7 @@ import org.telegram.ui.Components.Premium.boosts.UserSelectorBottomSheet;
 import org.telegram.ui.Components.ProfileGalleryView;
 import org.telegram.ui.Components.ProfileGooeyView;
 import org.telegram.ui.Components.ProfileMusicView;
+import org.telegram.ui.Components.ProfileSuggestionView;
 import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.RadialProgressView;
@@ -334,6 +335,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+//CloudVeil start
+import android.util.Pair;
+//CloudVeil end
 
 public class ProfileActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, DialogsActivity.DialogsActivityDelegate, SharedMediaLayout.SharedMediaPreloaderDelegate, ImageUpdater.ImageUpdaterDelegate, SharedMediaLayout.Delegate {
     private final static int PHONE_OPTION_CALL = 0,
@@ -383,6 +387,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private FrameLayout avatarContainer;
     private FrameLayout avatarContainer2;
     private ProfileActionsView actionsView;
+    private ProfileSuggestionView suggestionView;
     private MessagesController.SavedMusicList savedMusicList;
     private ProfileMusicView musicView;
     private DrawerProfileCell.AnimatedStatusView animatedStatusView;
@@ -467,6 +472,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private boolean isTopic;
     private boolean openSimilar;
     public boolean myProfile;
+    public boolean passkeySuggestion;
     public boolean openGifts;
     public int openGiftsCollection;
     public boolean openGiftsUpgradable;
@@ -1524,8 +1530,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             final float k = 0.5f;
             topOverlayRect.set(0, 0, w, (int) (actionBarHeight * k));
             bottomOverlayRect.set(0, (int) (h - AndroidUtilities.dp(72f) * k), w, h);
-            topOverlayGradient.setBounds(0, topOverlayRect.bottom, w, actionBarHeight + AndroidUtilities.dp(16f));
-            bottomOverlayGradient.setBounds(0, h - getActionsExtraHeight() - AndroidUtilities.dp(72f) - AndroidUtilities.dp(24f), w, bottomOverlayRect.top);
+            topOverlayGradient.setBounds(0, topOverlayRect.bottom, w, actionBarHeight + dp(16f));
+            bottomOverlayGradient.setBounds(0, h - getActionsExtraHeight() - dp(72f) - dp(24f), w, bottomOverlayRect.top);
             pressedOverlayGradient[0].setBounds(0, 0, w / 5, h);
             pressedOverlayGradient[1].setBounds(w - (w / 5), 0, w, h);
         }
@@ -1538,11 +1544,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     pressedOverlayGradient[i].draw(canvas);
                 }
             }
-
-            topOverlayGradient.draw(canvas);
-            bottomOverlayGradient.draw(canvas);
-            canvas.drawRect(topOverlayRect, backgroundPaint);
-            canvas.drawRect(bottomOverlayRect, backgroundPaint);
+//
+//            topOverlayGradient.draw(canvas);
+//            bottomOverlayGradient.draw(canvas);
+//            canvas.drawRect(topOverlayRect, backgroundPaint);
+//            canvas.drawRect(bottomOverlayRect, backgroundPaint);
 
             int count = avatarsViewPager.getRealCount();
             selectedPosition = avatarsViewPager.getRealPosition();
@@ -3767,7 +3773,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         };
         sharedMediaLayout.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.MATCH_PARENT));
 
-        if (getActionsExtraHeight() > 0) {
+        if (!(userId != 0 && imageUpdater != null || myProfile)) {
             actionsView = new ProfileActionsView(context, getActionsExtraHeight());
             setActionsMode();
             updateNotifications(false);
@@ -3853,6 +3859,23 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         break;
                 }
             });
+        }
+        if (userId != 0 && imageUpdater != null || myProfile) {
+            passkeySuggestion = false && MessagesController.getInstance(currentAccount).pendingSuggestions.contains("SETUP_PASSKEY");
+
+            suggestionView = new ProfileSuggestionView(context, resourcesProvider);
+            suggestionView.setVisibility(passkeySuggestion ? View.VISIBLE : View.GONE);
+            suggestionView.setOnClickListener(v -> {
+                PasskeysActivity.showLearnSheet(context, currentAccount, resourcesProvider, true);
+            });
+            suggestionView.closeView.setOnClickListener(v -> {
+                passkeySuggestion = false;
+
+                finishFragment();
+            });
+            if (avatarsBlurView != null) {
+                avatarsBlurView.setSize(getActionsExtraHeight());
+            }
         }
 
         ActionBarMenu menu = actionBar.createMenu();
@@ -5375,6 +5398,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             avatarsBlurView.setActionsView(actionsView);
             avatarContainer2.addView(actionsView, LayoutHelper.createFrame(-1, -1));
         }
+        if (suggestionView != null) {
+            avatarsBlurView.setSuggestionView(suggestionView);
+            avatarContainer2.addView(suggestionView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        }
         if (musicView != null) {
             avatarsBlurView.setMusicView(musicView);
         }
@@ -5922,6 +5949,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     private int getActionsExtraHeight() {
         if (userId != 0 && imageUpdater != null || myProfile) {
+            if (passkeySuggestion) {
+                return dp(88);
+            }
             return 0;
         }
         return dp(74);
@@ -6383,6 +6413,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         mediaCounterTextView.setTranslationY(Math.max(minOnlineY, onlineTextViewY));
 
         updateActionsPosition();
+        updateSuggestionsPosition();
 
         final Object onlineTextViewTag = onlineTextView[1].getTag();
         int statusColor;
@@ -8906,6 +8937,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
         updateEmojiStatusEffectPosition();
         updateActionsPosition();
+        updateSuggestionsPosition();
     }
 
     public void calculatePositionsOnFirstLoad() {
@@ -9165,6 +9197,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         invalidateIsInLandscapeMode();
         if (isInLandscapeMode && actionsView != null) {
             actionsView.drawingBlur(false);
+        }
+        if (isInLandscapeMode && suggestionView != null) {
+            suggestionView.drawingBlur(false);
         }
         if (isInLandscapeMode && musicView != null) {
             musicView.drawingBlur(false);
@@ -9459,6 +9494,14 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             updateRowsIds();
             if (prevRow1 != passwordSuggestionRow || prevRow2 != phoneSuggestionRow || prevRow3 != graceSuggestionRow) {
                 listAdapter.notifyDataSetChanged();
+            }
+
+            final boolean passkey = false && suggestionView != null && MessagesController.getInstance(currentAccount).pendingSuggestions.contains("SETUP_PASSKEY");
+            if (passkey != passkeySuggestion) {
+                passkeySuggestion = passkey;
+                if (!passkey) {
+                    finishFragment();
+                }
             }
         } else if (id == NotificationCenter.topicsDidLoaded) {
             if (isTopic) {
@@ -9882,6 +9925,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (playProfileAnimation == 2) {
             avatarImage.setProgressToExpand(progress);
             updateActionsPosition();
+            updateSuggestionsPosition();
         }
 
         if (ratingView != null) {
@@ -11215,6 +11259,28 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         );
     }
 
+    private void updateSuggestionsPosition() {
+        if (suggestionView == null || onlineTextView[1] == null) return;
+
+        final int newTop = ActionBar.getCurrentActionBarHeight() + (actionBar.getOccupyStatusBar() ? AndroidUtilities.statusBarHeight : 0);
+        suggestionView.isOpeningLayout = openAnimationInProgress;
+
+        if (openAnimationInProgress && playProfileAnimation == 2 && avatarContainer != null) {
+            float vh = avatarContainer.getHeight() * avatarContainer.getScaleY();
+            suggestionView.clipHeight = avatarContainer.getY() + vh;
+            suggestionView.setAlpha(avatarAnimationProgress);
+            suggestionView.updatePosition(listView.getMeasuredWidth(), getActionsExtraHeight());
+            if (suggestionView != null) {
+                suggestionView.updatePosition(listView.getMeasuredWidth(), getActionsExtraHeight());
+            }
+        } else {
+            suggestionView.clipHeight = -1;
+            float bottom = extraHeight + newTop;
+            float height = Math.min(getActionsExtraHeight(), bottom - newTop);
+            suggestionView.updatePosition(bottom - height, height);
+        }
+    }
+
     private void updateActionsPosition() {
         if (actionsView == null || onlineTextView[1] == null) {
             return;
@@ -11227,6 +11293,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             actionsView.clipHeight = avatarContainer.getY() + vh;
             actionsView.setAlpha(avatarAnimationProgress);
             actionsView.updatePosition(listView.getMeasuredWidth(), getActionsExtraHeight());
+            if (suggestionView != null) {
+                suggestionView.updatePosition(listView.getMeasuredWidth(), getActionsExtraHeight());
+            }
         } else {
             actionsView.clipHeight = -1;
             float bottom = extraHeight + newTop;
