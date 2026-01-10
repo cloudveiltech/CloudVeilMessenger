@@ -274,7 +274,7 @@ public class CloudVeilSyncWorker extends Worker {
                 SettingsRequest.Row row = new SettingsRequest.Row();
                 row.id = user.id;
 
-                row.title = user.username;
+                row.title = user.first_name != null ? user.first_name : user.username;
 
                 ArrayList<String> userNames = new ArrayList<>();
                 for (TLRPC.TL_username un : user.usernames) {

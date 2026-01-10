@@ -1134,7 +1134,9 @@ public class NotificationsController extends BaseController {
                         hasScheduled = messageObject.messageOwner.from_scheduled;
                     }
                     //CloudVeil start
-                    if(CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId) && CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+                    // changing logic to allow messages from either unchecked or allowed dialogs. 
+                    // the problem is this allows blocked chats to send notifications if the allow cache is uninitiated, but should help with all other situations.
+                    if(!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId) || CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
                         delayedPushMessages.add(messageObject);
                         appendMessage(messageObject);
                         if (mid != 0) {
@@ -1150,6 +1152,9 @@ public class NotificationsController extends BaseController {
                             Integer current = pushDialogsOverrideMention.get(originalDialogId);
                             pushDialogsOverrideMention.put(originalDialogId, current == null ? 1 : current + 1);
                         }
+                        FileLog.d("NotificationsController: CloudVeil allowed notification from dialog: " + dialogId + " (isDialogCheckedOnServer: " + CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId) + ", isDialogIdAllowed: " + CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId) + ")");
+                    } else {
+                        FileLog.d("NotificationsController: CloudVeil blocked notification from dialog: " + dialogId + " (isDialogCheckedOnServer: " + CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId) + ", isDialogIdAllowed: " + CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId) + ")");
                     }
                     //CloudVeil end
                 }
