@@ -26,9 +26,6 @@ public class BuildVars {
     public static boolean NO_SCOPED_STORAGE = Build.VERSION.SDK_INT <= 29;
     public static String BUILD_VERSION_STRING = BuildConfig.BUILD_VERSION_STRING;
 
-    // works only on official app ids, disable on your forks
-    public static boolean SUPPORTS_PASSKEYS = true;
-
     //CloudVeil start
     public static int APP_ID = BuildConfig.API_ID;
     public static String APP_HASH = BuildConfig.API_HASH;
@@ -44,6 +41,11 @@ public class BuildVars {
 
     // You can use this flag to disable Google Play Billing (If you're making fork and want it to be in Google Play)
     public static boolean IS_BILLING_UNAVAILABLE = false;
+
+    // works only on official app ids, disable on your forks
+    //CloudVeil start
+    public static boolean SUPPORTS_PASSKEYS = false;
+    //CloudVeil end
 
     static {
         if (ApplicationLoader.applicationContext != null) {
