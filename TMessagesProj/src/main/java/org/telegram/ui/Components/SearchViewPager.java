@@ -1365,8 +1365,10 @@ public class SearchViewPager extends ViewPagerFixed implements FilteredSearchVie
                 items.add(new Item(PUBLIC_POSTS_TYPE));
             }
             items.add(new Item(CHANNELS_TYPE));
+            /* CloudVeil start comment - Remove "Apps" and "Posts" from the search bar
             items.add(new Item(BOTS_TYPE));
             items.add(new Item(POSTS_TYPE));
+            */
             if (!showOnlyDialogsAdapter) {
                 Item item = new Item(FILTER_TYPE);
                 item.filterIndex = 0;
