@@ -28,6 +28,7 @@ import android.os.Handler;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
