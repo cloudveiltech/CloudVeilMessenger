@@ -774,10 +774,22 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
      * hitting an exception.
      */
     String exceptionLabel() {
-        return " " + super.toString()
-                + ", adapter:" + mAdapter
-                + ", layout:" + mLayout
-                + ", context:" + getContext();
+        final StringBuilder sb = new StringBuilder();
+        sb.append(" ").append(super.toString())
+          .append(", adapter:").append(mAdapter)
+          .append(", layout:").append(mLayout)
+          .append(", context:").append(getContext())
+          .append(", ainfo:").append(moreInfo);
+        final String lastNotifies = mAdapterHelper.getLastNotifies();
+        if (lastNotifies != null) {
+            sb.append(", last notifies:\n").append(lastNotifies);
+        }
+        return sb.toString();
+    }
+
+    private String moreInfo;
+    public void setAdditionalDebugInfo(String moreInfo) {
+        this.moreInfo = moreInfo;
     }
 
     /**
@@ -5229,6 +5241,13 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
                 || mAdapterHelper.hasPendingUpdates();
     }
 
+    public boolean canStopFlinger = true;
+    private boolean isFlingerWorking = false;
+
+    public boolean isFlingerWorking() {
+        return isFlingerWorking;
+    }
+
     class ViewFlinger implements Runnable {
         private int mLastFlingX;
         private int mLastFlingY;
@@ -5248,6 +5267,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         @Override
         public void run() {
             if (mLayout == null) {
+                canStopFlinger = true;
                 stop();
                 return; // no layout, cannot scroll.
             }
@@ -5268,6 +5288,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
             // Keep a local reference so that if it is changed during onAnimation method, it won't
             // cause unexpected behaviors
             final OverScroller scroller = mOverScroller;
+            isFlingerWorking = true;
             if (scroller.computeScrollOffset()) {
                 final int x = scroller.getCurrX();
                 final int y = scroller.getCurrY();
@@ -5382,6 +5403,8 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
                 }
             }
 
+            isFlingerWorking = false;
+
             SmoothScroller smoothScroller = mLayout.mSmoothScroller;
             // call this after the onAnimation is complete not to have inconsistent callbacks etc.
             if (smoothScroller != null && smoothScroller.isPendingInitialRun()) {
@@ -5489,6 +5512,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         }
 
         public void stop() {
+            if (!canStopFlinger) return;
             removeCallbacks(this);
             mOverScroller.abortAnimation();
         }
@@ -5522,6 +5546,10 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         public void onChanged() {
             assertNotInLayoutOrScroll(null);
             mState.mStructureChanged = true;
+
+            if (BuildVars.DEBUG_VERSION) {
+                mAdapterHelper.logNotify("notifyDataSetChanged()");
+            }
 
             processDataSetCompletelyChanged(true);
             if (!mAdapterHelper.hasPendingUpdates()) {
@@ -9174,7 +9202,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
 
         private void scrapOrRecycleView(Recycler recycler, int index, View view) {
             final ViewHolder viewHolder = getChildViewHolderInt(view);
-            if (viewHolder.shouldIgnore()) {
+            if (viewHolder == null || viewHolder.shouldIgnore()) {
                 if (DEBUG) {
                     Log.d(TAG, "ignoring view " + viewHolder);
                 }
@@ -11760,8 +11788,8 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
          * stop calling SmoothScroller in each animation step.</p>
          */
         void start(RecyclerView recyclerView, LayoutManager layoutManager) {
-
             // Stop any previous ViewFlinger animations now because we are about to start a new one.
+            recyclerView.canStopFlinger = true;
             recyclerView.mViewFlinger.stop();
 
             if (mStarted) {

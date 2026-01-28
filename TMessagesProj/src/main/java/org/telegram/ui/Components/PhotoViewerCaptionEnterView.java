@@ -159,7 +159,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
                 openKeyboardInternal();
             }
         });
-        emojiButton.setContentDescription(LocaleController.getString("Emoji", R.string.Emoji));
+        emojiButton.setContentDescription(LocaleController.getString(R.string.Emoji));
         emojiButton.setImageDrawable(emojiIconDrawable = new ReplaceableIconDrawable(context));
         emojiIconDrawable.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.MULTIPLY));
         emojiIconDrawable.setIcon(R.drawable.input_smile, false);
@@ -230,7 +230,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
             messageEditText.invalidateEffects();
         });
         messageEditText.setWindowView(windowView);
-        messageEditText.setHint(LocaleController.getString("AddCaption", R.string.AddCaption));
+        messageEditText.setHint(LocaleController.getString(R.string.AddCaption));
         messageEditText.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         messageEditText.setLinkTextColor(0xff76c2f1);
         messageEditText.setInputType(messageEditText.getInputType() | EditorInfo.TYPE_TEXT_FLAG_CAP_SENTENCES);
@@ -311,7 +311,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
                         for (int i = 0; i < spans.length; i++) {
                             editable.removeSpan(spans[i]);
                         }
-                        Emoji.replaceEmoji(editable, messageEditText.getPaint().getFontMetricsInt(), AndroidUtilities.dp(20), false);
+                        Emoji.replaceEmoji(editable, messageEditText.getPaint().getFontMetricsInt(), false);
                         processChange = false;
                     }
                 }
@@ -396,7 +396,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
             }
             delegate.onCaptionEnter();
         });
-        doneButton.setContentDescription(LocaleController.getString("Done", R.string.Done));
+        doneButton.setContentDescription(LocaleController.getString(R.string.Done));
 
         captionLimitView = new NumberTextView(context);
         captionLimitView.setVisibility(View.GONE);
@@ -735,7 +735,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
                 }
                 try {
                     innerTextChange = true;
-                    CharSequence localCharSequence = Emoji.replaceEmoji(symbol, messageEditText.getPaint().getFontMetricsInt(), AndroidUtilities.dp(20), false);
+                    CharSequence localCharSequence = Emoji.replaceEmoji(symbol, messageEditText.getPaint().getFontMetricsInt(), false);
                     messageEditText.setText(messageEditText.getText().insert(i, localCharSequence));
                     int j = i + localCharSequence.length();
                     messageEditText.setSelection(j, j);
@@ -759,7 +759,7 @@ public class PhotoViewerCaptionEnterView extends FrameLayout implements Notifica
             SpannableStringBuilder builder = new SpannableStringBuilder(messageEditText.getText());
             builder.replace(start, start + len, text);
             if (parseEmoji) {
-                Emoji.replaceEmoji(builder, messageEditText.getPaint().getFontMetricsInt(), AndroidUtilities.dp(20), false);
+                Emoji.replaceEmoji(builder, messageEditText.getPaint().getFontMetricsInt(), false);
             }
             messageEditText.setText(builder);
             messageEditText.setSelection(Math.min(start + text.length(), messageEditText.length()));

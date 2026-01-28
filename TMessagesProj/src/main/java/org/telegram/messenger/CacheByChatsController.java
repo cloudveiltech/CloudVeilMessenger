@@ -4,6 +4,9 @@ import android.text.TextUtils;
 import android.util.LongSparseArray;
 
 import org.telegram.tgnet.TLRPC;
+// CloudVeil start
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+// CloudVeil end
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -28,13 +31,11 @@ public class CacheByChatsController {
 
     private final int currentAccount;
 
-    int[] keepMediaByTypes = {-1, -1, -1, -1};
+    private boolean gotKeepMediaByTypes = false;
+    private final int[] keepMediaByTypes = { -1, -1, -1, -1 };
 
     public CacheByChatsController(int currentAccount) {
         this.currentAccount = currentAccount;
-        for (int i = 0; i < 4; i++) {
-            keepMediaByTypes[i] = SharedConfig.getPreferences().getInt("keep_media_type_" + i, getDefault(i));
-        }
     }
 
     public static int getDefault(int type) {
@@ -62,7 +63,7 @@ public class CacheByChatsController {
         } else if (keepMedia == KEEP_MEDIA_ONE_MONTH) {
             return LocaleController.formatPluralString("Months", 1);
         }
-        return LocaleController.getString("AutoDeleteMediaNever", R.string.AutoDeleteMediaNever);
+        return LocaleController.getString(R.string.AutoDeleteMediaNever);
     }
 
     public static long getDaysInSeconds(int keepMedia) {
@@ -122,6 +123,12 @@ public class CacheByChatsController {
     }
 
     public int getKeepMedia(int type) {
+        if (!gotKeepMediaByTypes) {
+            gotKeepMediaByTypes = true;
+            for (int i = 0; i < 4; i++) {
+                keepMediaByTypes[i] = SharedConfig.getPreferences().getInt("keep_media_type_" + i, getDefault(i));
+            }
+        }
         if (keepMediaByTypes[type] == -1) {
             return SharedConfig.keepMedia;
         }
@@ -129,6 +136,12 @@ public class CacheByChatsController {
     }
 
     public void setKeepMedia(int type, int keepMedia) {
+        if (!gotKeepMediaByTypes) {
+            gotKeepMediaByTypes = true;
+            for (int i = 0; i < 4; i++) {
+                keepMediaByTypes[i] = SharedConfig.getPreferences().getInt("keep_media_type_" + i, getDefault(i));
+            }
+        }
         keepMediaByTypes[type] = keepMedia;
         SharedConfig.getPreferences().edit().putInt("keep_media_type_" + type, keepMedia).apply();
     }
@@ -164,6 +177,11 @@ public class CacheByChatsController {
                 if (exception != null) {
                     file.keepMedia = exception.keepMedia;
                 }
+                // CloudVeil start
+                boolean allowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId);
+                boolean checked = CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId);
+                file.shouldRemove = !allowed && checked;
+                // CloudVeil end
             }
         }
     }
@@ -196,6 +214,9 @@ public class CacheByChatsController {
         int keepMedia = -1;
         int dialogType = KEEP_MEDIA_TYPE_CHANNEL;
         boolean isStory;
+        // CloudVeil start
+        boolean shouldRemove = false;
+        // CloudVeil end
 
         public KeepMediaFile(File file) {
             this.file = file;

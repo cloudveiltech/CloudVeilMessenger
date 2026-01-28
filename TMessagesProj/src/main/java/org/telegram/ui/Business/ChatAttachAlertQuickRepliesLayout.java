@@ -33,9 +33,10 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
-import org.telegram.ui.Components.ChatActivityInterface;
+import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.ChatAttachAlert;
 import org.telegram.ui.Components.EditTextBoldCursor;
+import org.telegram.ui.Components.Premium.PremiumFeatureBottomSheet;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.FillLastLinearLayoutManager;
 import org.telegram.ui.Components.EmptyTextProgressView;
@@ -44,6 +45,7 @@ import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.CheckBox2;
 import org.telegram.ui.Components.AvatarDrawable;
+import org.telegram.ui.PremiumPreviewFragment;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -101,7 +103,7 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
             nameTextView = new SimpleTextView(context) {
                 @Override
                 public boolean setText(CharSequence value, boolean force) {
-                    value = Emoji.replaceEmoji(value, getPaint().getFontMetricsInt(), AndroidUtilities.dp(14), false);
+                    value = Emoji.replaceEmoji(value, getPaint().getFontMetricsInt(), false);
                     return super.setText(value, force);
                 }
             };
@@ -173,7 +175,7 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
                 statusTextView.setText(currentStatus);
             } else if (currentUser != null) {
                 if (TextUtils.isEmpty(currentUser.phone)) {
-                    statusTextView.setText(LocaleController.getString("NumberUnknown", R.string.NumberUnknown));
+                    statusTextView.setText(LocaleController.getString(R.string.NumberUnknown));
                 } else {
                     if (formattedPhoneNumberUser != currentUser && formattedPhoneNumber != null) {
                         statusTextView.setText(formattedPhoneNumber);
@@ -300,7 +302,7 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
             public void onTextChange(String text) {
                 if (text.length() != 0) {
                     if (emptyView != null) {
-                        emptyView.setText(LocaleController.getString("NoResult", R.string.NoResult));
+                        emptyView.setText(LocaleController.getString(R.string.NoResult));
                     }
                 } else {
                     if (listView.getAdapter() != listAdapter) {
@@ -407,12 +409,16 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
                 object = listAdapter.getItem(section, row);
             }
             if (object instanceof QuickRepliesController.QuickReply) {
-                long dialogId;
-                if (parentAlert.baseFragment instanceof ChatActivityInterface) {
-                    dialogId = ((ChatActivityInterface) parentAlert.baseFragment).getDialogId();
-                } else return;
-                QuickRepliesController.getInstance(UserConfig.selectedAccount).sendQuickReplyTo(dialogId, (QuickRepliesController.QuickReply) object);
-                parentAlert.dismiss();
+                if (!UserConfig.getInstance(parentAlert.currentAccount).isPremium()) {
+                    if (parentAlert.baseFragment != null) {
+                        new PremiumFeatureBottomSheet(parentAlert.baseFragment, getContext(), parentAlert.currentAccount, true, PremiumPreviewFragment.PREMIUM_FEATURE_BUSINESS_QUICK_REPLIES, false, null).show();
+                    }
+                    return;
+                }
+                AlertsCreator.ensurePaidMessageConfirmation(parentAlert.currentAccount, parentAlert.getDialogId(), ((QuickRepliesController.QuickReply) object).getMessagesCount(), payStars -> {
+                    QuickRepliesController.getInstance(UserConfig.selectedAccount).sendQuickReplyTo(parentAlert.getDialogId(), (QuickRepliesController.QuickReply) object);
+                    parentAlert.dismiss();
+                });
             }
         });
         listView.setOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -442,12 +448,12 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
     }
 
     private void showErrorBox(String error) {
-        new AlertDialog.Builder(getContext(), resourcesProvider).setTitle(LocaleController.getString("AppName", R.string.AppName)).setMessage(error).setPositiveButton(LocaleController.getString("OK", R.string.OK), null).show();
+        new AlertDialog.Builder(getContext(), resourcesProvider).setTitle(LocaleController.getString(R.string.AppName)).setMessage(error).setPositiveButton(LocaleController.getString(R.string.OK), null).show();
     }
 
     @Override
-    public void sendSelectedItems(boolean notify, int scheduleDate, long effectId, boolean invertMedia) {
-
+    public boolean sendSelectedItems(boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effectId, boolean invertMedia) {
+        return false;
     }
 
     @Override

@@ -66,7 +66,8 @@ public class GroupCallUserCell extends FrameLayout {
     private RLottieDrawable muteDrawable;
     private RLottieDrawable shakeHandDrawable;
 
-    public AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable rightDrawable;
+    public final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable leftDrawable;
+    public final AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable rightDrawable;
     private Drawable verifiedDrawable;
     private Drawable premiumDrawable;
 
@@ -75,7 +76,7 @@ public class GroupCallUserCell extends FrameLayout {
     private AvatarDrawable avatarDrawable;
 
     private ChatObject.Call currentCall;
-    private TLRPC.TL_groupCallParticipant participant;
+    private TLRPC.GroupCallParticipant participant;
     private TLRPC.User currentUser;
     private TLRPC.Chat currentChat;
 
@@ -295,6 +296,7 @@ public class GroupCallUserCell extends FrameLayout {
         nameTextView.setDrawablePadding(AndroidUtilities.dp(6));
         nameTextView.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP);
         addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 20, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 54 : 67, 10, LocaleController.isRTL ? 67 : 54, 0));
+        leftDrawable =  new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(nameTextView, AndroidUtilities.dp(20), AnimatedEmojiDrawable.CACHE_TYPE_ALERT_EMOJI_STATUS);
         rightDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(nameTextView, AndroidUtilities.dp(20), AnimatedEmojiDrawable.CACHE_TYPE_ALERT_EMOJI_STATUS);
 
         speakingDrawable = context.getResources().getDrawable(R.drawable.voice_volume_mini);
@@ -355,17 +357,17 @@ public class GroupCallUserCell extends FrameLayout {
             } else {
                 if (a == 0) {
                     statusTextView[a].setTextColor(Theme.getColor(Theme.key_voipgroup_listeningText));
-                    statusTextView[a].setText(LocaleController.getString("Listening", R.string.Listening));
+                    statusTextView[a].setText(LocaleController.getString(R.string.Listening));
                 } else if (a == 1) {
                     statusTextView[a].setTextColor(Theme.getColor(Theme.key_voipgroup_speakingText));
-                    statusTextView[a].setText(LocaleController.getString("Speaking", R.string.Speaking));
+                    statusTextView[a].setText(LocaleController.getString(R.string.Speaking));
                     statusTextView[a].setDrawablePadding(AndroidUtilities.dp(2));
                 } else if (a == 2) {
                     statusTextView[a].setTextColor(Theme.getColor(Theme.key_voipgroup_mutedByAdminIcon));
-                    statusTextView[a].setText(LocaleController.getString("VoipGroupMutedForMe", R.string.VoipGroupMutedForMe));
+                    statusTextView[a].setText(LocaleController.getString(R.string.VoipGroupMutedForMe));
                 } else if (a == 3) {
                     statusTextView[a].setTextColor(Theme.getColor(Theme.key_voipgroup_listeningText));
-                    statusTextView[a].setText(LocaleController.getString("WantsToSpeak", R.string.WantsToSpeak));
+                    statusTextView[a].setText(LocaleController.getString(R.string.WantsToSpeak));
                 }
                 addView(statusTextView[a], LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 20, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 54 : 67, 32, LocaleController.isRTL ? 67 : 54, 0));
             }
@@ -436,6 +438,9 @@ public class GroupCallUserCell extends FrameLayout {
         if (rightDrawable != null) {
             rightDrawable.detach();
         }
+        if (leftDrawable != null) {
+            leftDrawable.detach();
+        }
     }
 
     public boolean isSelfUser() {
@@ -458,7 +463,7 @@ public class GroupCallUserCell extends FrameLayout {
         return avatarImageView.getImageReceiver().hasNotThumb();
     }
 
-    public void setData(AccountInstance account, TLRPC.TL_groupCallParticipant groupCallParticipant, ChatObject.Call call, long self, TLRPC.FileLocation uploadingAvatar, boolean animated) {
+    public void setData(AccountInstance account, TLRPC.GroupCallParticipant groupCallParticipant, ChatObject.Call call, long self, TLRPC.FileLocation uploadingAvatar, boolean animated) {
         currentCall = call;
         accountInstance = account;
         selfId = self;
@@ -466,12 +471,14 @@ public class GroupCallUserCell extends FrameLayout {
         participant = groupCallParticipant;
 
         long id = MessageObject.getPeerId(participant.peer);
+        long botVerificationIcon = 0;
         if (id > 0) {
             currentUser = accountInstance.getMessagesController().getUser(id);
             currentChat = null;
             avatarDrawable.setInfo(accountInstance.getCurrentAccount(), currentUser);
 
             nameTextView.setText(UserObject.getUserName(currentUser));
+            botVerificationIcon = DialogObject.getBotVerificationIcon(currentUser);
             if (currentUser != null && currentUser.verified) {
                 rightDrawable.set(verifiedDrawable = (verifiedDrawable == null ? new VerifiedDrawable(getContext()) : verifiedDrawable), animated);
             } else if (currentUser != null && DialogObject.getEmojiStatusDocumentId(currentUser.emoji_status) != 0) {
@@ -509,6 +516,7 @@ public class GroupCallUserCell extends FrameLayout {
             currentUser = null;
             avatarDrawable.setInfo(accountInstance.getCurrentAccount(), currentChat);
 
+            botVerificationIcon = DialogObject.getBotVerificationIcon(currentChat);
             if (currentChat != null) {
                 nameTextView.setText(currentChat.title);
                 if (currentChat.verified) {
@@ -529,6 +537,14 @@ public class GroupCallUserCell extends FrameLayout {
                 }
             }
         }
+        if (botVerificationIcon != 0) {
+            leftDrawable.set(botVerificationIcon, animated);
+            nameTextView.setLeftDrawable(leftDrawable);
+            leftDrawable.setColor(Theme.getColor(Theme.key_premiumGradient1));
+        } else {
+            leftDrawable.set((Drawable) null, animated);
+            nameTextView.setLeftDrawable(null);
+        }
         applyParticipantChanges(animated);
     }
 
@@ -544,9 +560,12 @@ public class GroupCallUserCell extends FrameLayout {
         if (rightDrawable != null) {
             rightDrawable.attach();
         }
+        if (leftDrawable != null) {
+            leftDrawable.attach();
+        }
     }
 
-    public TLRPC.TL_groupCallParticipant getParticipant() {
+    public TLRPC.GroupCallParticipant getParticipant() {
         return participant;
     }
 
@@ -653,7 +672,7 @@ public class GroupCallUserCell extends FrameLayout {
             }
         }
 
-        TLRPC.TL_groupCallParticipant newParticipant = currentCall.participants.get(MessageObject.getPeerId(participant.peer));
+        TLRPC.GroupCallParticipant newParticipant = currentCall.participants.get(MessageObject.getPeerId(participant.peer));
         if (newParticipant != null) {
             participant = newParticipant;
         }
@@ -714,23 +733,23 @@ public class GroupCallUserCell extends FrameLayout {
         if (isSelfUser()) {
             if (!hasAbout && !hasAvatar) {
                 if (currentUser != null) {
-                    statusTextView[4].setText(LocaleController.getString("TapToAddPhotoOrBio", R.string.TapToAddPhotoOrBio));
+                    statusTextView[4].setText(LocaleController.getString(R.string.TapToAddPhotoOrBio));
                 } else {
-                    statusTextView[4].setText(LocaleController.getString("TapToAddPhotoOrDescription", R.string.TapToAddPhotoOrDescription));
+                    statusTextView[4].setText(LocaleController.getString(R.string.TapToAddPhotoOrDescription));
                 }
                 statusTextView[4].setTextColor(Theme.getColor(grayIconColor));
             } else if (!hasAbout ){
                 if (currentUser != null) {
-                    statusTextView[4].setText(LocaleController.getString("TapToAddBio", R.string.TapToAddBio));
+                    statusTextView[4].setText(LocaleController.getString(R.string.TapToAddBio));
                 } else {
-                    statusTextView[4].setText(LocaleController.getString("TapToAddDescription", R.string.TapToAddDescription));
+                    statusTextView[4].setText(LocaleController.getString(R.string.TapToAddDescription));
                 }
                 statusTextView[4].setTextColor(Theme.getColor(grayIconColor));
             } else if (!hasAvatar) {
-                statusTextView[4].setText(LocaleController.getString("TapToAddPhoto", R.string.TapToAddPhoto));
+                statusTextView[4].setText(LocaleController.getString(R.string.TapToAddPhoto));
                 statusTextView[4].setTextColor(Theme.getColor(grayIconColor));
             } else {
-                statusTextView[4].setText(LocaleController.getString("ThisIsYou", R.string.ThisIsYou));
+                statusTextView[4].setText(LocaleController.getString(R.string.ThisIsYou));
                 statusTextView[4].setTextColor(Theme.getColor(Theme.key_voipgroup_listeningText));
             }
             if (hasAbout) {
@@ -785,7 +804,7 @@ public class GroupCallUserCell extends FrameLayout {
                 statusTextView[1].setText(LocaleController.formatString("SpeakingWithVolume", R.string.SpeakingWithVolume, vol < 100 ? 1 : volume));
             } else {
                 statusTextView[1].setLeftDrawable(null);
-                statusTextView[1].setText(LocaleController.getString("Speaking", R.string.Speaking));
+                statusTextView[1].setText(LocaleController.getString(R.string.Speaking));
             }
         }
         if (isSelfUser()) {
@@ -1085,7 +1104,7 @@ public class GroupCallUserCell extends FrameLayout {
     public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfo(info);
         if (info.isEnabled() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK, participant.muted && !participant.can_self_unmute ? LocaleController.getString("VoipUnmute", R.string.VoipUnmute) : LocaleController.getString("VoipMute", R.string.VoipMute)));
+            info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK, participant.muted && !participant.can_self_unmute ? LocaleController.getString(R.string.VoipUnmute) : LocaleController.getString(R.string.VoipMute)));
         }
     }
 

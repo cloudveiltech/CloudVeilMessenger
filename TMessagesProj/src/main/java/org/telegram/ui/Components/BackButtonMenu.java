@@ -17,6 +17,7 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
@@ -61,7 +62,7 @@ public class BackButtonMenu {
             return null;
         }
         ArrayList<PulledDialog> dialogs;
-        if (topicId != 0) {
+        if (topicId != 0 && !ChatObject.isMonoForum(thisFragment.getCurrentAccount(), currentDialogId)) {
             dialogs = getStackedHistoryForTopic(thisFragment, currentDialogId, topicId);
         } else {
             dialogs = getStackedHistoryDialogs(thisFragment, currentDialogId);
@@ -79,6 +80,7 @@ public class BackButtonMenu {
 
         AtomicReference<ActionBarPopupWindow> scrimPopupWindowRef = new AtomicReference<>();
 
+        boolean hadDialogs = false;
         for (int i = 0; i < dialogs.size(); ++i) {
             final PulledDialog pDialog = dialogs.get(i);
             final TLRPC.Chat chat = pDialog.chat;
@@ -107,6 +109,7 @@ public class BackButtonMenu {
             Drawable thumb = avatarDrawable;
             boolean addDivider = false;
             if (topic != null) {
+                hadDialogs = true;
                 if (topic.id == 1) {
                     thumb = ForumUtilities.createGeneralTopicDrawable(fragmentView.getContext(), 1f, Theme.getColor(Theme.key_chat_inMenu, resourcesProvider), false);
                     imageView.setImageDrawable(thumb);
@@ -119,6 +122,7 @@ public class BackButtonMenu {
                 }
                 titleView.setText(topic.title);
             } else if (chat != null) {
+                hadDialogs = true;
                 avatarDrawable.setInfo(thisFragment.getCurrentAccount(), chat);
                 if (chat.photo != null && chat.photo.strippedBitmap != null) {
                     thumb = chat.photo.strippedBitmap;
@@ -126,20 +130,21 @@ public class BackButtonMenu {
                 imageView.setImage(ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL), "50_50", thumb, chat);
                 titleView.setText(chat.title);
             } else if (user != null) {
+                hadDialogs = true;
                 String name;
                 if (user.photo != null && user.photo.strippedBitmap != null) {
                     thumb = user.photo.strippedBitmap;
                 }
                 if (pDialog.activity == ChatActivity.class && UserObject.isUserSelf(user)) {
-                    name = LocaleController.getString("SavedMessages", R.string.SavedMessages);
+                    name = LocaleController.getString(R.string.SavedMessages);
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_SAVED);
                     imageView.setImageDrawable(avatarDrawable);
                 } else if (UserObject.isReplyUser(user)) {
-                    name = LocaleController.getString("RepliesTitle", R.string.RepliesTitle);
+                    name = LocaleController.getString(R.string.RepliesTitle);
                     avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REPLIES);
                     imageView.setImageDrawable(avatarDrawable);
                 } else if (UserObject.isDeleted(user)) {
-                    name = LocaleController.getString("HiddenName", R.string.HiddenName);
+                    name = LocaleController.getString(R.string.HiddenName);
                     avatarDrawable.setInfo(thisFragment.getCurrentAccount(), user);
                     imageView.setImage(ImageLocation.getForUser(user, ImageLocation.TYPE_SMALL), "50_50", avatarDrawable, user);
                 } else {
@@ -153,7 +158,7 @@ public class BackButtonMenu {
                 imageView.setImageDrawable(drawable);
                 imageView.setSize(AndroidUtilities.dp(24), AndroidUtilities.dp(24));
                 imageView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_actionBarDefaultSubmenuItemIcon, resourcesProvider), PorterDuff.Mode.MULTIPLY));
-                titleView.setText(LocaleController.getString("AllChats", R.string.AllChats));
+                titleView.setText(LocaleController.getString(R.string.AllChats));
                 addDivider = true;
             }
 
@@ -206,6 +211,8 @@ public class BackButtonMenu {
                 layout.addView(gap, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
             }
         }
+
+        if (!hadDialogs) return null;
 
         ActionBarPopupWindow scrimPopupWindow = new ActionBarPopupWindow(layout, LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT);
         scrimPopupWindowRef.set(scrimPopupWindow);
@@ -420,7 +427,7 @@ public class BackButtonMenu {
         }
         boolean alreadyAdded = false;
         for (PulledDialog d : parentLayout.getPulledDialogs()) {
-            if (topic == null && d.dialogId == dialogId || topic != null && d.topic.id == topic.id) {
+            if (topic == null && d.dialogId == dialogId || topic != null && d.topic != null && d.topic.id == topic.id) {
                 alreadyAdded = true;
                 break;
             }

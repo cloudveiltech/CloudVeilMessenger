@@ -27,6 +27,7 @@ public class FilePathDatabase {
     private File cacheFile;
     private File shmCacheFile;
 
+    private final String NULL_PATH = "~null~";
     private final ConcurrentHashMap<String, String> cache = new ConcurrentHashMap<>();
 
     private final static int LAST_DB_VERSION = 7;
@@ -165,18 +166,21 @@ public class FilePathDatabase {
         final long start = System.currentTimeMillis();
         final String key = documentId + "_" + dc + "_" + type;
         String path = cache.get(key);
-        if (path != null) {
+        if (path == NULL_PATH) {
+            if (BuildVars.DEBUG_VERSION) {
+                FileLog.d("get file path cached null id=" + documentId + " dc=" + dc + " type=" + type + " path=" + null + " in " + (System.currentTimeMillis() - start) + "ms");
+            }
+            return null;
+        } else if (path != null) {
             if (BuildVars.DEBUG_VERSION) {
                 FileLog.d("get file path cached id=" + documentId + " dc=" + dc + " type=" + type + " path=" + path + " in " + (System.currentTimeMillis() - start) + "ms");
             }
             return path;
         }
+        if (dispatchQueue != null && dispatchQueue.getHandler() != null && Thread.currentThread() == dispatchQueue.getHandler().getLooper().getThread()) {
+            useQueue = false;
+        }
         if (useQueue) {
-            if (BuildVars.DEBUG_PRIVATE_VERSION) {
-                if (dispatchQueue != null && dispatchQueue.getHandler() != null && Thread.currentThread() == dispatchQueue.getHandler().getLooper().getThread()) {
-                    throw new RuntimeException("Error, lead to infinity loop");
-                }
-            }
 
             CountDownLatch syncLatch = new CountDownLatch(1);
             String[] res = new String[1];
@@ -209,6 +213,8 @@ public class FilePathDatabase {
             }
             if (res[0] != null) {
                 cache.put(key, res[0]);
+            } else {
+                cache.put(key, NULL_PATH);
             }
             return res[0];
         } else {
@@ -234,6 +240,8 @@ public class FilePathDatabase {
             }
             if (res != null) {
                 cache.put(key, res);
+            } else {
+                cache.put(key, NULL_PATH);
             }
             return res;
         }
@@ -289,7 +297,7 @@ public class FilePathDatabase {
                     cache.put(id + "_" + dc + "_" + type, path);
                 } else {
                     database.executeFast("DELETE FROM paths WHERE document_id = " + id + " AND dc_id = " + dc + " AND type = " + type).stepThis().dispose();
-                    cache.remove(id + "_" + dc + "_" + type);
+                    cache.put(id + "_" + dc + "_" + type, NULL_PATH);
                 }
             } catch (SQLiteException e) {
                 FileLog.e(e);

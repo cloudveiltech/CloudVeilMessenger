@@ -8,9 +8,6 @@ import org.telegram.messenger.ApplicationLoader;
 
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.Set;
-
-import io.sentry.protocol.App;
 
 /**
  * Created by Dmitriy on 05.02.2018.
@@ -20,6 +17,7 @@ public class SettingsRequest {
     public long userId;
     public String userPhone;
     public String userName;
+    public ArrayList<String> userNames = new ArrayList<>();
 
     public String clientOsType = "Android";
     public String clientVersionName = SettingsRequest.getAppVersionString();
@@ -44,7 +42,7 @@ public class SettingsRequest {
     public static class Row {
         public long id;
         public String title;
-        public String userName;
+        public ArrayList<String> userNames = new ArrayList<>();
 
         @Override
         public boolean equals(Object o) {
@@ -77,10 +75,17 @@ public class SettingsRequest {
 
     public static class GroupChannelRow extends Row {
         public boolean isPublic;
+        public boolean isCreatorAdmin;
+        public boolean isForum;
+        public boolean isRestricted;
     }
 
     public static class GroupRow extends GroupChannelRow {
         public boolean isMegagroup;
+    }
+
+    public static class SuperGroupRow extends GroupRow {
+        public long migratedFromTelegramId;
     }
 
     public void addChannel(GroupChannelRow channel) {

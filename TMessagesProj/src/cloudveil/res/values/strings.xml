@@ -8,6 +8,8 @@
     <string name="warning">Warning</string>
     <string name="cloudveil_message_dialog_forbidden">This %1$s is blocked by server policy. Please fill out the form to request it be unblocked.</string>
     <string name="cloudveil_hidden_for_protection">Content blocked for your protection.</string>
+    <string name="cloudveil_checking_server_policy">Checking server policy for %1$s, try again in a few seconds.</string>
+    <string name="cloudveil">CloudVeil</string>
     <string name="cloudveil_disabled_for_protection">This is disabled for your protection.</string>
     <string name="continue_label">Continue</string>
     <string name="cancel">Cancel</string>
@@ -22,11 +24,18 @@
 
 	<string name="sms_code_note_title">How can I receive the code?</string>
     <string name="sms_code_alert_body"><![CDATA[
-    <b>Use the following steps to receive the code.</b><br/><br/>
-    1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.<br/>
-    2. Open CloudVeil Messenger and restart the login process.<br/>
-    3. Enter the code that you receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a>.
+    <b>If you don\'t receive the code, follow these steps.</b><br/><br/>
+    1. Log into <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a> on this device or a different device.<br/>
+    2. Log into CloudVeil Messenger on this device.<br/>
+    3. Enter the code that you receive on <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger">Telegram</a> app.
+    <br/><br/>
+    For assistance, email support at:
+    <a href="mailto:messenger@cloudveil.org">messenger@cloudveil.org</a>
     ]]>
     </string>
+    <string name="did_not_get_the_code">Didn\'t get the code?\nPress here for instructions</string>
+    <string name="sent_app_code_with_phone">We\'ve sent the code to the **CloudVeil Messenger** app for %1$s on your other device.</string>
+    <string name="cloudveil_open_in_external_browser">Open in external browser</string>
+    <string name="one_moment">One moment…</string>
 <!--CloudVeil end-->
 </resources>

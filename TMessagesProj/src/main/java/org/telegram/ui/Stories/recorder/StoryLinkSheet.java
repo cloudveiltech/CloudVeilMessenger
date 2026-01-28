@@ -14,7 +14,6 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -28,11 +27,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_account;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.EditTextCell;
 import org.telegram.ui.Cells.TextCheckCell;
@@ -48,6 +49,7 @@ import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ScaleStateListAnimator;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
+import org.telegram.ui.Components.UniversalRecyclerView;
 
 import java.util.ArrayList;
 import java.util.regex.Pattern;
@@ -61,6 +63,7 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
     private ButtonWithCounterView button;
 
     private boolean ignoreUrlEdit;
+    private boolean needRemoveDefPrefix;
 
     private Utilities.Callback<LinkPreview.WebPagePreview> whenDone;
 
@@ -73,7 +76,7 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
         headerPaddingTop = dp(4);
         headerPaddingBottom = dp(-15);
 
-        urlEditText = new EditTextCell(context, getString(R.string.StoryLinkURLPlaceholder), true, -1, resourcesProvider);
+        urlEditText = new EditTextCell(context, getString(R.string.StoryLinkURLPlaceholder), true, false, -1, resourcesProvider);
         urlEditText.whenHitEnter(this::processDone);
 
         String def = "https://";
@@ -93,7 +96,7 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
         ScaleStateListAnimator.apply(pasteTextView, .1f, 1.5f);
         urlEditText.addView(pasteTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 26, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 4, 24, 3));
 
-        Runnable checkPaste = () -> {
+        final Runnable checkPaste = () -> {
             ClipboardManager clipboardManager = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
             final boolean show = (TextUtils.isEmpty(urlEditText.editText.getText()) || TextUtils.equals(urlEditText.editText.getText(), def) || TextUtils.isEmpty(urlEditText.editText.getText().toString())) && clipboardManager != null && clipboardManager.hasPrimaryClip();
             pasteTextView.animate()
@@ -122,18 +125,41 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
         urlEditText.editText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (ignoreUrlEdit) {
+                    return;
+                }
+                needRemoveDefPrefix = s != null
+                        && start == def.length()
+                        && s.subSequence(0, start).toString().equals(def)
+                        && s.length() >= start + count
+                        && s.subSequence(start, start + count).toString().startsWith(def);
+            }
+
             @Override
             public void afterTextChanged(Editable s) {
                 checkPaste.run();
-                if (!ignoreUrlEdit) {
-                    checkEditURL(s == null ? null : s.toString());
+                if (ignoreUrlEdit) {
+                    return;
                 }
+                if (needRemoveDefPrefix && s != null) {
+                    String text = s.toString();
+                    String fixedLink = text.substring(def.length());
+                    ignoreUrlEdit = true;
+                    urlEditText.editText.setText(fixedLink);
+                    urlEditText.editText.setSelection(0, urlEditText.editText.getText().length());
+                    ignoreUrlEdit = false;
+                    needRemoveDefPrefix = false;
+                    checkEditURL(fixedLink);
+                    return;
+                }
+                checkEditURL(s == null ? null : s.toString());
             }
         });
 
-        nameEditText = new EditTextCell(context, getString(R.string.StoryLinkNamePlaceholder), true, -1, resourcesProvider);
+        nameEditText = new EditTextCell(context, getString(R.string.StoryLinkNamePlaceholder), true, false, -1, resourcesProvider);
         nameEditText.whenHitEnter(this::processDone);
 
         buttonContainer = new FrameLayout(context);
@@ -321,11 +347,20 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
     }
 
     private final Runnable requestPreview = () -> {
-        TLRPC.TL_messages_getWebPagePreview req = new TLRPC.TL_messages_getWebPagePreview();
+        TL_account.getWebPagePreview req = new TL_account.getWebPagePreview();
         req.message = urlEditText.editText.getText().toString();
         reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
-            if (res instanceof TLRPC.TL_messageMediaWebPage) {
-                webpage = ((TLRPC.TL_messageMediaWebPage) res).webpage;
+            TLRPC.TL_messageMediaWebPage media = null;
+            if (res instanceof TL_account.webPagePreview) {
+                final TL_account.webPagePreview preview = (TL_account.webPagePreview) res;
+                MessagesController.getInstance(currentAccount).putUsers(preview.users, false);
+                MessagesController.getInstance(currentAccount).putChats(preview.chats, false);
+                if (preview.media instanceof TLRPC.TL_messageMediaWebPage) {
+                    media = (TLRPC.TL_messageMediaWebPage) preview.media;
+                }
+            }
+            if (media != null) {
+                webpage = media.webpage;
                 if (isPreviewEmpty(webpage)) {
                     webpageId = webpage == null ? 0 : webpage.id;
                     webpage = null;
@@ -498,13 +533,14 @@ public class StoryLinkSheet extends BottomSheetWithRecyclerListView implements N
         }
 
         public static class Factory extends UItem.UItemFactory<WebpagePreviewView> {
+            static { setup(new Factory()); }
             @Override
             public WebpagePreviewView createView(Context context, int currentAccount, int classGuid, Theme.ResourcesProvider resourcesProvider) {
                 return new WebpagePreviewView(context);
             }
 
             @Override
-            public void bindView(View view, UItem item, boolean divider) {
+            public void bindView(View view, UItem item, boolean divider, UniversalAdapter adapter, UniversalRecyclerView listView) {
                 ((WebpagePreviewView) view).set(
                     item.object instanceof TLRPC.WebPage ? (TLRPC.WebPage) item.object : null,
                     item.clickCallback,

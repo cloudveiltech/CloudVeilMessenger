@@ -1,6 +1,7 @@
 package org.telegram.ui;
 
 import android.app.Activity;
+import android.graphics.PointF;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -14,6 +15,7 @@ import org.telegram.ui.ActionBar.ActionBarPopupWindow;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.chat.ViewPositionWatcher;
 
 public class ReadAllMentionsMenu {
 
@@ -26,7 +28,7 @@ public class ReadAllMentionsMenu {
 
         ActionBarMenuSubItem cell = new ActionBarMenuSubItem(activity, true,true, resourcesProvider);
         cell.setMinimumWidth(AndroidUtilities.dp(200));
-        cell.setTextAndIcon(type == TYPE_REACTIONS ? LocaleController.getString("ReadAllReactions", R.string.ReadAllReactions) : LocaleController.getString("ReadAllMentions", R.string.ReadAllMentions) , R.drawable.msg_seen);
+        cell.setTextAndIcon(type == TYPE_REACTIONS ? LocaleController.getString(R.string.ReadAllReactions) : LocaleController.getString(R.string.ReadAllMentions) , R.drawable.msg_seen);
         cell.setOnClickListener(view -> {
             if (onRead != null) {
                 onRead.run();
@@ -46,8 +48,11 @@ public class ReadAllMentionsMenu {
         scrimPopupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED);
         scrimPopupWindow.getContentView().setFocusableInTouchMode(true);
 
-        float x = mentionButton.getX() + mentionButton.getWidth() - popupWindowLayout.getMeasuredWidth() + AndroidUtilities.dp(8);
-        float y = mentionButton.getY() - popupWindowLayout.getMeasuredHeight();
+        PointF pf = new PointF();
+        ViewPositionWatcher.computeCoordinatesInParent(mentionButton, contentView, pf);
+
+        float x = pf.x + mentionButton.getWidth() - popupWindowLayout.getMeasuredWidth() + AndroidUtilities.dp(8);
+        float y = pf.y - popupWindowLayout.getMeasuredHeight();
         if (AndroidUtilities.isTablet()) {
             View v = navigationLayout.getView();
             x += v.getX() + v.getPaddingLeft();

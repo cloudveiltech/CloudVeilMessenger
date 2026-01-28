@@ -4,6 +4,7 @@ import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.web.WebInstantView;
 
 public class ImageLocation {
 
@@ -39,12 +40,24 @@ public class ImageLocation {
 
     public WebFile webFile;
 
+    public WebInstantView.WebPhoto instantFile;
+
     public static ImageLocation getForPath(String path) {
         if (path == null) {
             return null;
         }
         ImageLocation imageLocation = new ImageLocation();
         imageLocation.path = path;
+        return imageLocation;
+    }
+
+    public static ImageLocation getForVideoPath(String path) {
+        if (path == null) {
+            return null;
+        }
+        ImageLocation imageLocation = new ImageLocation();
+        imageLocation.path = path;
+        imageLocation.imageType = FileLoader.IMAGE_TYPE_ANIMATION;
         return imageLocation;
     }
 
@@ -74,8 +87,21 @@ public class ImageLocation {
             return null;
         }
         ImageLocation imageLocation = new ImageLocation();
-        imageLocation.webFile = webFile;
-        imageLocation.currentSize = webFile.size;
+        if (webFile.noproxy) {
+            imageLocation.path = webFile.url;
+        } else {
+            imageLocation.webFile = webFile;
+            imageLocation.currentSize = webFile.size;
+        }
+        return imageLocation;
+    }
+
+    public static ImageLocation getForInstantFile(WebInstantView.WebPhoto instantFile) {
+        if (instantFile == null) {
+            return null;
+        }
+        ImageLocation imageLocation = new ImageLocation();
+        imageLocation.instantFile = instantFile;
         return imageLocation;
     }
 
@@ -418,6 +444,8 @@ public class ImageLocation {
             return location.volume_id + "_" + location.local_id;
         } else if (webFile != null) {
             return Utilities.MD5(webFile.url);
+        } else if (instantFile != null) {
+            return Utilities.MD5(instantFile.url);
         } else if (document != null) {
             if (!url && document instanceof DocumentObject.ThemeDocument) {
                 DocumentObject.ThemeDocument themeDocument = (DocumentObject.ThemeDocument) document;

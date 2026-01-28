@@ -13,7 +13,6 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserConfig;
@@ -39,7 +38,7 @@ public class PremiumPreviewGiftLinkBottomSheet extends PremiumPreviewBottomSheet
     private final String slug;
     private final boolean isUsed;
 
-    public static void show(String slug, TLRPC.TL_premiumGiftOption giftOption, TLRPC.User user, Browser.Progress progress) {
+    public static void show(String slug, Browser.Progress progress) {
         GiftInfoBottomSheet.show(LaunchActivity.getLastFragment(), slug, progress);
     }
 
@@ -48,14 +47,14 @@ public class PremiumPreviewGiftLinkBottomSheet extends PremiumPreviewBottomSheet
         if (fragment == null || instance != null) {
             return;
         }
-        GiftPremiumBottomSheet.GiftTier tier = new GiftPremiumBottomSheet.GiftTier(giftOption);
+        GiftPremiumBottomSheet.GiftTier tier = new GiftPremiumBottomSheet.GiftTier(giftOption, null);
         PremiumPreviewGiftLinkBottomSheet sheet = new PremiumPreviewGiftLinkBottomSheet(fragment, UserConfig.selectedAccount, user, tier, slug, isUsed, fragment.getResourceProvider());
         sheet.show();
         instance = sheet;
     }
 
     public PremiumPreviewGiftLinkBottomSheet(BaseFragment fragment, int currentAccount, TLRPC.User user, GiftPremiumBottomSheet.GiftTier gift, String slug, boolean isUsed, Theme.ResourcesProvider resourcesProvider) {
-        super(fragment, currentAccount, user, gift, resourcesProvider);
+        super(fragment, currentAccount, user, gift, null, resourcesProvider);
         this.slug = slug;
         this.isUsed = isUsed;
         init();
@@ -92,11 +91,11 @@ public class PremiumPreviewGiftLinkBottomSheet extends PremiumPreviewBottomSheet
         args.putBoolean("onlySelect", true);
         args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_FORWARD);
         DialogsActivity dialogFragment = new DialogsActivity(args);
-        dialogFragment.setDelegate((fragment1, dids, message, param, topicsFragment) -> {
+        dialogFragment.setDelegate((fragment1, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
             long did = 0;
             for (int a = 0; a < dids.size(); a++) {
                 did = dids.get(a).dialogId;
-                getBaseFragment().getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(slugLink, did, null, null, null, true, null, null, null, true, 0, null, false));
+                getBaseFragment().getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(slugLink, did, null, null, null, true, null, null, null, true, 0, 0, null, false));
             }
             fragment1.finishFragment();
             BoostDialogs.showGiftLinkForwardedBulletin(did);
@@ -145,7 +144,7 @@ public class PremiumPreviewGiftLinkBottomSheet extends PremiumPreviewBottomSheet
                     actionBtn.updateLoading(false);
                     dismiss();
                     AndroidUtilities.runOnUIThread(() -> {
-                        PremiumPreviewBottomSheet previewBottomSheet = new PremiumPreviewBottomSheet(getBaseFragment(), UserConfig.selectedAccount, null, null, resourcesProvider)
+                        PremiumPreviewBottomSheet previewBottomSheet = new PremiumPreviewBottomSheet(getBaseFragment(), UserConfig.selectedAccount, null, null, null, resourcesProvider)
                                 .setAnimateConfetti(true)
                                 .setAnimateConfettiWithStars(true)
                                 .setOutboundGift(true);

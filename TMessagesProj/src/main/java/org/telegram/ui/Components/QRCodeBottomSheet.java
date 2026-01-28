@@ -44,7 +44,10 @@ public class QRCodeBottomSheet extends BottomSheet {
     RLottieImageView iconImage;
 
     public QRCodeBottomSheet(Context context, String title, String link, String helpMessage, boolean includeShareLink) {
-        super(context, false);
+        this(context, title, link, helpMessage, includeShareLink, null);
+    }
+    public QRCodeBottomSheet(Context context, String title, String link, String helpMessage, boolean includeShareLink, Theme.ResourcesProvider resourcesProvider) {
+        super(context, false, resourcesProvider);
         fixNavigationBar();
 
         setTitle(title, true);
@@ -105,7 +108,7 @@ public class QRCodeBottomSheet extends BottomSheet {
         buttonTextView.setGravity(Gravity.CENTER);
         buttonTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         buttonTextView.setTypeface(AndroidUtilities.bold());
-        buttonTextView.setText(LocaleController.getString("ShareQrCode", R.string.ShareQrCode));
+        buttonTextView.setText(LocaleController.getString(R.string.ShareQrCode));
         buttonTextView.setOnClickListener(view -> {
             Uri uri = AndroidUtilities.getBitmapShareUri(qrCode, "qr_tmp.png", Bitmap.CompressFormat.PNG);
             if (uri != null) {
@@ -128,12 +131,12 @@ public class QRCodeBottomSheet extends BottomSheet {
             button2TextView.setGravity(Gravity.CENTER);
             button2TextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             //        button2TextView.setTypeface(AndroidUtilities.medium());
-            button2TextView.setText(LocaleController.getString("ShareLink", R.string.ShareLink));
+            button2TextView.setText(LocaleController.getString(R.string.ShareLink));
             button2TextView.setOnClickListener(view -> {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
                 shareIntent.putExtra(Intent.EXTRA_TEXT, link);
-                Intent chooserIntent = Intent.createChooser(shareIntent, LocaleController.getString("ShareLink", R.string.ShareLink));
+                Intent chooserIntent = Intent.createChooser(shareIntent, LocaleController.getString(R.string.ShareLink));
                 chooserIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(chooserIntent);
             });
@@ -180,17 +183,17 @@ public class QRCodeBottomSheet extends BottomSheet {
     }
 
     void updateColors() {
-        buttonTextView.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText));
-        buttonTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_featuredStickers_addButton), Theme.getColor(Theme.key_featuredStickers_addButtonPressed)));
+        buttonTextView.setTextColor(getThemedColor(Theme.key_featuredStickers_buttonText));
+        buttonTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), getThemedColor(Theme.key_featuredStickers_addButton), getThemedColor(Theme.key_featuredStickers_addButtonPressed)));
         if (button2TextView != null) {
-            button2TextView.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
-            button2TextView.setBackground(Theme.createSelectorDrawable(ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_featuredStickers_addButton), Math.min(255, Color.alpha(Theme.getColor(Theme.key_listSelector)) * 2)), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
+            button2TextView.setTextColor(getThemedColor(Theme.key_featuredStickers_addButton));
+            button2TextView.setBackground(Theme.createSelectorDrawable(ColorUtils.setAlphaComponent(getThemedColor(Theme.key_featuredStickers_addButton), Math.min(255, Color.alpha(getThemedColor(Theme.key_listSelector)) * 2)), Theme.RIPPLE_MASK_ROUNDRECT_6DP));
         }
-        help.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
-        help.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        help.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
+        help.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
         if (getTitleView() != null) {
-            getTitleView().setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            getTitleView().setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         }
-        setBackgroundColor(Theme.getColor(Theme.key_dialogBackground));
+        setBackgroundColor(getThemedColor(Theme.key_dialogBackground));
     }
 }

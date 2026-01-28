@@ -21,6 +21,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.ChatAttachAlertPhotoLayout;
 import org.telegram.ui.Components.LayoutHelper;
 
 public class PhotoAttachPermissionCell extends FrameLayout {
@@ -62,14 +63,14 @@ public class PhotoAttachPermissionCell extends FrameLayout {
         if (type == 0) {
             imageView.setImageResource(R.drawable.permissions_camera1);
             imageView2.setImageResource(R.drawable.permissions_camera2);
-            textView.setText(LocaleController.getString("CameraPermissionText", R.string.CameraPermissionText));
+            textView.setText(LocaleController.getString(R.string.CameraPermissionText));
 
             imageView.setLayoutParams(LayoutHelper.createFrame(44, 44, Gravity.CENTER, 5, 0, 0, 27));
             imageView2.setLayoutParams(LayoutHelper.createFrame(44, 44, Gravity.CENTER, 5, 0, 0, 27));
         } else {
             imageView.setImageResource(R.drawable.permissions_gallery1);
             imageView2.setImageResource(R.drawable.permissions_gallery2);
-            textView.setText(LocaleController.getString("GalleryPermissionText", R.string.GalleryPermissionText));
+            textView.setText(LocaleController.getString(R.string.GalleryPermissionText));
 
             imageView.setLayoutParams(LayoutHelper.createFrame(44, 44, Gravity.CENTER, 0, 0, 2, 27));
             imageView2.setLayoutParams(LayoutHelper.createFrame(44, 44, Gravity.CENTER, 0, 0, 2, 27));
@@ -78,7 +79,9 @@ public class PhotoAttachPermissionCell extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(MeasureSpec.makeMeasureSpec(itemSize, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(itemSize + AndroidUtilities.dp(5), MeasureSpec.EXACTLY));
+        super.onMeasure(
+            MeasureSpec.makeMeasureSpec(itemSize, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(itemSize + AndroidUtilities.dp(ChatAttachAlertPhotoLayout.GAP), MeasureSpec.EXACTLY));
     }
 
     private int getThemedColor(int key) {

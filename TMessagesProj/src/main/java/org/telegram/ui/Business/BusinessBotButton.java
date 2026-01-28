@@ -20,6 +20,7 @@ import org.telegram.messenger.UserObject;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_account;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AnimatedTextView;
@@ -36,6 +37,7 @@ public class BusinessBotButton extends FrameLayout {
 
     private final AvatarDrawable avatarDrawable;
     private final BackupImageView avatarView;
+    private final LinearLayout textLayout;
     private final AnimatedTextView titleView;
     private final AnimatedTextView subtitleView;
     private final ClickableAnimatedTextView pauseButton;
@@ -61,7 +63,7 @@ public class BusinessBotButton extends FrameLayout {
         avatarView.setForUserOrChat(user, avatarDrawable);
         addView(avatarView, LayoutHelper.createFrame(32, 32, Gravity.CENTER_VERTICAL | Gravity.LEFT, 10, 0, 10, 0));
 
-        LinearLayout textLayout = new LinearLayout(context);
+        textLayout = new LinearLayout(context);
         textLayout.setOrientation(LinearLayout.VERTICAL);
 
         titleView = new AnimatedTextView(context);
@@ -110,18 +112,12 @@ public class BusinessBotButton extends FrameLayout {
                 .putInt("dialog_botflags" + dialogId, flags)
                 .apply();
 
-            TLRPC.TL_account_toggleConnectedBotPaused req = new TLRPC.TL_account_toggleConnectedBotPaused();
+            TL_account.toggleConnectedBotPaused req = new TL_account.toggleConnectedBotPaused();
             req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
             req.paused = paused;
             ConnectionsManager.getInstance(currentAccount).sendRequest(req, null);
-
-
         });
-        pauseButton.setOnWidthUpdatedListener(() -> {
-            float padding = pauseButton.getPaddingLeft() + pauseButton.getDrawable().getCurrentWidth() + pauseButton.getPaddingRight() + dp(12);
-            titleView.setRightPadding(padding);
-            subtitleView.setRightPadding(padding);
-        });
+        pauseButton.setOnWidthUpdatedListener(this::updateTextRightPadding);
         pauseButton.setText(LocaleController.getString(paused ? R.string.BizBotStart : R.string.BizBotStop));
         addView(pauseButton, LayoutHelper.createFrame(64, 28, Gravity.CENTER_VERTICAL | Gravity.RIGHT, 0, 0, 49, 0));
 
@@ -133,7 +129,7 @@ public class BusinessBotButton extends FrameLayout {
         menuView.setOnClickListener(e -> {
             ItemOptions itemOptions = ItemOptions.makeOptions(chatActivity.getLayoutContainer(), resourcesProvider, menuView);
             itemOptions.add(R.drawable.msg_cancel, LocaleController.getString(R.string.BizBotRemove), true, () -> {
-                TLRPC.TL_account_disablePeerConnectedBot req = new TLRPC.TL_account_disablePeerConnectedBot();
+                TL_account.disablePeerConnectedBot req = new TL_account.disablePeerConnectedBot();
                 req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
                 ConnectionsManager.getInstance(currentAccount).sendRequest(req, null);
 
@@ -155,6 +151,20 @@ public class BusinessBotButton extends FrameLayout {
             itemOptions.show();
         });
         addView(menuView, LayoutHelper.createFrame(32, 32, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 8, 0, 9, 0));
+    }
+
+    private float leftMargin;
+    public void setLeftMargin(float leftMargin) {
+        this.leftMargin = leftMargin;
+        avatarView.setTranslationX(leftMargin);
+        textLayout.setTranslationX(leftMargin);
+        updateTextRightPadding();
+    }
+
+    private void updateTextRightPadding() {
+        final float padding = this.leftMargin + pauseButton.getPaddingLeft() + pauseButton.getDrawable().getCurrentWidth() + pauseButton.getPaddingRight() + dp(12);
+        titleView.setRightPadding(padding);
+        subtitleView.setRightPadding(padding);
     }
 
     public void set(

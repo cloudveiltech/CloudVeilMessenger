@@ -31,12 +31,12 @@ import android.util.SparseArray;
 import androidx.annotation.NonNull;
 import androidx.collection.LongSparseArray;
 
-import com.google.android.exoplayer2.util.Log;
-
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.Vector;
+import org.telegram.tgnet.tl.TL_account;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Components.Bulletin;
 
@@ -79,12 +79,15 @@ public class ContactsController extends BaseController {
     private ArrayList<TLRPC.PrivacyRule> p2pPrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> profilePhotoPrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> bioPrivacyRules;
+    private ArrayList<TLRPC.PrivacyRule> musicPrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> forwardsPrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> phonePrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> addedByPhonePrivacyRules;
     private ArrayList<TLRPC.PrivacyRule> voiceMessagesRules;
     private ArrayList<TLRPC.PrivacyRule> birthdayPrivacyRules;
-    private TLRPC.TL_globalPrivacySettings globalPrivacySettings;
+    private ArrayList<TLRPC.PrivacyRule> giftsPrivacyRules;
+    private ArrayList<TLRPC.PrivacyRule> noPaidMessagesPrivacyRules;
+    private TLRPC.GlobalPrivacySettings globalPrivacySettings;
 
     public final static int PRIVACY_RULES_TYPE_LASTSEEN = 0;
     public final static int PRIVACY_RULES_TYPE_INVITE = 1;
@@ -98,8 +101,11 @@ public class ContactsController extends BaseController {
     public final static int PRIVACY_RULES_TYPE_BIO = 9;
     public final static int PRIVACY_RULES_TYPE_MESSAGES = 10;
     public final static int PRIVACY_RULES_TYPE_BIRTHDAY = 11;
+    public final static int PRIVACY_RULES_TYPE_GIFTS = 12;
+    public final static int PRIVACY_RULES_TYPE_NO_PAID_MESSAGES = 13;
+    public final static int PRIVACY_RULES_TYPE_MUSIC = 14;
 
-    public final static int PRIVACY_RULES_TYPE_COUNT = 12;
+    public final static int PRIVACY_RULES_TYPE_COUNT = 15;
 
     private class MyContentObserver extends ContentObserver {
 
@@ -330,7 +336,9 @@ public class ContactsController extends BaseController {
         p2pPrivacyRules = null;
         profilePhotoPrivacyRules = null;
         bioPrivacyRules = null;
+        musicPrivacyRules = null;
         birthdayPrivacyRules = null;
+        giftsPrivacyRules = null;
         forwardsPrivacyRules = null;
         phonePrivacyRules = null;
 
@@ -368,12 +376,12 @@ public class ContactsController extends BaseController {
     public String getInviteText(int contacts) {
         String link = inviteLink == null ? "https://telegram.org/dl" : inviteLink;
         if (contacts <= 1) {
-            return LocaleController.formatString("InviteText2", R.string.InviteText2, link);
+            return LocaleController.formatString(R.string.InviteText2, link);
         } else {
             try {
                 return String.format(LocaleController.getPluralString("InviteTextNum", contacts), contacts, link);
             } catch (Exception e) {
-                return LocaleController.formatString("InviteText2", R.string.InviteText2, link);
+                return LocaleController.formatString(R.string.InviteText2, link);
             }
         }
     }
@@ -731,17 +739,17 @@ public class ContactsController extends BaseController {
 
                         if (type == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM) {
                             String custom = pCur.getString(3);
-                            contact.phoneTypes.add(custom != null ? custom : LocaleController.getString("PhoneMobile", R.string.PhoneMobile));
+                            contact.phoneTypes.add(custom != null ? custom : LocaleController.getString(R.string.PhoneMobile));
                         } else if (type == ContactsContract.CommonDataKinds.Phone.TYPE_HOME) {
-                            contact.phoneTypes.add(LocaleController.getString("PhoneHome", R.string.PhoneHome));
+                            contact.phoneTypes.add(LocaleController.getString(R.string.PhoneHome));
                         } else if (type == ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE) {
-                            contact.phoneTypes.add(LocaleController.getString("PhoneMobile", R.string.PhoneMobile));
+                            contact.phoneTypes.add(LocaleController.getString(R.string.PhoneMobile));
                         } else if (type == ContactsContract.CommonDataKinds.Phone.TYPE_WORK) {
-                            contact.phoneTypes.add(LocaleController.getString("PhoneWork", R.string.PhoneWork));
+                            contact.phoneTypes.add(LocaleController.getString(R.string.PhoneWork));
                         } else if (type == ContactsContract.CommonDataKinds.Phone.TYPE_MAIN) {
-                            contact.phoneTypes.add(LocaleController.getString("PhoneMain", R.string.PhoneMain));
+                            contact.phoneTypes.add(LocaleController.getString(R.string.PhoneMain));
                         } else {
-                            contact.phoneTypes.add(LocaleController.getString("PhoneOther", R.string.PhoneOther));
+                            contact.phoneTypes.add(LocaleController.getString(R.string.PhoneOther));
                         }
                         shortContacts.put(shortNumber, contact);
                     }
@@ -889,7 +897,7 @@ public class ContactsController extends BaseController {
                                     contact.phones.add(phoneBookContact.phone);
                                     contact.shortPhones.add(shortNumber);
                                     contact.phoneDeleted.add(0);
-                                    contact.phoneTypes.add(LocaleController.getString("PhoneOther", R.string.PhoneOther));
+                                    contact.phoneTypes.add(LocaleController.getString(R.string.PhoneOther));
                                     if (contactsMap == null) {
                                         contactsMap = new HashMap<>();
                                     }
@@ -2349,11 +2357,15 @@ public class ContactsController extends BaseController {
     }
 
     public void addContact(TLRPC.User user, boolean exception) {
+        addContact(user, null, exception);
+    }
+
+    public void addContact(TLRPC.User user, TLRPC.TL_textWithEntities note, boolean exception) {
         if (user == null) {
             return;
         }
 
-        TLRPC.TL_contacts_addContact req = new TLRPC.TL_contacts_addContact();
+        final TLRPC.TL_contacts_addContact req = new TLRPC.TL_contacts_addContact();
         req.id = getMessagesController().getInputUser(user);
         req.first_name = user.first_name;
         req.last_name = user.last_name;
@@ -2363,6 +2375,10 @@ public class ContactsController extends BaseController {
             req.phone = "";
         } else if (req.phone.length() > 0 && !req.phone.startsWith("+")) {
             req.phone = "+" + req.phone;
+        }
+        if (note != null) {
+            req.flags |= 2;
+            req.note = note;
         }
         getConnectionsManager().sendRequest(req, (response, error) -> {
             if (error != null) {
@@ -2384,18 +2400,18 @@ public class ContactsController extends BaseController {
                     continue;
                 }
                 Utilities.phoneBookQueue.postRunnable(() -> addContactToPhoneBook(u, true));
-                TLRPC.TL_contact newContact = new TLRPC.TL_contact();
+                final TLRPC.TL_contact newContact = new TLRPC.TL_contact();
                 newContact.user_id = u.id;
-                ArrayList<TLRPC.TL_contact> arrayList = new ArrayList<>();
+                final ArrayList<TLRPC.TL_contact> arrayList = new ArrayList<>();
                 arrayList.add(newContact);
                 getMessagesStorage().putContacts(arrayList, false);
 
                 if (!TextUtils.isEmpty(u.phone)) {
-                    CharSequence name = formatName(u.first_name, u.last_name);
+                    final CharSequence name = formatName(u.first_name, u.last_name);
                     getMessagesStorage().applyPhoneBookUpdates(u.phone, "");
-                    Contact contact = contactsBookSPhones.get(u.phone);
+                    final Contact contact = contactsBookSPhones.get(u.phone);
                     if (contact != null) {
-                        int index = contact.shortPhones.indexOf(u.phone);
+                        final int index = contact.shortPhones.indexOf(u.phone);
                         if (index != -1) {
                             contact.phoneDeleted.set(index, 0);
                         }
@@ -2582,10 +2598,10 @@ public class ContactsController extends BaseController {
         editor.putBoolean("needGetStatuses", true).commit();
         TLRPC.TL_contacts_getStatuses req = new TLRPC.TL_contacts_getStatuses();
         getConnectionsManager().sendRequest(req, (response, error) -> {
-            if (error == null) {
+            if (response instanceof Vector) {
                 AndroidUtilities.runOnUIThread(() -> {
                     editor.remove("needGetStatuses").commit();
-                    TLRPC.Vector vector = (TLRPC.Vector) response;
+                    Vector vector = (Vector) response;
                     if (!vector.objects.isEmpty()) {
                         ArrayList<TLRPC.User> dbUsersStatus = new ArrayList<>();
                         for (Object object : vector.objects) {
@@ -2621,10 +2637,10 @@ public class ContactsController extends BaseController {
     public void loadGlobalPrivacySetting() {
         if (loadingGlobalSettings == 0) {
             loadingGlobalSettings = 1;
-            TLRPC.TL_account_getGlobalPrivacySettings req = new TLRPC.TL_account_getGlobalPrivacySettings();
+            TL_account.getGlobalPrivacySettings req = new TL_account.getGlobalPrivacySettings();
             getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                 if (error == null) {
-                    globalPrivacySettings = (TLRPC.TL_globalPrivacySettings) response;
+                    globalPrivacySettings = (TLRPC.GlobalPrivacySettings) response;
                     loadingGlobalSettings = 2;
                 } else {
                     loadingGlobalSettings = 0;
@@ -2635,9 +2651,12 @@ public class ContactsController extends BaseController {
     }
 
     public void loadPrivacySettings() {
+        loadPrivacySettings(false);
+    }
+    public void loadPrivacySettings(boolean force) {
         if (loadingDeleteInfo == 0) {
             loadingDeleteInfo = 1;
-            TLRPC.TL_account_getAccountTTL req = new TLRPC.TL_account_getAccountTTL();
+            TL_account.getAccountTTL req = new TL_account.getAccountTTL();
             getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                 if (error == null) {
                     TLRPC.TL_accountDaysTTL ttl = (TLRPC.TL_accountDaysTTL) response;
@@ -2651,13 +2670,13 @@ public class ContactsController extends BaseController {
         }
         loadGlobalPrivacySetting();
         for (int a = 0; a < loadingPrivacyInfo.length; a++) {
-            if (loadingPrivacyInfo[a] != 0) {
+            if (force ? loadingPrivacyInfo[a] == 1 : loadingPrivacyInfo[a] != 0) {
                 continue;
             }
             loadingPrivacyInfo[a] = 1;
             final int num = a;
 
-            TLRPC.TL_account_getPrivacy req = new TLRPC.TL_account_getPrivacy();
+            TL_account.getPrivacy req = new TL_account.getPrivacy();
 
             switch (num) {
                 case PRIVACY_RULES_TYPE_LASTSEEN:
@@ -2678,6 +2697,9 @@ public class ContactsController extends BaseController {
                 case PRIVACY_RULES_TYPE_BIO:
                     req.key = new TLRPC.TL_inputPrivacyKeyAbout();
                     break;
+                case PRIVACY_RULES_TYPE_MUSIC:
+                    req.key = new TLRPC.TL_inputPrivacyKeySavedMusic();
+                    break;
                 case PRIVACY_RULES_TYPE_FORWARDS:
                     req.key = new TLRPC.TL_inputPrivacyKeyForwards();
                     break;
@@ -2690,6 +2712,12 @@ public class ContactsController extends BaseController {
                 case PRIVACY_RULES_TYPE_BIRTHDAY:
                     req.key = new TLRPC.TL_inputPrivacyKeyBirthday();
                     break;
+                case PRIVACY_RULES_TYPE_GIFTS:
+                    req.key = new TLRPC.TL_inputPrivacyKeyStarGiftsAutoSave();
+                    break;
+                case PRIVACY_RULES_TYPE_NO_PAID_MESSAGES:
+                    req.key = new TLRPC.TL_inputPrivacyKeyNoPaidMessages();
+                    break;
                 case PRIVACY_RULES_TYPE_ADDED_BY_PHONE:
                     req.key = new TLRPC.TL_inputPrivacyKeyAddedByPhone();
                     break;
@@ -2699,7 +2727,7 @@ public class ContactsController extends BaseController {
 
             getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                 if (error == null) {
-                    TLRPC.TL_account_privacyRules rules = (TLRPC.TL_account_privacyRules) response;
+                    TL_account.privacyRules rules = (TL_account.privacyRules) response;
                     getMessagesController().putUsers(rules.users, false);
                     getMessagesController().putChats(rules.chats, false);
 
@@ -2722,8 +2750,17 @@ public class ContactsController extends BaseController {
                         case PRIVACY_RULES_TYPE_BIO:
                             bioPrivacyRules = rules.rules;
                             break;
+                        case PRIVACY_RULES_TYPE_MUSIC:
+                            musicPrivacyRules = rules.rules;
+                            break;
                         case PRIVACY_RULES_TYPE_BIRTHDAY:
                             birthdayPrivacyRules = rules.rules;
+                            break;
+                        case PRIVACY_RULES_TYPE_GIFTS:
+                            giftsPrivacyRules = rules.rules;
+                            break;
+                        case PRIVACY_RULES_TYPE_NO_PAID_MESSAGES:
+                            noPaidMessagesPrivacyRules = rules.rules;
                             break;
                         case PRIVACY_RULES_TYPE_FORWARDS:
                             forwardsPrivacyRules = rules.rules;
@@ -2769,7 +2806,7 @@ public class ContactsController extends BaseController {
         return loadingPrivacyInfo[type] != 2;
     }
 
-    public TLRPC.TL_globalPrivacySettings getGlobalPrivacySettings() {
+    public TLRPC.GlobalPrivacySettings getGlobalPrivacySettings() {
         return globalPrivacySettings;
     }
 
@@ -2787,8 +2824,14 @@ public class ContactsController extends BaseController {
                 return profilePhotoPrivacyRules;
             case PRIVACY_RULES_TYPE_BIO:
                 return bioPrivacyRules;
+            case PRIVACY_RULES_TYPE_MUSIC:
+                return musicPrivacyRules;
             case PRIVACY_RULES_TYPE_BIRTHDAY:
                 return birthdayPrivacyRules;
+            case PRIVACY_RULES_TYPE_GIFTS:
+                return giftsPrivacyRules;
+            case PRIVACY_RULES_TYPE_NO_PAID_MESSAGES:
+                return noPaidMessagesPrivacyRules;
             case PRIVACY_RULES_TYPE_FORWARDS:
                 return forwardsPrivacyRules;
             case PRIVACY_RULES_TYPE_PHONE:
@@ -2821,8 +2864,17 @@ public class ContactsController extends BaseController {
             case PRIVACY_RULES_TYPE_BIO:
                 bioPrivacyRules = rules;
                 break;
+            case PRIVACY_RULES_TYPE_MUSIC:
+                musicPrivacyRules = rules;
+                break;
             case PRIVACY_RULES_TYPE_BIRTHDAY:
                 birthdayPrivacyRules = rules;
+                break;
+            case PRIVACY_RULES_TYPE_GIFTS:
+                giftsPrivacyRules = rules;
+                break;
+            case PRIVACY_RULES_TYPE_NO_PAID_MESSAGES:
+                noPaidMessagesPrivacyRules = rules;
                 break;
             case PRIVACY_RULES_TYPE_FORWARDS:
                 forwardsPrivacyRules = rules;
@@ -2997,7 +3049,7 @@ public class ContactsController extends BaseController {
     @NonNull
     public static String formatName(String firstName, String lastName, int maxLength) {
         /*if ((firstName == null || firstName.length() == 0) && (lastName == null || lastName.length() == 0)) {
-            return LocaleController.getString("HiddenName", R.string.HiddenName);
+            return LocaleController.getString(R.string.HiddenName);
         }*/
         if (firstName != null) {
             firstName = firstName.trim();
@@ -3060,5 +3112,18 @@ public class ContactsController extends BaseController {
         String lookup_key;
         String name;
         String phone;
+    }
+
+
+    public static <T extends TLRPC.PrivacyRule> T findRule(ArrayList<TLRPC.PrivacyRule> rules, Class<T> clazz) {
+        if (rules == null) {
+            return null;
+        }
+        for (TLRPC.PrivacyRule rule : rules) {
+            if (clazz.isInstance(rule)) {
+                return clazz.cast(rule);
+            }
+        }
+        return null;
     }
 }

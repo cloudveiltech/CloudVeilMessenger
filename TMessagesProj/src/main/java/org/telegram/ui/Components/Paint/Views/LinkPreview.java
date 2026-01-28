@@ -28,15 +28,16 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
-import org.telegram.tgnet.AbstractSerializedData;
+import org.telegram.tgnet.InputSerializedData;
+import org.telegram.tgnet.OutputSerializedData;
 import org.telegram.tgnet.TLObject;
+import org.telegram.tgnet.TLParseException;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.Text;
-import org.telegram.ui.Stories.recorder.HintView2;
 
 public class LinkPreview extends View {
 
@@ -102,20 +103,21 @@ public class LinkPreview extends View {
         this.video = true;
     }
 
+    public int previewType;
     public int type, color;
     private WebPagePreview webpage;
 
-    private float w, h;
+    public float w, h;
     private float previewHeight;
     private float photoHeight;
 
-    private void setupLayout() {
+    public void setupLayout() {
         if (!relayout || webpage == null) {
             return;
         }
 
-        final String text = TextUtils.isEmpty(webpage.name) ? fromUrl(webpage.url) : webpage.name;
         if (withPreview()) {
+            final String text = TextUtils.isEmpty(webpage.name) ? fromUrl(webpage.url) : webpage.name;
             final TLRPC.WebPage preview = this.webpage.webpage;
             float maxWidth = this.maxWidth - padx - padx;
 
@@ -213,7 +215,7 @@ public class LinkPreview extends View {
             h += 11 * density;
 
         } else {
-
+            final String text = TextUtils.isEmpty(webpage.name) ? fromUrlWithoutSchema(webpage.url).toUpperCase() : webpage.name;
             float maxWidth = this.maxWidth - padx - padx - (padding.left + iconSize + iconPadding + padding.right) * density;
             textScale = 1f;
             layout = new StaticLayout(TextUtils.ellipsize(text, layoutPaint, (int) Math.ceil(maxWidth), TextUtils.TruncateAt.END), layoutPaint, (int) Math.ceil(maxWidth), Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false);
@@ -285,6 +287,15 @@ public class LinkPreview extends View {
         invalidate();
     }
 
+    public void setPreviewType(int type) {
+        previewType = type;
+        invalidate();
+    }
+
+    public int getPreviewType() {
+        return previewType;
+    }
+
     public void set(int currentAccount, WebPagePreview webpage) {
         set(currentAccount, webpage, false);
     }
@@ -303,6 +314,13 @@ public class LinkPreview extends View {
         return url;
     }
 
+    public static String fromUrlWithoutSchema(String url) {
+        if (url.startsWith("https://")) {
+            return url.substring(8);
+        }
+        return url;
+    }
+
 
     private final RectF bounds = new RectF();
     private final RectF rect = new RectF();
@@ -316,6 +334,7 @@ public class LinkPreview extends View {
     private final AnimatedFloat photoAlphaProgress = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private final AnimatedFloat photoSmallProgress = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private final AnimatedFloat previewProgress = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
+    private final AnimatedFloat previewTheme = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private final AnimatedFloat previewHeightProgress = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private final AnimatedFloat width = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
     private final AnimatedFloat height = new AnimatedFloat(this, 0, 350, CubicBezierInterpolator.EASE_OUT_QUINT);
@@ -334,11 +353,12 @@ public class LinkPreview extends View {
 
         final float w = width.set(this.w);
         final float h = height.set(this.h);
+        final float previewDark = previewTheme.set(previewType == 0);
         final float preview = previewProgress.set(withPreview());
         final float r = AndroidUtilities.lerp(.2f * h, 16.66f * density, preview);
 
         bounds.set(padx, pady, padx + w, pady + h);
-        outlinePaint.setColor(ColorUtils.blendARGB(backgroundColor, 0xFF202429, preview));
+        outlinePaint.setColor(ColorUtils.blendARGB(backgroundColor, ColorUtils.blendARGB(0xFFFFFFFF, 0xFF202429, previewDark), preview));
 
         path2.rewind();
         path2.addRoundRect(bounds, r, r, Path.Direction.CW);
@@ -381,14 +401,14 @@ public class LinkPreview extends View {
 
             if (hasTitle && titleText != null) {
                 titleText
-                    .draw(canvas, 20 * density, y + titleText.getHeight() / 2f, 0xFFFFFFFF, preview);
+                    .draw(canvas, 20 * density, y + titleText.getHeight() / 2f, ColorUtils.blendARGB(0xFF333333, 0xFFFFFFFF, previewDark), preview);
                 y += titleText.getHeight() + 2.66f * density;
             }
 
             if (hasDescription && descriptionLayout != null) {
                 canvas.save();
                 canvas.translate(20 * density - descriptionLayoutLeft, y);
-                descriptionPaint.setColor(0xFFFFFFFF);
+                descriptionPaint.setColor(ColorUtils.blendARGB(0xFF333333, 0xFFFFFFFF, previewDark));
                 descriptionPaint.setAlpha((int) (0xFF * preview));
                 descriptionLayout.draw(canvas);
                 canvas.restore();
@@ -473,21 +493,13 @@ public class LinkPreview extends View {
 
         public int photoSize;
 
-        public static WebPagePreview TLdeserialize(AbstractSerializedData stream, int constructor, boolean exception) {
-            if (WebPagePreview.constructor != constructor) {
-                if (exception) {
-                    throw new RuntimeException(String.format("can't parse magic %x in WebPagePreview", constructor));
-                } else {
-                    return null;
-                }
-            }
-            WebPagePreview result = new WebPagePreview();
-            result.readParams(stream, exception);
-            return result;
+        public static WebPagePreview TLdeserialize(InputSerializedData stream, int constructor, boolean exception) {
+            final WebPagePreview result = WebPagePreview.constructor != constructor ? null : new WebPagePreview();
+            return TLdeserialize(WebPagePreview.class, result, stream, constructor, exception);
         }
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(constructor);
             flags = (webpage != null) ? flags | 1 : flags &~ 1;
             flags = !TextUtils.isEmpty(name) ? flags | 2 : flags &~ 2;
@@ -507,7 +519,7 @@ public class LinkPreview extends View {
         }
 
         @Override
-        public void readParams(AbstractSerializedData stream, boolean exception) {
+        public void readParams(InputSerializedData stream, boolean exception) {
             flags = stream.readInt32(exception);
             largePhoto = (flags & 8) != 0;
             captionAbove = (flags & 16) != 0;

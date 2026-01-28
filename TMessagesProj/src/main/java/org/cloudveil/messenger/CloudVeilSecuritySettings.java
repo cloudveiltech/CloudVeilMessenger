@@ -13,6 +13,7 @@ import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
 import org.telegram.messenger.MediaDataController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
 
 import java.util.UUID;
@@ -219,7 +220,7 @@ public class CloudVeilSecuritySettings {
         }
     }
 
-    public static SettingsResponse.Organization getOrganization() {
+    public @NonNull static SettingsResponse.Organization getOrganization() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         SettingsResponse.Organization organization = new Gson().fromJson(preferences.getString("organization", ""), SettingsResponse.Organization.class);
         if(organization == null) {
@@ -252,6 +253,11 @@ public class CloudVeilSecuritySettings {
     public static void setIsDisableStories(boolean isStoriesDisabled) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("isStoriesDisabled", isStoriesDisabled).apply();
+        SharedPreferences.Editor edit = MessagesController.getNotificationsSettings(UserConfig.selectedAccount).edit();
+        if (isStoriesDisabled) {
+            edit.remove("EnableAllStories"); // remove notifications for stories as a courtesy
+            edit.apply();
+        }
     }
 
     public static boolean getIsDisableStories() {

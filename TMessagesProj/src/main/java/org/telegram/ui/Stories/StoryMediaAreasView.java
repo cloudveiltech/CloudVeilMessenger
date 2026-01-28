@@ -36,6 +36,7 @@ import androidx.annotation.NonNull;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.browser.Browser;
@@ -49,11 +50,14 @@ import org.telegram.ui.Components.ButtonBounce;
 import org.telegram.ui.Components.ColoredImageSpan;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Paint.Views.LocationMarker;
+import org.telegram.ui.Components.Paint.Views.WeatherView;
 import org.telegram.ui.Components.ScaleStateListAnimator;
 import org.telegram.ui.EmojiAnimationsOverlay;
 import org.telegram.ui.LocationActivity;
 import org.telegram.ui.Stories.recorder.HintView2;
 import org.telegram.ui.Stories.recorder.StoryEntry;
+import org.telegram.ui.Stories.recorder.Weather;
 
 import java.util.ArrayList;
 
@@ -156,6 +160,21 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
                         storyReactionWidgetView.setViews(storyItem.views, false);
                     }
                     ScaleStateListAnimator.apply(areaView);
+                } else if (mediaArea instanceof TL_stories.TL_mediaAreaWeather) {
+                    TL_stories.TL_mediaAreaWeather weather = (TL_stories.TL_mediaAreaWeather) mediaArea;
+
+                    Weather.State state = new Weather.State();
+                    state.emoji = weather.emoji;
+                    state.temperature = (float) weather.temperature_c;
+
+                    LocationMarker marker = new LocationMarker(getContext(), LocationMarker.VARIANT_WEATHER, AndroidUtilities.density, 0);
+                    marker.setMaxWidth(AndroidUtilities.displaySize.x);
+                    marker.setIsVideo(true);
+                    marker.setCodeEmoji(UserConfig.selectedAccount, state.getEmoji());
+                    marker.setText(state.getTemperature());
+                    marker.setType(3, weather.color);
+
+                    areaView = new FitViewWidget(getContext(), marker, mediaArea);
                 } else {
                     areaView = new AreaView(getContext(), parentView, mediaArea);
                 }
@@ -168,6 +187,15 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
         malicious = false; // totalArea > W * H * .33f;
 
         hintsContainer.bringToFront();
+    }
+
+    public static int rgbaToArgb(int rgba) {
+        int red = (rgba >>> 24) & 0xFF;
+        int green = (rgba >>> 16) & 0xFF;
+        int blue = (rgba >>> 8) & 0xFF;
+        int alpha = rgba & 0xFF;
+
+        return (alpha << 24) | (red << 16) | (green << 8) | blue;
     }
 
     @Override
@@ -183,6 +211,12 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
                 );
             } else if (view instanceof AreaView) {
                 AreaView child = (AreaView) getChildAt(i);
+                child.measure(
+                    MeasureSpec.makeMeasureSpec((int) Math.ceil(child.mediaArea.coordinates.w / 100 * w), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec((int) Math.ceil(child.mediaArea.coordinates.h / 100 * h), MeasureSpec.EXACTLY)
+                );
+            } else if (view instanceof FitViewWidget) {
+                FitViewWidget child = (FitViewWidget) getChildAt(i);
                 child.measure(
                     MeasureSpec.makeMeasureSpec((int) Math.ceil(child.mediaArea.coordinates.w / 100 * w), MeasureSpec.EXACTLY),
                     MeasureSpec.makeMeasureSpec((int) Math.ceil(child.mediaArea.coordinates.h / 100 * h), MeasureSpec.EXACTLY)
@@ -225,6 +259,12 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
 
             if (selectedArea.mediaArea instanceof TL_stories.TL_mediaAreaUrl) {
                 Browser.openUrl(getContext(), ((TL_stories.TL_mediaAreaUrl) selectedArea.mediaArea).url);
+                selectedArea = null;
+                invalidate();
+                return;
+            } else if (selectedArea.mediaArea instanceof TL_stories.TL_mediaAreaStarGift) {
+                final String slug = ((TL_stories.TL_mediaAreaStarGift) selectedArea.mediaArea).slug;
+                Browser.openUrl(getContext(), "https://" + MessagesController.getInstance(UserConfig.selectedAccount).linkPrefix + "/nft/" + slug);
                 selectedArea = null;
                 invalidate();
                 return;
@@ -290,6 +330,8 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
         SpannableStringBuilder text = new SpannableStringBuilder();
         if (selectedArea.mediaArea instanceof TL_stories.TL_mediaAreaChannelPost) {
             text.append(LocaleController.getString(R.string.StoryViewMessage));
+        } else if (selectedArea.mediaArea instanceof TL_stories.TL_mediaAreaStarGift) {
+            text.append(LocaleController.getString(R.string.StoryViewGift));
         } else if (selectedArea.mediaArea instanceof TL_stories.TL_mediaAreaUrl) {
             thisHint.setMultilineText(multiline = true);
             text.append(LocaleController.getString(R.string.StoryOpenLink));
@@ -409,6 +451,13 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
                 child.setTranslationX((float) (child.mediaArea.coordinates.x / 100 * getMeasuredWidth()));
                 child.setTranslationY((float) (child.mediaArea.coordinates.y / 100 * getMeasuredHeight()));
                 child.setRotation((float) child.mediaArea.coordinates.rotation);
+            } else if (view instanceof FitViewWidget) {
+                FitViewWidget child = (FitViewWidget) view;
+                int w = child.getMeasuredWidth(), h = child.getMeasuredHeight();
+                child.layout(-w / 2, -h / 2, w / 2, h / 2);
+                child.setTranslationX((float) (child.mediaArea.coordinates.x / 100 * getMeasuredWidth()));
+                child.setTranslationY((float) (child.mediaArea.coordinates.y / 100 * getMeasuredHeight()));
+                child.setRotation((float) child.mediaArea.coordinates.rotation);
             }
         }
     }
@@ -478,7 +527,7 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
                 canvas.scale(s, s, rectF.centerX(), rectF.centerY());
                 canvas.rotate(lastSelectedArea.getRotation(), rectF.centerX(), rectF.centerY());
                 final float r = (lastSelectedArea.mediaArea.coordinates.flags & 1) != 0 ?
-                    (float) (lastSelectedArea.mediaArea.coordinates.radius / 100.0 * getWidth()) :
+                    (float) (lastSelectedArea.mediaArea.coordinates.radius / 100.0 * lastSelectedArea.getMeasuredWidth()) :
                     .2f * lastSelectedArea.getMeasuredHeight();
                 clipPath.addRoundRect(rectF, r, r, Path.Direction.CW);
                 canvas.clipPath(clipPath);
@@ -684,7 +733,7 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
         public float getInnerRadius() {
             if (getParent() instanceof View && mediaArea != null && mediaArea.coordinates != null) {
                 return (mediaArea.coordinates.flags & 1) != 0 ?
-                        (float) (mediaArea.coordinates.radius / 100.0 * ((View) getParent()).getWidth() / getScaleX()) :
+                        (float) (mediaArea.coordinates.radius / 100.0 * getWidth() / getScaleX()) :
                         .2f * getMeasuredHeight();
             } else {
                 return .2f * getMeasuredHeight();
@@ -748,6 +797,42 @@ public class StoryMediaAreasView extends FrameLayout implements View.OnClickList
             gradient = new LinearGradient(0, 0, 40, 0, new int[] { 0x00ffffff, 0x2dffffff, 0x2dffffff, 0x00ffffff }, new float[] { 0, .4f, .6f, 1f }, Shader.TileMode.CLAMP );
             strokeGradient = new LinearGradient(0, 0, 40, 0, new int[] { 0x00ffffff, 0x20ffffff, 0x20ffffff, 0x00ffffff }, new float[] { 0, .4f, .6f, 1f }, Shader.TileMode.CLAMP );
             invalidate();
+        }
+    }
+
+    public static class FitViewWidget extends FrameLayout {
+
+        public final TL_stories.MediaArea mediaArea;
+        public final View child;
+
+        public FitViewWidget(Context context, View widget, TL_stories.MediaArea mediaArea) {
+            super(context);
+            this.mediaArea = mediaArea;
+            addView(this.child = widget);
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+
+            this.child.measure(widthMeasureSpec, heightMeasureSpec);
+
+            final int childw = this.child.getMeasuredWidth() - this.child.getPaddingLeft() - this.child.getPaddingRight();
+            final int childh = this.child.getMeasuredHeight() - this.child.getPaddingTop() - this.child.getPaddingBottom();
+            this.child.setPivotX(this.child.getPaddingLeft() + childw / 2f);
+            this.child.setPivotY(this.child.getPaddingTop() + childh / 2f);
+
+            final int w = MeasureSpec.getSize(widthMeasureSpec);
+            final int h = MeasureSpec.getSize(heightMeasureSpec);
+            setMeasuredDimension(w, h);
+
+            float scale = Math.min(
+                (float) w / childw,
+                (float) h / childh
+            );
+            this.child.setTranslationX(w / 2f - (childw / 2f + this.child.getPaddingLeft()));
+            this.child.setTranslationY(h / 2f - (childh / 2f + this.child.getPaddingTop()));
+            this.child.setScaleX(scale);
+            this.child.setScaleY(scale);
         }
     }
 }

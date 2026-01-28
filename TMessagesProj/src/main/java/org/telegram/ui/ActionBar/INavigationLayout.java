@@ -41,6 +41,7 @@ public interface INavigationLayout {
     void setFragmentStackChangedListener(Runnable onFragmentStackChanged);
     boolean isTransitionAnimationInProgress();
     void resumeDelayedFragmentAnimation();
+    boolean allowSwipe();
 
     boolean isInPassivePreviewMode();
     void setInBubbleMode(boolean bubbleMode);
@@ -159,6 +160,18 @@ public interface INavigationLayout {
             if (fragment == null || fragment.isFinishing() || fragment.isRemovingFromStack())
                 continue;
             return fragment;
+        }
+        return null;
+    }
+
+    default <T extends BaseFragment> T findFragment(Class<T> clazz) {
+        if (getFragmentStack().isEmpty()) return null;
+        for (int i = getFragmentStack().size() - 1; i >= 0; --i) {
+            BaseFragment fragment = getFragmentStack().get(i);
+            if (fragment == null || fragment.isFinishing() || fragment.isRemovingFromStack())
+                continue;
+            if (clazz.isInstance(fragment))
+                return (T) fragment;
         }
         return null;
     }

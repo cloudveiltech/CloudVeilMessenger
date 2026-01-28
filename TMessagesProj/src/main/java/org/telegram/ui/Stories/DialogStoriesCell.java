@@ -461,7 +461,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
 
         if (storiesController.hasOnlySelfStories()) {
             if (storiesController.hasUploadingStories(UserConfig.getInstance(currentAccount).getClientUserId())) {
-                String str = LocaleController.getString("UploadingStory", R.string.UploadingStory);
+                String str = LocaleController.getString(R.string.UploadingStory);
                 int index = str.indexOf("…");
                 if (index > 0) {
                     if (uploadingString == null) {
@@ -476,7 +476,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                     currentTitle = str;
                 }
             } else {
-                currentTitle = LocaleController.getString("MyStory", R.string.MyStory);
+                currentTitle = LocaleController.getString(R.string.MyStory);
             }
         } else {
             currentTitle = LocaleController.formatPluralString("Stories", totalCount);
@@ -889,7 +889,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
     public void openStoryRecorder(long dialogId) {
         if (dialogId == 0) {
             final StoriesController.StoryLimit storyLimit = MessagesController.getInstance(currentAccount).getStoriesController().checkStoryLimit();
-            if (storyLimit != null) {
+            if (storyLimit != null && storyLimit.active(currentAccount)) {
                 fragment.showDialog(new LimitReachedBottomSheet(fragment, getContext(), storyLimit.getLimitReachedType(), currentAccount, null));
                 return;
             }
@@ -1361,7 +1361,7 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
                     for (int i = 0; i < uploadingOrEditingStories.size(); i++) {
                         uploadingProgress += uploadingOrEditingStories.get(i).progress;
                     }
-                    uploadingProgress = uploadingProgress / uploadingOrEditingStories.size();
+                    uploadingProgress = (storiesController.uploadedStories + uploadingProgress) / (storiesController.uploadedStories + uploadingOrEditingStories.size());
                     lastUploadingCloseFriends = closeFriends = uploadingOrEditingStories.get(uploadingOrEditingStories.size() - 1).isCloseFriends();
                 }
                 invalidate();

@@ -8,6 +8,8 @@
 
 package org.telegram.messenger;
 
+import static org.telegram.messenger.ImageLoader.getHttpUrlExtension;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
 import android.graphics.BlendMode;
@@ -46,6 +48,7 @@ import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RecyclableDrawable;
 import org.telegram.ui.Components.VectorAvatarThumbDrawable;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -223,6 +226,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
     private int currentAccount;
     private View parentView;
+    private Runnable parentRunnable;
 
     private int param;
     private Object currentParentObject;
@@ -290,7 +294,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     private boolean allowLottieVibration = true;
     private boolean allowStartAnimation = true;
     private boolean allowStartLottieAnimation = true;
-    private boolean useSharedAnimationQueue;
+    public boolean useSharedAnimationQueue;
     private boolean allowDecodeSingleFrame;
     private int autoRepeat = 1;
     private int autoRepeatCount = -1;
@@ -509,6 +513,54 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
             }
         }
 
+    }
+
+    public static File getAvatarLocalFile(int currentAccount, TLObject obj) {
+        try {
+            final String ext = "jpg";
+            final ImageLocation location = ImageLocation.getForUserOrChat(obj, ImageLocation.TYPE_SMALL);
+            File f = FileLoader.getInstance(currentAccount).getLocalFile(location);
+            if (f != null) return f;
+
+            String url = location.getKey(obj, location, true);
+            if (location.path != null) {
+                url = url + "." + getHttpUrlExtension(location.path, "jpg");
+            } else if (location.photoSize instanceof TLRPC.TL_photoStrippedSize || location.photoSize instanceof TLRPC.TL_photoPathSize) {
+                url = url + "." + ext;
+            } else if (location.location != null) {
+                url = url + "." + ext;
+            } else if (location.webFile != null) {
+                String defaultExt = FileLoader.getMimeTypePart(location.webFile.mime_type);
+                url = url + "." + getHttpUrlExtension(location.webFile.url, defaultExt);
+            } else if (location.secureDocument != null) {
+                url = url + "." + ext;
+            } else if (location.document != null) {
+                String docExt = FileLoader.getDocumentFileName(location.document);
+                int idx;
+                if ((idx = docExt.lastIndexOf('.')) == -1) {
+                    docExt = "";
+                } else {
+                    docExt = docExt.substring(idx);
+                }
+                if (docExt.length() <= 1) {
+                    if ("video/mp4".equals(location.document.mime_type)) {
+                        docExt = ".mp4";
+                    } else if ("video/x-matroska".equals(location.document.mime_type)) {
+                        docExt = ".mkv";
+                    } else {
+                        docExt = "";
+                    }
+                }
+                url = url + docExt;
+            }
+            f = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), url);
+            if (!f.exists()) return null;
+
+            return f;
+        } catch (Exception e) {
+            FileLog.e(e);
+            return null;
+        }
     }
 
     public void setImage(ImageLocation fileLocation, String fileFilter, ImageLocation thumbLocation, String thumbFilter, Drawable thumb, Object parentObject, int cacheType) {
@@ -1799,7 +1851,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     public void skipDraw() {
 //        RLottieDrawable lottieDrawable = getLottieAnimation();
 //        if (lottieDrawable != null) {
-//            lottieDrawable.setCurrentParentView(parentView);
 //            lottieDrawable.updateCurrentFrame();
 //        }
     }
@@ -1887,9 +1938,6 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
             if (animation != null) {
                 animation.setRoundRadius(roundRadius);
-            }
-            if (lottieDrawable != null && !drawInBackground) {
-                lottieDrawable.setCurrentParentView(parentView);
             }
             if ((animation != null || lottieDrawable != null) && !animationNotReady && !animationReadySent && !drawInBackground) {
                 animationReadySent = true;
@@ -2052,12 +2100,10 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         manualAlphaAnimator = value;
     }
 
-    @Keep
     public float getCurrentAlpha() {
         return currentAlpha;
     }
 
-    @Keep
     public void setCurrentAlpha(float value) {
         currentAlpha = value;
     }
@@ -2223,7 +2269,15 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         isVisible = value;
         if (invalidate) {
             invalidate();
+            if (visibleInvalidate != null) {
+                visibleInvalidate.run();
+            }
         }
+    }
+
+    private Runnable visibleInvalidate;
+    public void setVisibleInvalidate(Runnable invalidate) {
+        visibleInvalidate = invalidate;
     }
 
     public void invalidate() {
@@ -2607,6 +2661,10 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         }
     }
 
+    public int getAutoRepeat() {
+        return autoRepeat;
+    }
+
     public void setAutoRepeatCount(int count) {
         autoRepeatCount = count;
         if (getLottieAnimation() != null) {
@@ -2636,6 +2694,9 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     }
 
     public void startAnimation() {
+        startAnimation(false);
+    }
+    public void startAnimation(boolean force) {
         AnimatedFileDrawable animation = getAnimation();
         if (animation != null) {
             animation.setUseSharedQueue(useSharedAnimationQueue);
@@ -2643,7 +2704,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         } else {
             RLottieDrawable rLottieDrawable = getLottieAnimation();
             if (rLottieDrawable != null && !rLottieDrawable.isRunning()) {
-                rLottieDrawable.restart();
+                rLottieDrawable.restart(force);
             }
         }
     }
@@ -2664,8 +2725,8 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     public void setEmojiPaused(boolean paused) {
         if (emojiPaused == paused) return;
         emojiPaused = paused;
-        RLottieDrawable rLottieDrawable = getLottieAnimation();
         allowStartLottieAnimation = !paused;
+        RLottieDrawable rLottieDrawable = getLottieAnimation();
         if (rLottieDrawable != null) {
             if (paused) {
                 rLottieDrawable.stop();
@@ -2677,6 +2738,11 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
     public boolean isAnimationRunning() {
         AnimatedFileDrawable animation = getAnimation();
+        return animation != null && animation.isRunning();
+    }
+
+    public boolean isLottieRunning() {
+        RLottieDrawable animation = getLottieAnimation();
         return animation != null && animation.isRunning();
     }
 

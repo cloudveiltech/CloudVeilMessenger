@@ -49,7 +49,7 @@ public class MemberRequestsBottomSheet extends UsersAlertBase {
         this.delegate.setShowLastItemDivider(false);
         setDimBehindAlpha(75);
 
-        searchView.searchEditText.setHint(LocaleController.getString("SearchMemberRequests", R.string.SearchMemberRequests));
+        searchView.searchEditText.setHint(LocaleController.getString(R.string.SearchMemberRequests));
 
         searchListViewAdapter = listViewAdapter = delegate.getAdapter();
         listView.setAdapter(listViewAdapter);
@@ -79,7 +79,7 @@ public class MemberRequestsBottomSheet extends UsersAlertBase {
 
     @Override
     public void onBackPressed() {
-        if (delegate.onBackPressed()) {
+        if (delegate.onBackPressed(true)) {
             super.onBackPressed();
         }
     }

@@ -118,6 +118,11 @@ public class AutoDeleteMediaTask {
                             }
                             long lastUsageTime = Utilities.getLastUsageFileTime(file.file.getAbsolutePath());
                             boolean needDelete = lastUsageTime > 316000000 && lastUsageTime < timeLocal && !usingFilePaths.contains(file.file.getPath());
+                            // CloudVeil start
+                            if (file.shouldRemove) {
+                                needDelete = true;
+                            }
+                            // CloudVeil end
                             if (needDelete) {
                                 try {
                                     if (BuildVars.LOGS_ENABLED) {

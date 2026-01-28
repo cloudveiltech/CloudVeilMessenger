@@ -115,7 +115,7 @@ public class HintView extends FrameLayout {
         }
 
         if (type == TYPE_NOSOUND) {
-            textView.setText(LocaleController.getString("AutoplayVideoInfo", R.string.AutoplayVideoInfo));
+            textView.setText(LocaleController.getString(R.string.AutoplayVideoInfo));
 
             imageView = new ImageView(context);
             imageView.setImageResource(R.drawable.tooltip_sound);
@@ -206,17 +206,17 @@ public class HintView extends FrameLayout {
             top += y;
             shownY = y;
             if (count == -1) {
-                textView.setText(LocaleController.getString("PollSelectOption", R.string.PollSelectOption));
+                textView.setText(LocaleController.getString(R.string.PollSelectOption));
             } else {
                 if (cell.getMessageObject().isQuiz()) {
                     if (count == 0) {
-                        textView.setText(LocaleController.getString("NoVotesQuiz", R.string.NoVotesQuiz));
+                        textView.setText(LocaleController.getString(R.string.NoVotesQuiz));
                     } else {
                         textView.setText(LocaleController.formatPluralString("Answer", count));
                     }
                 } else {
                     if (count == 0) {
-                        textView.setText(LocaleController.getString("NoVotes", R.string.NoVotes));
+                        textView.setText(LocaleController.getString(R.string.NoVotes));
                     } else {
                         textView.setText(LocaleController.formatPluralString("Vote", count));
                     }
@@ -226,7 +226,7 @@ public class HintView extends FrameLayout {
         } else {
             MessageObject messageObject = cell.getMessageObject();
             if (overrideText == null) {
-                textView.setText(LocaleController.getString("HidAccount", R.string.HidAccount));
+                textView.setText(LocaleController.getString(R.string.HidAccount));
             } else {
                 textView.setText(overrideText);
             }
@@ -239,9 +239,6 @@ public class HintView extends FrameLayout {
                 top += AndroidUtilities.dp(22);
                 if (!messageObject.isOutOwner() && cell.isDrawNameLayout()) {
                     top += AndroidUtilities.dp(20);
-                }
-                if (!messageObject.shouldDrawWithoutBackground() && cell.isDrawTopic()) {
-                    top += AndroidUtilities.dp(5) + cell.getDrawTopicHeight();
                 }
             }
             if (!isTopArrow && top <= getMeasuredHeight() + AndroidUtilities.dp(10)) {

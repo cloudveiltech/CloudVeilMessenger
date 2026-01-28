@@ -35,6 +35,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.camera.CameraView;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedFloat;
@@ -771,7 +772,6 @@ public class CaptionStory extends CaptionContainerView {
             this.parent = parent;
             int resId = R.raw.chat_audio_record_delete_3;
             drawable = new RLottieDrawable(resId, "" + resId, AndroidUtilities.dp(28), AndroidUtilities.dp(28), false, null);
-            drawable.setCurrentParentView(parent);
             drawable.setInvalidateOnProgressSet(true);
             updateColors();
         }

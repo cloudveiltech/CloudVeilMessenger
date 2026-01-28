@@ -4,17 +4,23 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.os.Build;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewOutlineProvider;
+import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.graphics.ColorUtils;
 import androidx.dynamicanimation.animation.FloatValueHolder;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
@@ -28,17 +34,13 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ImageReceiver;
-import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.NotificationCenter;
-import org.telegram.messenger.R;
-import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.tgnet.TLRPC;
-import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Adapters.MentionsAdapter;
@@ -47,15 +49,14 @@ import org.telegram.ui.Business.QuickRepliesActivity;
 import org.telegram.ui.Cells.ContextLinkCell;
 import org.telegram.ui.Cells.MentionCell;
 import org.telegram.ui.Cells.StickerCell;
-import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import org.telegram.ui.ContentPreviewViewer;
 import org.telegram.ui.PhotoViewer;
 
 import java.util.ArrayList;
 
-public class MentionsContainerView extends BlurredFrameLayout implements NotificationCenter.NotificationCenterDelegate {
+public class MentionsContainerView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
-    private final SizeNotifierFrameLayout sizeNotifierFrameLayout;
     private final Theme.ResourcesProvider resourcesProvider;
 
     private MentionsListView listView;
@@ -67,24 +68,20 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
     BaseFragment baseFragment;
 
     private float containerTop, containerBottom, containerPadding, listViewPadding;
-    private boolean allowBlur;
     private RecyclerListView.OnItemClickListener mentionsOnItemClickListener;
     private Delegate delegate;
 
-    public MentionsContainerView(@NonNull Context context, long dialogId, long threadMessageId, BaseFragment baseFragment, SizeNotifierFrameLayout container, Theme.ResourcesProvider resourcesProvider) {
-        super(context, container);
+    public MentionsContainerView(@NonNull Context context, long dialogId, long threadMessageId, BaseFragment baseFragment, Theme.ResourcesProvider resourcesProvider) {
+        super(context);
         this.baseFragment = baseFragment;
-        this.sizeNotifierFrameLayout = container;
         this.resourcesProvider = resourcesProvider;
-        this.drawBlur = false;
-        this.isTopView = false;
         setVisibility(View.GONE);
         setWillNotDraw(false);
+        setClipToOutline(true);
 
         listViewPadding = (int) Math.min(AndroidUtilities.dp(36 * 3.5f), AndroidUtilities.displaySize.y * 0.22f);
 
         listView = new MentionsListView(context, resourcesProvider);
-        listView.setTranslationY(AndroidUtilities.dp(6));
         linearLayoutManager = new LinearLayoutManager(context) {
             @Override
             public boolean supportsPredictiveItemAnimations() {
@@ -103,9 +100,11 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
 
             @Override
             protected Size getSizeForItem(int i) {
+                size.full = false;
                 if (i == 0) {
                     size.width = getWidth();
                     size.height = paddedAdapter.getPadding();
+                    size.full = true;
                     return size;
                 } else {
                     i--;
@@ -149,7 +148,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
                             }
                         }
                     } else if (inlineResult.photo != null) {
-                        TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(inlineResult.photo.sizes, AndroidUtilities.photoSize);
+                        TLRPC.PhotoSize photoSize = FileLoader.getClosestPhotoSizeWithSize(inlineResult.photo.sizes, AndroidUtilities.getPhotoSize());
                         if (photoSize != null) {
                             size.width = photoSize.w;
                             size.height = photoSize.h;
@@ -162,9 +161,9 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
             @Override
             protected int getFlowItemCount() {
                 if (adapter.getBotContextSwitch() != null || adapter.getBotWebViewSwitch() != null) {
-                    return getItemCount() - 2;
+                    return getItemCount() - 1;
                 }
-                return super.getFlowItemCount() - 1;
+                return super.getFlowItemCount();
             }
         };
         gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
@@ -181,6 +180,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
                 } else if (object instanceof TLRPC.Document) {
                     return 20;
                 } else {
+                    position++;
                     if (adapter.getBotContextSwitch() != null || adapter.getBotWebViewSwitch() != null) {
                         position--;
                     }
@@ -238,9 +238,10 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
                 MentionsContainerView.this.onContextClick(result);
             }
 
-        }, resourcesProvider);
+        }, resourcesProvider, isStories());
         paddedAdapter = new PaddedListAdapter(adapter);
         listView.setAdapter(paddedAdapter);
+        listView.setTranslationY(AndroidUtilities.dp(6));
 
         addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         setReversed(false);
@@ -285,9 +286,11 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
     }
 
     public void setReversed(boolean reversed) {
-        scrollToFirst = true;
-        linearLayoutManager.setReverseLayout(reversed);
-        adapter.setIsReversed(reversed);
+        if (reversed != isReversed()) {
+            scrollToFirst = true;
+            linearLayoutManager.setReverseLayout(reversed);
+            adapter.setIsReversed(reversed);
+        }
     }
 
     public boolean isReversed() {
@@ -321,10 +324,21 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
     }
 
     @Override
-    public void dispatchDraw(Canvas canvas) {
+    public void dispatchDraw(@NonNull Canvas canvas) {
+        if (backgroundDrawable != null) {
+            backgroundDrawable.draw(canvas);
+            canvas.save();
+            canvas.clipPath(clipPath);
+            super.dispatchDraw(canvas);
+            canvas.restore();
+            return;
+        }
+
+
         boolean reversed = isReversed();
         boolean topPadding = (adapter.isStickers() || adapter.isBotContext()) && adapter.isMediaLayout() && adapter.getBotContextSwitch() == null && adapter.getBotWebViewSwitch() == null;
         containerPadding = AndroidUtilities.dp(2 + (topPadding ? 2 : 0));
+        canvas.save();
 
         float r = AndroidUtilities.dp(6);
         float wasContainerTop = containerTop;
@@ -335,6 +349,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
             rect.set(0, (int) (containerTop = 0), getMeasuredWidth(), (int) (containerBottom = top));
             r = Math.min(r, Math.abs(getMeasuredHeight() - containerBottom));
             if (r > 0) {
+                canvas.clipRect(0, 0, getWidth(), getHeight());
                 rect.top -= (int) r;
             }
         } else {
@@ -348,6 +363,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
             rect.set(0, (int) (containerTop = top), getMeasuredWidth(), (int) (containerBottom = getMeasuredHeight()));
             r = Math.min(r, Math.abs(containerTop));
             if (r > 0) {
+                canvas.clipRect(0, 0, getWidth(), getHeight());
                 rect.bottom += (int) r;
             }
         }
@@ -361,26 +377,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
         }
         paint.setColor(color != null ? color : getThemedColor(Theme.key_chat_messagePanelBackground));
 
-        if (allowBlur && SharedConfig.chatBlurEnabled() && sizeNotifierFrameLayout != null) {
-            if (r > 0) {
-                canvas.save();
-                if (path == null) {
-                    path = new Path();
-                } else {
-                    path.reset();
-                }
-                AndroidUtilities.rectTmp.set(rect);
-                path.addRoundRect(AndroidUtilities.rectTmp, r, r, Path.Direction.CW);
-                canvas.clipPath(path);
-            }
-            sizeNotifierFrameLayout.drawBlurRect(canvas, getY(), rect, paint, reversed);
-            if (r > 0) {
-                canvas.restore();
-            }
-        } else {
-            drawRoundRect(canvas, rect, r);
-        }
-        canvas.save();
+        drawRoundRect(canvas, rect, r);
         canvas.clipRect(rect);
         super.dispatchDraw(canvas);
         canvas.restore();
@@ -450,6 +447,12 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
 
     public boolean isOpen() {
         return shown;
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        checkListViewPadding();
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     private SpringAnimation listViewTranslationAnimator;
@@ -556,7 +559,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
     private PhotoViewer.PhotoViewerProvider botContextProvider = new PhotoViewer.EmptyPhotoViewerProvider() {
 
         @Override
-        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview) {
+        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview, boolean closing) {
             if (index < 0 || index >= botContextResults.size()) {
                 return null;
             }
@@ -590,7 +593,7 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
         }
 
         @Override
-        public void sendButtonPressed(int index, VideoEditedInfo videoEditedInfo, boolean notify, int scheduleDate, boolean forceDocument) {
+        public void sendButtonPressed(int index, VideoEditedInfo videoEditedInfo, boolean notify, int scheduleDate, int scheduleRepeatPeriod, boolean forceDocument) {
             if (index < 0 || index >= botContextResults.size()) {
                 return;
             }
@@ -608,6 +611,17 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
             Object object = getAdapter().getItem(position);
             int start = getAdapter().getResultStartPosition();
             int len = getAdapter().getResultLength();
+            if (getAdapter().isLocalHashtagHint(position)) {
+                TLRPC.Chat currentChat = getAdapter().chat;
+                if (currentChat == null && getAdapter().parentFragment != null) {
+                    currentChat = getAdapter().parentFragment.getCurrentChat();
+                }
+                delegate.replaceText(start, len, getAdapter().getHashtagHint() + (currentChat != null ? "@" + ChatObject.getPublicUsername(currentChat) : "") + " ", false);
+                return;
+            } else if (getAdapter().isGlobalHashtagHint(position)) {
+                delegate.replaceText(start, len, getAdapter().getHashtagHint() + " ", false);
+                return;
+            }
             if (object instanceof TLRPC.TL_document) {
                 MessageObject.SendAnimationData sendAnimationData = null;
                 if (view instanceof StickerCell) {
@@ -705,10 +719,13 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
                     }
                     int visibleItemCount = lastVisibleItem == RecyclerView.NO_POSITION ? 0 : lastVisibleItem;
                     if (visibleItemCount > 0 && lastVisibleItem > adapter.getLastItemCount() - 5) {
+//                        adapter.loadMoreStickers();
                         adapter.searchForContextBotForNextOffset();
                     }
 
                     MentionsContainerView.this.onScrolled(!canScrollVertically(-1), !canScrollVertically(1));
+
+                    checkBackgroundBounds();
                 }
             });
             addItemDecoration(new RecyclerView.ItemDecoration() {
@@ -723,7 +740,6 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
                         if (position == 0) {
                             return;
                         }
-                        position--;
                         if (adapter.isStickers()) {
                             return;
                         } else if (adapter.getBotContextSwitch() != null || adapter.getBotWebViewSwitch() != null) {
@@ -823,6 +839,8 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
         public void setTranslationY(float translationY) {
             super.setTranslationY(translationY);
             MentionsContainerView.this.invalidate();
+
+            checkBackgroundBounds();
         }
 
         @Override
@@ -839,6 +857,8 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
         public void onScrolled(int dx, int dy) {
             super.onScrolled(dx, dy);
             MentionsContainerView.this.invalidate();
+
+            checkBackgroundBounds();
         }
     }
 
@@ -896,4 +916,106 @@ public class MentionsContainerView extends BlurredFrameLayout implements Notific
         }
     }
 
+    protected boolean isStories() {
+        return false;
+    }
+
+
+
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        checkBackgroundBounds();
+    }
+
+
+
+    private @Nullable BlurredBackgroundDrawable backgroundDrawable;
+
+    public void setBackgroundDrawable(@NonNull BlurredBackgroundDrawable backgroundDrawable) {
+        this.backgroundDrawable = backgroundDrawable;
+        this.backgroundDrawable.setRadius(dp(22));
+        this.backgroundDrawable.setPadding(dp(5));
+
+        checkListViewPadding();
+    }
+
+
+    private final Path clipPath = new Path();
+    private final RectF clipBounds = new RectF();
+
+    private void checkBackgroundBounds() {
+        if (listView == null || linearLayoutManager == null) {
+            return;
+        }
+
+        final boolean reversed = isReversed();
+        containerPadding = 0;
+
+        if (reversed) {
+            int paddingViewTop = paddedAdapter.paddingViewAttached ? paddedAdapter.paddingView.getTop() : getHeight();
+            float top = Math.max(0, paddingViewTop + listView.getTranslationY()) + containerPadding;
+            top = Math.min(top, (1f - hideT) * getHeight());
+
+            containerTop = 0;
+            containerBottom = top;
+        } else {
+            int paddingViewBottom = paddedAdapter.paddingViewAttached ? paddedAdapter.paddingView.getBottom() : 0;
+            float top = Math.max(0, paddingViewBottom + listView.getTranslationY()) - containerPadding;
+            top = Math.max(top, hideT * getHeight());
+
+
+            containerTop = top;
+            containerBottom = getMeasuredHeight();
+        }
+
+        if (backgroundDrawable != null) {
+            backgroundDrawable.setBounds(
+                0,
+                (int) containerTop - dp(5),
+                getMeasuredWidth(),
+                (int) containerBottom + dp(5)
+            );
+
+
+            clipPath.rewind();
+            clipBounds.set(backgroundDrawable.getPaddedBounds());
+            if (isGif()) {
+                clipBounds.inset(dp(2), dp(2));
+                clipPath.addRoundRect(clipBounds,
+                    dp(20),
+                    dp(20),
+                    Path.Direction.CW
+                );
+            } else {
+                clipPath.addRoundRect(clipBounds,
+                    dp(22),
+                    dp(22),
+                    Path.Direction.CW
+                );
+            }
+            clipPath.close();
+            invalidate();
+        }
+    }
+
+    private boolean isGif() {
+        return listView != null && gridLayoutManager != null
+            && listView.getLayoutManager() == gridLayoutManager && adapter != null && adapter.isBotContext();
+    }
+
+
+    private void checkListViewPadding() {
+        if (listView == null || linearLayoutManager == null) {
+            return;
+        }
+
+        final boolean isGif = isGif();
+        if (backgroundDrawable == null) {
+            listView.setPadding(0, 0, 0, 0);
+        } else {
+            listView.setPadding(dp(isGif ? 7 : 5), isGif ? dp(2) : 0, dp(isGif ? 7 : 5), isGif ? dp(2) : 0);
+        }
+    }
 }

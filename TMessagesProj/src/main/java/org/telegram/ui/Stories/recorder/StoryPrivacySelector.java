@@ -171,7 +171,7 @@ public class StoryPrivacySelector extends View {
             StoryPrivacyBottomSheet sheet = new StoryPrivacyBottomSheet(getContext(), storyPeriod, resourcesProvider);
             sheet.setValue(getStoryPrivacy());
             sheet.isEdit(false);
-            sheet.whenSelectedRules((privacy, a, b, sendAs, whenDone) -> {
+            sheet.whenSelectedRules((privacy, allowComments, a, b, isRtmpStream, sendAs, pricePerComment, whenDone, cancelled) -> {
                 edited = true;
                 CharSequence text = (value = privacy).toString();
                 textDrawable.setText(text);
@@ -242,7 +242,7 @@ public class StoryPrivacySelector extends View {
             textPaint.setColor(0xffffffff);
             textPaint.setTextSize(dp(14));
 
-            CharSequence text = LocaleController.getString("StoryPrivacyHint", R.string.StoryPrivacyHint);
+            CharSequence text = LocaleController.getString(R.string.StoryPrivacyHint);
             layout = new StaticLayout(text, textPaint, AndroidUtilities.displaySize.x, Layout.Alignment.ALIGN_NORMAL, 1f, 0f, false);
             layoutLeft = layout.getLineCount() > 0 ? layout.getLineLeft(0) : 0;
             layoutWidth = layout.getLineCount() > 0 ? layout.getLineWidth(0) : 0;

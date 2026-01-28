@@ -2,14 +2,11 @@ package org.telegram.ui.Components;
 
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.util.LongSparseArray;
-import android.util.SparseIntArray;
-import android.util.SparseLongArray;
 import android.view.View;
-import android.widget.FrameLayout;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
@@ -24,25 +21,30 @@ import org.telegram.ui.ChannelMonetizationLayout;
 import org.telegram.ui.Components.ListView.AdapterWithDiffUtils;
 import org.telegram.ui.StatisticActivity;
 
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 
 public class UItem extends AdapterWithDiffUtils.Item {
 
+    public static final int MAX_SPAN_COUNT = -1;
+
     public View view;
     public int id;
     public boolean checked;
     public boolean collapsed;
     public boolean enabled = true;
+    public boolean reordering;
     public int pad;
     public boolean hideDivider;
     public int iconResId;
+    public Drawable drawable;
     public CharSequence text, subtext, textValue;
     public CharSequence animatedText;
     public String[] texts;
     public boolean accent, red, transparent, locked;
+    public int spanCount = MAX_SPAN_COUNT;
+    public int parentSpanCount;
 
     public boolean include;
     public long dialogId;
@@ -50,12 +52,14 @@ public class UItem extends AdapterWithDiffUtils.Item {
     public int flags;
 
     public int intValue;
+    public float floatValue;
     public long longValue;
     public Utilities.Callback<Integer> intCallback;
 
     public View.OnClickListener clickCallback;
 
     public Object object;
+    public Object object2;
 
     public boolean withUsername = true;
 
@@ -137,6 +141,14 @@ public class UItem extends AdapterWithDiffUtils.Item {
         return i;
     }
 
+    public static UItem asTopViewStatic(CharSequence text, int iconResId) {
+        UItem i = new UItem(UniversalAdapter.VIEW_TYPE_TOPVIEW, false);
+        i.text = text;
+        i.accent = true;
+        i.iconResId = iconResId;
+        return i;
+    }
+
     public static UItem asButton(int id, CharSequence text) {
         UItem i = new UItem(UniversalAdapter.VIEW_TYPE_TEXT, false);
         i.id = id;
@@ -148,6 +160,14 @@ public class UItem extends AdapterWithDiffUtils.Item {
         UItem i = new UItem(UniversalAdapter.VIEW_TYPE_TEXT, false);
         i.id = id;
         i.iconResId = iconResId;
+        i.text = text;
+        return i;
+    }
+
+    public static UItem asButton(int id, Drawable icon, CharSequence text) {
+        UItem i = new UItem(UniversalAdapter.VIEW_TYPE_TEXT, false);
+        i.id = id;
+        i.object = icon;
         i.text = text;
         return i;
     }
@@ -187,6 +207,12 @@ public class UItem extends AdapterWithDiffUtils.Item {
     public static UItem asRippleCheck(int id, CharSequence text) {
         UItem i = new UItem(UniversalAdapter.VIEW_TYPE_CHECKRIPPLE, false);
         i.id = id;
+        i.text = text;
+        return i;
+    }
+
+    public static UItem asCheck(CharSequence text) {
+        UItem i = new UItem(UniversalAdapter.VIEW_TYPE_CHECK, false);
         i.text = text;
         return i;
     }
@@ -280,21 +306,27 @@ public class UItem extends AdapterWithDiffUtils.Item {
         item.texts = choices;
         item.intValue = chosen;
         item.intCallback = whenChose;
+        item.longValue = -1;
         return item;
     }
 
     public static UItem asIntSlideView(
         int style,
-        int minStringResId, int min,
-        int valueMinStringResId, int valueStringResId, int valueMaxStringResId, int value,
-        int maxStringResId, int max,
+        int min, int value, int max,
+        Utilities.CallbackReturn<Integer, CharSequence> toString,
         Utilities.Callback<Integer> whenChose
     ) {
         UItem item = new UItem(UniversalAdapter.VIEW_TYPE_INTSLIDE, false);
         item.intValue = value;
         item.intCallback = whenChose;
-        item.object = SlideIntChooseView.Options.make(style, min, minStringResId, valueMinStringResId, valueStringResId, valueMaxStringResId, max, maxStringResId);
+        item.object = SlideIntChooseView.Options.make(style, min, max, toString);
+        item.longValue = -1;
         return item;
+    }
+
+    public UItem setMinSliderValue(int value) {
+        this.longValue = value;
+        return this;
     }
 
     public static UItem asQuickReply(QuickRepliesController.QuickReply quickReply) {
@@ -337,6 +369,12 @@ public class UItem extends AdapterWithDiffUtils.Item {
     public static UItem asSpace(int height) {
         UItem item = new UItem(UniversalAdapter.VIEW_TYPE_SPACE, false);
         item.intValue = height;
+        return item;
+    }
+
+    public static UItem asRoundCheckbox(CharSequence text) {
+        UItem item = new UItem(UniversalAdapter.VIEW_TYPE_ROUND_CHECKBOX, false);
+        item.text = text;
         return item;
     }
 
@@ -412,8 +450,21 @@ public class UItem extends AdapterWithDiffUtils.Item {
         return item;
     }
 
+    public UItem withOpenButton(Utilities.Callback<TLRPC.User> onOpenButton) {
+        this.checked = true;
+        this.object2 = onOpenButton;
+        return this;
+    }
+
     public static UItem asSearchMessage(MessageObject messageObject) {
         UItem item = new UItem(UniversalAdapter.VIEW_TYPE_SEARCH_MESSAGE, false);
+        item.object = messageObject;
+        return item;
+    }
+
+    public static UItem asSearchMessage(int id, MessageObject messageObject) {
+        UItem item = new UItem(UniversalAdapter.VIEW_TYPE_SEARCH_MESSAGE, false);
+        item.id = id;
         item.object = messageObject;
         return item;
     }
@@ -495,6 +546,16 @@ public class UItem extends AdapterWithDiffUtils.Item {
         return this;
     }
 
+    public UItem setSpanCount(int spanCount) {
+        this.spanCount = spanCount;
+        return this;
+    }
+
+    public UItem setReordering(boolean reordering) {
+        this.reordering = reordering;
+        return this;
+    }
+
     public <F extends UItemFactory<?>> boolean instanceOf(Class<F> factoryClass) {
         if (viewType < factoryViewTypeStartsWith) return false;
         if (factoryInstances == null) return false;
@@ -512,6 +573,9 @@ public class UItem extends AdapterWithDiffUtils.Item {
             return false;
         if (viewType == UniversalAdapter.VIEW_TYPE_USER_GROUP_CHECKBOX ||
                 viewType == UniversalAdapter.VIEW_TYPE_ROUND_CHECKBOX) {
+            return id == item.id;
+        }
+        if (viewType == UniversalAdapter.VIEW_TYPE_SPACE) {
             return id == item.id;
         }
         if (viewType == UniversalAdapter.VIEW_TYPE_GRAY_SECTION) {
@@ -535,6 +599,9 @@ public class UItem extends AdapterWithDiffUtils.Item {
             return false;
         if (viewType == UniversalAdapter.VIEW_TYPE_GRAY_SECTION) {
             return TextUtils.equals(text, item.text) && TextUtils.equals(subtext, item.subtext);
+        }
+        if (viewType == UniversalAdapter.VIEW_TYPE_SPACE) {
+            return intValue == item.intValue;
         }
         if (viewType == UniversalAdapter.VIEW_TYPE_ROUND_CHECKBOX ||
             viewType == UniversalAdapter.VIEW_TYPE_USER_CHECKBOX) {
@@ -560,13 +627,17 @@ public class UItem extends AdapterWithDiffUtils.Item {
             red == item.red &&
             locked == item.locked &&
             accent == item.accent &&
+            view == item.view &&
             TextUtils.equals(text, item.text) &&
             TextUtils.equals(subtext, item.subtext) &&
             TextUtils.equals(textValue, item.textValue) &&
             view == item.view &&
             intValue == item.intValue &&
+            Math.abs(floatValue - item.floatValue) < 0.01f &&
             longValue == item.longValue &&
-            Objects.equals(object, item.object)
+            drawable == item.drawable &&
+            Objects.equals(object, item.object) &&
+            Objects.equals(object2, item.object2)
         );
     }
 
@@ -577,6 +648,16 @@ public class UItem extends AdapterWithDiffUtils.Item {
     public static int factoryViewTypeStartsWith = 10_000;
     private static int factoryViewType = 10_000;
     public static abstract class UItemFactory<V extends View> {
+        public static void setup(UItemFactory factory) {
+            if (factoryInstances == null) factoryInstances = new HashMap<>();
+            if (factories == null) factories = new LongSparseArray<>();
+            final Class factoryClass = factory.getClass();
+            if (!factoryInstances.containsKey(factoryClass)) {
+                factoryInstances.put(factoryClass, factory);
+                factories.put(factory.viewType, factory);
+            }
+        };
+
         public final int viewType;
 
         private ArrayList<V> cache;
@@ -608,7 +689,11 @@ public class UItem extends AdapterWithDiffUtils.Item {
             return null;
         }
 
-        public void bindView(View view, UItem item, boolean divider) {
+        public void bindView(View view, UItem item, boolean divider, UniversalAdapter adapter, UniversalRecyclerView listView) {
+
+        }
+
+        public void attachedView(View view, UItem item) {
 
         }
 
@@ -645,15 +730,7 @@ public class UItem extends AdapterWithDiffUtils.Item {
         if (factoryInstances == null) factoryInstances = new HashMap<>();
         if (factories == null) factories = new LongSparseArray<>();
         UItemFactory<?> factory = factoryInstances.get(factoryClass);
-        if (factory == null) {
-            try {
-                factoryInstances.put(factoryClass, factory = factoryClass.getDeclaredConstructor().newInstance());
-                factories.put(factory.viewType, factory);
-            } catch (Exception e) {
-                FileLog.e(e);
-            }
-        }
-        if (factory == null) throw new RuntimeException("couldnt create factory of " + factoryClass);
+        if (factory == null) throw new RuntimeException("UItemFactory was not setuped: " + factoryClass);
         return factory;
     }
 }

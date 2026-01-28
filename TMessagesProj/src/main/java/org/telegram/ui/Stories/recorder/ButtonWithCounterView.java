@@ -12,8 +12,10 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.OvershootInterpolator;
@@ -23,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedFloat;
@@ -38,17 +41,47 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
 
     private Theme.ResourcesProvider resourcesProvider;
 
+    private int radiusDp = 8;
+
     private final Paint paint;
     public final AnimatedTextView.AnimatedTextDrawable text;
     public final AnimatedTextView.AnimatedTextDrawable subText;
     private final AnimatedTextView.AnimatedTextDrawable countText;
     private float countAlpha;
     private final AnimatedFloat countAlphaAnimated = new AnimatedFloat(350, CubicBezierInterpolator.EASE_OUT_QUINT);
-    private final View rippleView;
-    private final boolean filled;
+    public final View rippleView;
+    private boolean filled;
 
     public ButtonWithCounterView(Context context, Theme.ResourcesProvider resourcesProvider) {
         this(context, true, resourcesProvider);
+    }
+
+    public ButtonWithCounterView setRound() {
+        setRoundRadius(24);
+        return this;
+    }
+
+    public void setRoundRadius(int radiusDp) {
+        this.radiusDp = radiusDp;
+        if (filled) {
+            setBackground(Theme.createRoundRectDrawable(dp(radiusDp), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
+        } else {
+            setBackground(null);
+        }
+        updateColors();
+    }
+
+    public void setFilled(boolean filled) {
+        if (this.filled == filled) return;
+        this.filled = filled;
+        if (filled) {
+            setBackground(Theme.createRoundRectDrawable(dp(radiusDp), Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider)));
+            text.setTypeface(AndroidUtilities.bold());
+        } else {
+            setBackground(null);
+            text.setTypeface(null);
+        }
+        updateColors();
     }
 
     public ButtonWithCounterView(Context context, boolean filled, Theme.ResourcesProvider resourcesProvider) {
@@ -96,6 +129,14 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
         updateColors();
     }
 
+    public void setTextHacks(boolean splitByWords, boolean preserveIndex, boolean startFromEnd, boolean enforceByLetter) {
+        text.setHacks(splitByWords, preserveIndex, startFromEnd, enforceByLetter);
+    }
+
+    public void setSubTextHacks(boolean splitByWords, boolean preserveIndex, boolean startFromEnd, boolean enforceByLetter) {
+        subText.setHacks(splitByWords, preserveIndex, startFromEnd, enforceByLetter);
+    }
+
     protected boolean subTextSplitToWords() {
         return true;
     }
@@ -106,17 +147,25 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
 
     public void setColor(int color) {
         if (filled) {
-            setBackground(Theme.createRoundRectDrawable(dp(8), color));
+            setBackground(Theme.createRoundRectDrawable(dp(radiusDp), color));
+        } else {
+            text.setTextColor(color);
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(color, .10f), radiusDp, radiusDp));
         }
     }
 
+    public void updateColors(Theme.ResourcesProvider resourcesProvider) {
+        this.resourcesProvider = resourcesProvider;
+        updateColors();
+    }
+
     public void updateColors() {
-        if (filled) {
-            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 8, 8));
-        } else {
-            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider), .10f), 8, 8));
-        }
         text.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
+        if (filled) {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), radiusDp, radiusDp));
+        } else {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(text.getTextColor(), .10f), radiusDp, radiusDp));
+        }
         subText.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
         countText.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider));
     }
@@ -128,6 +177,9 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
 
     public void setTextColor(int color) {
         text.setTextColor(color);
+        if (!filled) {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(text.getTextColor(), .10f), radiusDp, radiusDp));
+        }
     }
 
     private boolean countFilled = true;
@@ -166,6 +218,10 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
         return timerSeconds > 0;
     }
 
+    public void setText(CharSequence newText) {
+        setText(newText, false);
+    }
+
     public void setText(CharSequence newText, boolean animated) {
         setText(newText, animated, true);
     }
@@ -177,6 +233,10 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
         text.setText(newText, animated, moveDown);
         setContentDescription(newText);
         invalidate();
+    }
+
+    public TextPaint getTextPaint() {
+        return text.getPaint();
     }
 
     private float subTextT = 0f;
@@ -329,7 +389,7 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
         }
         lastCount = count;
         countAlpha = count != 0 || showZero ? 1f : 0f;
-        countText.setText("" + count, animated);
+        countText.setText(LocaleController.formatNumber(count, ' '), animated);
         invalidate();
     }
 
@@ -409,7 +469,7 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
                 }
                 flickeringLoadingDrawable.resetDisappear();
                 flickeringLoadingDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());
-                flickeringLoadingDrawable.setRadiiDp(8);
+                flickeringLoadingDrawable.setRadiiDp(radiusDp);
                 flickeringLoadingDrawable.draw(canvas);
             } else if (flickeringLoadingDrawable != null) {
                 flickeringLoadingDrawable.disappear();
@@ -536,5 +596,30 @@ public class ButtonWithCounterView extends FrameLayout implements Loadable {
     public boolean wrapContentDynamic;
     public void wrapContentDynamic() {
         wrapContentDynamic = true;
+    }
+
+    private int minWidth;
+    private boolean wrapWidth;
+
+    public void setMinWidth(int px) {
+        this.wrapWidth = true;
+        this.minWidth = px;
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (wrapWidth) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec((int) Math.min(Math.max(getPaddingLeft() + text.getCurrentWidth() + getPaddingRight(), minWidth), MeasureSpec.getSize(widthMeasureSpec)), MeasureSpec.EXACTLY), heightMeasureSpec);
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        if (filled && isClickable() && getParent() != null) {
+            getParent().requestDisallowInterceptTouchEvent(true);
+        }
+        return super.onInterceptTouchEvent(ev);
     }
 }

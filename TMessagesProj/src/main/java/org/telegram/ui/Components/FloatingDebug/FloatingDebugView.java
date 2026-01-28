@@ -78,7 +78,9 @@ public class FloatingDebugView extends FrameLayout implements NotificationCenter
     private boolean inLongPress;
     private Runnable onLongPress = () -> {
         inLongPress = true;
-        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        try {
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        } catch (Exception ignored) {}
     };
 
     private boolean isBigMenuShown;
@@ -313,12 +315,12 @@ public class FloatingDebugView extends FrameLayout implements NotificationCenter
         return super.drawChild(canvas, child, drawingTime);
     }
 
-    public boolean onBackPressed() {
+    public boolean onBackPressed(boolean invoked) {
         if (isBigMenuShown) {
-            showBigMenu(false);
-            return true;
+            if (invoked) showBigMenu(false);
+            return false;
         }
-        return false;
+        return true;
     }
 
     @SuppressLint("ApplySharedPref")

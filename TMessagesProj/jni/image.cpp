@@ -7,14 +7,12 @@
 #include <unistd.h>
 #include <android/bitmap.h>
 #include <string>
-#include <mozjpeg/java/org_libjpegturbo_turbojpeg_TJ.h>
-#include <mozjpeg/jpeglib.h>
+//#include <mozjpeg/java/org_libjpegturbo_turbojpeg_TJ.h>
+//#include <mozjpeg/jpeglib.h>
 #include <tgnet/FileLog.h>
 #include <vector>
 #include <algorithm>
-#include "libwebp/webp/decode.h"
-#include "libwebp/webp/encode.h"
-#include "mozjpeg/turbojpeg.h"
+//#include "mozjpeg/turbojpeg.h"
 #include "c_utils.h"
 
 extern "C" {
@@ -513,6 +511,69 @@ JNIEXPORT int Java_org_telegram_messenger_Utilities_needInvert(JNIEnv *env, jcla
     return hasAlpha && matching / total > 0.85;
 }
 
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_telegram_messenger_Utilities_applyAlphaThreshold(JNIEnv *env, jclass, jobject bitmap,jint threshold) {
+    if (bitmap == nullptr) {
+        return;
+    }
+
+    AndroidBitmapInfo info;
+    if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        return;
+    }
+
+    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
+        return;
+    }
+
+    void *pixels = nullptr;
+    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        return;
+    }
+
+    const auto thresh = static_cast<uint8_t>(threshold);
+
+    auto *line = static_cast<uint32_t *>(pixels);
+    const auto width  = info.width;
+    const auto height = info.height;
+    const auto stridePixels = info.stride / 4;
+
+    for (int32_t y = 0; y < height; ++y) {
+        uint32_t *row = line + y * stridePixels;
+        for (int32_t x = 0; x < width; ++x) {
+            uint32_t c = row[x];
+            uint8_t a = (c >> 24) & 0xFF;
+            if (a == 0 || a == 255) {
+                continue;
+            }
+
+            if (a >= thresh) {
+                uint32_t r = (c >> 16) & 0xFF;
+                uint32_t g = (c >> 8)  & 0xFF;
+                uint32_t b =  c        & 0xFF;
+
+                uint32_t r_lin = (r * 255 + a / 2) / a;
+                uint32_t g_lin = (g * 255 + a / 2) / a;
+                uint32_t b_lin = (b * 255 + a / 2) / a;
+
+                if (r_lin > 255) r_lin = 255;
+                if (g_lin > 255) g_lin = 255;
+                if (b_lin > 255) b_lin = 255;
+
+                row[x] = (0xFFu << 24) |
+                         (r_lin << 16) |
+                         (g_lin << 8)  |
+                         (b_lin);
+            } else {
+                row[x] = 0;
+            }
+        }
+    }
+
+    AndroidBitmap_unlockPixels(env, bitmap);
+}
+
 JNIEXPORT void Java_org_telegram_messenger_Utilities_blurBitmap(JNIEnv *env, jclass clazz, jobject bitmap, jint radius, jint unpin, jint width, jint height, jint stride) {
     if (!bitmap) {
         return;
@@ -652,58 +713,6 @@ JNIEXPORT void Java_org_telegram_messenger_Utilities_unpinBitmap(JNIEnv *env, jc
         return;
     }
     AndroidBitmap_unlockPixels(env, bitmap);
-}
-
-JNIEXPORT jboolean Java_org_telegram_messenger_Utilities_loadWebpImage(JNIEnv *env, jclass clazz, jobject outputBitmap, jobject buffer, jint len, jobject options, jboolean unpin) {
-    if (!buffer) {
-        env->ThrowNew(jclass_NullPointerException, "Input buffer can not be null");
-        return 0;
-    }
-
-    jbyte *inputBuffer = (jbyte *) env->GetDirectBufferAddress(buffer);
-
-    int32_t bitmapWidth = 0;
-    int32_t bitmapHeight = 0;
-    if (!WebPGetInfo((uint8_t *)inputBuffer, len, &bitmapWidth, &bitmapHeight)) {
-        env->ThrowNew(jclass_RuntimeException, "Invalid WebP format");
-        return 0;
-    }
-
-    if (options && env->GetBooleanField(options, jclass_Options_inJustDecodeBounds) == JNI_TRUE) {
-        env->SetIntField(options, jclass_Options_outWidth, bitmapWidth);
-        env->SetIntField(options, jclass_Options_outHeight, bitmapHeight);
-        return 1;
-    }
-
-    if (!outputBitmap) {
-        env->ThrowNew(jclass_NullPointerException, "output bitmap can not be null");
-        return 0;
-    }
-
-    AndroidBitmapInfo bitmapInfo;
-    if (AndroidBitmap_getInfo(env, outputBitmap, &bitmapInfo) != ANDROID_BITMAP_RESUT_SUCCESS) {
-        env->ThrowNew(jclass_RuntimeException, "Failed to get Bitmap information");
-        return 0;
-    }
-
-    void *bitmapPixels = nullptr;
-    if (AndroidBitmap_lockPixels(env, outputBitmap, &bitmapPixels) != ANDROID_BITMAP_RESUT_SUCCESS) {
-        env->ThrowNew(jclass_RuntimeException, "Failed to lock Bitmap pixels");
-        return 0;
-    }
-
-    if (!WebPDecodeRGBAInto((uint8_t *) inputBuffer, len, (uint8_t *) bitmapPixels, bitmapInfo.height * bitmapInfo.stride, bitmapInfo.stride)) {
-        AndroidBitmap_unlockPixels(env, outputBitmap);
-        env->ThrowNew(jclass_RuntimeException, "Failed to decode webp image");
-        return 0;
-    }
-
-    if (unpin && AndroidBitmap_unlockPixels(env, outputBitmap) != ANDROID_BITMAP_RESUT_SUCCESS) {
-        env->ThrowNew(jclass_RuntimeException, "Failed to unlock Bitmap pixels");
-        return 0;
-    }
-
-    return 1;
 }
 
 #define SQUARE(i) ((i)*(i))
@@ -1068,109 +1077,109 @@ JNIEXPORT void Java_org_telegram_messenger_Utilities_drawDitheredGradient(JNIEnv
     }
 }
 
-JNIEXPORT jint Java_org_telegram_messenger_Utilities_saveProgressiveJpeg(JNIEnv *env, jclass clazz, jobject bitmap, jint width, jint height, jint stride, jint quality, jstring path) {
-    if (!bitmap || !path || !width || !height || !stride || stride != width * 4) {
-        return 0;
-    }
-    void *pixels = 0;
-    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0) {
-        return 0;
-    }
-    if (pixels == NULL) {
-        return 0;
-    }
-    tjhandle handle = 0;
-    if ((handle = tjInitCompress()) == NULL) {
-        return 0;
-    }
-    const char *pathStr = env->GetStringUTFChars(path, 0);
-    std::string filePath = std::string(pathStr);
-    if (pathStr != 0) {
-        env->ReleaseStringUTFChars(path, pathStr);
-    }
-
-    const char *enabledValue = "1";
-    const char *disabledValue = "0";
-    setenv("TJ_OPTIMIZE", enabledValue, 1);
-    setenv("TJ_ARITHMETIC", disabledValue, 1);
-    setenv("TJ_PROGRESSIVE", enabledValue, 1);
-    setenv("TJ_REVERT", enabledValue, 1);
-
-    TJSAMP jpegSubsamp = TJSAMP::TJSAMP_420;
-    jint buffSize = (jint) tjBufSize(width, height, jpegSubsamp);
-    unsigned char *jpegBuf = new unsigned char[buffSize];
-    unsigned char *srcBuf = (unsigned char *) pixels;
-
-    int pf = org_libjpegturbo_turbojpeg_TJ_PF_RGBA;
-
-    jsize actualPitch = width * tjPixelSize[pf];
-    jsize arraySize = (height - 1) * actualPitch + (width) * tjPixelSize[pf];
-    unsigned long jpegSize = tjBufSize(width, height, jpegSubsamp);
-
-    if (tjCompress2(handle, srcBuf, width, stride, height, pf, &jpegBuf, &jpegSize, jpegSubsamp, quality, TJFLAG_ACCURATEDCT | TJFLAG_PROGRESSIVE | TJFLAG_NOREALLOC) == 0) {
-        FILE *f = fopen(filePath.c_str(), "wb");
-        if (f && fwrite(jpegBuf, sizeof(unsigned char), jpegSize, f) == jpegSize) {
-            fflush(f);
-            fsync(fileno(f));
-        } else {
-            jpegSize = -1;
-        }
-        fclose(f);
-    } else {
-        jpegSize = -1;
-    }
-    delete[] jpegBuf;
-    tjDestroy(handle);
-    AndroidBitmap_unlockPixels(env, bitmap);
-    return jpegSize;
-
-    /*struct jpeg_compress_struct cinfo;
-    struct jpeg_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr);
-    jpeg_create_compress(&cinfo);
-
-    const char *pathStr = env->GetStringUTFChars(path, 0);
-    std::string filePath = std::string(pathStr);
-    if (pathStr != 0) {
-        env->ReleaseStringUTFChars(path, pathStr);
-    }
-
-    uint8_t *outBuffer = NULL;
-    unsigned long outSize = 0;
-    jpeg_mem_dest(&cinfo, &outBuffer, &outSize);
-    unsigned char *srcBuf = (unsigned char *) pixels;
-
-    cinfo.image_width = (uint32_t) width;
-    cinfo.image_height = (uint32_t) height;
-    cinfo.input_components = 4;
-    cinfo.in_color_space = JCS_EXT_RGBA;
-    jpeg_c_set_int_param(&cinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
-    jpeg_set_defaults(&cinfo);
-    cinfo.arith_code = FALSE;
-    cinfo.dct_method = JDCT_ISLOW;
-    cinfo.optimize_coding = TRUE;
-    jpeg_set_quality(&cinfo, 78, 1);
-    jpeg_simple_progression(&cinfo);
-    jpeg_start_compress(&cinfo, 1);
-
-    JSAMPROW rowPointer[1];
-    while (cinfo.next_scanline < cinfo.image_height) {
-        rowPointer[0] = (JSAMPROW) (srcBuf + cinfo.next_scanline * stride);
-        jpeg_write_scanlines(&cinfo, rowPointer, 1);
-    }
-
-    jpeg_finish_compress(&cinfo);
-
-    FILE *f = fopen(filePath.c_str(), "wb");
-    if (f && fwrite(outBuffer, sizeof(uint8_t), outSize, f) == outSize) {
-        fflush(f);
-        fsync(fileno(f));
-    }
-    fclose(f);
-
-    jpeg_destroy_compress(&cinfo);
-    return outSize;*/
-}
+//JNIEXPORT jint Java_org_telegram_messenger_Utilities_saveProgressiveJpeg(JNIEnv *env, jclass clazz, jobject bitmap, jint width, jint height, jint stride, jint quality, jstring path) {
+//    if (!bitmap || !path || !width || !height || !stride || stride != width * 4) {
+//        return 0;
+//    }
+//    void *pixels = 0;
+//    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0) {
+//        return 0;
+//    }
+//    if (pixels == NULL) {
+//        return 0;
+//    }
+//    tjhandle handle = 0;
+//    if ((handle = tjInitCompress()) == NULL) {
+//        return 0;
+//    }
+//    const char *pathStr = env->GetStringUTFChars(path, 0);
+//    std::string filePath = std::string(pathStr);
+//    if (pathStr != 0) {
+//        env->ReleaseStringUTFChars(path, pathStr);
+//    }
+//
+//    const char *enabledValue = "1";
+//    const char *disabledValue = "0";
+//    setenv("TJ_OPTIMIZE", enabledValue, 1);
+//    setenv("TJ_ARITHMETIC", disabledValue, 1);
+//    setenv("TJ_PROGRESSIVE", enabledValue, 1);
+//    setenv("TJ_REVERT", enabledValue, 1);
+//
+//    TJSAMP jpegSubsamp = TJSAMP::TJSAMP_420;
+//    jint buffSize = (jint) tjBufSize(width, height, jpegSubsamp);
+//    unsigned char *jpegBuf = new unsigned char[buffSize];
+//    unsigned char *srcBuf = (unsigned char *) pixels;
+//
+//    int pf = org_libjpegturbo_turbojpeg_TJ_PF_RGBA;
+//
+//    jsize actualPitch = width * tjPixelSize[pf];
+//    jsize arraySize = (height - 1) * actualPitch + (width) * tjPixelSize[pf];
+//    unsigned long jpegSize = tjBufSize(width, height, jpegSubsamp);
+//
+//    if (tjCompress2(handle, srcBuf, width, stride, height, pf, &jpegBuf, &jpegSize, jpegSubsamp, quality, TJFLAG_ACCURATEDCT | TJFLAG_PROGRESSIVE | TJFLAG_NOREALLOC) == 0) {
+//        FILE *f = fopen(filePath.c_str(), "wb");
+//        if (f && fwrite(jpegBuf, sizeof(unsigned char), jpegSize, f) == jpegSize) {
+//            fflush(f);
+//            fsync(fileno(f));
+//        } else {
+//            jpegSize = -1;
+//        }
+//        fclose(f);
+//    } else {
+//        jpegSize = -1;
+//    }
+//    delete[] jpegBuf;
+//    tjDestroy(handle);
+//    AndroidBitmap_unlockPixels(env, bitmap);
+//    return jpegSize;
+//
+//    /*struct jpeg_compress_struct cinfo;
+//    struct jpeg_error_mgr jerr;
+//    cinfo.err = jpeg_std_error(&jerr);
+//    jpeg_create_compress(&cinfo);
+//
+//    const char *pathStr = env->GetStringUTFChars(path, 0);
+//    std::string filePath = std::string(pathStr);
+//    if (pathStr != 0) {
+//        env->ReleaseStringUTFChars(path, pathStr);
+//    }
+//
+//    uint8_t *outBuffer = NULL;
+//    unsigned long outSize = 0;
+//    jpeg_mem_dest(&cinfo, &outBuffer, &outSize);
+//    unsigned char *srcBuf = (unsigned char *) pixels;
+//
+//    cinfo.image_width = (uint32_t) width;
+//    cinfo.image_height = (uint32_t) height;
+//    cinfo.input_components = 4;
+//    cinfo.in_color_space = JCS_EXT_RGBA;
+//    jpeg_c_set_int_param(&cinfo, JINT_COMPRESS_PROFILE, JCP_FASTEST);
+//    jpeg_set_defaults(&cinfo);
+//    cinfo.arith_code = FALSE;
+//    cinfo.dct_method = JDCT_ISLOW;
+//    cinfo.optimize_coding = TRUE;
+//    jpeg_set_quality(&cinfo, 78, 1);
+//    jpeg_simple_progression(&cinfo);
+//    jpeg_start_compress(&cinfo, 1);
+//
+//    JSAMPROW rowPointer[1];
+//    while (cinfo.next_scanline < cinfo.image_height) {
+//        rowPointer[0] = (JSAMPROW) (srcBuf + cinfo.next_scanline * stride);
+//        jpeg_write_scanlines(&cinfo, rowPointer, 1);
+//    }
+//
+//    jpeg_finish_compress(&cinfo);
+//
+//    FILE *f = fopen(filePath.c_str(), "wb");
+//    if (f && fwrite(outBuffer, sizeof(uint8_t), outSize, f) == outSize) {
+//        fflush(f);
+//        fsync(fileno(f));
+//    }
+//    fclose(f);
+//
+//    jpeg_destroy_compress(&cinfo);
+//    return outSize;*/
+//}
 
 std::vector<std::pair<float, float>> gatherPositions(std::vector<std::pair<float, float>> list, int phase) {
     std::vector<std::pair<float, float>> result(4);

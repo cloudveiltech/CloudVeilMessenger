@@ -1380,9 +1380,9 @@ public class FilterShaders {
         String hdrProcessor = "";
         int hdrType = hdrInfo != null ? hdrInfo.getHDRType() : 0;
         if (hdrType == 1) {
-            hdrProcessor = RLottieDrawable.readRes(null, R.raw.hdr2sdr_hlg);
+            hdrProcessor = AndroidUtilities.readRes(R.raw.hdr2sdr_hlg);
         } else if (hdrType == 2) {
-            hdrProcessor = RLottieDrawable.readRes(null, R.raw.hdr2sdr_pq);
+            hdrProcessor = AndroidUtilities.readRes(R.raw.hdr2sdr_pq);
         }
         String extension = isVideo ? "#extension GL_OES_EGL_image_external : require" : "";
         String sampler2D = isVideo ? "samplerExternalOES" : "sampler2D";
@@ -1980,7 +1980,7 @@ public class FilterShaders {
         if (bitmap != null && !bitmap.isRecycled()) {
             GLES20.glGenTextures(1, bitmapTextre, 0);
 
-            float maxSize = AndroidUtilities.getPhotoSize();
+            float maxSize = AndroidUtilities.getPhotoSize(true);
             if (scaleBitmap && (renderBufferWidth > maxSize || renderBufferHeight > maxSize) || orientation % 360 != 0) {
                 float scale = 1;
                 if (scaleBitmap && (renderBufferWidth > maxSize || renderBufferHeight > maxSize)) {

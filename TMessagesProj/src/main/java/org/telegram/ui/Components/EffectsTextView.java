@@ -53,7 +53,7 @@ public class EffectsTextView extends SpoilersTextView {
 
     @Override
     public void setText(CharSequence text, BufferType type) {
-        text = Emoji.replaceEmoji(text, getPaint().getFontMetricsInt(), AndroidUtilities.dp(14), false);
+        text = Emoji.replaceEmoji(text, getPaint().getFontMetricsInt(), false);
         super.setText(text, type);
     }
 
@@ -67,14 +67,6 @@ public class EffectsTextView extends SpoilersTextView {
 
     public void setDisablePaddingsOffsetY(boolean disablePaddingsOffsetY) {
         this.disablePaddingsOffsetY = disablePaddingsOffsetY;
-    }
-
-    public void setOnLinkPressListener(LinkSpanDrawable.LinksTextView.OnLinkPress listener) {
-        onPressListener = listener;
-    }
-
-    public void setOnLinkLongPressListener(LinkSpanDrawable.LinksTextView.OnLinkPress listener) {
-        onLongPressListener = listener;
     }
 
     public ClickableSpan hit(int x, int y) {

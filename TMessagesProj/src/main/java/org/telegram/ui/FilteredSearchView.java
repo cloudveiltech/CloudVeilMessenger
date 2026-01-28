@@ -1,5 +1,7 @@
 package org.telegram.ui;
 
+import static org.telegram.messenger.LocaleController.getString;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
@@ -26,6 +28,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -165,7 +168,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
         }
 
         @Override
-        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview) {
+        public PhotoViewer.PlaceProviderObject getPlaceForPhoto(MessageObject messageObject, TLRPC.FileLocation fileLocation, int index, boolean needPreview, boolean closing) {
             if (messageObject == null) {
                 return null;
             }
@@ -439,6 +442,15 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
             QuickRepliesController.QuickReply reply = QuickRepliesController.getInstance(messageObject.currentAccount).findReply(messageObject.getQuickReplyId());
             return reply == null ? "" : reply.name;
         }
+        if (messageObject.isSponsored()) {
+            if (messageObject.sponsoredCanReport) {
+                return getString(R.string.SponsoredMessageAd);
+            } else if (messageObject.sponsoredRecommended) {
+                return getString(R.string.SponsoredMessage2Recommended);
+            } else {
+                return getString(R.string.SponsoredMessage2);
+            }
+        }
         if (arrowSpan[arrowType] == null) {
             arrowSpan[arrowType] = new SpannableStringBuilder(">");
             int resId;
@@ -520,6 +532,8 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
     }
 
     public void search(long dialogId, long minDate, long maxDate, FiltersView.MediaFilterData currentSearchFilter, boolean includeFolder, String query, boolean clearOldResults) {
+        if (query == null) query = "";
+        final String finalQuery = query;
         String currentSearchFilterQueryString = String.format(Locale.ENGLISH, "%d%d%d%d%s%s", dialogId, minDate, maxDate, currentSearchFilter == null ? -1 : currentSearchFilter.filterType, query, includeFolder);
         boolean filterAndQueryIsSame = lastSearchFilterQueryString != null && lastSearchFilterQueryString.equals(currentSearchFilterQueryString);
         boolean forceClear = !filterAndQueryIsSame && clearOldResults;
@@ -585,7 +599,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
             ArrayList<Object> resultArray = null;
             if (dialogId != 0) {
                 final TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-                req.q = query;
+                req.q = finalQuery;
                 req.limit = 20;
                 req.filter = currentSearchFilter == null ? new TLRPC.TL_inputMessagesFilterEmpty() : currentSearchFilter.filter;
                 req.peer = AccountInstance.getInstance(currentAccount).getMessagesController().getInputPeer(dialogId);
@@ -595,7 +609,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 if (maxDate > 0) {
                     req.max_date = (int) (maxDate / 1000);
                 }
-                if (filterAndQueryIsSame && query.equals(lastMessagesSearchString) && !messages.isEmpty()) {
+                if (filterAndQueryIsSame && finalQuery.equals(lastMessagesSearchString) && !messages.isEmpty()) {
                     MessageObject lastMessage = messages.get(messages.size() - 1);
                     req.offset_id = lastMessage.getId();
                 } else {
@@ -603,16 +617,34 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 }
                 request = req;
             } else {
-                if (!TextUtils.isEmpty(query)) {
+                if (!TextUtils.isEmpty(finalQuery)) {
                     resultArray = new ArrayList<>();
                     ArrayList<CharSequence> resultArrayNames = new ArrayList<>();
                     ArrayList<TLRPC.User> encUsers = new ArrayList<>();
-                    MessagesStorage.getInstance(currentAccount).localSearch(0, query, resultArray, resultArrayNames, encUsers, null, includeFolder ? 1 : 0);
+                    MessagesStorage.getInstance(currentAccount).localSearch(0, finalQuery, resultArray, resultArrayNames, encUsers, null, includeFolder ? 1 : 0);
+                    //CloudVeil start. localSearch above has already been checked for blocked dialog ids
+                    if (!resultArray.isEmpty()) {
+                        for (int i = resultArray.size() - 1; i >= 0; i--) {
+                            Object item = resultArray.get(i);
+                            if (item instanceof TLRPC.Chat) {
+                                TLRPC.Chat chat = (TLRPC.Chat) item;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id)) {
+                                    resultArray.remove(i);
+                                }
+                            } else if (item instanceof TLRPC.User) {
+                                TLRPC.User user = (TLRPC.User) item;
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(user.id)) {
+                                    resultArray.remove(i);
+                                }
+                            }
+                        }
+                    }
+                    //CloudVeil end
                 }
 
                 final TLRPC.TL_messages_searchGlobal req = new TLRPC.TL_messages_searchGlobal();
                 req.limit = 20;
-                req.q = query;
+                req.q = finalQuery;
                 req.filter = currentSearchFilter == null ? new TLRPC.TL_inputMessagesFilterEmpty() : currentSearchFilter.filter;
                 if (minDate > 0) {
                     req.min_date = (int) (minDate / 1000);
@@ -620,7 +652,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 if (maxDate > 0) {
                     req.max_date = (int) (maxDate / 1000);
                 }
-                if (filterAndQueryIsSame && query.equals(lastMessagesSearchString) && !messages.isEmpty()) {
+                if (filterAndQueryIsSame && finalQuery.equals(lastMessagesSearchString) && !messages.isEmpty()) {
                     MessageObject lastMessage = messages.get(messages.size() - 1);
                     req.offset_id = lastMessage.getId();
                     req.offset_rate = nextSearchRate;
@@ -636,7 +668,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 request = req;
             }
 
-            lastMessagesSearchString = query;
+            lastMessagesSearchString = finalQuery;
             lastSearchFilterQueryString = currentSearchFilterQueryString;
 
             ArrayList<Object> finalResultArray = resultArray;
@@ -646,10 +678,52 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 ArrayList<MessageObject> messageObjects = new ArrayList<>();
                 if (error == null) {
                     TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
+                    //CloudVeil start
+                    // remove blocked chats from search response
+                    if (res.chats != null && !res.chats.isEmpty()) {
+                        for (int i = res.chats.size() - 1; i >= 0; i--) {
+                            TLRPC.Chat chat = res.chats.get(i);
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id)) {
+                                res.chats.remove(i);
+                            }
+                        }
+                    }
+                    // remove from search response -- messages (images) from blocked chats
+                    // work backward so removed messages don't affect index
+                    if (res.messages != null && !res.messages.isEmpty()) {
+                        TLRPC.Message lastMessageInSearch = res.messages.get(res.messages.size() - 1);
+                        int lastIdInSearch = lastMessageInSearch.id;
+                        for (int i = res.messages.size() - 1; i >= 0; i--) {
+                            TLRPC.Message message = res.messages.get(i);
+                            long peerId = 0;
+                            if (message.peer_id instanceof TLRPC.TL_peerChannel) {
+                                peerId = -((TLRPC.TL_peerChannel) message.peer_id).channel_id;
+                            } else if (message.peer_id instanceof TLRPC.TL_peerChat) {
+                                peerId = -((TLRPC.TL_peerChat) message.peer_id).chat_id;
+                            } else if (message.peer_id instanceof TLRPC.TL_peerUser) {
+                                peerId = ((TLRPC.TL_peerUser) message.peer_id).user_id;
+                            }
+
+                            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(peerId)) {
+                                if (message.id == lastIdInSearch) {
+                                    message.media = new TLRPC.TL_messageMediaEmpty();
+                                    message.message = "";
+                                    TLRPC.TL_peerUser selfPeer = new TLRPC.TL_peerUser();
+                                    selfPeer.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+                                    message.peer_id = selfPeer;
+                                    message.from_id = selfPeer;
+                                } else {
+                                    res.messages.remove(i);
+                                    res.count--;
+                                }
+                            }
+                        }
+                    }
+                    //CloudVeil end
                     int n = res.messages.size();
                     for (int i = 0; i < n; i++) {
                         MessageObject messageObject = new MessageObject(currentAccount, res.messages.get(i), false, true);
-                        messageObject.setQuery(query);
+                        messageObject.setQuery(finalQuery);
                         messageObjects.add(messageObject);
                     }
                 }
@@ -660,9 +734,9 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     }
                     isLoading = false;
                     if (error != null) {
-                        emptyView.title.setText(LocaleController.getString("SearchEmptyViewTitle2", R.string.SearchEmptyViewTitle2));
+                        emptyView.title.setText(LocaleController.getString(R.string.SearchEmptyViewTitle2));
                         emptyView.subtitle.setVisibility(View.VISIBLE);
-                        emptyView.subtitle.setText(LocaleController.getString("SearchEmptyViewFilteredSubtitle2", R.string.SearchEmptyViewFilteredSubtitle2));
+                        emptyView.subtitle.setText(LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitle2));
                         emptyView.showProgress(false, true);
                         return;
                     }
@@ -681,7 +755,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                         sectionArrays.clear();
                     }
                     totalCount = res.count;
-                    currentDataQuery = query;
+                    currentDataQuery = finalQuery;
                     int n = messageObjects.size();
                     for (int i = 0; i < n; i++) {
                         MessageObject messageObject = messageObjects.get(i);
@@ -707,28 +781,28 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     if (messages.isEmpty()) {
                         if (currentSearchFilter != null) {
                             if (TextUtils.isEmpty(currentDataQuery) && dialogId == 0 && minDate == 0) {
-                                emptyView.title.setText(LocaleController.getString("SearchEmptyViewTitle", R.string.SearchEmptyViewTitle));
+                                emptyView.title.setText(LocaleController.getString(R.string.SearchEmptyViewTitle));
                                 String str;
                                 if (currentSearchFilter.filterType == FiltersView.FILTER_TYPE_FILES) {
-                                    str = LocaleController.getString("SearchEmptyViewFilteredSubtitleFiles", R.string.SearchEmptyViewFilteredSubtitleFiles);
+                                    str = LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitleFiles);
                                 } else if (currentSearchFilter.filterType == FiltersView.FILTER_TYPE_MEDIA) {
-                                    str = LocaleController.getString("SearchEmptyViewFilteredSubtitleMedia", R.string.SearchEmptyViewFilteredSubtitleMedia);
+                                    str = LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitleMedia);
                                 } else if (currentSearchFilter.filterType == FiltersView.FILTER_TYPE_LINKS) {
-                                    str = LocaleController.getString("SearchEmptyViewFilteredSubtitleLinks", R.string.SearchEmptyViewFilteredSubtitleLinks);
+                                    str = LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitleLinks);
                                 } else if (currentSearchFilter.filterType == FiltersView.FILTER_TYPE_MUSIC) {
-                                    str = LocaleController.getString("SearchEmptyViewFilteredSubtitleMusic", R.string.SearchEmptyViewFilteredSubtitleMusic);
+                                    str = LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitleMusic);
                                 } else {
-                                    str = LocaleController.getString("SearchEmptyViewFilteredSubtitleVoice", R.string.SearchEmptyViewFilteredSubtitleVoice);
+                                    str = LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitleVoice);
                                 }
                                 emptyView.subtitle.setVisibility(View.VISIBLE);
                                 emptyView.subtitle.setText(str);
                             } else {
-                                emptyView.title.setText(LocaleController.getString("SearchEmptyViewTitle2", R.string.SearchEmptyViewTitle2));
+                                emptyView.title.setText(LocaleController.getString(R.string.SearchEmptyViewTitle2));
                                 emptyView.subtitle.setVisibility(View.VISIBLE);
-                                emptyView.subtitle.setText(LocaleController.getString("SearchEmptyViewFilteredSubtitle2", R.string.SearchEmptyViewFilteredSubtitle2));
+                                emptyView.subtitle.setText(LocaleController.getString(R.string.SearchEmptyViewFilteredSubtitle2));
                             }
                         } else {
-                            emptyView.title.setText(LocaleController.getString("SearchEmptyViewTitle2", R.string.SearchEmptyViewTitle2));
+                            emptyView.title.setText(LocaleController.getString(R.string.SearchEmptyViewTitle2));
                             emptyView.subtitle.setVisibility(View.GONE);
                         }
                     }
@@ -767,8 +841,8 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                         if (finalResultArray != null) {
                             localTipChats.addAll(finalResultArray);
                         }
-                        if (query != null && query.length() >= 3 && (LocaleController.getString("SavedMessages", R.string.SavedMessages).toLowerCase().startsWith(query) ||
-                                "saved messages".startsWith(query))) {
+                        if (finalQuery != null && finalQuery.length() >= 3 && (LocaleController.getString(R.string.SavedMessages).toLowerCase().startsWith(finalQuery) ||
+                                "saved messages".startsWith(finalQuery))) {
                             boolean found = false;
                             for (int i = 0; i < localTipChats.size(); i++) {
                                 if (localTipChats.get(i) instanceof TLRPC.User)
@@ -784,8 +858,8 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                         localTipDates.clear();
                         localTipDates.addAll(dateData);
                         localTipArchive = false;
-                        if (query != null && query.length() >= 3 && (LocaleController.getString("ArchiveSearchFilter", R.string.ArchiveSearchFilter).toLowerCase().startsWith(query) ||
-                                "archive".startsWith(query))) {
+                        if (finalQuery != null && finalQuery.length() >= 3 && (LocaleController.getString(R.string.ArchiveSearchFilter).toLowerCase().startsWith(finalQuery) ||
+                                "archive".startsWith(finalQuery))) {
                             localTipArchive = true;
                         }
                         if (delegate != null) {
@@ -1102,8 +1176,10 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 String link = null;
                 if (webPage != null && !(webPage instanceof TLRPC.TL_webPageEmpty)) {
                     if (webPage.cached_page != null) {
-                        ArticleViewer.getInstance().setParentActivity(parentActivity, parentFragment);
-                        ArticleViewer.getInstance().open(message);
+                        if (LaunchActivity.instance != null && LaunchActivity.instance.getBottomSheetTabs() != null && LaunchActivity.instance.getBottomSheetTabs().tryReopenTab(message) != null) {
+                            return;
+                        }
+                        parentFragment.createArticleViewer(false).open(message);
                         return;
                     } else if (webPage.embed_url != null && webPage.embed_url.length() != 0) {
                         openWebView(webPage, message);
@@ -1145,7 +1221,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 if (longPress) {
                     BottomSheet.Builder builder = new BottomSheet.Builder(parentActivity);
                     builder.setTitle(urlFinal);
-                    builder.setItems(new CharSequence[]{LocaleController.getString("Open", R.string.Open), LocaleController.getString("Copy", R.string.Copy)}, (dialog, which) -> {
+                    builder.setItems(new CharSequence[]{LocaleController.getString(R.string.Open), LocaleController.getString(R.string.Copy)}, (dialog, which) -> {
                         if (which == 0) {
                             openUrl(urlFinal);
                         } else if (which == 1) {
@@ -1603,7 +1679,7 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                 default:
                 case 2:
                     GraySectionCell cell = new GraySectionCell(parent.getContext());
-                    cell.setText(LocaleController.getString("SearchMessages", R.string.SearchMessages));
+                    cell.setText(LocaleController.getString(R.string.SearchMessages));
                     view = cell;
                     break;
             }

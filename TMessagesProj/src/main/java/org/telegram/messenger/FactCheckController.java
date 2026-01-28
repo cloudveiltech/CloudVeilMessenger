@@ -36,6 +36,7 @@ import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.Vector;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.AlertDialogDecor;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -175,8 +176,8 @@ public class FactCheckController {
                 if (!req.msg_id.isEmpty()) {
                     ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
                         ArrayList<TLRPC.TL_factCheck> factChecks = new ArrayList<>();
-                        if (res instanceof TLRPC.Vector) {
-                            ArrayList<Object> objects = ((TLRPC.Vector) res).objects;
+                        if (res instanceof Vector) {
+                            ArrayList<Object> objects = ((Vector) res).objects;
                             for (int k = 0; k < objects.size(); ++k) {
                                 if (objects.get(k) instanceof TLRPC.TL_factCheck) {
                                     factChecks.add((TLRPC.TL_factCheck) objects.get(k));
@@ -397,14 +398,14 @@ public class FactCheckController {
                     menu.removeItem(android.R.id.shareText);
                 }
                 int order = 6;
-                SpannableStringBuilder stringBuilder = new SpannableStringBuilder(getString("Bold", R.string.Bold));
+                SpannableStringBuilder stringBuilder = new SpannableStringBuilder(getString(R.string.Bold));
                 stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.bold()), 0, stringBuilder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 menu.add(R.id.menu_groupbolditalic, R.id.menu_bold, order++, stringBuilder);
-                stringBuilder = new SpannableStringBuilder(getString("Italic", R.string.Italic));
-                stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/ritalic.ttf")), 0, stringBuilder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                stringBuilder = new SpannableStringBuilder(getString(R.string.Italic));
+                stringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM_ITALIC)), 0, stringBuilder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 menu.add(R.id.menu_groupbolditalic, R.id.menu_italic, order++, stringBuilder);
-                menu.add(R.id.menu_groupbolditalic, R.id.menu_link, order++, getString("CreateLink", R.string.CreateLink));
-                menu.add(R.id.menu_groupbolditalic, R.id.menu_regular, order++, getString("Regular", R.string.Regular));
+                menu.add(R.id.menu_groupbolditalic, R.id.menu_link, order++, getString(R.string.CreateLink));
+                menu.add(R.id.menu_groupbolditalic, R.id.menu_regular, order++, getString(R.string.Regular));
             }
 
             @Override
@@ -481,7 +482,9 @@ public class FactCheckController {
                     ignoreTextChange = true;
                     s.delete(MAX_LENGTH, s.length());
                     AndroidUtilities.shakeView(editText);
-                    editText.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                    try {
+                        editText.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+                    } catch (Exception ignore) {}
                     ignoreTextChange = false;
                 }
 
@@ -573,7 +576,9 @@ public class FactCheckController {
         progressDialog.showDelayed(320);
         ConnectionsManager.getInstance(currentAccount).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
             if (res instanceof TLRPC.Updates) {
-                MessagesController.getInstance(currentAccount).processUpdates((TLRPC.Updates) res, false);
+                Utilities.stageQueue.postRunnable(() -> {
+                    MessagesController.getInstance(currentAccount).processUpdates((TLRPC.Updates) res, false);
+                });
 
                 BaseFragment fragment = LaunchActivity.getSafeLastFragment();
                 if (fragment != null) {

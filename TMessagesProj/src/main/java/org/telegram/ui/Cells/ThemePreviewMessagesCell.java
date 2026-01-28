@@ -156,12 +156,13 @@ public class ThemePreviewMessagesCell extends LinearLayout {
             }
 
             message1 = new MessageObject(UserConfig.selectedAccount, message, true, false);
+            message1.notime = true;
             message1.forceAvatar = true;
             message1.resetLayout();
             message1.eventId = 1;
         } else if (type == TYPE_REACTIONS_DOUBLE_TAP)  {
             TLRPC.Message message = new TLRPC.TL_message();
-            message.message = LocaleController.getString("DoubleTapPreviewMessage", R.string.DoubleTapPreviewMessage);
+            message.message = LocaleController.getString(R.string.DoubleTapPreviewMessage);
             message.date = date + 60;
             message.dialog_id = 1;
             message.flags = 259;
@@ -176,16 +177,16 @@ public class ThemePreviewMessagesCell extends LinearLayout {
             message1 = new MessageObject(UserConfig.selectedAccount, message, true, false);
             message1.resetLayout();
             message1.eventId = 1;
-            message1.customName = LocaleController.getString("DoubleTapPreviewSenderName", R.string.DoubleTapPreviewSenderName);
+            message1.customName = LocaleController.getString(R.string.DoubleTapPreviewSenderName);
             message1.customAvatarDrawable = ContextCompat.getDrawable(context, R.drawable.dino_pic);
             message1.overrideLinkColor = 5;
             message1.overrideLinkEmoji = 0;
         } else {
             TLRPC.Message message = new TLRPC.TL_message();
             if (type == 0) {
-                message.message = LocaleController.getString("FontSizePreviewReply", R.string.FontSizePreviewReply);
+                message.message = LocaleController.getString(R.string.FontSizePreviewReply);
             } else {
-                message.message = LocaleController.getString("NewThemePreviewReply", R.string.NewThemePreviewReply);
+                message.message = LocaleController.getString(R.string.NewThemePreviewReply);
             }
             String greeting = "\uD83D\uDC4B";
             int index = message.message.indexOf(greeting);
@@ -210,9 +211,9 @@ public class ThemePreviewMessagesCell extends LinearLayout {
 
             message = new TLRPC.TL_message();
             if (type == 0) {
-                message.message = LocaleController.getString("FontSizePreviewLine2", R.string.FontSizePreviewLine2);
+                message.message = LocaleController.getString(R.string.FontSizePreviewLine2);
             } else {
-                String text = LocaleController.getString("NewThemePreviewLine3", R.string.NewThemePreviewLine3);
+                String text = LocaleController.getString(R.string.NewThemePreviewLine3);
                 StringBuilder builder = new StringBuilder(text);
                 int index1 = text.indexOf('*');
                 int index2 = text.lastIndexOf('*');
@@ -254,9 +255,9 @@ public class ThemePreviewMessagesCell extends LinearLayout {
 
             message = new TLRPC.TL_message();
             if (type == 0) {
-                message.message = LocaleController.getString("FontSizePreviewLine1", R.string.FontSizePreviewLine1);
+                message.message = LocaleController.getString(R.string.FontSizePreviewLine1);
             } else {
-                message.message = LocaleController.getString("NewThemePreviewLine1", R.string.NewThemePreviewLine1);
+                message.message = LocaleController.getString(R.string.NewThemePreviewLine1);
             }
             message.date = date + 60;
             message.dialog_id = 1;
@@ -272,9 +273,9 @@ public class ThemePreviewMessagesCell extends LinearLayout {
             message.peer_id.user_id = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
             message2 = new MessageObject(UserConfig.selectedAccount, message, true, false);
             if (type == 0) {
-//                message2.customReplyName = LocaleController.getString("FontSizePreviewName", R.string.FontSizePreviewName);
+//                message2.customReplyName = LocaleController.getString(R.string.FontSizePreviewName);
             } else {
-                message2.customReplyName = LocaleController.getString("NewThemePreviewName", R.string.NewThemePreviewName);
+                message2.customReplyName = LocaleController.getString(R.string.NewThemePreviewName);
             }
             message2.eventId = 1;
             message2.resetLayout();
@@ -296,7 +297,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                             return false;
                         }
                         boolean added = getMessageObject().selectReaction(ReactionsLayoutInBubble.VisibleReaction.fromEmojicon(MediaDataController.getInstance(currentAccount).getDoubleTapReaction()), false, false);
-                        setMessageObject(getMessageObject(), null, false, false);
+                        setMessageObject(getMessageObject(), null, false, false, false);
                         requestLayout();
                         ReactionsEffectOverlay.removeCurrent(false);
                         if (added) {
@@ -390,7 +391,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
                 }
 
                 @Override
-                public void didPressReplyMessage(ChatMessageCell cell, int id) {
+                public void didPressReplyMessage(ChatMessageCell cell, int id, float x, float y, boolean longpress) {
                     if (allowLoadingOnTouch()) {
                         progress = ChatActivity.PROGRESS_REPLY;
                         cell.invalidate();
@@ -431,7 +432,7 @@ public class ThemePreviewMessagesCell extends LinearLayout {
             if (messageObject == null) {
                 continue;
             }
-            cells[a].setMessageObject(messageObject, null, false, false);
+            cells[a].setMessageObject(messageObject, null, false, false, false);
             addView(cells[a], LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         }
     }

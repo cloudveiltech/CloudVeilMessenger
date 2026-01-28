@@ -3,14 +3,11 @@ package org.cloudveil.messenger.jobs;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.LinkProperties;
-import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkInfo;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
+import android.os.Build;
+import android.os.PowerManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -27,7 +24,6 @@ import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.NetworkHelper;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
-import org.cloudveil.messenger.api.service.MessengerHttpInterface;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
@@ -39,6 +35,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,9 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
-import io.sentry.Scope;
+import io.reactivex.exceptions.Exceptions;
 import io.sentry.Sentry;
-import io.sentry.SentryLevel;
 import io.sentry.protocol.User;
 
 /**
@@ -76,31 +72,53 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
     public static void startDataChecking(int accountNum, @Nullable Context context) {
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + "(no dialogId)");
         if (context == null) {
+            Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
-        FileLog.d("CloudVeilSyncWorker startDataChecking");
+        //  Prevent sync while device is idle
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
+            FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
+            Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
+            return;
+        }
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestNoRestrictions(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
-
-        WorkManager.getInstance(context).pruneWork();
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: Enqueuing work request");
+        //WorkManager.getInstance(context).pruneWork();
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.REPLACE, requestBuilder.build());
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking done");
     }
 
     public static void startDataChecking(int accountNum, long dialogId, @Nullable Context context) {
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking called for account: " + accountNum + ", dialogId: " + dialogId);
         if (context == null) {
+            Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking cancelled; null context");
             return;
         }
+        //  Prevent sync while device is idle
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && pm.isDeviceIdleMode()) {
+            FileLog.w("CloudVeilSyncWorker: Device is in idle mode. Skipping sync.");
+            Sentry.addBreadcrumb("CloudVeil sync skipped due to idle mode");
+            return;
+        }
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking passed idle mode check");
         OneTimeWorkRequest.Builder requestBuilder = WorkerHelper.getOneTimeWorkRequestWithNetwork(CloudVeilSyncWorker.class);
         Data params = new Data.Builder().
                 putInt(EXTRA_ACCOUNT_NUMBER, accountNum).
                 putLong(EXTRA_ADDITION_DIALOG_ID, dialogId).
                 build();
         requestBuilder = requestBuilder.setInputData(params);
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: Enqueuing work request for dialogId: " + dialogId);
         WorkManager.getInstance(context).enqueueUniqueWork(CloudVeilSyncWorker.class.getName(), ExistingWorkPolicy.KEEP, requestBuilder.build());
+        Sentry.addBreadcrumb("CloudVeilSyncWorker: startDataChecking done");
     }
 
 
@@ -140,6 +158,14 @@ public class CloudVeilSyncWorker extends Worker {
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
         request.userName = currentUser.username;
+        ArrayList<String> userNames = new ArrayList<>();
+        for (TLRPC.TL_username un : currentUser.usernames) {
+            userNames.add(un.username);
+        }
+        if (!userNames.contains(currentUser.username)) {
+            userNames.add(currentUser.username);
+        }
+        request.userNames = userNames;
         request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
 
         addDialogsToRequest(request);
@@ -184,18 +210,31 @@ public class CloudVeilSyncWorker extends Worker {
 
     private void sendDataAndPingServer(@NonNull User user, @NonNull SettingsRequest request, SettingsResponse cached) {
         subscription = ServiceClientHolders.getSettingsService().loadSettings(request).
-                subscribeOn(Schedulers.io()).
-                subscribe(settingsResponse -> {
-                    saveToCache(settingsResponse);
-                    processResponse(settingsResponse, accountNumber);
-                    freeSubscription();
-                }, throwable -> {
-                    if (cached != null) {
-                        processResponse(cached, accountNumber);
-                    }
-                    sendSentryEvent(throwable, user, "Settings sync request failed.");
-                    freeSubscription();
-                });
+        subscribeOn(Schedulers.io()).
+        retryWhen(errors -> errors
+            .zipWith(io.reactivex.Observable.range(1, 3), (err, attempt) -> {
+                if (err instanceof IOException && attempt < 3) {
+                    return attempt;
+                } else {
+                    throw Exceptions.propagate(err);
+                }
+            })
+            .flatMap(attempt -> {
+                long delay = (long) Math.pow(2, attempt); // exponential backoff: 2s, 4s, 8s
+                return io.reactivex.Observable.timer(delay, java.util.concurrent.TimeUnit.SECONDS);
+            })
+        )
+        .subscribe(settingsResponse -> {
+            saveToCache(settingsResponse);
+            processResponse(settingsResponse, accountNumber);
+            freeSubscription();
+        }, throwable -> {
+            if (cached != null) {
+                processResponse(cached, accountNumber);
+            }
+            sendSentryEvent(throwable, user, "Settings sync request failed.");
+            freeSubscription();
+        });
 
     }
 
@@ -209,7 +248,7 @@ public class CloudVeilSyncWorker extends Worker {
         if(!NetworkHelper.hasAnyInternetConnection(getApplicationContext())) {
             return;
         }
-
+/* TODO: Remove, a lot of useless reports here
         Exception wrapped = new CloudVeilSyncException("Can't sync with CloudVeil server: " + message, exception);
         FileLog.e(wrapped);
         Sentry.captureException(wrapped, scope -> {
@@ -217,6 +256,8 @@ public class CloudVeilSyncWorker extends Worker {
             scope.setUser(user);
             NetworkHelper.addNetworkDataToSentry(getApplicationContext(), scope);
         });
+        */
+
     }
 
 
@@ -233,8 +274,17 @@ public class CloudVeilSyncWorker extends Worker {
                 SettingsRequest.Row row = new SettingsRequest.Row();
                 row.id = user.id;
 
-                row.title = user.username;
-                row.userName = user.username;
+                row.title = user.first_name != null ? user.first_name : user.username;
+
+                ArrayList<String> userNames = new ArrayList<>();
+                for (TLRPC.TL_username un : user.usernames) {
+                    userNames.add(un.username);
+                }
+                if (!userNames.contains(user.username)) {
+                    userNames.add(user.username);
+                }
+                row.userNames = userNames;
+
                 request.addBot(row);
             }
         }
@@ -263,7 +313,10 @@ public class CloudVeilSyncWorker extends Worker {
         SettingsRequest.Row row = new SettingsRequest.Row();
         row.id = stickerSet.id;
         row.title = stickerSet.title;
-        row.userName = stickerSet.short_name;
+
+        ArrayList<String> userNames = new ArrayList<>();
+        userNames.add(stickerSet.short_name);
+        row.userNames = userNames;
 
         request.addSticker(row);
     }
@@ -285,7 +338,15 @@ public class CloudVeilSyncWorker extends Worker {
         }
 
         ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
-        allowedDialogs.clear();
+        // if last response's org is this response's org,
+        // keep old peers around even when this response doesn't have them
+        // otherwise clear them
+        @NonNull
+        SettingsResponse.Organization currentOrg = CloudVeilSecuritySettings.getOrganization();
+        if (settingsResponse.organization != null
+                && currentOrg.id != settingsResponse.organization.id) {
+            allowedDialogs.clear();
+        }
 
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.channels);
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.groups);
@@ -378,11 +439,15 @@ public class CloudVeilSyncWorker extends Worker {
 
     private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
         TLRPC.Chat chat = null;
+        TLRPC.ChatFull chatFull = null;
         TLRPC.User user = null;
+        boolean isSuperGroup = false;
 
         TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
         if(object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
+            chatFull = MessagesController.getInstance(accountNumber).getChatFull(chat.id);
+            isSuperGroup = chatFull != null && chatFull.migrated_from_chat_id != 0;
         } else {
             user = (TLRPC.User) object;
         }
@@ -392,19 +457,41 @@ public class CloudVeilSyncWorker extends Worker {
             SettingsRequest.GroupChannelRow row = null;
             if(isChannel) {
                 row = new SettingsRequest.GroupChannelRow();
-            } else {
+            } else if (isSuperGroup) {
+                row = new SettingsRequest.SuperGroupRow();
+            } else  {
                 row = new SettingsRequest.GroupRow();
             }
             row.title = chat.title;
-            row.userName = chat.username;
             row.id = currentDialogId;
+            if (chat.creator) { // || chat.adminRights
+                row.isCreatorAdmin = true;
+            }
+            if (chat.forum) {
+                row.isForum = true;
+            }
+            if (chat.restricted || chat.explicit_content) {
+                row.isRestricted = true;
+            }
 
+            ArrayList<String> userNames = new ArrayList<>();
+            for (TLRPC.TL_username un : chat.usernames) {
+                userNames.add(un.username);
+            }
+            if (chat.username != null && !userNames.contains(chat.username)) {
+                userNames.add(chat.username);
+            }
+            row.userNames = userNames;
             row.isPublic = ChatObject.isPublic(chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
                 SettingsRequest.GroupRow groupRow = (SettingsRequest.GroupRow)row;
                 groupRow.isMegagroup = chat.megagroup;
+                if (groupRow instanceof SettingsRequest.SuperGroupRow) {
+                    SettingsRequest.SuperGroupRow superGroupRow = (SettingsRequest.SuperGroupRow)groupRow;
+                    superGroupRow.migratedFromTelegramId = chatFull.migrated_from_chat_id;
+                }
                 request.addGroup(groupRow);
             }
         } else if (user != null) {
@@ -421,7 +508,16 @@ public class CloudVeilSyncWorker extends Worker {
                     }
                     row.title += user.last_name;
                 }
-                row.userName = user.username;
+
+                ArrayList<String> userNames = new ArrayList<>();
+                for (TLRPC.TL_username un : user.usernames) {
+                    userNames.add(un.username);
+                }
+                if (!userNames.contains(user.username)) {
+                    userNames.add(user.username);
+                }
+                row.userNames = userNames;
+
                 if (user.bot) {
                     request.addBot(row);
                 } else {

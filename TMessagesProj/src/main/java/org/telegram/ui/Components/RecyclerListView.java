@@ -17,6 +17,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PointF;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
@@ -44,11 +45,13 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.util.Consumer;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -132,6 +135,7 @@ public class RecyclerListView extends RecyclerView {
 
     private boolean drawSelectorBehind;
     private int selectorType = 2;
+    @Nullable
     protected Drawable selectorDrawable;
     protected int selectorPosition;
     protected View selectorView;
@@ -1108,12 +1112,16 @@ public class RecyclerListView extends RecyclerView {
                     View child = currentChildView;
                     if (onItemLongClickListener != null) {
                         if (onItemLongClickListener.onItemClick(currentChildView, currentChildPosition)) {
-                            child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                            try {
+                                child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                            } catch (Exception ignored) {}
                             child.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
                         }
                     } else {
                         if (onItemLongClickListenerExtended.onItemClick(currentChildView, currentChildPosition, event.getX() - currentChildView.getX(), event.getY() - currentChildView.getY())) {
-                            child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                            try {
+                                child.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                            } catch (Exception ignored) {}
                             child.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
                             longPressCalled = true;
                         }
@@ -1158,6 +1166,8 @@ public class RecyclerListView extends RecyclerView {
                         final View child = viewGroup.getChildAt(i);
                         if (x >= child.getLeft() && x <= child.getRight() && y >= child.getTop() && y <= child.getBottom()) {
                             if (child.isClickable()) {
+                                // todo: recursion search ???
+
                                 currentChildView = null;
                                 break;
                             }
@@ -1346,7 +1356,7 @@ public class RecyclerListView extends RecyclerView {
         resetSelectorOnChanged = value;
     }
 
-    private AdapterDataObserver observer = new AdapterDataObserver() {
+    private final AdapterDataObserver observer = new AdapterDataObserver() {
         @Override
         public void onChanged() {
             checkIfEmpty(true);
@@ -1454,7 +1464,9 @@ public class RecyclerListView extends RecyclerView {
                 }
                 if (selectorPosition != NO_POSITION) {
                     selectorRect.offset(-dx, -dy);
-                    selectorDrawable.setBounds(selectorRect);
+                    if (selectorDrawable != null) {
+                        selectorDrawable.setBounds(selectorRect);
+                    }
                     invalidate();
                 } else {
                     selectorRect.setEmpty();
@@ -1473,7 +1485,10 @@ public class RecyclerListView extends RecyclerView {
 
     private Paint backgroundPaint;
     protected void drawSectionBackground(Canvas canvas, int fromAdapterPosition, int toAdapterPosition, int color) {
-        if (toAdapterPosition < fromAdapterPosition) {
+        drawSectionBackground(canvas, fromAdapterPosition, toAdapterPosition, color, 0, 0);
+    }
+    protected void drawSectionBackground(Canvas canvas, int fromAdapterPosition, int toAdapterPosition, int color, int topMargin, int bottomMargin) {
+        if (toAdapterPosition < fromAdapterPosition || fromAdapterPosition < 0 || toAdapterPosition < 0) {
             return;
         }
 
@@ -1498,7 +1513,7 @@ public class RecyclerListView extends RecyclerView {
                 backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             }
             backgroundPaint.setColor(color);
-            canvas.drawRect(0, top, getWidth(), bottom, backgroundPaint);
+            canvas.drawRect(0, top - topMargin, getWidth(), bottom + bottomMargin, backgroundPaint);
         }
     }
 
@@ -1644,6 +1659,8 @@ public class RecyclerListView extends RecyclerView {
         }
         if (selectorType == 8) {
             selectorDrawable = Theme.createRadSelectorDrawable(color, selectorRadius, 0);
+        } else if (selectorType == 9) {
+            selectorDrawable = null;
         } else if (topBottomSelectorRadius > 0) {
             selectorDrawable = Theme.createRadSelectorDrawable(color, topBottomSelectorRadius, topBottomSelectorRadius);
         } else if (selectorRadius > 0 && selectorType != Theme.RIPPLE_MASK_CIRCLE_20DP) {
@@ -1653,7 +1670,9 @@ public class RecyclerListView extends RecyclerView {
         } else {
             selectorDrawable = Theme.createSelectorDrawable(color, selectorType, selectorRadius);
         }
-        selectorDrawable.setCallback(this);
+        if (selectorDrawable != null) {
+            selectorDrawable.setCallback(this);
+        }
     }
 
     public Drawable getSelectorDrawable() {
@@ -1972,7 +1991,11 @@ public class RecyclerListView extends RecyclerView {
     public void invalidateViews() {
         int count = getChildCount();
         for (int a = 0; a < count; a++) {
-            getChildAt(a).invalidate();
+            View child = getChildAt(a);
+            if (child instanceof Theme.Colorable) {
+                ((Theme.Colorable) child).updateColors();
+            }
+            child.invalidate();
         }
     }
 
@@ -2015,8 +2038,10 @@ public class RecyclerListView extends RecyclerView {
             pendingHighlightPosition = null;
             if (selectorView != null && highlightPosition != NO_POSITION) {
                 positionSelector(highlightPosition, selectorView);
-                selectorDrawable.setState(new int[]{});
-                invalidateDrawable(selectorDrawable);
+                if (selectorDrawable != null) {
+                    selectorDrawable.setState(new int[]{});
+                    invalidateDrawable(selectorDrawable);
+                }
                 selectorView = null;
                 highlightPosition = NO_POSITION;
             } else {
@@ -2542,7 +2567,7 @@ public class RecyclerListView extends RecyclerView {
             itemsEnterAnimator.dispatchDraw();
         }
 
-        if (drawSelection && drawSelectorBehind && !selectorRect.isEmpty()) {
+        if (drawSelection && drawSelectorBehind && !selectorRect.isEmpty() && selectorDrawable != null) {
             if ((translateSelector == -2 || translateSelector == selectorPosition) && selectorView != null) {
                 int bottomPadding;
                 if (getAdapter() instanceof SelectionAdapter) {
@@ -2566,7 +2591,7 @@ public class RecyclerListView extends RecyclerView {
             canvas.restore();
         }
         super.dispatchDraw(canvas);
-        if (drawSelection && !drawSelectorBehind && !selectorRect.isEmpty()) {
+        if (drawSelection && !drawSelectorBehind && !selectorRect.isEmpty() && selectorDrawable != null) {
             if ((translateSelector == -2 || translateSelector == selectorPosition) && selectorView != null) {
                 int bottomPadding;
                 if (getAdapter() instanceof SelectionAdapter) {

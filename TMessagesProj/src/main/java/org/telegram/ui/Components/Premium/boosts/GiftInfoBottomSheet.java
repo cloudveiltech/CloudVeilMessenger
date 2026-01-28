@@ -141,8 +141,8 @@ public class GiftInfoBottomSheet extends BottomSheetWithRecyclerListView {
 
     @Override
     protected CharSequence getTitle() {
-        return isUnused ? LocaleController.getString("BoostingGiftLink", R.string.BoostingGiftLink)
-                : LocaleController.getString("BoostingUsedGiftLink", R.string.BoostingUsedGiftLink);
+        return isUnused ? LocaleController.getString(R.string.BoostingGiftLink)
+                : LocaleController.getString(R.string.BoostingUsedGiftLink);
     }
 
     @Override
@@ -156,7 +156,7 @@ public class GiftInfoBottomSheet extends BottomSheetWithRecyclerListView {
             @Override
             protected void afterCodeApplied() {
                 AndroidUtilities.runOnUIThread(() -> {
-                    PremiumPreviewBottomSheet previewBottomSheet = new PremiumPreviewBottomSheet(getBaseFragment(), currentAccount, null, null, resourcesProvider)
+                    PremiumPreviewBottomSheet previewBottomSheet = new PremiumPreviewBottomSheet(getBaseFragment(), currentAccount, null, null, null, resourcesProvider)
                             .setAnimateConfetti(true)
                             .setOutboundGift(true);
                     getBaseFragment().showDialog(previewBottomSheet);
@@ -183,9 +183,9 @@ public class GiftInfoBottomSheet extends BottomSheetWithRecyclerListView {
             protected void onHiddenLinkClicked() {
                 String text;
                 if ((slug == null || slug.isEmpty()) && giftCode.to_id == NO_USER_ID) {
-                    text = LocaleController.getString("BoostingOnlyGiveawayCreatorSeeLink", R.string.BoostingOnlyGiveawayCreatorSeeLink);
+                    text = LocaleController.getString(R.string.BoostingOnlyGiveawayCreatorSeeLink);
                 } else {
-                    text = LocaleController.getString("BoostingOnlyRecipientCode", R.string.BoostingOnlyRecipientCode);
+                    text = LocaleController.getString(R.string.BoostingOnlyRecipientCode);
                 }
                 BulletinFactory.of(container, resourcesProvider).createSimpleBulletin(R.raw.chats_infotip, text).show(true);
             }

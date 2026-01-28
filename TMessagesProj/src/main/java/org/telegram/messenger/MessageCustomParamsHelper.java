@@ -1,23 +1,34 @@
 package org.telegram.messenger;
 
-import org.telegram.tgnet.AbstractSerializedData;
+import org.telegram.tgnet.InputSerializedData;
 import org.telegram.tgnet.NativeByteBuffer;
+import org.telegram.tgnet.OutputSerializedData;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 
 public class MessageCustomParamsHelper {
 
     public static boolean isEmpty(TLRPC.Message message) {
-        return message.voiceTranscription == null &&
-                !message.voiceTranscriptionOpen &&
-                !message.voiceTranscriptionFinal &&
-                !message.voiceTranscriptionRated &&
-                !message.voiceTranscriptionForce &&
-                message.voiceTranscriptionId == 0 &&
-                !message.premiumEffectWasPlayed &&
-                message.originalLanguage == null &&
-                message.translatedToLanguage == null &&
-                message.translatedText == null;
+        return (
+            message.voiceTranscription == null &&
+            message.translatedVoiceTranscription == null &&
+            !message.voiceTranscriptionOpen &&
+            !message.summarizedOpen &&
+            message.summaryText == null &&
+            message.translatedSummaryLanguage == null &&
+            message.translatedSummaryText == null &&
+            !message.voiceTranscriptionFinal &&
+            !message.voiceTranscriptionRated &&
+            !message.voiceTranscriptionForce &&
+            message.voiceTranscriptionId == 0 &&
+            !message.premiumEffectWasPlayed &&
+            message.originalLanguage == null &&
+            message.translatedToLanguage == null &&
+            message.translatedPoll == null &&
+            message.translatedText == null &&
+            message.errorAllowedPriceStars == 0 &&
+            message.errorNewPriceStars == 0
+        );
     }
 
     public static void copyParams(TLRPC.Message fromMessage, TLRPC.Message toMessage) {
@@ -30,7 +41,15 @@ public class MessageCustomParamsHelper {
         toMessage.premiumEffectWasPlayed = fromMessage.premiumEffectWasPlayed;
         toMessage.originalLanguage = fromMessage.originalLanguage;
         toMessage.translatedToLanguage = fromMessage.translatedToLanguage;
+        toMessage.translatedPoll = fromMessage.translatedPoll;
         toMessage.translatedText = fromMessage.translatedText;
+        toMessage.errorAllowedPriceStars = fromMessage.errorAllowedPriceStars;
+        toMessage.errorNewPriceStars = fromMessage.errorNewPriceStars;
+        toMessage.translatedVoiceTranscription = fromMessage.translatedVoiceTranscription;
+        toMessage.summarizedOpen = fromMessage.summarizedOpen;
+        toMessage.summaryText = fromMessage.summaryText;
+        toMessage.translatedSummaryText = fromMessage.translatedSummaryText;
+        toMessage.translatedSummaryLanguage = fromMessage.translatedSummaryLanguage;
     }
 
 
@@ -73,18 +92,30 @@ public class MessageCustomParamsHelper {
 
         private Params_v1(TLRPC.Message message) {
             this.message = message;
-            flags += message.voiceTranscription != null ? 1 : 0;
-            flags += message.voiceTranscriptionForce ? 2 : 0;
+            flags |= message.voiceTranscription != null ? 1 : 0;
+            flags |= message.voiceTranscriptionForce ? 2 : 0;
 
-            flags += message.originalLanguage != null ? 4 : 0;
-            flags += message.translatedToLanguage != null ? 8 : 0;
-            flags += message.translatedText != null ? 16 : 0;
+            flags |= message.originalLanguage != null ? 4 : 0;
+            flags |= message.translatedToLanguage != null ? 8 : 0;
+            flags |= message.translatedText != null ? 16 : 0;
+
+            flags |= message.translatedPoll != null ? 32 : 0;
+
+            flags |= message.errorAllowedPriceStars != 0 ? 64 : 0;
+            flags |= message.errorNewPriceStars != 0 ? 128 : 0;
+
+            flags |= message.translatedVoiceTranscription != null ? 256 : 0;
+
+            flags = setFlag(flags, FLAG_10, message.summaryText != null);
+            flags = setFlag(flags, FLAG_11, message.translatedSummaryText != null);
+            flags = setFlag(flags, FLAG_12, message.translatedSummaryLanguage != null);
         }
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(VERSION);
             flags = message.voiceTranscriptionForce ? (flags | 2) : (flags &~ 2);
+            flags = message.summarizedOpen ? (flags | 512) : (flags &~ 512);
             stream.writeInt32(flags);
             if ((flags & 1) != 0) {
                 stream.writeString(message.voiceTranscription);
@@ -105,15 +136,38 @@ public class MessageCustomParamsHelper {
             if ((flags & 16) != 0) {
                 message.translatedText.serializeToStream(stream);
             }
+            if ((flags & 32) != 0) {
+                message.translatedPoll.serializeToStream(stream);
+            }
+
+            if ((flags & 64) != 0) {
+                stream.writeInt64(message.errorAllowedPriceStars);
+            }
+            if ((flags & 128) != 0) {
+                stream.writeInt64(message.errorNewPriceStars);
+            }
+            if ((flags & 256) != 0) {
+                message.translatedVoiceTranscription.serializeToStream(stream);
+            }
+            if (hasFlag(flags, FLAG_10)) {
+                message.summaryText.serializeToStream(stream);
+            }
+            if (hasFlag(flags, FLAG_11)) {
+                message.translatedSummaryText.serializeToStream(stream);
+            }
+            if (hasFlag(flags, FLAG_12)) {
+                stream.writeString(message.translatedSummaryLanguage);
+            }
         }
 
         @Override
-        public void readParams(AbstractSerializedData stream, boolean exception) {
+        public void readParams(InputSerializedData stream, boolean exception) {
             flags = stream.readInt32(true);
             if ((flags & 1) != 0) {
                 message.voiceTranscription = stream.readString(exception);
             }
             message.voiceTranscriptionForce = (flags & 2) != 0;
+            message.summarizedOpen = (flags & 512) != 0;
             message.voiceTranscriptionOpen = stream.readBool(exception);
             message.voiceTranscriptionFinal = stream.readBool(exception);
             message.voiceTranscriptionRated = stream.readBool(exception);
@@ -129,6 +183,27 @@ public class MessageCustomParamsHelper {
             }
             if ((flags & 16) != 0) {
                 message.translatedText = TLRPC.TL_textWithEntities.TLdeserialize(stream, stream.readInt32(exception), exception);
+            }
+            if ((flags & 32) != 0) {
+                message.translatedPoll = TranslateController.PollText.TLdeserialize(stream, stream.readInt32(exception), exception);
+            }
+            if ((flags & 64) != 0) {
+                message.errorAllowedPriceStars = stream.readInt64(exception);
+            }
+            if ((flags & 128) != 0) {
+                message.errorNewPriceStars = stream.readInt64(exception);
+            }
+            if ((flags & 256) != 0) {
+                message.translatedVoiceTranscription = TLRPC.TL_textWithEntities.TLdeserialize(stream, stream.readInt32(exception), exception);
+            }
+            if (hasFlag(flags, FLAG_10)) {
+                message.summaryText = TLRPC.TL_textWithEntities.TLdeserialize(stream, stream.readInt32(exception), exception);
+            }
+            if (hasFlag(flags, FLAG_11)) {
+                message.translatedSummaryText = TLRPC.TL_textWithEntities.TLdeserialize(stream, stream.readInt32(exception), exception);
+            }
+            if (hasFlag(flags, FLAG_12)) {
+                message.translatedSummaryLanguage = stream.readString(exception);
             }
         }
 

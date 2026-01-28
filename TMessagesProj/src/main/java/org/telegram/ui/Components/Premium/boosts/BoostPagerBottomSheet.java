@@ -40,7 +40,7 @@ public class BoostPagerBottomSheet extends BottomSheet {
         show(fragment, resourcesProvider, dialogId, null);
     }
 
-    public static void show(BaseFragment fragment, Theme.ResourcesProvider resourcesProvider, long dialogId, TL_stories.TL_prepaidGiveaway prepaidGiveaway) {
+    public static void show(BaseFragment fragment, Theme.ResourcesProvider resourcesProvider, long dialogId, TL_stories.PrepaidGiveaway prepaidGiveaway) {
         if (instance != null) {
             return;
         }
@@ -92,7 +92,7 @@ public class BoostPagerBottomSheet extends BottomSheet {
             }
 
             @Override
-            protected void onTabAnimationUpdate(boolean manual) {
+            public void onTabAnimationUpdate(boolean manual) {
                 float percent = viewPager.getPositionAnimated();
                 if (percent > 0f && percent < 1f) {
                     if (!isScrolling) {

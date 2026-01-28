@@ -1,13 +1,14 @@
 package org.telegram.tgnet.tl;
 
-import org.telegram.tgnet.AbstractSerializedData;
+import org.telegram.tgnet.InputSerializedData;
+import org.telegram.tgnet.OutputSerializedData;
 import org.telegram.tgnet.TLObject;
-import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.TLParseException;
 
 public class TL_fragment {
 
     public static class InputCollectible extends TLObject {
-        public static InputCollectible TLdeserialize(AbstractSerializedData stream, int constructor, boolean exception) {
+        public static InputCollectible TLdeserialize(InputSerializedData stream, int constructor, boolean exception) {
             InputCollectible result = null;
             switch (constructor) {
                 case TL_inputCollectibleUsername.constructor:
@@ -17,13 +18,7 @@ public class TL_fragment {
                     result = new TL_inputCollectiblePhone();
                     break;
             }
-            if (result == null && exception) {
-                throw new RuntimeException(String.format("can't parse magic %x in InputCollectible", constructor));
-            }
-            if (result != null) {
-                result.readParams(stream, exception);
-            }
-            return result;
+            return TLdeserialize(InputCollectible.class, result, stream, constructor, exception);
         }
     }
 
@@ -33,13 +28,13 @@ public class TL_fragment {
         public String username;
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(constructor);
             stream.writeString(username);
         }
 
         @Override
-        public void readParams(AbstractSerializedData stream, boolean exception) {
+        public void readParams(InputSerializedData stream, boolean exception) {
             username = stream.readString(exception);
         }
     }
@@ -50,13 +45,13 @@ public class TL_fragment {
         public String phone;
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(constructor);
             stream.writeString(phone);
         }
 
         @Override
-        public void readParams(AbstractSerializedData stream, boolean exception) {
+        public void readParams(InputSerializedData stream, boolean exception) {
             phone = stream.readString(exception);
         }
     }
@@ -71,21 +66,13 @@ public class TL_fragment {
         public long crypto_amount;
         public String url;
 
-        public static TL_collectibleInfo TLdeserialize(AbstractSerializedData stream, int constructor, boolean exception) {
-            if (TL_collectibleInfo.constructor != constructor) {
-                if (exception) {
-                    throw new RuntimeException(String.format("can't parse magic %x in TL_collectibleInfo", constructor));
-                } else {
-                    return null;
-                }
-            }
-            TL_collectibleInfo result = new TL_collectibleInfo();
-            result.readParams(stream, exception);
-            return result;
+        public static TL_collectibleInfo TLdeserialize(InputSerializedData stream, int constructor, boolean exception) {
+            final TL_collectibleInfo result = TL_collectibleInfo.constructor != constructor ? null : new TL_collectibleInfo();
+            return TLdeserialize(TL_collectibleInfo.class, result, stream, constructor, exception);
         }
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(constructor);
             stream.writeInt32(purchase_date);
             stream.writeString(currency);
@@ -96,7 +83,7 @@ public class TL_fragment {
         }
 
         @Override
-        public void readParams(AbstractSerializedData stream, boolean exception) {
+        public void readParams(InputSerializedData stream, boolean exception) {
             purchase_date = stream.readInt32(exception);
             currency = stream.readString(exception);
             amount = stream.readInt64(exception);
@@ -112,12 +99,12 @@ public class TL_fragment {
         public InputCollectible collectible;
 
         @Override
-        public TLObject deserializeResponse(AbstractSerializedData stream, int constructor, boolean exception) {
+        public TLObject deserializeResponse(InputSerializedData stream, int constructor, boolean exception) {
             return TL_collectibleInfo.TLdeserialize(stream, constructor, exception);
         }
 
         @Override
-        public void serializeToStream(AbstractSerializedData stream) {
+        public void serializeToStream(OutputSerializedData stream) {
             stream.writeInt32(constructor);
             collectible.serializeToStream(stream);
         }

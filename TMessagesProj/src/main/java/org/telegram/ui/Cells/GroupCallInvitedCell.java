@@ -62,7 +62,7 @@ public class GroupCallInvitedCell extends FrameLayout {
         statusTextView.setTextSize(15);
         statusTextView.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP);
         statusTextView.setTextColor(Theme.getColor(grayIconColor));
-        statusTextView.setText(LocaleController.getString("Invited", R.string.Invited));
+        statusTextView.setText(LocaleController.getString(R.string.Invited));
         addView(statusTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 20, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, LocaleController.isRTL ? 54 : 67, 32, LocaleController.isRTL ? 67 : 54, 0));
 
         muteButton = new ImageView(context);
@@ -82,15 +82,23 @@ public class GroupCallInvitedCell extends FrameLayout {
         return nameTextView.getText();
     }
 
-    public void setData(int account, Long uid) {
+    public void setData(int account, Long uid, boolean calling, boolean isShadyJoin, boolean isShadyLeft) {
         currentUser = MessagesController.getInstance(account).getUser(uid);
-        avatarDrawable.setInfo(currentUser);
+        if (currentUser == null) {
+            avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_ANONYMOUS);
+        } else {
+            avatarDrawable.setInfo(currentUser);
+        }
 
-        String lastName = UserObject.getUserName(currentUser);
-        nameTextView.setText(lastName);
-
+        nameTextView.setText(UserObject.getUserName(currentUser));
         avatarImageView.getImageReceiver().setCurrentAccount(account);
         avatarImageView.setForUserOrChat(currentUser, avatarDrawable);
+
+        statusTextView.setText(LocaleController.getString(isShadyLeft ? R.string.ShadyLeaving : isShadyJoin ? R.string.ShadyJoining : (calling ? R.string.ConferenceCalling : R.string.Invited)));
+        avatarImageView.setAlpha(isShadyJoin || isShadyLeft ? 0.5f : 1.0f);
+        nameTextView.setAlpha(isShadyJoin || isShadyLeft ? 0.5f : 1.0f);
+        statusTextView.setAlpha(isShadyJoin || isShadyLeft ? 0.5f : 1.0f);
+        muteButton.setAlpha(isShadyJoin || isShadyLeft ? 0f : 1.0f);
     }
 
     public void setDrawDivider(boolean draw) {

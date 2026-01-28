@@ -29,6 +29,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 
@@ -105,9 +106,12 @@ public class CloudVeilDialogHelper {
             return false;
         }
         for (int i = 0; i < request.channels.size(); i++) {
-            String userName = request.channels.get(i).userName;
-            if (userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
-                return true;
+            SettingsRequest.GroupChannelRow channel = request.channels.get(i);
+            //loop in channel.userNames
+            for (String userName : channel.userNames) {
+                if (userName != null && userName.equalsIgnoreCase("CloudVeilMessenger")) {
+                    return true;
+                }
             }
         }
         return false;
@@ -121,12 +125,12 @@ public class CloudVeilDialogHelper {
         if (user.bot) {
             return isBotIdAllowed(id);
         } else if (CloudVeilSecuritySettings.getManageUsers()) {
-            return allowedDialogs.containsKey(id) && allowedDialogs.get(id);
+            return allowedDialogs.containsKey(id) && Boolean.TRUE.equals(allowedDialogs.get(id));
         }
         return true;
     }
 
-    public boolean isBotAllowed(TLRPC.BotInfo bot) {
+    public boolean isBotAllowed(TL_bots.BotInfo bot) {
         if (bot == null) {
             return true;
         }
@@ -141,7 +145,7 @@ public class CloudVeilDialogHelper {
         if(!allowedBots.containsKey(id)) {
             return false;
         }
-        return allowedBots.get(id);
+        return Boolean.TRUE.equals(allowedBots.get(id));
     }
 
     public Pair<TLObject, DialogType> getObjectByDialogId(long currentDialogId) {
@@ -165,7 +169,11 @@ public class CloudVeilDialogHelper {
         if (encryptedChat != null && CloudVeilSecuritySettings.isDisabledSecretChat()) {
             return new Pair<>(encryptedChat, DialogType.group);
         } else if (chat != null) {
-            return new Pair<>(chat,  ChatObject.isChannel(chat) ? DialogType.channel : DialogType.group);
+            if (ChatObject.isChannel(chat)) {
+                return new Pair<>(chat, chat.megagroup ? DialogType.group : DialogType.channel);
+            } else {
+                return new Pair<>(chat, DialogType.group);
+            }
         } else if (user != null) {
             return new Pair<>(user, user.bot ? DialogType.bot : DialogType.user);
         }
@@ -178,10 +186,7 @@ public class CloudVeilDialogHelper {
             return true;
         }
         if (DialogObject.isEncryptedDialog(currentDialogId)) {
-            if(CloudVeilSecuritySettings.isDisabledSecretChat()) {
-                return false;
-            }
-            return true;
+            return !CloudVeilSecuritySettings.isDisabledSecretChat();
         } else if (DialogObject.isUserDialog(currentDialogId)) {
             return isUserAllowed(MessagesController.getInstance(accountNumber).getUser(currentDialogId));
         } else {
@@ -249,7 +254,7 @@ public class CloudVeilDialogHelper {
 
         @Override
         public void didReceivedNotification(int id, int account, Object... args) {
-            MessagesController.openChatOrProfileWith(user, chat, fragment, type, closeLast);
+            MessagesController.getInstance(account).openChatOrProfileWith(user, chat, fragment, type, closeLast);
 
             NotificationCenter.getInstance(fragment.getCurrentAccount()).removeObserver(this, NotificationCenter.filterDialogsReady);
             delegateInstance = null;
@@ -330,12 +335,11 @@ public class CloudVeilDialogHelper {
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
                 .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
-                    dialog.dismiss();
+                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
                     if (onOkRunnable != null) {
                         onOkRunnable.run();
                     }
-
-                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
+                    dialog.dismiss();
                 })
                 .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
                     dialog.dismiss();
@@ -357,6 +361,47 @@ public class CloudVeilDialogHelper {
             if (onDismissRunnable != null) {
                 onDismissRunnable.run();
             }
+        });
+    }
+
+    public static void showCheckingServerPolicy(BaseFragment fragment, DialogType type, Runnable onOkRunnable) {
+        if (fragment.getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.cloudveil));
+        builder.setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, type.toString()));
+        builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog2, which) -> {
+                    dialog2.dismiss();
+                    if (onOkRunnable != null) {
+                        onOkRunnable.run();
+                    }
+                });
+        fragment.showDialog(builder.create(), dialog -> {
+        });
+    }
+
+    public static void showWarningAboutContentDisable(BaseFragment fragment) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_hidden_for_protection))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
+                    //dialog.dismiss();
+                });
+
+        fragment.showDialog(builder.create(), dialog -> {
+        });
+    }
+
+    public static void showCheckingServerPolicy(BaseFragment fragment) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle(fragment.getParentActivity().getString(R.string.one_moment))
+                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy))
+                .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
+                    //dialog.dismiss();
+                });
+
+        fragment.showDialog(builder.create(), dialog -> {
         });
     }
 

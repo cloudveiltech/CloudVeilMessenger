@@ -38,11 +38,13 @@ import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.FillLastLinearLayoutManager;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.LinkSpanDrawable;
 import org.telegram.ui.Components.NestedSizeNotifierLayout;
 import org.telegram.ui.Components.Premium.PremiumGradient;
 import org.telegram.ui.Components.Premium.StarParticlesView;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SimpleThemeDescription;
+import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.util.ArrayList;
 
@@ -87,10 +89,15 @@ public abstract class GradientHeaderActivity extends BaseFragment {
     public int particlesViewHeight = -1;
     protected LinearLayoutManager layoutManager;
     protected boolean useFillLastLayoutManager = true;
-    private boolean isLandscapeMode;
-    private int statusBarHeight;
+    public boolean isLandscapeMode;
+    public int statusBarHeight;
     private int firstViewHeight;
     private final Paint headerBgPaint = new Paint();
+    private int minusHeaderHeight;
+
+    public void setMinusHeaderHeight(int h) {
+        minusHeaderHeight = h;
+    }
 
     public boolean whiteBackground;
 
@@ -117,7 +124,7 @@ public abstract class GradientHeaderActivity extends BaseFragment {
                 } else {
                     int h = AndroidUtilities.dp(140) + statusBarHeight;
                     if (backgroundView.getMeasuredHeight() + AndroidUtilities.dp(24) > h) {
-                        h = backgroundView.getMeasuredHeight() + AndroidUtilities.dp(24);
+                        h = Math.max(h, backgroundView.getMeasuredHeight() + AndroidUtilities.dp(24) - minusHeaderHeight);
                     }
                     firstViewHeight = h;
                 }
@@ -196,10 +203,10 @@ public abstract class GradientHeaderActivity extends BaseFragment {
         });
 
         backgroundView = new BackgroundView(context) {
-            @Override
-            public boolean onInterceptTouchEvent(MotionEvent ev) {
-                return true;
-            }
+//            @Override
+//            public boolean onInterceptTouchEvent(MotionEvent ev) {
+//                return true;
+//            }
         };
 
         contentView.addView(particlesView = createParticlesView(), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
@@ -234,6 +241,7 @@ public abstract class GradientHeaderActivity extends BaseFragment {
 
         int lastSize;
         boolean topInterceptedTouch;
+        boolean subtitleInterceptedTouch;
         boolean bottomInterceptedTouch;
 
         @Override
@@ -259,8 +267,25 @@ public abstract class GradientHeaderActivity extends BaseFragment {
         @Override
         public boolean dispatchTouchEvent(MotionEvent ev) {
             BackgroundView backgroundView = GradientHeaderActivity.this.backgroundView;
-            float topX = backgroundView.getX() + backgroundView.aboveTitleLayout.getX();
-            float topY = backgroundView.getY() + backgroundView.aboveTitleLayout.getY();
+
+            float topX = backgroundView.getX() + backgroundView.subtitleView.getX();
+            float topY = backgroundView.getY() + backgroundView.subtitleView.getY();
+            AndroidUtilities.rectTmp.set(topX, topY,
+                    topX + backgroundView.subtitleView.getMeasuredWidth(),
+                    topY + backgroundView.subtitleView.getMeasuredHeight());
+            if ((AndroidUtilities.rectTmp.contains(ev.getX(), ev.getY()) || subtitleInterceptedTouch) && !listView.scrollingByUser && backgroundView.subtitleView.hasLinks() && progressToFull < 1) {
+                ev.offsetLocation(-topX, -topY);
+                if (ev.getAction() == MotionEvent.ACTION_DOWN || ev.getAction() == MotionEvent.ACTION_MOVE) {
+                    subtitleInterceptedTouch = true;
+                } else if (ev.getAction() == MotionEvent.ACTION_UP || ev.getAction() == MotionEvent.ACTION_CANCEL) {
+                    subtitleInterceptedTouch = false;
+                }
+                backgroundView.subtitleView.dispatchTouchEvent(ev);
+                return true;
+            }
+
+            topX = backgroundView.getX() + backgroundView.aboveTitleLayout.getX();
+            topY = backgroundView.getY() + backgroundView.aboveTitleLayout.getY();
             boolean isClickableTop = backgroundView.aboveTitleLayout.isClickable();
             AndroidUtilities.rectTmp.set(topX, topY,
                     topX + backgroundView.aboveTitleLayout.getMeasuredWidth(),
@@ -499,9 +524,11 @@ public abstract class GradientHeaderActivity extends BaseFragment {
             if (whiteBackground) {
                 backgroundView.titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                 backgroundView.subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                backgroundView.subtitleView.setLinkTextColor(Theme.getColor(Theme.key_chat_messageLinkIn));
             } else {
                 backgroundView.titleView.setTextColor(Theme.getColor(Theme.key_premiumGradientBackgroundOverlay));
                 backgroundView.subtitleView.setTextColor(Theme.getColor(Theme.key_premiumGradientBackgroundOverlay));
+                backgroundView.subtitleView.setLinkTextColor(Theme.getColor(Theme.key_chat_messageLinkIn));
             }
         }
         updateBackgroundImage();
@@ -538,7 +565,7 @@ public abstract class GradientHeaderActivity extends BaseFragment {
     protected static class BackgroundView extends LinearLayout {
 
         private final TextView titleView;
-        public final TextView subtitleView;
+        public final LinkSpanDrawable.LinksTextView subtitleView;
         private final FrameLayout aboveTitleLayout;
         private final FrameLayout belowSubTitleLayout;
 
@@ -556,11 +583,11 @@ public abstract class GradientHeaderActivity extends BaseFragment {
             titleView.setGravity(Gravity.CENTER_HORIZONTAL);
             addView(titleView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, 0, Gravity.CENTER_HORIZONTAL, 16, 20, 16, 0));
 
-            subtitleView = new TextView(context);
+            subtitleView = new LinkSpanDrawable.LinksTextView(context);
             subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             subtitleView.setLineSpacing(AndroidUtilities.dp(2), 1f);
             subtitleView.setGravity(Gravity.CENTER_HORIZONTAL);
-            addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 24, 7, 24, 0));
+            addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, Gravity.CENTER_HORIZONTAL, 24, 7, 24, 0));
 
             belowSubTitleLayout = new FrameLayout(context);
             addView(belowSubTitleLayout, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
@@ -570,6 +597,7 @@ public abstract class GradientHeaderActivity extends BaseFragment {
         public void setData(CharSequence title, CharSequence subTitle, View aboveTitleView, View underSubTitleView) {
             titleView.setText(title);
             subtitleView.setText(subTitle);
+            subtitleView.setMaxWidth(HintView2.cutInFancyHalf(subtitleView.getText(), subtitleView.getPaint()));
             if (aboveTitleView != null) {
                 aboveTitleLayout.removeAllViews();
                 aboveTitleLayout.addView(aboveTitleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));

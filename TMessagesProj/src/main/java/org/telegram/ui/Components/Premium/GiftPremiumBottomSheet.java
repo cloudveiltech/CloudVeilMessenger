@@ -161,20 +161,28 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
         if (userFull != null) {
             List<QueryProductDetailsParams.Product> products = new ArrayList<>();
             long pricePerMonthMax = 0;
-            for (TLRPC.TL_premiumGiftOption option : userFull.premium_gifts) {
-                GiftTier giftTier = new GiftTier(option);
-                giftTiers.add(giftTier);
-                if (BuildVars.useInvoiceBilling()) {
-                    if (giftTier.getPricePerMonth() > pricePerMonthMax) {
-                        pricePerMonthMax = giftTier.getPricePerMonth();
-                    }
-                } else if (giftTier.giftOption.store_product != null && BillingController.getInstance().isReady()) {
-                    products.add(QueryProductDetailsParams.Product.newBuilder()
-                            .setProductType(BillingClient.ProductType.INAPP)
-                            .setProductId(giftTier.giftOption.store_product)
-                            .build());
-                }
-            }
+//            for (TLRPC.TL_premiumGiftOption option : userFull.premium_gifts) {
+//                if ("XTR".equalsIgnoreCase(option.currency)) continue;
+//                TLRPC.TL_premiumGiftOption starsOption = null;
+//                for (TLRPC.TL_premiumGiftOption o : userFull.premium_gifts) {
+//                    if (o != option && "XTR".equalsIgnoreCase(o.currency) && o.months == option.months) {
+//                        starsOption = o;
+//                        break;
+//                    }
+//                }
+//                final GiftTier giftTier = new GiftTier(option, starsOption);
+//                giftTiers.add(giftTier);
+//                if (BuildVars.useInvoiceBilling()) {
+//                    if (giftTier.getPricePerMonth() > pricePerMonthMax) {
+//                        pricePerMonthMax = giftTier.getPricePerMonth();
+//                    }
+//                } else if (giftTier.giftOption.store_product != null && BillingController.getInstance().isReady()) {
+//                    products.add(QueryProductDetailsParams.Product.newBuilder()
+//                            .setProductType(BillingClient.ProductType.INAPP)
+//                            .setProductId(giftTier.giftOption.store_product)
+//                            .build());
+//                }
+//            }
             if (BuildVars.useInvoiceBilling()) {
                 for (GiftTier tier : giftTiers) {
                     tier.setPricePerMonthRegular(pricePerMonthMax);
@@ -317,7 +325,7 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
                     }
                 });
 
-                TLRPC.TL_payments_canPurchasePremium req = new TLRPC.TL_payments_canPurchasePremium();
+                TLRPC.TL_payments_canPurchaseStore req = new TLRPC.TL_payments_canPurchaseStore();
                 req.purpose = giftPremium;
                 ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(()->{
                     if (response instanceof TLRPC.TL_boolTrue) {
@@ -498,17 +506,30 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
     }
 
     public final static class GiftTier {
+
         public final TLRPC.TL_premiumGiftOption giftOption;
+        public final TLRPC.TL_premiumGiftCodeOption giftCodeOption;
+        public final TLRPC.TL_premiumGiftOption starsOption;
+        public final TLRPC.TL_premiumGiftCodeOption starsCodeOption;
         private int discount;
         private long pricePerMonth;
 
         private long pricePerMonthRegular;
-        private ProductDetails googlePlayProductDetails;
+        public ProductDetails googlePlayProductDetails;
 
         public int yOffset;
 
-        public GiftTier(TLRPC.TL_premiumGiftOption giftOption) {
+        public GiftTier(TLRPC.TL_premiumGiftOption giftOption, Object starsOption) {
             this.giftOption = giftOption;
+            this.giftCodeOption = null;
+            this.starsOption = starsOption instanceof TLRPC.TL_premiumGiftOption ? (TLRPC.TL_premiumGiftOption) starsOption : null;
+            this.starsCodeOption = starsOption instanceof TLRPC.TL_premiumGiftCodeOption ? (TLRPC.TL_premiumGiftCodeOption) starsOption : null;
+        }
+        public GiftTier(TLRPC.TL_premiumGiftCodeOption giftCodeOption, Object starsOption) {
+            this.giftOption = null;
+            this.giftCodeOption = giftCodeOption;
+            this.starsOption = starsOption instanceof TLRPC.TL_premiumGiftOption ? (TLRPC.TL_premiumGiftOption) starsOption : null;
+            this.starsCodeOption = starsOption instanceof TLRPC.TL_premiumGiftCodeOption ? (TLRPC.TL_premiumGiftCodeOption) starsOption : null;
         }
 
         public ProductDetails getGooglePlayProductDetails() {
@@ -523,8 +544,16 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
             this.pricePerMonthRegular = pricePerMonthRegular;
         }
 
+        public String getStoreProduct() {
+            if (giftOption != null) return giftOption.store_product;
+            if (giftCodeOption != null) return giftCodeOption.store_product;
+            return null;
+        }
+
         public int getMonths() {
-            return giftOption.months;
+            if (giftOption != null) return giftOption.months;
+            if (giftCodeOption != null) return giftCodeOption.months;
+            return 1;
         }
 
         public int getDiscount() {
@@ -548,14 +577,14 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
             if (pricePerMonth == 0) {
                 long price = getPrice();
                 if (price != 0) {
-                    pricePerMonth = price / giftOption.months;
+                    pricePerMonth = price / getMonths();
                 }
             }
             return pricePerMonth;
         }
 
         public String getFormattedPricePerMonth() {
-            if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
+            if (BuildVars.useInvoiceBilling() || giftOption != null && giftOption.store_product == null || giftCodeOption != null && giftCodeOption.store_product == null) {
                 return BillingController.getInstance().formatCurrency(getPricePerMonth(), getCurrency());
             }
 
@@ -563,7 +592,7 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
         }
 
         public String getFormattedPrice() {
-            if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
+            if (BuildVars.useInvoiceBilling() || giftOption != null && giftOption.store_product == null || giftCodeOption != null && giftCodeOption.store_product == null) {
                 return BillingController.getInstance().formatCurrency(getPrice(), getCurrency());
             }
 
@@ -571,17 +600,49 @@ public class GiftPremiumBottomSheet extends BottomSheetWithRecyclerListView impl
         }
 
         public long getPrice() {
-            if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
-                return giftOption.amount;
+            if (giftOption != null) {
+                if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
+                    return giftOption.amount;
+                }
+            } else if (giftCodeOption != null) {
+                if (BuildVars.useInvoiceBilling() || giftCodeOption.store_product == null) {
+                    return giftCodeOption.amount;
+                }
             }
             return googlePlayProductDetails == null ? 0 : googlePlayProductDetails.getOneTimePurchaseOfferDetails().getPriceAmountMicros();
         }
 
         public String getCurrency() {
-            if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
-                return giftOption.currency;
+            if (giftOption != null) {
+                if (BuildVars.useInvoiceBilling() || giftOption.store_product == null) {
+                    return giftOption.currency;
+                }
+            } else if (giftCodeOption != null) {
+                if (BuildVars.useInvoiceBilling() || giftCodeOption.store_product == null) {
+                    return giftCodeOption.currency;
+                }
             }
             return googlePlayProductDetails == null ? "" : googlePlayProductDetails.getOneTimePurchaseOfferDetails().getPriceCurrencyCode();
+        }
+
+        public Object getStarsOption() {
+            if (starsOption != null) return starsOption;
+            if (starsCodeOption != null) return starsCodeOption;
+            return null;
+        }
+
+        public boolean isStarsPaymentAvailable() {
+            return starsOption != null || starsCodeOption != null;
+        }
+
+        public long getStarsPrice() {
+            if (starsOption != null) {
+                return starsOption.amount;
+            }
+            if (starsCodeOption != null) {
+                return starsCodeOption.amount;
+            }
+            return 0;
         }
     }
 }

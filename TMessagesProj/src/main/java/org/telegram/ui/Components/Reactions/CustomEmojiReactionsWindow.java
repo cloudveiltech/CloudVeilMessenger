@@ -48,6 +48,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
@@ -104,7 +105,7 @@ public class CustomEmojiReactionsWindow {
     private ValueAnimator valueAnimator;
     private final int type;
 
-    public CustomEmojiReactionsWindow(int type, BaseFragment baseFragment, List<ReactionsLayoutInBubble.VisibleReaction> reactions, HashSet<ReactionsLayoutInBubble.VisibleReaction> selectedReactions, ReactionsContainerLayout reactionsContainerLayout, Theme.ResourcesProvider resourcesProvider) {
+    public CustomEmojiReactionsWindow(int type, BaseFragment baseFragment, List<ReactionsLayoutInBubble.VisibleReaction> reactions, HashSet<ReactionsLayoutInBubble.VisibleReaction> selectedReactions, ReactionsContainerLayout reactionsContainerLayout, Theme.ResourcesProvider resourcesProvider, boolean forceAttachToParent) {
         this.type = type;
         this.reactions = reactions;
         this.baseFragment = baseFragment;
@@ -165,7 +166,7 @@ public class CustomEmojiReactionsWindow {
                 dismiss();
             }
         });
-        attachToParent = type == TYPE_STORY_LIKES || type == TYPE_STICKER_SET_EMOJI || type == TYPE_MESSAGE_EFFECTS;
+        attachToParent = type == TYPE_STORY_LIKES || type == TYPE_STICKER_SET_EMOJI || type == TYPE_MESSAGE_EFFECTS || forceAttachToParent;
 
         // sizeNotifierFrameLayout.setFitsSystemWindows(true);
 
@@ -204,13 +205,15 @@ public class CustomEmojiReactionsWindow {
             }
 
             @Override
-            protected void onEmojiSelected(View emojiView, Long documentId, TLRPC.Document document, Integer until) {
-                if (baseFragment != null && reactionsContainerLayout.getWindowType() != SelectAnimatedEmojiDialog.TYPE_STICKER_SET_EMOJI && !UserConfig.getInstance(baseFragment.getCurrentAccount()).isPremium()) {
-                    windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            protected void onEmojiSelected(View emojiView, Long documentId, TLRPC.Document document, TL_stars.TL_starGiftUnique gift, Integer until) {
+                if (baseFragment != null && !reactionsContainerLayout.channelReactions && reactionsContainerLayout.getWindowType() != SelectAnimatedEmojiDialog.TYPE_STICKER_SET_EMOJI && !UserConfig.getInstance(baseFragment.getCurrentAccount()).isPremium()) {
+                    try {
+                        windowView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    } catch (Exception ignored) {}
                     BulletinFactory.of(windowView, null).createEmojiBulletin(
                             document,
-                            AndroidUtilities.replaceTags(LocaleController.getString("UnlockPremiumEmojiReaction", R.string.UnlockPremiumEmojiReaction)),
-                            LocaleController.getString("PremiumMore", R.string.PremiumMore),
+                            AndroidUtilities.replaceTags(LocaleController.getString(R.string.UnlockPremiumEmojiReaction)),
+                            LocaleController.getString(R.string.PremiumMore),
                             () -> showUnlockPremiumAlert()
                     ).show();
                     return;
@@ -291,6 +294,7 @@ public class CustomEmojiReactionsWindow {
         } else {
             WindowManager.LayoutParams lp = createLayoutParams(false);
             windowManager = AndroidUtilities.findActivity(context).getWindowManager();
+            AndroidUtilities.setPreferredMaxRefreshRate(windowManager, windowView, lp);
             windowManager.addView(windowView, lp);
         }
 
@@ -306,6 +310,10 @@ public class CustomEmojiReactionsWindow {
         if (type != TYPE_MESSAGE_EFFECTS) {
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 7);
         }
+    }
+
+    public void setLongPressEnabled(boolean isEnabled) {
+        this.selectAnimatedEmojiDialog.setLongPressEnabled(isEnabled);
     }
 
     private void updateWindowPosition() {
