@@ -84,6 +84,7 @@ import org.telegram.ui.Components.StickerEmptyView;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class FilteredSearchView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {
 
@@ -621,7 +622,11 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     resultArray = new ArrayList<>();
                     ArrayList<CharSequence> resultArrayNames = new ArrayList<>();
                     ArrayList<TLRPC.User> encUsers = new ArrayList<>();
-                    MessagesStorage.getInstance(currentAccount).localSearch(0, finalQuery, resultArray, resultArrayNames, encUsers, null, includeFolder ? 1 : 0);
+                    //CloudVeil start
+                    ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(currentAccount).allowedDialogs;
+                    ArrayList<Long> allowedDialogIds = new ArrayList<>(allowedDialogs.keySet());
+                    MessagesStorage.getInstance(currentAccount).localSearch(0, finalQuery, resultArray, resultArrayNames, encUsers, allowedDialogIds, includeFolder ? 1 : 0);
+                    //CloudVeil end
                     //CloudVeil start. localSearch above has already been checked for blocked dialog ids
                     if (!resultArray.isEmpty()) {
                         for (int i = resultArray.size() - 1; i >= 0; i--) {

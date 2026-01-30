@@ -29,8 +29,6 @@ import android.util.SparseIntArray;
 import androidx.annotation.UiThread;
 import androidx.collection.LongSparseArray;
 
-import org.cloudveil.messenger.CloudVeilSecuritySettings;
-import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.SQLite.SQLiteDatabase;
@@ -66,7 +64,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17099,39 +17096,11 @@ public class MessagesStorage extends BaseController {
             } else {
                 cursor = getDatabase().queryFinalized("SELECT did, date FROM dialogs ORDER BY date DESC LIMIT 600");
             }
-            // CloudVeil start
-            ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(currentAccount).allowedDialogs;
-            ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(currentAccount).allowedBots;
-            // CloudVeil end
             while (cursor.next()) {
                 long id = cursor.longValue(0);
                 DialogsSearchAdapter.DialogSearchResult dialogSearchResult = new DialogsSearchAdapter.DialogSearchResult();
                 dialogSearchResult.date = cursor.intValue(1);
                 dialogsResult.put(id, dialogSearchResult);
-
-                // CloudVeil start
-                if (DialogObject.isUserDialog(id) && !UserObject.isBot(getMessagesController().getUser(id))) {
-                    // catch all users (not bots)
-                    if (CloudVeilSecuritySettings.getManageUsers()) {
-                        // if users are managed, restrict to allowed users only. Further development, for now skip searching if managedUsers
-                        continue;
-                    }
-                } else if (DialogObject.isEncryptedDialog(id)){
-                    // catch secret chats
-                    if (CloudVeilSecuritySettings.isDisabledSecretChat()){
-                        continue;
-                    }
-                } else {
-                    // any other chat / bot can be filtered by the allowed list
-                    if (DialogObject.isUserDialog(id) && UserObject.isBot(getMessagesController().getUser(id))) {
-                        if (!Boolean.TRUE.equals(allowedBots.get(id))) {
-                            continue;
-                        }
-                    } else if (!Boolean.TRUE.equals(allowedDialogs.get(id))) {
-                        continue;
-                    }
-                }
-                // CLoudVeil end
 
                 if (dialogsType == DialogsActivity.DIALOGS_TYPE_BOT_REQUEST_PEER && (onlyDialogIds == null || !onlyDialogIds.contains(id))) {
                     continue;
