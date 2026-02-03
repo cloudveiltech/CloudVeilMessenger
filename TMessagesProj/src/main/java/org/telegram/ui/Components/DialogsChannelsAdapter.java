@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.checkerframework.checker.units.qual.A;
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
@@ -65,6 +66,9 @@ public class DialogsChannelsAdapter extends UniversalAdapter {
         ArrayList<TLRPC.Chat> channels = new ArrayList<>();
         ArrayList<TLRPC.Dialog> dialogs = MessagesController.getInstance(currentAccount).getAllDialogs();
         for (TLRPC.Dialog d : dialogs) {
+            //CloudVeil start
+            if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(d.id)) continue;
+            // CloudVeil end
             TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-d.id);
             if (chat == null || !ChatObject.isChannelAndNotMegaGroup(chat) || !ChatObject.isPublic(chat) || ChatObject.isNotInChat(chat)) continue;
             channels.add(chat);
@@ -235,14 +239,21 @@ public class DialogsChannelsAdapter extends UniversalAdapter {
                     MessagesController.getInstance(currentAccount).putChats(response.chats, false);
 
                     for (TLRPC.Message message : response.messages) {
+                        // CloudVeil start - filter channel search messages
+                        long dialogId = -message.peer_id.channel_id | -message.peer_id.chat_id | message.peer_id.user_id;
+                        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) continue;
+                        // CloudVeil end
                         MessageObject messageObject = new MessageObject(currentAccount, message, false, true);
                         messageObject.setQuery(query);
                         messages.add(messageObject);
                     }
 
-                    hasMore = response instanceof TLRPC.TL_messages_messagesSlice;
-                    allCount = Math.max(messages.size(), response.count);
-                    nextRate = response.next_rate;
+                    // CloudVeil start
+                    if (!messages.isEmpty()) {
+                        hasMore = response instanceof TLRPC.TL_messages_messagesSlice;
+                        allCount = Math.max(messages.size(), response.count);
+                        nextRate = response.next_rate;
+                    } // CloudVeil end
                 }
                 update(true);
             }));
@@ -320,6 +331,9 @@ public class DialogsChannelsAdapter extends UniversalAdapter {
                             continue;
                         if (chatIds.contains(channel.id))
                             continue;
+                        // CloudVeil start
+                        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(channel.id)) continue;
+                        // CloudVeil end
                         chatIds.add(channel.id);
                         searchChannels.add(channel);
                     }

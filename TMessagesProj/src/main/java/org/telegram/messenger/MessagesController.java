@@ -22222,7 +22222,13 @@ public class MessagesController extends BaseController implements NotificationCe
 
                 ChannelRecommendations newrec = new ChannelRecommendations();
                 newrec.wasPremium = isPremium;
-                newrec.chats.addAll(chats);
+                //CloudVeil start - filter out channels where dialog ID is not allowed
+                for (TLRPC.Chat chat : chats) {
+                    if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(-chat.id)) {
+                        newrec.chats.add(chat);
+                    }
+                }
+                //CloudVeil end
                 if (res instanceof TLRPC.TL_messages_chatsSlice) {
                     newrec.more = Math.max(0, ((TLRPC.TL_messages_chatsSlice) res).count - chats.size());
                 } else if (!getUserConfig().isPremium() && BuildVars.DEBUG_PRIVATE_VERSION) {
@@ -22236,7 +22242,13 @@ public class MessagesController extends BaseController implements NotificationCe
 
                 ChannelRecommendations newrec = new ChannelRecommendations();
                 newrec.wasPremium = isPremium;
-                newrec.chats.addAll(users);
+                //CloudVeil start - filter out users where dialog ID is not allowed
+                for (TLRPC.User user : users) {
+                    if (CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(user.id)) {
+                        newrec.chats.add(user);
+                    }
+                }
+                //CloudVeil end
                 if (res instanceof TLRPC.TL_usersSlice) {
                     newrec.more = Math.max(0, ((TLRPC.TL_usersSlice) res).count - users.size());
                 } else if (!getUserConfig().isPremium() && BuildVars.DEBUG_PRIVATE_VERSION) {

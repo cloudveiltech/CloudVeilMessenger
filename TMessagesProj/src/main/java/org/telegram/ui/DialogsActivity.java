@@ -8422,12 +8422,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     }
                 } else {
-                    TLObject object = null;
+                    Object object = null;
                     if (adapter instanceof DialogsAdapter) {
                         DialogsAdapter dialogsAdapter = (DialogsAdapter) adapter;
                         object = dialogsAdapter.getItem(position);
                     } else if (adapter == searchViewPager.dialogsSearchAdapter) {
-                        object = (TLObject) searchViewPager.dialogsSearchAdapter.getItem(position);
+                        object = searchViewPager.dialogsSearchAdapter.getItem(position);
                     }
 
                     CloudVeilDialogHelper.DialogType type = CloudVeilDialogHelper.DialogType.chat;
@@ -8449,6 +8449,20 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                             type = (user != null && user.bot) ? CloudVeilDialogHelper.DialogType.bot : CloudVeilDialogHelper.DialogType.user;
                         } else {
                             TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
+                            if (chat != null && ChatObject.isChannel(chat)) {
+                                type = chat.megagroup ? CloudVeilDialogHelper.DialogType.group : CloudVeilDialogHelper.DialogType.channel;
+                            } else {
+                                type = CloudVeilDialogHelper.DialogType.group;
+                            }
+                        }
+                    } else if (object instanceof MessageObject) {
+                        MessageObject messageObject = (MessageObject) object;
+                        long messageDialogId = messageObject.getDialogId();
+                        if (DialogObject.isUserDialog(messageDialogId)) {
+                            TLRPC.User user = getMessagesController().getUser(messageDialogId);
+                            type = (user != null && user.bot) ? CloudVeilDialogHelper.DialogType.bot : CloudVeilDialogHelper.DialogType.user;
+                        } else {
+                            TLRPC.Chat chat = getMessagesController().getChat(-messageDialogId);
                             if (chat != null && ChatObject.isChannel(chat)) {
                                 type = chat.megagroup ? CloudVeilDialogHelper.DialogType.group : CloudVeilDialogHelper.DialogType.channel;
                             } else {
