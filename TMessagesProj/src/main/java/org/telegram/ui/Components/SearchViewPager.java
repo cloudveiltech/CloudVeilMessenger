@@ -1477,6 +1477,11 @@ public class SearchViewPager extends ViewPagerFixed implements FilteredSearchVie
             if (items.get(position).type == POSTS_TYPE) {
                 return 6;
             }
+            // CloudVeil start: removing two tabs resulted in a collision
+            if (items.get(position).type == FILTER_TYPE) {
+                return items.get(position).type + position + 2; // Use offset to avoid collision with hardcoded viewTypes
+            }
+            // CloudVeil end
             return items.get(position).type + position;
         }
 
