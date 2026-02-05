@@ -270,6 +270,11 @@ public class ApplicationLoader extends Application {
                 SendMessagesHelper.getInstance(a).checkUnsentMessages();
             }
         }
+        //CloudVeil start
+        int currentAccount = UserConfig.selectedAccount;
+        // preload cached CloudVeil data if the user is logged in
+        CloudVeilSyncWorker.preloadCachedResponse(ApplicationLoader.applicationContext, currentAccount);
+        //CloudVeil end
 
         ApplicationLoader app = (ApplicationLoader) ApplicationLoader.applicationContext;
         app.initPushServices();
