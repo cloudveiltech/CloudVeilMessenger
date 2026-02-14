@@ -71,6 +71,7 @@ import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.AnimatedFileDrawable;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.OAuthSheet;
 import org.telegram.ui.Stars.StarsController;
 import org.telegram.ui.Stars.StarsIntroActivity;
 import org.telegram.ui.TON.TONIntroActivity;
@@ -100,7 +101,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -3447,11 +3447,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             if (response != null) {
                 if (response instanceof TLRPC.TL_urlAuthResultRequest) {
-                    TLRPC.TL_urlAuthResultRequest res = (TLRPC.TL_urlAuthResultRequest) response;
-                    parentFragment.showRequestUrlAlert(res, (TLRPC.TL_messages_requestUrlAuth) req, url, ask);
+                    OAuthSheet.handle(false, currentAccount, req, (TLRPC.TL_urlAuthResultRequest) response);
                 } else if (response instanceof TLRPC.TL_urlAuthResultAccepted) {
-                    TLRPC.TL_urlAuthResultAccepted res = (TLRPC.TL_urlAuthResultAccepted) response;
-                    AlertsCreator.showOpenUrlAlert(parentFragment, res.url, false, false);
+                    OAuthSheet.handle(false, currentAccount, req, (TLRPC.TL_urlAuthResultAccepted) response);
                 } else if (response instanceof TLRPC.TL_urlAuthResultDefault) {
                     AlertsCreator.showOpenUrlAlert(parentFragment, url, false, ask);
                 }
@@ -3529,13 +3527,10 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
                 if (button instanceof TLRPC.TL_keyboardButtonUrlAuth) {
                     if (response instanceof TLRPC.TL_urlAuthResultRequest) {
-                        TLRPC.TL_urlAuthResultRequest res = (TLRPC.TL_urlAuthResultRequest) response;
-                        parentFragment.showRequestUrlAlert(res, (TLRPC.TL_messages_requestUrlAuth) request[0], button.url, false);
+                        OAuthSheet.handle(false, currentAccount, (TLRPC.TL_messages_requestUrlAuth) request[0], (TLRPC.TL_urlAuthResultRequest) response, button.url, null, false);
                     } else if (response instanceof TLRPC.TL_urlAuthResultAccepted) {
-                        TLRPC.TL_urlAuthResultAccepted res = (TLRPC.TL_urlAuthResultAccepted) response;
-                        AlertsCreator.showOpenUrlAlert(parentFragment, res.url, false, false);
+                        OAuthSheet.handle(false, currentAccount, (TLRPC.TL_messages_requestUrlAuth) request[0], (TLRPC.TL_urlAuthResultAccepted) response, button.url, null, false);
                     } else if (response instanceof TLRPC.TL_urlAuthResultDefault) {
-                        TLRPC.TL_urlAuthResultDefault res = (TLRPC.TL_urlAuthResultDefault) response;
                         AlertsCreator.showOpenUrlAlert(parentFragment, button.url, false, true);
                     }
                 } else if (button instanceof TLRPC.TL_keyboardButtonBuy) {
@@ -5756,6 +5751,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     reqSend.flags |= 2097152;
                     reqSend.allow_paid_stars = payStars;
                 }
+                applyMonoForumPeerId(reqSend, sendMessageParams.monoForumPeer);
                 performSendMessageRequest(reqSend, newMsgObj, null, null, parentObject, params, scheduleDate != 0);
             }
         } catch (Exception e) {
@@ -8673,6 +8669,11 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
 
     @UiThread
     public static void prepareSendingBotContextResult(BaseFragment fragment, AccountInstance accountInstance, TLRPC.BotInlineResult result, HashMap<String, String> params, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, TL_stories.StoryItem storyItem, ChatActivity.ReplyQuote quote, boolean notify, int scheduleDate, int scheduleRepeatPeriod, String quick_reply_shortcut, int quick_reply_shortcut_id, long stars) {
+        prepareSendingBotContextResult(fragment, accountInstance, result, params, dialogId, replyToMsg, replyToTopMsg, storyItem, quote, notify, scheduleDate, scheduleRepeatPeriod, quick_reply_shortcut, quick_reply_shortcut_id, stars, 0);
+    }
+
+    @UiThread
+    public static void prepareSendingBotContextResult(BaseFragment fragment, AccountInstance accountInstance, TLRPC.BotInlineResult result, HashMap<String, String> params, long dialogId, MessageObject replyToMsg, MessageObject replyToTopMsg, TL_stories.StoryItem storyItem, ChatActivity.ReplyQuote quote, boolean notify, int scheduleDate, int scheduleRepeatPeriod, String quick_reply_shortcut, int quick_reply_shortcut_id, long stars, long monoForumPeerId) {
         if (result == null) {
             return;
         }
@@ -8973,6 +8974,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         params2.replyToStoryItem = storyItem;
                         params2.replyQuote = quote;
                         params2.payStars = stars;
+                        params2.monoForumPeer = monoForumPeerId;
                         accountInstance.getSendMessagesHelper().sendMessage(params2);
                     }
                 });
@@ -8994,6 +8996,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         } else if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaVenue) {
             TLRPC.TL_messageMediaVenue venue = new TLRPC.TL_messageMediaVenue();
@@ -9011,6 +9014,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         } else if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaGeo) {
             final SendMessagesHelper.SendMessageParams params2;
@@ -9031,6 +9035,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         } else if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaContact) {
             TLRPC.User user = new TLRPC.TL_user();
@@ -9047,6 +9052,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         } else if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaInvoice) {
             if (DialogObject.isEncryptedDialog(dialogId)) {
@@ -9070,6 +9076,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         } else if (result.send_message instanceof TLRPC.TL_botInlineMessageMediaWebPage) {
             TLRPC.TL_botInlineMessageMediaWebPage request = (TLRPC.TL_botInlineMessageMediaWebPage) result.send_message;
@@ -9080,6 +9087,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             params2.quick_reply_shortcut_id = quick_reply_shortcut_id;
             params2.replyQuote = quote;
             params2.payStars = stars;
+            params2.monoForumPeer = monoForumPeerId;
             accountInstance.getSendMessagesHelper().sendMessage(params2);
         }
     }
@@ -10685,6 +10693,22 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             return ((TLRPC.TL_updateQuickReplyMessage) u).message;
         }
         return null;
+    }
+
+    private void applyMonoForumPeerId(TLRPC.TL_messages_sendInlineBotResult reqSend, long monoForumPeer) {
+        if (monoForumPeer != 0) {
+            final TLRPC.InputPeer monoforumPeer = getMessagesController().getInputPeer(monoForumPeer);
+            if (reqSend.reply_to != null) {
+                if (reqSend.reply_to instanceof TLRPC.TL_inputReplyToMessage) {
+                    reqSend.reply_to.monoforum_peer_id = monoforumPeer;
+                    reqSend.reply_to.flags |= 32;
+                }
+            } else {
+                reqSend.reply_to = new TLRPC.TL_inputReplyToMonoForum();
+                reqSend.reply_to.monoforum_peer_id = monoforumPeer;
+                reqSend.flags |= 1;
+            }
+        }
     }
 
     private void applyMonoForumPeerId(TLRPC.TL_messages_sendMessage reqSend, long monoForumPeer) {
