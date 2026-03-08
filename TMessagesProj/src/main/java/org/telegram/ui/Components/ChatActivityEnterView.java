@@ -11365,7 +11365,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
                     @Override
                     public void onOpen() {
-
+                        PhotoViewer.getInstance().openKeyboard();
                     }
 
                     @Override
