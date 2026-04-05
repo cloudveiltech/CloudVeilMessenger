@@ -156,6 +156,7 @@ import org.telegram.messenger.utils.CustomHtml;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
@@ -773,6 +774,7 @@ public class AndroidUtilities {
                     @Override
                     public void updateDrawState(@NonNull TextPaint ds) {
                         ds.setUnderlineText(false);
+                        ds.setTypeface(AndroidUtilities.bold());
                         ds.setColor(color);
                     }
                 }, index, index + len, 0);
@@ -6990,5 +6992,17 @@ public class AndroidUtilities {
         } catch (Throwable e) {
             FileLog.e(e);
         }
+    }
+
+    public static <A, B> B find(ArrayList<A> array, Class<B> clazz) {
+        if (array == null) {
+            return null;
+        }
+        for (A obj : array) {
+            if (clazz.isInstance(obj)) {
+                return clazz.cast(obj);
+            }
+        }
+        return null;
     }
 }
