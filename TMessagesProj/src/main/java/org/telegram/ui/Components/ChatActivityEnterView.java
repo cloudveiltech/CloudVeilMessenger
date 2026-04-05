@@ -10654,6 +10654,10 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void setButtons(MessageObject messageObject, boolean openKeyboard) {
+        setButtons(messageObject, true, openKeyboard);
+    }
+
+    public void setButtons(MessageObject messageObject, boolean openBotKeyboard, boolean openKeyboard) {
         if (replyingMessageObject != null && replyingMessageObject == botButtonsMessageObject && replyingMessageObject != messageObject) {
             botMessageObject = messageObject;
             return;
@@ -10710,6 +10714,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 )) {
                     showPopup = false;
                 }
+            }
+            if (!openBotKeyboard) {
+                showPopup = false;
             }
             botKeyboardView.setButtons(botReplyMarkup);
             if (showPopup && (messageEditText == null || messageEditText.length() == 0) && !isPopupShowing()) {
@@ -11161,6 +11168,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             @Override
             public void onGifSelectedForAddCaption(View view, Object gif, String query, Object parent, boolean notify, int scheduleDate, int scheduleRepeatPeriod) {
+                if (parentFragment == null) {
+                    return;
+                }
+
                 PhotoViewer.getInstance().setParentActivity(parentFragment, parentFragment.themeDelegate);
                 File file = null;
                 if (gif instanceof TLRPC.Document) {
