@@ -2199,7 +2199,6 @@ public class AlertsCreator {
     ) {
         if (fragment == null || fragment.getParentActivity() == null || (chat == null && user == null))
             return;
-        }
         //CloudVeil start
         if(CloudVeilSecuritySettings.LOCK_DISABLE_DELETE_CHAT) {
             return;
