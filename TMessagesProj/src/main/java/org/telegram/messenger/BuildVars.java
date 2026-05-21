@@ -47,6 +47,8 @@ public class BuildVars {
     public static boolean SUPPORTS_PASSKEYS = false;
     //CloudVeil end
 
+    public static boolean USE_LEGACY_SYSTEM_INSETS = false;
+
     static {
         if (ApplicationLoader.applicationContext != null) {
             SharedPreferences sharedPreferences = ApplicationLoader.applicationContext.getSharedPreferences("systemConfig", Context.MODE_PRIVATE);
