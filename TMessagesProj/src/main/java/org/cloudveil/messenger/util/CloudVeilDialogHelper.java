@@ -124,8 +124,12 @@ public class CloudVeilDialogHelper {
         long id = user.id;
         if (user.bot) {
             return isBotIdAllowed(id);
+        } else if (allowedDialogs.containsKey(id)) {
+            // users which are specifically allowed or blocked override the manage users setting
+            return Boolean.TRUE.equals(allowedDialogs.get(id));
         } else if (CloudVeilSecuritySettings.getManageUsers()) {
-            return allowedDialogs.containsKey(id) && Boolean.TRUE.equals(allowedDialogs.get(id));
+            // if manage users is enabled, and the user is not specifically allowed or blocked, return false
+            return false;
         }
         return true;
     }
@@ -143,6 +147,7 @@ public class CloudVeilDialogHelper {
             return false;
         }
         if(!allowedBots.containsKey(id)) {
+            // TODO: in this case, force bot into next sync request. This code should not be reached in normal operation.
             return false;
         }
         return Boolean.TRUE.equals(allowedBots.get(id));
