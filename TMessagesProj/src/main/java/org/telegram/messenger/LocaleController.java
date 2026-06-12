@@ -57,6 +57,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.TimeZone;
+// CloudVeil start
+import java.util.regex.Matcher;
+// CloudVeil end
 
 public class LocaleController {
 
@@ -1454,7 +1457,7 @@ public class LocaleController {
         }
         //CloudVeil start
         String appName = ApplicationLoader.applicationContext.getString(R.string.AppName);
-        return value.replace("Telegram", appName);
+        return value.replaceAll("Telegram(?!(?: Business| Stars| Premium| Support| FAQ))", Matcher.quoteReplacement(appName));
         //CloudVeil end
     }
 
