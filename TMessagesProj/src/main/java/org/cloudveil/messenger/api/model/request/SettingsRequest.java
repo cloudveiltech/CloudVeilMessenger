@@ -43,6 +43,9 @@ public class SettingsRequest {
         public long id;
         public String title;
         public ArrayList<String> userNames = new ArrayList<>();
+        public boolean isCreatorAdmin;
+        public boolean isForum;
+        public boolean isRestricted;
 
         @Override
         public boolean equals(Object o) {
@@ -75,9 +78,6 @@ public class SettingsRequest {
 
     public static class GroupChannelRow extends Row {
         public boolean isPublic;
-        public boolean isCreatorAdmin;
-        public boolean isForum;
-        public boolean isRestricted;
     }
 
     public static class GroupRow extends GroupChannelRow {

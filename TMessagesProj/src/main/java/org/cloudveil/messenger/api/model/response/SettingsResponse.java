@@ -49,6 +49,8 @@ public class SettingsResponse {
     public boolean disableProfilePhotoChange;
     public boolean disableStickers;
     public boolean disableEmojiStatus;
+    public boolean disableMusicStatus;
+    public boolean disableStars;
     public boolean disableStories;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
@@ -56,6 +58,7 @@ public class SettingsResponse {
     public boolean disableProfileVideoChange;
     public String disableStickersImage;
     public int profilePhotoLimit;
+    public ArrayList<Long> nonblockableBots;
     public GoogleMapsKeys googleMapsKeys;
     public Organization organization;
 }
