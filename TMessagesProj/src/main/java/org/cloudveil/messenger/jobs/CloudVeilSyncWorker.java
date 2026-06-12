@@ -353,6 +353,7 @@ public class CloudVeilSyncWorker extends Worker {
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
         if (settingsResponse.access.bots != null) {
+            // TODO: should this have allowedBots.clear()?
             ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(accountNumber).allowedBots;
             allowedBots.clear();
             appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
@@ -377,7 +378,13 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         CloudVeilSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
         CloudVeilSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
+        CloudVeilSecuritySettings.setIsMusicStatusDisabled(settingsResponse.disableMusicStatus);
+        CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
+
+        if (settingsResponse.nonblockableBots != null) {
+            CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
+        }
 
         CloudVeilSecuritySettings.setOrganization(settingsResponse.organization);
         
@@ -499,6 +506,15 @@ public class CloudVeilSyncWorker extends Worker {
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";
+                if (user.bot_can_edit) {
+                    row.isCreatorAdmin = true;
+                }
+                if (user.bot_forum_view) {
+                    row.isForum = true;
+                }
+                if (user.restricted || user.explicit_content) {
+                    row.isRestricted = true;
+                }
                 if (user.first_name != null) {
                     row.title = user.first_name;
                 }

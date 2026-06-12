@@ -17229,7 +17229,6 @@ public class MessagesStorage extends BaseController {
             }
             // CloudVeil start
             ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(currentAccount).allowedDialogs;
-            ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(currentAccount).allowedBots;
             // CloudVeil end
             while (cursor.next()) {
                 long id = cursor.longValue(0);
@@ -17238,10 +17237,9 @@ public class MessagesStorage extends BaseController {
                 dialogsResult.put(id, dialogSearchResult);
 
                 // CloudVeil start
-                if (DialogObject.isUserDialog(id) && !UserObject.isBot(getMessagesController().getUser(id))) {
-                    // catch all users (not bots)
-                    if (CloudVeilSecuritySettings.getManageUsers()) {
-                        // if users are managed, restrict to allowed users only. Further development, for now skip searching if managedUsers
+                if (DialogObject.isUserDialog(id)) {
+                    TLRPC.User user = getMessagesController().getUser(id);
+                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
                         continue;
                     }
                 } else if (DialogObject.isEncryptedDialog(id)){
@@ -17249,15 +17247,8 @@ public class MessagesStorage extends BaseController {
                     if (CloudVeilSecuritySettings.isDisabledSecretChat()){
                         continue;
                     }
-                } else {
-                    // any other chat / bot can be filtered by the allowed list
-                    if (DialogObject.isUserDialog(id) && UserObject.isBot(getMessagesController().getUser(id))) {
-                        if (!Boolean.TRUE.equals(allowedBots.get(id))) {
-                            continue;
-                        }
-                    } else if (!Boolean.TRUE.equals(allowedDialogs.get(id))) {
-                        continue;
-                    }
+                } else if (!Boolean.TRUE.equals(allowedDialogs.get(id))) {
+                    continue;
                 }
                 // CLoudVeil end
 

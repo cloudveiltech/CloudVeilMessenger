@@ -70,6 +70,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.exoplayer2.C;
 import com.google.android.gms.cast.framework.CastContext;
 
+//CloudVeil start
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+//CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildVars;
@@ -1297,7 +1300,9 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         isProfilePlaylist = savedMusicList != null;
         padWithItem = isMyList();
         playlist = MediaController.getInstance().getPlaylist();
-        if (isMyList()) {
+        // CloudVeil start
+        if (isMyList() && !CloudVeilSecuritySettings.getIsMusicStatusDisabled()) {
+            // CloudVeil end
             addItem = menu.addItem(8, R.drawable.msg_add);
         }
         searchItem = menu.addItem(0, R.drawable.outline_header_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
@@ -2923,7 +2928,9 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             final ItemOptions o2 = o.makeSwipeback();
             o2.add(R.drawable.ic_ab_back, getString(R.string.Back), o::closeSwipeback);
             o2.addGap();
-            o2.addIf(!musicIds.ids.contains(documentId), R.drawable.left_status_profile, getString(R.string.AudioSaveToMyProfile), () -> {
+            // CloudVeil start
+            o2.addIf(!musicIds.ids.contains(documentId) && !CloudVeilSecuritySettings.getIsMusicStatusDisabled(), R.drawable.left_status_profile, getString(R.string.AudioSaveToMyProfile), () -> {
+                // CloudVeil end
                 saveToProfile(messageObject, true, () -> {
                     setVisibleInProfile(true);
                     BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
@@ -2991,7 +2998,9 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
     }
 
     private void setVisibleInProfile(boolean visible) {
-        if (isMyList() || noforwards) {
+        // CloudVeil start
+        if (isMyList() || noforwards || CloudVeilSecuritySettings.getIsMusicStatusDisabled()) {
+            // CloudVeil end
             saveToProfileButton.setVisibility(View.GONE);
             unsaveFromProfileButton.setVisibility(View.GONE);
             return;

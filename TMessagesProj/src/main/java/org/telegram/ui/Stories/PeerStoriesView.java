@@ -70,6 +70,9 @@ import androidx.core.math.MathUtils;
 import androidx.recyclerview.widget.ChatListItemAnimator;
 
 import org.telegram.messenger.AccountInstance;
+//CloudVeil start
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+//CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -1077,7 +1080,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                                 )
                                 .show(true);
                         })
-                        .add(R.drawable.msg_tone_add, getString(R.string.StoryAudioAddToProfile), () -> {
+                        // CloudVeil start
+                        .addIf(!CloudVeilSecuritySettings.getIsMusicStatusDisabled(), R.drawable.msg_tone_add, getString(R.string.StoryAudioAddToProfile), () -> {
+                            // CloudVeil end
                             final TLRPC.TL_account_saveMusic req = new TLRPC.TL_account_saveMusic();
                             req.id = new TLRPC.TL_inputDocument();
                             req.id.id = music.id;

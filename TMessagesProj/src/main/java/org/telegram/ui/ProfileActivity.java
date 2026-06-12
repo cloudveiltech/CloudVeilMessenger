@@ -3819,40 +3819,45 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 avatarsBlurView.setMusicView(musicView);
             }
             musicView.setColor(peerColor);
-            if (userInfo != null && userInfo.saved_music != null) {
-                musicView.setMusicDocument(userInfo.saved_music);
-            }
-            musicView.setOnClickListener(v -> {
-                if (savedMusicList == null) {
-                    if (
-                        MediaController.getInstance().currentSavedMusicList != null &&
-                        MediaController.getInstance().currentSavedMusicList.currentAccount == currentAccount &&
-                        MediaController.getInstance().currentSavedMusicList.dialogId == getDialogId()) {
-                        savedMusicList = MediaController.getInstance().currentSavedMusicList;
-                    } else {
-                        savedMusicList = new MessagesController.SavedMusicList(currentAccount, getDialogId());
-                        if (userInfo != null && userInfo.saved_music != null) {
-                            savedMusicList.setup(userInfo.saved_music);
+            // CloudVeil start
+            if (!CloudVeilSecuritySettings.getIsMusicStatusDisabled()) {
+                if (userInfo != null && userInfo.saved_music != null) {
+                    musicView.setMusicDocument(userInfo.saved_music);
+                }
+                musicView.setOnClickListener(v -> {
+                    if (savedMusicList == null) {
+                        if (
+                                MediaController.getInstance().currentSavedMusicList != null &&
+                                        MediaController.getInstance().currentSavedMusicList.currentAccount == currentAccount &&
+                                        MediaController.getInstance().currentSavedMusicList.dialogId == getDialogId()) {
+                            savedMusicList = MediaController.getInstance().currentSavedMusicList;
+                        } else {
+                            savedMusicList = new MessagesController.SavedMusicList(currentAccount, getDialogId());
+                            if (userInfo != null && userInfo.saved_music != null) {
+                                savedMusicList.setup(userInfo.saved_music);
+                            }
                         }
                     }
-                }
-                if (!savedMusicList.list.isEmpty()) {
-                    boolean sameList = false;
-                    if (
-                        MediaController.getInstance().currentSavedMusicList != savedMusicList ||
-                        !MediaController.getInstance().isPlayingMessage(savedMusicList.list.get(0))
-                    ) {
-                        MediaController.getInstance().cleanup();
-                    } else {
-                        sameList = true;
+                    if (!savedMusicList.list.isEmpty()) {
+                        boolean sameList = false;
+                        if (
+                                MediaController.getInstance().currentSavedMusicList != savedMusicList ||
+                                        !MediaController.getInstance().isPlayingMessage(savedMusicList.list.get(0))
+                        ) {
+                            MediaController.getInstance().cleanup();
+                        } else {
+                            sameList = true;
+                        }
+                        MediaController.getInstance().currentSavedMusicList = savedMusicList;
+                        MediaController.getInstance().getPlaylist().clear();
+                        MediaController.getInstance().getPlaylist().addAll(savedMusicList.list);
+                        if (!sameList)
+                            MediaController.getInstance().playMessage(savedMusicList.list.get(0));
+                        showDialog(new AudioPlayerAlert(getContext(), getResourceProvider()));
                     }
-                    MediaController.getInstance().currentSavedMusicList = savedMusicList;
-                    MediaController.getInstance().getPlaylist().clear();
-                    MediaController.getInstance().getPlaylist().addAll(savedMusicList.list);
-                    if (!sameList) MediaController.getInstance().playMessage(savedMusicList.list.get(0));
-                    showDialog(new AudioPlayerAlert(getContext(), getResourceProvider()));
-                }
-            });
+                });
+            }
+            //CloudVeil end
 
             actionsView = new ProfileActionsView(context, dp(74)) {
                 @Override
@@ -10492,7 +10497,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         if (userId != 0) {
             TLRPC.User user = getMessagesController().getUser(userId);
-            if (userInfo != null && userInfo.saved_music != null && (imageUpdater == null || myProfile)) {
+            // CloudVeil start
+            if (!CloudVeilSecuritySettings.getIsMusicStatusDisabled() && userInfo != null && userInfo.saved_music != null && (imageUpdater == null || myProfile)) {
+                // CloudVeil end
                 hasMusic = true;
             }
 

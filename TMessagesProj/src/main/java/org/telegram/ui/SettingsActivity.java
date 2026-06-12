@@ -60,6 +60,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+// CloudVeil start
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -694,6 +697,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         if (!getMessagesController().premiumFeaturesBlocked()) {
             items.add(SettingCell.Factory.of(11, 0xFFB659FF, 0xFF617CFF, R.drawable.settings_premium, getString(R.string.TelegramPremium)));
         }
+        // CloudVeil start
+        if (!CloudVeilSecuritySettings.getIsStarsDisabled()) {
+            // CloudVeil end
         if (getMessagesController().starsPurchaseAvailable()) {
             StarsController c = StarsController.getInstance(currentAccount);
             long balance = c.getBalance().amount;
@@ -717,6 +723,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 }
             }
         }
+        //CloudVeil start
+        }
+        //CloudVeil End
 
 //        items.add(SettingCell.Factory.of(14, 0, "Wallet"));
         if (!getMessagesController().premiumFeaturesBlocked()) {
