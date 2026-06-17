@@ -244,6 +244,10 @@ public class CloudVeilSecuritySettings {
         return result;
     }
 
+    public static boolean isNonblockableBot(long botId) {
+        return getNonblockableBots().contains(botId);
+    }
+
     public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("isProfileVideoChangeDisabled", isProfileVideoChangeDisabled).apply();

@@ -9456,7 +9456,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             } else {
                 getMessagesController().deleteDialog(selectedDialog, 0, revoke);
-                if (isBot && revoke) {
+                // CloudVeil start
+                if (isBot && revoke && !CloudVeilSecuritySettings.isNonblockableBot(selectedDialog)) {
+                    // CloudVeil end
                     getMessagesController().blockPeer(selectedDialog);
                 }
             }
@@ -10523,7 +10525,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 } else {
                     getMessagesController().deleteDialog(dialogId, 0, revoke);
-                    if (user != null && user.bot && botBlock) {
+                    // CloudVeil start
+                    if (user != null && user.bot && botBlock && !CloudVeilSecuritySettings.isNonblockableBot(user.id)) {
+                        // CloudVeil end
                         getMessagesController().blockPeer(user.id);
                     }
                 }
