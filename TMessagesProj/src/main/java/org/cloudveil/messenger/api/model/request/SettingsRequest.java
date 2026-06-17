@@ -5,8 +5,10 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.LocaleController;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -22,6 +24,7 @@ public class SettingsRequest {
     public String clientOsType = "Android";
     public String clientVersionName = SettingsRequest.getAppVersionString();
     public int clientVersionCode = SettingsRequest.getAppVersionCode();
+    public String clientLocale = SettingsRequest.getClientLocale();
     public String clientSessionId;
 
     public ArrayList<GroupRow> groups = new ArrayList<>();
@@ -37,6 +40,15 @@ public class SettingsRequest {
     public SettingsRequest() {
         clientVersionName = SettingsRequest.getAppVersionString();
         clientVersionCode = SettingsRequest.getAppVersionCode();
+        clientLocale = SettingsRequest.getClientLocale();
+    }
+
+    public static String getClientLocale() {
+        LocaleController.LocaleInfo localeInfo = LocaleController.getInstance().getCurrentLocaleInfo();
+        if (localeInfo != null) {
+            return localeInfo.getLangCode();
+        }
+        return Locale.getDefault().toLanguageTag();
     }
 
     public static class Row {
@@ -77,7 +89,13 @@ public class SettingsRequest {
     }
 
     public static class GroupChannelRow extends Row {
+        /** Client is not in this chat; membership and recency data may be stale. */
+        public static final long LAST_MESSAGE_DATE_UNTRUSTWORTHY = -1;
+        /** In chat, but no last-activity timestamp is available locally. */
+        public static final long LAST_MESSAGE_DATE_UNKNOWN = 0;
+
         public boolean isPublic;
+        public long lastMessageDate;
     }
 
     public static class GroupRow extends GroupChannelRow {
