@@ -38,6 +38,12 @@ public class SettingsResponse {
         public String policyUrl = "";
     }
 
+    public static class Deprecation {
+        public boolean deprecated;
+        public String message = "";
+        public int reminder;
+    }
+
     public AccessList access;
 
     public boolean secretChat;
@@ -61,4 +67,5 @@ public class SettingsResponse {
     public ArrayList<Long> nonblockableBots;
     public GoogleMapsKeys googleMapsKeys;
     public Organization organization;
+    public Deprecation deprecation;
 }
