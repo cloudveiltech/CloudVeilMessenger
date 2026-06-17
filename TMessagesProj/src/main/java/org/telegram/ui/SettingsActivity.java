@@ -861,7 +861,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 if (MessagesController.getInstance(currentAccount).isFrozen()) {
                     AccountFrozenAlert.show(currentAccount);
                 } else {
-                    Browser.openUrl(getContext(), LocaleController.getString(R.string.TelegramFeaturesUrl));
+                    // CloudVeil start
+                    Browser.openUrl(getParentActivity(), LocaleController.getString(R.string.cloudveil_features), this);
+                    // CloudVeil end
                 }
                 break;
             }

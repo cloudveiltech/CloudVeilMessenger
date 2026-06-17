@@ -2421,9 +2421,7 @@
     <string name="TelegramFAQ">Telegram FAQ</string>
     <string name="TelegramFaq">Telegram FAQ</string>
     <string name="TelegramFeatures">Telegram Features</string>
-<!--    CloudVeil start-->
     <string name="TelegramFeaturesUrl">https://t.me/TelegramTips</string>
-<!--    CloudVeil end-->
     <string name="AddAccount">Add Account</string>
     <string name="SwitchAccountHint">"Long tap to switch accounts"</string>
     <string name="SelectAccount">Select Account</string>
