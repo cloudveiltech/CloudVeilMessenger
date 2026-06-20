@@ -6943,11 +6943,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (photo == null && chatInfo != null && chatInfo.chat_photo instanceof TLRPC.TL_photo) {
                     photo = chatInfo.chat_photo;
                 }
-                //CloudVeil start
-                if (videoLocation != null && (CloudVeilSecuritySettings.getIsProfileVideoDisabled() || !CloudVeilSecuritySettings.isVideoPlayingAllowed())) {
-                    return;
-                }
-                //CloudVeil end
                 ImageLocation videoLocation = null;
                 if (photo != null && !photo.video_sizes.isEmpty()) {
                     TLRPC.VideoSize videoSize = FileLoader.getClosestVideoSizeWithSize(photo.video_sizes, 1000);
@@ -6955,6 +6950,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         videoLocation = ImageLocation.getForPhoto(videoSize, photo);
                     }
                 }
+                //CloudVeil start
+                if (videoLocation != null && (CloudVeilSecuritySettings.getIsProfileVideoDisabled() || !CloudVeilSecuritySettings.isVideoPlayingAllowed())) {
+                    return;
+                }
+                //CloudVeil end
                 PhotoViewer.getInstance().openPhotoWithVideo(fileLocation, carouselImageLocation, videoLocation, provider);
             }
         }
