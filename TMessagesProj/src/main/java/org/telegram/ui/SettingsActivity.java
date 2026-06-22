@@ -60,6 +60,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -93,7 +94,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.SettingsSearchCell;
-import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AnimatedEmojiDrawable;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
@@ -147,6 +147,11 @@ import me.vkryl.android.animator.FactorAnimator;
 public class SettingsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, ImageUpdater.ImageUpdaterDelegate, MainTabsActivity.TabFragmentDelegate, FactorAnimator.Target {
 
     private static final int ANIMATOR_ID_SEARCH_PAGE_VISIBLE = 0;
+
+    //CloudVeil start
+    private static final int cloudVeilAboutUsRow = 900001;
+    private static final int cloudVeilOrganizationPolicyRow = 900002;
+    //CloudVeil end
 
     private final BoolAnimator animatorSearchPageVisible = new BoolAnimator(ANIMATOR_ID_SEARCH_PAGE_VISIBLE,
             this, CubicBezierInterpolator.EASE_OUT_QUINT, 350);
@@ -691,7 +696,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         items.add(SettingCell.Factory.of(10, IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom, R.drawable.settings_language, getString(R.string.SettingsLanguage), LocaleController.getCurrentLanguageName()));
 
         items.add(UItem.asShadow(null));
-
+        // CloudVeil start
+        /* CloudVeil disable premiumFeatures
         if (!getMessagesController().premiumFeaturesBlocked()) {
             items.add(SettingCell.Factory.of(11, 0xFFB659FF, 0xFF617CFF, R.drawable.settings_premium, getString(R.string.TelegramPremium)));
         }
@@ -701,6 +707,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             items.add(SettingCell.Factory.of(12, 0xFFEFA612, 0xFFE77512, R.drawable.settings_stars, getString(R.string.TelegramStars), null, c.balanceAvailable() && balance > 0 ? StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ') : ""));
         }
         StarsController.getInstance(currentAccount, true).getBalance();
+        */
+        // CloudVeil end
         if (ApplicationLoader.isBetaBuild() || ApplicationLoader.isStandaloneBuild() || ApplicationLoader.isHuaweiStoreBuild() || (StarsController.getInstance(currentAccount, true).balanceAvailable() && (StarsController.getInstance(currentAccount, true).hasTransactions() || StarsController.getInstance(currentAccount, true).getBalance().positive()))) {
             StarsController c = StarsController.getTonInstance(currentAccount);
             long balance = c.getBalance().amount;
@@ -718,13 +726,16 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 }
             }
         }
-
+        // CloudVeil start
+        /* CloudVeil disable premiumFeatures
         if (!getMessagesController().premiumFeaturesBlocked()) {
             items.add(SettingCell.Factory.of(15, 0xFFF45255, 0xFFDF3955, R.drawable.settings_business, getString(R.string.TelegramBusiness)));
         }
         if (!getMessagesController().premiumPurchaseBlocked()) {
             items.add(SettingCell.Factory.of(16, 0xFFF38B31, 0xFFE26314, R.drawable.settings_gift, getString(R.string.SendAGift)));
         }
+        */
+        // CloudVeil end
         if (items.get(items.size() - 1).viewType != UniversalAdapter.VIEW_TYPE_SHADOW)
             items.add(UItem.asShadow(null));
 
@@ -733,7 +744,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         items.add(SettingCell.Factory.of(18, IconBackgroundColors.BLUE_LIGHT.top, IconBackgroundColors.BLUE_LIGHT.bottom, R.drawable.settings_faq, getString(R.string.TelegramFAQ)));
         items.add(SettingCell.Factory.of(23, IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom, R.drawable.settings_features, getString(R.string.TelegramFeatures)));
         items.add(SettingCell.Factory.of(19, IconBackgroundColors.GREEN.top, IconBackgroundColors.GREEN.bottom, R.drawable.settings_policy, getString(R.string.PrivacyPolicy)));
-
+        // CloudVeil start
+        items.add(SettingCell.Factory.of(cloudVeilAboutUsRow, IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom, R.drawable.settings_language, getString(R.string.about_us)));
+        items.add(SettingCell.Factory.of(cloudVeilOrganizationPolicyRow, IconBackgroundColors.ORANGE.top, IconBackgroundColors.ORANGE.bottom, R.drawable.settings_policy, getString(R.string.organization_policy)));
+        // CloudVeil end
         if (BuildVars.LOGS_ENABLED || BuildVars.DEBUG_PRIVATE_VERSION) {
             items.add(UItem.asShadow(null));
             items.add(UItem.asHeader(getString(R.string.SettingsDebug)));
@@ -830,7 +844,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 break;
 
             case 17:
-                showDialog(AlertsCreator.createSupportAlert(this, resourceProvider));
+                // CloudVeil start
+                MessagesController.getInstance(currentAccount).openByUserName("cloudveilbot", this, 0);
+                // CloudVeil end
                 break;
             case 18:
                 Browser.openUrl(getParentActivity(), LocaleController.getString(R.string.TelegramFaqUrl));
@@ -848,11 +864,19 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             case 22:
                 FileLog.cleanupLogs();
                 break;
+            case cloudVeilAboutUsRow:
+                Browser.openUrl(getParentActivity(), CloudVeilSecuritySettings.getOrganization().aboutUrl, this);
+                break;
+            case cloudVeilOrganizationPolicyRow:
+                Browser.openUrl(getParentActivity(), CloudVeilSecuritySettings.getOrganization().policyUrl, this);
+                break;
             case 23: {
                 if (MessagesController.getInstance(currentAccount).isFrozen()) {
                     AccountFrozenAlert.show(currentAccount);
                 } else {
-                    Browser.openUrl(getContext(), LocaleController.getString(R.string.TelegramFeaturesUrl));
+                    // CloudVeil start
+                    Browser.openUrl(getParentActivity(), LocaleController.getString(R.string.cloudveil_features), this);
+                    // CloudVeil end               
                 }
                 break;
             }
