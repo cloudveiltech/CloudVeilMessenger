@@ -95,7 +95,7 @@ dependencies {
 
 def isWindows = String.valueOf(DefaultNativePlatform.currentOperatingSystem.toFamilyName() == OperatingSystemFamily.WINDOWS)
 android {
-    compileSdkVersion 35
+    compileSdkVersion 36
     buildToolsVersion '35.0.0'
     ndkVersion "27.2.12479018"
 
