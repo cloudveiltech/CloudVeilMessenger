@@ -20,7 +20,7 @@ import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.ConsumeParams;
-//CloudVeil start billing v8
+//CloudVeil start billing v8 import
 import com.android.billingclient.api.PendingPurchasesParams;
 //CloudVeil end
 import com.android.billingclient.api.ProductDetails;
