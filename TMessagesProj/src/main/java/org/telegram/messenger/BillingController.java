@@ -20,8 +20,10 @@ import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
 import com.android.billingclient.api.ConsumeParams;
+//CloudVeil start billing v8 import
+import com.android.billingclient.api.PendingPurchasesParams;
+//CloudVeil end
 import com.android.billingclient.api.ProductDetails;
-import com.android.billingclient.api.ProductDetailsResponseListener;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesResponseListener;
 import com.android.billingclient.api.PurchasesUpdatedListener;
@@ -82,7 +84,13 @@ public class BillingController implements PurchasesUpdatedListener, BillingClien
 
     private BillingController(Context ctx) {
         billingClient = BillingClient.newBuilder(ctx)
-                .enablePendingPurchases()
+                //CloudVeil start billing v8: the no-arg enablePendingPurchases() was removed in v8.
+                //enableOneTimeProducts() reproduces the old no-arg behaviour exactly. Do not add
+                //enablePrepaidPlans() - that opts us into pending prepaid subs, which nothing here handles.
+                .enablePendingPurchases(PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .build())
+                //CloudVeil end
                 .setListener(this)
                 .build();
     }
@@ -178,12 +186,27 @@ public class BillingController implements PurchasesUpdatedListener, BillingClien
         return billingClient.isReady();
     }
 
-    public void queryProductDetails(List<QueryProductDetailsParams.Product> products, ProductDetailsResponseListener responseListener) {
+    //CloudVeil start billing v8: in v8 ProductDetailsResponseListener hands back a QueryProductDetailsResult
+    //instead of a List<ProductDetails>. This callback restores the v7 shape so the 12 existing call sites
+    //compile unchanged. Delete this block and pass the native v8 ProductDetailsResponseListener straight
+    //through once we take Telegram's upstream v8 migration.
+    public interface ProductDetailsCallback {
+        void onProductDetailsResponse(BillingResult result, List<ProductDetails> productDetails);
+    }
+
+    public void queryProductDetails(List<QueryProductDetailsParams.Product> products, ProductDetailsCallback callback) {
         if (!isReady()) {
             throw new IllegalStateException("Billing: Controller should be ready for this call!");
         }
-        billingClient.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(products).build(), responseListener);
+        billingClient.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(products).build(), (billingResult, result) -> {
+            final List<ProductDetails> list = result == null ? Collections.emptyList() : result.getProductDetailsList();
+            if (result != null && !result.getUnfetchedProductList().isEmpty()) {
+                FileLog.d("Billing: unfetched products: " + result.getUnfetchedProductList());
+            }
+            callback.onProductDetailsResponse(billingResult, list);
+        });
     }
+    //CloudVeil end
 
     /**
      * {@link BillingClient#queryPurchasesAsync} returns only active subscriptions and not consumed purchases.
