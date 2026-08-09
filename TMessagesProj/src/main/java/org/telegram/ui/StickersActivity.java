@@ -169,6 +169,23 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         return featuredStickerSets;
     }
 
+    //CloudVeil start
+    private ArrayList<TLRPC.TL_messages_stickerSet> filterCloudVeilAllowed(ArrayList<TLRPC.TL_messages_stickerSet> input) {
+        // emoji packs are exempt from the sticker allow-list
+        if (currentType == TYPE_EMOJIPACKS) {
+            return input;
+        }
+        final MediaDataController mediaDataController = MediaDataController.getInstance(currentAccount);
+        final ArrayList<TLRPC.TL_messages_stickerSet> filtered = new ArrayList<>();
+        for (TLRPC.TL_messages_stickerSet set : input) {
+            if (mediaDataController.isStickerAllowed(set)) {
+                filtered.add(set);
+            }
+        }
+        return filtered;
+    }
+    //CloudVeil end
+
     public StickersActivity(int type, ArrayList<TLRPC.TL_messages_stickerSet> frozenEmojiPacks) {
         super();
         currentType = type;
@@ -247,7 +264,9 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         if (currentType == TYPE_EMOJIPACKS && frozenEmojiPacks != null) {
             sets = frozenEmojiPacks;
         } else {
-            sets = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(MediaDataController.getInstance(currentAccount).getStickerSets(currentType)));
+            //CloudVeil start
+            sets = filterCloudVeilAllowed(new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(MediaDataController.getInstance(currentAccount).getStickerSets(currentType))));
+            //CloudVeil end
         }
         featured = getFeaturedSets();
 
@@ -337,7 +356,9 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
                 }
                 sets = frozenEmojiPacks;
             } else {
-                sets = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType)));
+                //CloudVeil start
+                sets = filterCloudVeilAllowed(new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType))));
+                //CloudVeil end
             }
         }
 
