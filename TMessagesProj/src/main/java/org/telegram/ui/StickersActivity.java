@@ -171,7 +171,10 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
 
     //CloudVeil start
     private ArrayList<TLRPC.TL_messages_stickerSet> filterCloudVeilAllowed(ArrayList<TLRPC.TL_messages_stickerSet> input) {
-        // emoji packs are exempt from the sticker allow-list
+        // Emoji packs are exempt from the sticker allow-list.
+        // Deliberately a deny-list, not an allow-list on TYPE_IMAGE/TYPE_MASK: any other
+        // currentType falls through to the filter below, so an unexpected or future mode
+        // fails closed (sets hidden) instead of failing open (policy-blocked sets shown).
         if (currentType == TYPE_EMOJIPACKS) {
             return input;
         }
