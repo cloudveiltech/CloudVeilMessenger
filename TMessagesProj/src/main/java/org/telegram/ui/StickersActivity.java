@@ -169,26 +169,6 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         return featuredStickerSets;
     }
 
-    //CloudVeil start
-    private ArrayList<TLRPC.TL_messages_stickerSet> filterCloudVeilAllowed(ArrayList<TLRPC.TL_messages_stickerSet> input) {
-        // Emoji packs are exempt from the sticker allow-list.
-        // Deliberately a deny-list, not an allow-list on TYPE_IMAGE/TYPE_MASK: any other
-        // currentType falls through to the filter below, so an unexpected or future mode
-        // fails closed (sets hidden) instead of failing open (policy-blocked sets shown).
-        if (currentType == TYPE_EMOJIPACKS) {
-            return input;
-        }
-        final MediaDataController mediaDataController = MediaDataController.getInstance(currentAccount);
-        final ArrayList<TLRPC.TL_messages_stickerSet> filtered = new ArrayList<>();
-        for (TLRPC.TL_messages_stickerSet set : input) {
-            if (mediaDataController.isStickerAllowed(set)) {
-                filtered.add(set);
-            }
-        }
-        return filtered;
-    }
-    //CloudVeil end
-
     public StickersActivity(int type, ArrayList<TLRPC.TL_messages_stickerSet> frozenEmojiPacks) {
         super();
         currentType = type;
@@ -267,9 +247,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
         if (currentType == TYPE_EMOJIPACKS && frozenEmojiPacks != null) {
             sets = frozenEmojiPacks;
         } else {
-            //CloudVeil start
-            sets = filterCloudVeilAllowed(new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(MediaDataController.getInstance(currentAccount).getStickerSets(currentType))));
-            //CloudVeil end
+            sets = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(MediaDataController.getInstance(currentAccount).getStickerSets(currentType)));
         }
         featured = getFeaturedSets();
 
@@ -359,9 +337,7 @@ public class StickersActivity extends BaseFragment implements NotificationCenter
                 }
                 sets = frozenEmojiPacks;
             } else {
-                //CloudVeil start
-                sets = filterCloudVeilAllowed(new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType))));
-                //CloudVeil end
+                sets = new ArrayList<>(MessagesController.getInstance(currentAccount).filterPremiumStickers(mediaDataController.getStickerSets(currentType)));
             }
         }
 
