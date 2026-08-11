@@ -38,6 +38,12 @@ public class SettingsResponse {
         public String policyUrl = "";
     }
 
+    public static class Deprecation {
+        public boolean deprecated;
+        public String message = "";
+        public int reminder;
+    }
+
     public AccessList access;
 
     public boolean secretChat;
@@ -49,6 +55,8 @@ public class SettingsResponse {
     public boolean disableProfilePhotoChange;
     public boolean disableStickers;
     public boolean disableEmojiStatus;
+    public boolean disableMusicStatus;
+    public boolean disableStars;
     public boolean disableStories;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
@@ -56,6 +64,8 @@ public class SettingsResponse {
     public boolean disableProfileVideoChange;
     public String disableStickersImage;
     public int profilePhotoLimit;
+    public ArrayList<Long> nonblockableBots;
     public GoogleMapsKeys googleMapsKeys;
     public Organization organization;
+    public Deprecation deprecation;
 }

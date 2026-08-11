@@ -10,13 +10,17 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
+import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
@@ -32,6 +36,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.LaunchActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -124,8 +129,12 @@ public class CloudVeilDialogHelper {
         long id = user.id;
         if (user.bot) {
             return isBotIdAllowed(id);
+        } else if (allowedDialogs.containsKey(id)) {
+            // users which are specifically allowed or blocked override the manage users setting
+            return Boolean.TRUE.equals(allowedDialogs.get(id));
         } else if (CloudVeilSecuritySettings.getManageUsers()) {
-            return allowedDialogs.containsKey(id) && Boolean.TRUE.equals(allowedDialogs.get(id));
+            // if manage users is enabled, and the user is not specifically allowed or blocked, return false
+            return false;
         }
         return true;
     }
@@ -143,6 +152,7 @@ public class CloudVeilDialogHelper {
             return false;
         }
         if(!allowedBots.containsKey(id)) {
+            // TODO: in this case, force bot into next sync request. This code should not be reached in normal operation.
             return false;
         }
         return Boolean.TRUE.equals(allowedBots.get(id));
@@ -160,9 +170,9 @@ public class CloudVeilDialogHelper {
         } else if (DialogObject.isUserDialog(currentDialogId)) {
             user = MessagesController.getInstance(accountNumber).getUser(currentDialogId);
         } else {
-            chat = MessagesController.getInstance(accountNumber).getChat(currentDialogId);
+            chat = MessagesController.getInstance(accountNumber).getChat(-currentDialogId);
             if (chat == null) {
-                chat = MessagesController.getInstance(accountNumber).getChat(-currentDialogId);
+                chat = MessagesController.getInstance(accountNumber).getChat(currentDialogId);
             }
         }
 
@@ -417,6 +427,57 @@ public class CloudVeilDialogHelper {
         }
         Matcher matcher = youtubeIdRegex.matcher(url);
         return matcher.find();
+    }
+
+    public static void checkDeprecationAlert(int accountNumber, SettingsResponse.Deprecation deprecation) {
+        if (deprecation == null || !deprecation.deprecated) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        SharedPreferences preferences = MessagesController.getMainSettings(accountNumber);
+        long lastShownTime = preferences.getLong("deprecationAlertShownTime", 0);
+        if (deprecation.reminder > 0 && now - lastShownTime < deprecation.reminder * 1000L) {
+            return;
+        }
+        preferences.edit().putLong("deprecationAlertShownTime", now).apply();
+
+        AndroidUtilities.runOnUIThread(() -> {
+            BaseFragment fragment = LaunchActivity.getLastFragment();
+            Context resolvedContext = LaunchActivity.instance;
+            if (fragment != null && fragment.getParentActivity() != null) {
+                resolvedContext = fragment.getParentActivity();
+            }
+            if (resolvedContext == null) {
+                resolvedContext = ApplicationLoader.applicationContext;
+            }
+            final Context context = resolvedContext;
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle(context.getString(R.string.warning))
+                    .setMessage(deprecation.message)
+                    .setPositiveButton(context.getString(R.string.UpdateApp), (dialog, which) -> {
+                        Browser.openUrl(context, BuildVars.PLAYSTORE_APP_URL);
+                        dialog.dismiss();
+                    });
+            AlertDialog dialog = builder.create();
+            dialog.setOnShowListener(d -> {
+                View button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                if (button != null && button.getParent() instanceof ViewGroup) {
+                    ViewGroup parent = (ViewGroup) button.getParent();
+                    int parentWidth = parent.getWidth();
+                    int buttonWidth = button.getWidth();
+                    if (parentWidth > 0 && buttonWidth > 0) {
+                        button.setTranslationX((parentWidth - buttonWidth) / 2f - button.getLeft());
+                    }
+                }
+            });
+            if (fragment != null && fragment.getParentActivity() != null) {
+                fragment.showDialog(dialog);
+            } else {
+                dialog.show();
+            }
+        });
     }
 
     public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {

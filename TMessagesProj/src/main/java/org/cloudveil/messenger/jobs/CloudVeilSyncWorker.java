@@ -28,6 +28,7 @@ import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
@@ -313,6 +314,7 @@ public class CloudVeilSyncWorker extends Worker {
         SettingsRequest.Row row = new SettingsRequest.Row();
         row.id = stickerSet.id;
         row.title = stickerSet.title;
+        row.isCreatorAdmin = stickerSet.creator;
 
         ArrayList<String> userNames = new ArrayList<>();
         userNames.add(stickerSet.short_name);
@@ -336,6 +338,7 @@ public class CloudVeilSyncWorker extends Worker {
         if (settingsResponse == null || settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
+        CloudVeilDialogHelper.checkDeprecationAlert(accountNumber, settingsResponse.deprecation);
 
         ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
         // if last response's org is this response's org,
@@ -353,6 +356,7 @@ public class CloudVeilSyncWorker extends Worker {
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
         if (settingsResponse.access.bots != null) {
+            // TODO: should this have allowedBots.clear()?
             ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(accountNumber).allowedBots;
             allowedBots.clear();
             appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
@@ -377,7 +381,13 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         CloudVeilSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
         CloudVeilSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
+        CloudVeilSecuritySettings.setIsMusicStatusDisabled(settingsResponse.disableMusicStatus);
+        CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
+
+        if (settingsResponse.nonblockableBots != null) {
+            CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
+        }
 
         CloudVeilSecuritySettings.setOrganization(settingsResponse.organization);
         
@@ -425,19 +435,30 @@ public class CloudVeilSyncWorker extends Worker {
         addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsServerOnly);
 
         if (additionalDialogId != 0) {
-            addDialogToRequest(additionalDialogId, request);
+            TLRPC.Dialog dialog = MessagesController.getInstance(accountNumber).dialogs_dict.get(additionalDialogId);
+            addDialogToRequest(additionalDialogId, dialog, request);
             additionalDialogId = 0;
         }
     }
 
     private void addDialogsToRequest(@NonNull SettingsRequest request, ArrayList<TLRPC.Dialog> dialogs) {
         for (TLRPC.Dialog dlg : dialogs) {
-            long currentDialogId = dlg.id;
-            addDialogToRequest(currentDialogId, request);
+            addDialogToRequest(dlg.id, dlg, request);
         }
     }
 
-    private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
+    private long getLastMessageDateForChat(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.Chat chat) {
+        if (ChatObject.isNotInChat(chat)) {
+            return SettingsRequest.GroupChannelRow.LAST_MESSAGE_DATE_UNTRUSTWORTHY;
+        }
+        if (dialog == null) {
+            return SettingsRequest.GroupChannelRow.LAST_MESSAGE_DATE_UNKNOWN;
+        }
+        TLRPC.DraftMessage draft = MediaDataController.getInstance(accountNumber).getDraft(dialog.id, 0);
+        return DialogObject.getLastMessageOrDraftDate(dialog, draft);
+    }
+
+    private void addDialogToRequest(long currentDialogId, @Nullable TLRPC.Dialog dialog, @NonNull SettingsRequest request) {
         TLRPC.Chat chat = null;
         TLRPC.ChatFull chatFull = null;
         TLRPC.User user = null;
@@ -483,6 +504,7 @@ public class CloudVeilSyncWorker extends Worker {
             }
             row.userNames = userNames;
             row.isPublic = ChatObject.isPublic(chat);
+            row.lastMessageDate = getLastMessageDateForChat(dialog, chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
@@ -499,6 +521,15 @@ public class CloudVeilSyncWorker extends Worker {
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";
+                if (user.bot_can_edit) {
+                    row.isCreatorAdmin = true;
+                }
+                if (user.bot_forum_view) {
+                    row.isForum = true;
+                }
+                if (user.restricted || user.explicit_content) {
+                    row.isRestricted = true;
+                }
                 if (user.first_name != null) {
                     row.title = user.first_name;
                 }
