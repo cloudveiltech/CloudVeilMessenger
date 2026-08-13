@@ -954,6 +954,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 } else if (span instanceof URLSpanNoUnderline) {
                     String str = ((URLSpanNoUnderline) span).getURL();
                     if (str != null && (str.startsWith("#") || str.startsWith("$"))) {
+                        /* CloudVeil start: disable hashtag search from stories
                         if (str.contains("@")) {
                             if (storyViewer != null) {
                                 storyViewer.presentFragment(new HashtagActivity(str));
@@ -966,6 +967,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                                 storyViewer.presentFragment(new MediaActivity(args, null));
                             }
                         }
+                        // CloudVeil end */
                     } else {
                         String username = Browser.extractUsername(str);
                         if (username != null) {
