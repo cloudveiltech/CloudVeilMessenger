@@ -52,12 +52,26 @@ public class SettingsRequest {
     }
 
     public static class Row {
+        /** Peer is unusable as an authoritative source (e.g. client is not in this chat). */
+        public static final long LAST_UPDATE_UNTRUSTWORTHY = -1;
+        /** No freshness signal is available locally. */
+        public static final long LAST_UPDATE_UNKNOWN = 0;
+
         public long id;
         public String title;
         public ArrayList<String> userNames = new ArrayList<>();
         public boolean isCreatorAdmin;
         public boolean isForum;
         public boolean isRestricted;
+        /**
+         * Unix time (seconds) of the most recent moment this client is known to have had
+         * trustworthy info about this peer: the newer of the last message date and the last
+         * successful full-metadata load (full chat for groups/channels, full user for
+         * users/bots). Lets the server pick the most authoritative client when reports
+         * disagree. Special values: see LAST_UPDATE_* above. Often UNKNOWN for inline bots,
+         * which have no dialog and may never have had their full user loaded.
+         */
+        public long lastUpdated;
 
         @Override
         public boolean equals(Object o) {
@@ -89,13 +103,7 @@ public class SettingsRequest {
     }
 
     public static class GroupChannelRow extends Row {
-        /** Client is not in this chat; membership and recency data may be stale. */
-        public static final long LAST_MESSAGE_DATE_UNTRUSTWORTHY = -1;
-        /** In chat, but no last-activity timestamp is available locally. */
-        public static final long LAST_MESSAGE_DATE_UNKNOWN = 0;
-
         public boolean isPublic;
-        public long lastMessageDate;
     }
 
     public static class GroupRow extends GroupChannelRow {
