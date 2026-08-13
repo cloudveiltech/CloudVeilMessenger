@@ -28,7 +28,6 @@ import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
-import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
@@ -285,6 +284,8 @@ public class CloudVeilSyncWorker extends Worker {
                     userNames.add(user.username);
                 }
                 row.userNames = userNames;
+                // Inline bots have no dialog; freshness comes only from a prior full-user load.
+                row.lastUpdated = getLastUpdateForUser(null, user);
 
                 request.addBot(row);
             }
@@ -447,15 +448,44 @@ public class CloudVeilSyncWorker extends Worker {
         }
     }
 
-    private long getLastMessageDateForChat(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.Chat chat) {
+    private long getLastUpdateForChat(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.Chat chat) {
         if (ChatObject.isNotInChat(chat)) {
-            return SettingsRequest.GroupChannelRow.LAST_MESSAGE_DATE_UNTRUSTWORTHY;
+            return SettingsRequest.Row.LAST_UPDATE_UNTRUSTWORTHY;
         }
-        if (dialog == null) {
-            return SettingsRequest.GroupChannelRow.LAST_MESSAGE_DATE_UNKNOWN;
+
+        // Telegram-authored, seconds. Drafts are deliberately excluded: a local unsent draft
+        // is not evidence that this client has fresh info about the chat itself.
+        long lastMessageDateSec = dialog != null ? dialog.last_message_date : 0;
+
+        // loadedFullChats is keyed by positive chat.id and stored in local-clock millis.
+        long fullChatLoadedSec = fullLoadSeconds(MessagesController.getInstance(accountNumber).loadedFullChats.get(chat.id, 0));
+
+        long merged = Math.max(lastMessageDateSec, fullChatLoadedSec);
+        return merged > 0 ? merged : SettingsRequest.Row.LAST_UPDATE_UNKNOWN;
+    }
+
+    private long getLastUpdateForUser(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.User user) {
+        // Users/bots have no "not in chat" concept; there is simply a conversation or not.
+        // Inline bots reached via addInlineBotsToRequest pass a null dialog and typically
+        // resolve to UNKNOWN unless their full user was loaded at some point.
+        long lastMessageDateSec = dialog != null ? dialog.last_message_date : 0;
+
+        long fullUserLoadedSec = fullLoadSeconds(MessagesController.getInstance(accountNumber).loadedFullUsers.get(user.id, 0));
+
+        long merged = Math.max(lastMessageDateSec, fullUserLoadedSec);
+        return merged > 0 ? merged : SettingsRequest.Row.LAST_UPDATE_UNKNOWN;
+    }
+
+    /**
+     * Converts a loadedFull* timestamp (local-clock millis, 0 if never loaded) to Unix seconds,
+     * clamped to "now" so a skewed device clock cannot rank this client as falsely authoritative.
+     */
+    private static long fullLoadSeconds(long loadedAtMs) {
+        if (loadedAtMs <= 0) {
+            return 0;
         }
-        TLRPC.DraftMessage draft = MediaDataController.getInstance(accountNumber).getDraft(dialog.id, 0);
-        return DialogObject.getLastMessageOrDraftDate(dialog, draft);
+        long nowSec = System.currentTimeMillis() / 1000L;
+        return Math.min(loadedAtMs / 1000L, nowSec);
     }
 
     private void addDialogToRequest(long currentDialogId, @Nullable TLRPC.Dialog dialog, @NonNull SettingsRequest request) {
@@ -504,7 +534,7 @@ public class CloudVeilSyncWorker extends Worker {
             }
             row.userNames = userNames;
             row.isPublic = ChatObject.isPublic(chat);
-            row.lastMessageDate = getLastMessageDateForChat(dialog, chat);
+            row.lastUpdated = getLastUpdateForChat(dialog, chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
@@ -548,6 +578,7 @@ public class CloudVeilSyncWorker extends Worker {
                     userNames.add(user.username);
                 }
                 row.userNames = userNames;
+                row.lastUpdated = getLastUpdateForUser(dialog, user);
 
                 if (user.bot) {
                     request.addBot(row);

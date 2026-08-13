@@ -303,7 +303,9 @@ public class MessagesController extends BaseController implements NotificationCe
     public VoIPDebugToSend voipDebug;
     private final LongSparseArray<TLRPC.PeerSettings> userPeerSettings = new LongSparseArray<>();
     private HashSet<Long> loadingFullUsers = new HashSet<>();
-    private LongSparseLongArray loadedFullUsers = new LongSparseLongArray();
+    // CloudVeil start: allow checking last update time for users and bots
+    public LongSparseLongArray loadedFullUsers = new LongSparseLongArray();
+    // CloudVeil end
     private HashSet<Long> loadingFullChats = new HashSet<>();
     private HashSet<Long> loadingGroupCalls = new HashSet<>();
     private HashSet<Long> loadingFullParticipants = new HashSet<>();
