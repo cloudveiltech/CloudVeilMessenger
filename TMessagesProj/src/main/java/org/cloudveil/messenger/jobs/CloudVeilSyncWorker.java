@@ -26,6 +26,7 @@ import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -33,6 +34,7 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import java.io.IOException;
@@ -255,6 +257,31 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
 
+    public static void fetchRemoveAccountUrl(int accountNumber, Utilities.Callback<String> callback) {
+        TLRPC.User currentUser = UserConfig.getInstance(accountNumber).getCurrentUser();
+        if (currentUser == null) {
+            AndroidUtilities.runOnUIThread(() -> callback.run(null));
+            return;
+        }
+        SettingsRequest request = new SettingsRequest();
+        request.userId = currentUser.id;
+        request.userPhone = currentUser.phone;
+        request.userNames = collectUserNames(currentUser.username, currentUser.usernames);
+        request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
+        ServiceClientHolders.getSettingsService().loadSettings(request)
+            .subscribeOn(Schedulers.io())
+            .subscribe(response -> {
+                String url = response != null ? response.removeAccountUrl : null;
+                if (!TextUtils.isEmpty(url)) {
+                    CloudVeilSecuritySettings.setRemoveAccountUrl(url);
+                }
+                AndroidUtilities.runOnUIThread(() -> callback.run(url));
+            }, throwable -> {
+                String cached = CloudVeilSecuritySettings.getRemoveAccountUrl();
+                AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(cached) ? null : cached));
+            });
+    }
+
     private static void postFilterDialogsReady(int accountNumber) {
         if (mainLooperHandler != null) {
             mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));
@@ -387,6 +414,7 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
         CloudVeilSecuritySettings.setIsMiniAppsDisabled(settingsResponse.disableMiniApps);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
+        CloudVeilSecuritySettings.setRemoveAccountUrl(settingsResponse.removeAccountUrl);
 
         if (settingsResponse.nonblockableBots != null) {
             CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
