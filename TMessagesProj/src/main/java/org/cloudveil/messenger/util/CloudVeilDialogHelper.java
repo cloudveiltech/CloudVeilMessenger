@@ -341,35 +341,30 @@ public class CloudVeilDialogHelper {
     }
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
+        final boolean[] handled = new boolean[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
                 .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
                     sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
-                    if (onOkRunnable != null) {
-                        onOkRunnable.run();
+                    if (!handled[0]) {
+                        handled[0] = true;
+                        if (onOkRunnable != null) {
+                            onOkRunnable.run();
+                        }
                     }
                     dialog.dismiss();
                 })
-                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
-                    dialog.dismiss();
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnDismissListener(dialog -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnBackButtonListener((dialog, which) -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                });
+                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> dialog.dismiss());
         fragment.showDialog(builder.create(), dialog -> {
-            if (onDismissRunnable != null) {
-                onDismissRunnable.run();
+            if (!handled[0]) {
+                handled[0] = true;
+                if (onDismissRunnable != null) {
+                    onDismissRunnable.run();
+                }
             }
         });
     }
