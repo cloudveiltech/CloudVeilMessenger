@@ -8365,6 +8365,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return false;
         }
         long dialogId = cell.getDialogId();
+        // CloudVeil start: block chat preview for unchecked or blocked dialogs
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+            CloudVeilDialogHelper.openUncheckedDialog(dialogId, null, getMessagesController().getChat(-dialogId), getFragmentForAlert(0), 1, true);
+            return true;
+        } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+            CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialogId, null, null);
+            return true;
+        }
+        // CloudVeil end
         Bundle args = new Bundle();
         int message_id = cell.getMessageId();
         if (DialogObject.isEncryptedDialog(dialogId)) {

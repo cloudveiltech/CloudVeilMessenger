@@ -392,6 +392,9 @@ public class CloudVeilDialogHelper {
     }
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
         String message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString());
         // Secret chat alerts never offer the unblock form ("Continue"):
         // - secret chats turned off: asking to unblock one chat can't turn the feature back on;
@@ -414,41 +417,33 @@ public class CloudVeilDialogHelper {
             }
         }
 
+        final boolean[] handled = new boolean[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(message);
         if (canRequestUnlock) {
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
                         sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
-                        if (onOkRunnable != null) {
-                            onOkRunnable.run();
+                        if (!handled[0]) {
+                            handled[0] = true;
+                            if (onOkRunnable != null) {
+                                onOkRunnable.run();
+                            }
                         }
                         dialog.dismiss();
                     })
-                    .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
-                        dialog.dismiss();
-                        if (onDismissRunnable != null) {
-                            onDismissRunnable.run();
-                        }
-                    });
+                    .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> dialog.dismiss());
         } else {
             // Only dismiss: the dismiss listener installed by fragment.showDialog below already runs
             // onDismissRunnable. Running it here too made the chat screen close itself twice.
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
         }
-        builder.setOnDismissListener(dialog -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnBackButtonListener((dialog, which) -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                });
         fragment.showDialog(builder.create(), dialog -> {
-            if (onDismissRunnable != null) {
-                onDismissRunnable.run();
+            if (!handled[0]) {
+                handled[0] = true;
+                if (onDismissRunnable != null) {
+                    onDismissRunnable.run();
+                }
             }
         });
     }
