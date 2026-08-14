@@ -223,6 +223,20 @@ public class CloudVeilSecuritySettings {
         return preferences.getBoolean("isMiniAppsDisabled", DEFAULT_DISABLE_MINI_APPS);
     }
 
+    public static void setRemoveAccountUrl(String url) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if (TextUtils.isEmpty(url)) {
+            preferences.edit().remove("removeAccountUrl").apply();
+        } else {
+            preferences.edit().putString("removeAccountUrl", url).apply();
+        }
+    }
+
+    public static String getRemoveAccountUrl() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getString("removeAccountUrl", "");
+    }
+
     public static void setNonblockableBots(ArrayList<Long> botIds) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         HashSet<String> set = new HashSet<>();

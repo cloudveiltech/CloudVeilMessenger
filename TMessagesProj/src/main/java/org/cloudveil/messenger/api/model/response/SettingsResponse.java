@@ -51,6 +51,7 @@ public class SettingsResponse {
     public boolean disableStars;
     public boolean disableMiniApps;
     public boolean disableStories;
+    public String removeAccountUrl;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
     public boolean disableProfileVideo;
