@@ -259,18 +259,8 @@ public class CloudVeilSecuritySettings {
         return res || getLockDisableOwnPhoto();
     }
 
-    public static void setGoogleMapsKey(String key) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putString("googleMapsKey", key).apply();
-    }
-
     public static String getGoogleMapsKey() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        String v = preferences.getString("googleMapsKey", "");
-        if (TextUtils.isEmpty(v)) {
-            return BuildConfig.MAP_SDK_KEY;
-        }
-        return v;
+        return BuildConfig.MAP_SDK_KEY;
     }
 
     public static void setOrganization(SettingsResponse.Organization organization) {
