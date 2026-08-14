@@ -23563,6 +23563,13 @@ public class MessagesController extends BaseController implements NotificationCe
             CloudVeilDialogHelper.showWarning(cvFragment, CloudVeilDialogHelper. DialogType.bot, bot.id , null, null);
             return;
         }
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            BaseFragment fragment = _fragment != null ? _fragment : LaunchActivity.getSafeLastFragment();
+            if (fragment != null) {
+                fragment.presentFragment(ChatActivity.of(bot.id));
+            }
+            return;
+        }
         // CloudVeil end
         boolean[] cancelled = new boolean[] { false };
         if (progress != null) {

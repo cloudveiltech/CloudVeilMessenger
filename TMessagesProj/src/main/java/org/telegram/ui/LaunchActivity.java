@@ -869,6 +869,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private Object onBackInvokedCallback;
 
     public static void showAttachMenuBot(LaunchActivity launchActivity, int currentAccount, TLRPC.TL_attachMenuBot attachMenuBot, String startApp, boolean sidemenu) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         BaseFragment lastFragment = getLastFragment();
         if (lastFragment == null) return;
         WebViewRequestProps props = WebViewRequestProps.of(currentAccount, attachMenuBot.bot_id, attachMenuBot.bot_id, attachMenuBot.short_name, null, BotWebViewAttachedSheet.TYPE_SIMPLE_WEB_VIEW_BUTTON, 0, 0L, false, null, false, startApp, null, BotWebViewSheet.FLAG_FROM_SIDE_MENU, false, false);
@@ -5574,6 +5579,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             BaseFragment fragment = mainFragmentsStack.get(mainFragmentsStack.size() - 1);
             Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(botAppMaybeId);
             CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, botAppMaybeId, null, null);
+            return;
+        }
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
             return;
         }
         //CloudVeil end

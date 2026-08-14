@@ -42,6 +42,7 @@ public class CloudVeilSecuritySettings {
     private static final boolean DEFAULT_IS_EMOJI_STATUS_DISABLED = true;
     private static final boolean DEFAULT_DISABLE_MUSIC_STATUS = true;
     private static final boolean DEFAULT_DISABLE_STARS = true;
+    private static final boolean DEFAULT_DISABLE_MINI_APPS = true;
     private static final long DEFAULT_NONBLOCKABLE_BOT_ID = 689684671L;
     private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
@@ -210,6 +211,16 @@ public class CloudVeilSecuritySettings {
     public static boolean getIsStarsDisabled() {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         return preferences.getBoolean("isStarsDisabled", DEFAULT_DISABLE_STARS);
+    }
+
+    public static void setIsMiniAppsDisabled(boolean isMiniAppsDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isMiniAppsDisabled", isMiniAppsDisabled).apply();
+    }
+
+    public static boolean getIsMiniAppsDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isMiniAppsDisabled", DEFAULT_DISABLE_MINI_APPS);
     }
 
     public static void setNonblockableBots(ArrayList<Long> botIds) {

@@ -49,6 +49,7 @@ public class SettingsResponse {
     public boolean disableEmojiStatus;
     public boolean disableMusicStatus;
     public boolean disableStars;
+    public boolean disableMiniApps;
     public boolean disableStories;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;

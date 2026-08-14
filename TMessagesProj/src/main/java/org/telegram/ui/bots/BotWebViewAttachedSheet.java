@@ -41,6 +41,9 @@ import androidx.core.math.MathUtils;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.json.JSONObject;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -937,6 +940,11 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
     Drawable verifiedDrawable;
 
     public void requestWebView(BaseFragment fragment, WebViewRequestProps props) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         this.requestProps = props;
         this.currentAccount = props.currentAccount;
         this.peerId = props.peerId;
@@ -1354,6 +1362,11 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
         show(lowBounce, false);
     }
     public void show(boolean lowBounce, boolean instant) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         if (!AndroidUtilities.isSafeToShow(getContext())) return;
 
         windowView.setAlpha(0f);

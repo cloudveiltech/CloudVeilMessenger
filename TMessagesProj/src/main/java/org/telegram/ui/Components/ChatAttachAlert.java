@@ -89,6 +89,9 @@ import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ChatObject;
@@ -6389,11 +6392,17 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
                         attachBotsStartRow = buttonsCount;
                         attachMenuBots.clear();
+                        // CloudVeil start: disable mini apps
+                        if (!CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+                        // CloudVeil end: disable mini apps
                         for (TLRPC.TL_attachMenuBot bot : MediaDataController.getInstance(currentAccount).getAttachMenuBots().bots) {
                             if (bot.show_in_attach_menu && MediaDataController.canShowAttachMenuBot(bot, chatActivity.getCurrentChat() != null ? chatActivity.getCurrentChat() : chatActivity.getCurrentUser())) {
                                 attachMenuBots.add(bot);
                             }
                         }
+                        // CloudVeil start: disable mini apps
+                        }
+                        // CloudVeil end: disable mini apps
 
                         buttonsCount += attachMenuBots.size();
                         attachBotsEndRow = buttonsCount;
