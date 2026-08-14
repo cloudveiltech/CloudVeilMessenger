@@ -4621,7 +4621,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 @Override
                 protected boolean showOpenBotButton() {
-                    return initialDialogsType == DIALOGS_TYPE_DEFAULT;
+                    // CloudVeil start: disable mini apps
+                    return initialDialogsType == DIALOGS_TYPE_DEFAULT && !CloudVeilSecuritySettings.getIsMiniAppsDisabled();
+                    // CloudVeil end: disable mini apps
                 }
                 @Override
                 protected void onOpenBot(TLRPC.User bot) {

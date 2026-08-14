@@ -385,6 +385,7 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
         CloudVeilSecuritySettings.setIsMusicStatusDisabled(settingsResponse.disableMusicStatus);
         CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
+        CloudVeilSecuritySettings.setIsMiniAppsDisabled(settingsResponse.disableMiniApps);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
 
         if (settingsResponse.nonblockableBots != null) {

@@ -10747,7 +10747,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (actionsView == null && userId != getUserConfig().getClientUserId()) {
                     notificationsRow = rowCount++;
                 }
-                if (isBot && user != null && user.bot_has_main_app) {
+                // CloudVeil start: disable mini apps
+                if (isBot && user != null && user.bot_has_main_app && !CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+                // CloudVeil end: disable mini apps
                     botAppRow = rowCount++;
                 }
                 infoEndRow = rowCount - 1;

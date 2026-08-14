@@ -721,7 +721,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();
-        if (menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
+        // CloudVeil start: disable mini apps
+        if (!CloudVeilSecuritySettings.getIsMiniAppsDisabled() && menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
+        // CloudVeil end: disable mini apps
             for (TLRPC.TL_attachMenuBot attachMenuBot : menuBots.bots) {
                 final long WALLET_BOT_ID = 1985737506L;
                 if (attachMenuBot.show_in_side_menu && attachMenuBot.bot_id == WALLET_BOT_ID) {
