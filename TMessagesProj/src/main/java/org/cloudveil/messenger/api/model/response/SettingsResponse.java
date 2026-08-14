@@ -1,7 +1,5 @@
 package org.cloudveil.messenger.api.model.response;
 
-import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -22,12 +20,6 @@ public class SettingsResponse {
                     bots != null &&
                     channels != null;
         }
-    }
-
-    public static class GoogleMapsKeys {
-        public String ios;
-        public String android;
-        public String desktop;
     }
 
     public static class Organization {
@@ -65,7 +57,6 @@ public class SettingsResponse {
     public String disableStickersImage;
     public int profilePhotoLimit;
     public ArrayList<Long> nonblockableBots;
-    public GoogleMapsKeys googleMapsKeys;
     public Organization organization;
     public Deprecation deprecation;
 }

@@ -18,7 +18,6 @@ import java.util.Objects;
 public class SettingsRequest {
     public long userId;
     public String userPhone;
-    public String userName;
     public ArrayList<String> userNames = new ArrayList<>();
 
     public String clientOsType = "Android";

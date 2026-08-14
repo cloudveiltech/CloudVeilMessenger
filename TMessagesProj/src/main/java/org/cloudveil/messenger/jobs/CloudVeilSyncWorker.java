@@ -157,15 +157,7 @@ public class CloudVeilSyncWorker extends Worker {
 
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
-        request.userName = currentUser.username;
-        ArrayList<String> userNames = new ArrayList<>();
-        for (TLRPC.TL_username un : currentUser.usernames) {
-            userNames.add(un.username);
-        }
-        if (!userNames.contains(currentUser.username)) {
-            userNames.add(currentUser.username);
-        }
-        request.userNames = userNames;
+        request.userNames = collectUserNames(currentUser.username, currentUser.usernames);
         request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
 
         addDialogsToRequest(request);
@@ -203,7 +195,9 @@ public class CloudVeilSyncWorker extends Worker {
         lastServerCallTime = System.currentTimeMillis();
         User user = new User();
         user.setId("" + request.userId);
-        user.setUsername(request.userName);
+        if (!request.userNames.isEmpty()) {
+            user.setUsername(request.userNames.get(0));
+        }
         sendDataAndPingServer(user, request, cached);
         postFilterDialogsReady(accountNumber);
     }
@@ -267,6 +261,21 @@ public class CloudVeilSyncWorker extends Worker {
         }
     }
 
+    private static ArrayList<String> collectUserNames(String primaryUsername, ArrayList<TLRPC.TL_username> extraUsernames) {
+        ArrayList<String> userNames = new ArrayList<>();
+        if (extraUsernames != null) {
+            for (TLRPC.TL_username un : extraUsernames) {
+                if (un != null && !TextUtils.isEmpty(un.username) && !userNames.contains(un.username)) {
+                    userNames.add(un.username);
+                }
+            }
+        }
+        if (!TextUtils.isEmpty(primaryUsername) && !userNames.contains(primaryUsername)) {
+            userNames.add(primaryUsername);
+        }
+        return userNames;
+    }
+
     private void addInlineBotsToRequest(SettingsRequest request) {
         Collection<TLRPC.User> values = MessagesController.getInstance(accountNumber).getUsers().values();
         for (TLRPC.User user : values) {
@@ -275,15 +284,7 @@ public class CloudVeilSyncWorker extends Worker {
                 row.id = user.id;
 
                 row.title = user.first_name != null ? user.first_name : user.username;
-
-                ArrayList<String> userNames = new ArrayList<>();
-                for (TLRPC.TL_username un : user.usernames) {
-                    userNames.add(un.username);
-                }
-                if (!userNames.contains(user.username)) {
-                    userNames.add(user.username);
-                }
-                row.userNames = userNames;
+                row.userNames = collectUserNames(user.username, user.usernames);
                 // Inline bots have no dialog; freshness comes only from a prior full-user load.
                 row.lastUpdated = getLastUpdateForUser(null, user);
 
@@ -391,10 +392,6 @@ public class CloudVeilSyncWorker extends Worker {
         }
 
         CloudVeilSecuritySettings.setOrganization(settingsResponse.organization);
-        
-        if(settingsResponse.googleMapsKeys != null) {
-            CloudVeilSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
-        }
 
         postFilterDialogsReady(accountNumber);
     }
@@ -525,14 +522,7 @@ public class CloudVeilSyncWorker extends Worker {
                 row.isRestricted = true;
             }
 
-            ArrayList<String> userNames = new ArrayList<>();
-            for (TLRPC.TL_username un : chat.usernames) {
-                userNames.add(un.username);
-            }
-            if (chat.username != null && !userNames.contains(chat.username)) {
-                userNames.add(chat.username);
-            }
-            row.userNames = userNames;
+            row.userNames = collectUserNames(chat.username, chat.usernames);
             row.isPublic = ChatObject.isPublic(chat);
             row.lastUpdated = getLastUpdateForChat(dialog, chat);
             if (isChannel) {
@@ -570,14 +560,7 @@ public class CloudVeilSyncWorker extends Worker {
                     row.title += user.last_name;
                 }
 
-                ArrayList<String> userNames = new ArrayList<>();
-                for (TLRPC.TL_username un : user.usernames) {
-                    userNames.add(un.username);
-                }
-                if (!userNames.contains(user.username)) {
-                    userNames.add(user.username);
-                }
-                row.userNames = userNames;
+                row.userNames = collectUserNames(user.username, user.usernames);
                 row.lastUpdated = getLastUpdateForUser(dialog, user);
 
                 if (user.bot) {
