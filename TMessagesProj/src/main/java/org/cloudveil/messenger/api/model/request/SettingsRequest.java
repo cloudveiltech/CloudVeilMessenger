@@ -5,8 +5,10 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.LocaleController;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -16,12 +18,12 @@ import java.util.Objects;
 public class SettingsRequest {
     public long userId;
     public String userPhone;
-    public String userName;
     public ArrayList<String> userNames = new ArrayList<>();
 
     public String clientOsType = "Android";
     public String clientVersionName = SettingsRequest.getAppVersionString();
     public int clientVersionCode = SettingsRequest.getAppVersionCode();
+    public String clientLocale = SettingsRequest.getClientLocale();
     public String clientSessionId;
 
     public ArrayList<GroupRow> groups = new ArrayList<>();
@@ -37,12 +39,38 @@ public class SettingsRequest {
     public SettingsRequest() {
         clientVersionName = SettingsRequest.getAppVersionString();
         clientVersionCode = SettingsRequest.getAppVersionCode();
+        clientLocale = SettingsRequest.getClientLocale();
+    }
+
+    public static String getClientLocale() {
+        LocaleController.LocaleInfo localeInfo = LocaleController.getInstance().getCurrentLocaleInfo();
+        if (localeInfo != null) {
+            return localeInfo.getLangCode();
+        }
+        return Locale.getDefault().toLanguageTag();
     }
 
     public static class Row {
+        /** Peer is unusable as an authoritative source (e.g. client is not in this chat). */
+        public static final long LAST_UPDATE_UNTRUSTWORTHY = -1;
+        /** No freshness signal is available locally. */
+        public static final long LAST_UPDATE_UNKNOWN = 0;
+
         public long id;
         public String title;
         public ArrayList<String> userNames = new ArrayList<>();
+        public boolean isCreatorAdmin;
+        public boolean isForum;
+        public boolean isRestricted;
+        /**
+         * Unix time (seconds) of the most recent moment this client is known to have had
+         * trustworthy info about this peer: the newer of the last message date and the last
+         * successful full-metadata load (full chat for groups/channels, full user for
+         * users/bots). Lets the server pick the most authoritative client when reports
+         * disagree. Special values: see LAST_UPDATE_* above. Often UNKNOWN for inline bots,
+         * which have no dialog and may never have had their full user loaded.
+         */
+        public long lastUpdated;
 
         @Override
         public boolean equals(Object o) {
@@ -75,9 +103,6 @@ public class SettingsRequest {
 
     public static class GroupChannelRow extends Row {
         public boolean isPublic;
-        public boolean isCreatorAdmin;
-        public boolean isForum;
-        public boolean isRestricted;
     }
 
     public static class GroupRow extends GroupChannelRow {

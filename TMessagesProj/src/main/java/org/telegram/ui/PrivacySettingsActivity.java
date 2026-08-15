@@ -37,6 +37,10 @@ import androidx.annotation.Keep;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+// CloudVeil start: delete cloudveil account
+import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
+import org.telegram.messenger.browser.Browser;
+// CloudVeil end
 import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.BuildVars;
@@ -135,6 +139,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
     private int advancedSectionRow;
     @Keep
     private int deleteAccountRow;
+    // CloudVeil start: delete cloudveil account
+    private int deleteCloudVeilAccountRow;
+    // CloudVeil end
     private int deleteAccountDetailRow;
     private int botsSectionRow;
     private int passportRow;
@@ -405,6 +412,27 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 }
                 builder.setNegativeButton(getString(R.string.Cancel), null);
                 showDialog(builder.create());
+            // CloudVeil start: delete cloudveil account
+            } else if (position == deleteCloudVeilAccountRow) {
+                if (getParentActivity() == null) {
+                    return;
+                }
+                final AlertDialog progressDialog = new AlertDialog(getParentActivity(), AlertDialog.ALERT_TYPE_SPINNER);
+                progressDialog.setCanCancel(false);
+                progressDialog.show();
+                CloudVeilSyncWorker.fetchRemoveAccountUrl(currentAccount, url -> {
+                    try {
+                        progressDialog.dismiss();
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                    if (TextUtils.isEmpty(url)) {
+                        BulletinFactory.of(PrivacySettingsActivity.this).createSimpleBulletin(R.raw.error, getString(R.string.delete_cloudveil_account_failed)).show();
+                        return;
+                    }
+                    Browser.openUrl(getParentActivity(), url, PrivacySettingsActivity.this);
+                });
+                // CloudVeil end
             } else if (position == lastSeenRow) {
                 presentFragment(new PrivacyControlActivity(ContactsController.PRIVACY_RULES_TYPE_LASTSEEN));
             } else if (position == phoneNumberRow) {
@@ -760,6 +788,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         }
         advancedSectionRow = rowCount++;
         deleteAccountRow = rowCount++;
+        // CloudVeil start: delete cloudveil account
+        deleteCloudVeilAccountRow = rowCount++;
+        // CloudVeil end
         deleteAccountDetailRow = rowCount++;
         botsSectionRow = rowCount++;
         if (getUserConfig().hasSecureData) {
@@ -1030,6 +1061,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     position == voicesRow && !getContactsController().getLoadingPrivacyInfo(ContactsController.PRIVACY_RULES_TYPE_VOICE_MESSAGES) ||
                     position == noncontactsRow ||
                     position == deleteAccountRow && !getContactsController().getLoadingDeleteInfo() ||
+                    // CloudVeil start: delete cloudveil account
+                    position == deleteCloudVeilAccountRow ||
+                    // CloudVeil end: delete cloudveil account
                     position == newChatsRow && !getContactsController().getLoadingGlobalSettings() ||
                     position == emailLoginRow || position == paymentsClearRow || position == secretMapRow ||
                     position == contactsSyncRow || position == passportRow || position == contactsDeleteRow ||
@@ -1199,6 +1233,11 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                         }
                         textCell.setTextAndValue(getString("DeleteAccountIfAwayFor3", R.string.DeleteAccountIfAwayFor3), value, deleteAccountUpdate, false);
                         deleteAccountUpdate = false;
+                        // CloudVeil start: delete cloudveil account
+                    } else if (position == deleteCloudVeilAccountRow) {
+                        textCell.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
+                        textCell.setText(getString(R.string.delete_cloudveil_account), false);
+                        // CloudVeil end: delete cloudveil account
                     } else if (position == paymentsClearRow) {
                         textCell.setText(getString("PrivacyPaymentsClear", R.string.PrivacyPaymentsClear), true);
                     } else if (position == botsBiometryRow) {
@@ -1386,7 +1425,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         @Override
         public int getItemViewType(int position) {
             if (position == passportRow || position == lastSeenRow || position == phoneNumberRow ||
-                    position == deleteAccountRow || position == webSessionsRow || position == groupsRow || position == paymentsClearRow ||
+                    // CloudVeil start: delete cloudveil account
+                    position == deleteAccountRow || position == deleteCloudVeilAccountRow || position == webSessionsRow || position == groupsRow || position == paymentsClearRow ||
+                    // CloudVeil end: delete cloudveil account
                     position == secretMapRow || position == contactsDeleteRow || position == botsBiometryRow) {
                 return 0;
             } else if (position == privacyShadowRow || position == deleteAccountDetailRow || position == groupsDetailRow || position == sessionsDetailRow || position == secretDetailRow || position == botsDetailRow || position == contactsDetailRow || position == newChatsSectionRow) {

@@ -16,6 +16,9 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -37,6 +40,10 @@ public class CloudVeilSecuritySettings {
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_DISABLED = false;
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED = false;
     private static final boolean DEFAULT_IS_EMOJI_STATUS_DISABLED = true;
+    private static final boolean DEFAULT_DISABLE_MUSIC_STATUS = true;
+    private static final boolean DEFAULT_DISABLE_STARS = true;
+    private static final boolean DEFAULT_DISABLE_MINI_APPS = true;
+    private static final long DEFAULT_NONBLOCKABLE_BOT_ID = 689684671L;
     private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
@@ -186,6 +193,86 @@ public class CloudVeilSecuritySettings {
         return res;
     }
 
+    public static void setIsMusicStatusDisabled(boolean isMusicStatusDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isMusicStatusDisabled", isMusicStatusDisabled).apply();
+    }
+
+    public static boolean getIsMusicStatusDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isMusicStatusDisabled", DEFAULT_DISABLE_MUSIC_STATUS);
+    }
+
+    public static void setIsStarsDisabled(boolean isStarsDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isStarsDisabled", isStarsDisabled).apply();
+    }
+
+    public static boolean getIsStarsDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isStarsDisabled", DEFAULT_DISABLE_STARS);
+    }
+
+    public static void setIsMiniAppsDisabled(boolean isMiniAppsDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isMiniAppsDisabled", isMiniAppsDisabled).apply();
+    }
+
+    public static boolean getIsMiniAppsDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isMiniAppsDisabled", DEFAULT_DISABLE_MINI_APPS);
+    }
+
+    public static void setRemoveAccountUrl(String url) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if (TextUtils.isEmpty(url)) {
+            preferences.edit().remove("removeAccountUrl").apply();
+        } else {
+            preferences.edit().putString("removeAccountUrl", url).apply();
+        }
+    }
+
+    public static String getRemoveAccountUrl() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getString("removeAccountUrl", "");
+    }
+
+    public static void setNonblockableBots(ArrayList<Long> botIds) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        HashSet<String> set = new HashSet<>();
+        for (Long id : botIds) {
+            if (id != null) {
+                set.add(String.valueOf(id));
+            }
+        }
+        preferences.edit().putStringSet("nonblockableBots", set).apply();
+    }
+
+    @NonNull
+    public static ArrayList<Long> getNonblockableBots() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if (!preferences.contains("nonblockableBots")) {
+            ArrayList<Long> defaultList = new ArrayList<>();
+            defaultList.add(DEFAULT_NONBLOCKABLE_BOT_ID);
+            return defaultList;
+        }
+        Set<String> set = preferences.getStringSet("nonblockableBots", null);
+        ArrayList<Long> result = new ArrayList<>();
+        if (set != null) {
+            for (String s : set) {
+                try {
+                    result.add(Long.parseLong(s));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return result;
+    }
+
+    public static boolean isNonblockableBot(long botId) {
+        return getNonblockableBots().contains(botId);
+    }
+
     public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("isProfileVideoChangeDisabled", isProfileVideoChangeDisabled).apply();
@@ -197,18 +284,8 @@ public class CloudVeilSecuritySettings {
         return res || getLockDisableOwnPhoto();
     }
 
-    public static void setGoogleMapsKey(String key) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putString("googleMapsKey", key).apply();
-    }
-
     public static String getGoogleMapsKey() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        String v = preferences.getString("googleMapsKey", "");
-        if (TextUtils.isEmpty(v)) {
-            return BuildConfig.MAP_SDK_KEY;
-        }
-        return v;
+        return BuildConfig.MAP_SDK_KEY;
     }
 
     public static void setOrganization(SettingsResponse.Organization organization) {

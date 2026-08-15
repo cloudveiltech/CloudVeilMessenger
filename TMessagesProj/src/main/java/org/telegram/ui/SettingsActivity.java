@@ -60,7 +60,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+// CloudVeil start
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -701,6 +703,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         if (!getMessagesController().premiumFeaturesBlocked()) {
             items.add(SettingCell.Factory.of(11, 0xFFB659FF, 0xFF617CFF, R.drawable.settings_premium, getString(R.string.TelegramPremium)));
         }
+        // CloudVeil start
+        if (!CloudVeilSecuritySettings.getIsStarsDisabled()) {
+            // CloudVeil end
         if (getMessagesController().starsPurchaseAvailable()) {
             StarsController c = StarsController.getInstance(currentAccount);
             long balance = c.getBalance().amount;
@@ -716,7 +721,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         TLRPC.TL_attachMenuBots menuBots = MediaDataController.getInstance(UserConfig.selectedAccount).getAttachMenuBots();
-        if (menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
+        // CloudVeil start: disable mini apps
+        if (!CloudVeilSecuritySettings.getIsMiniAppsDisabled() && menuBots != null && menuBots.bots != null && !menuBots.bots.isEmpty()) {
+        // CloudVeil end: disable mini apps
             for (TLRPC.TL_attachMenuBot attachMenuBot : menuBots.bots) {
                 final long WALLET_BOT_ID = 1985737506L;
                 if (attachMenuBot.show_in_side_menu && attachMenuBot.bot_id == WALLET_BOT_ID) {

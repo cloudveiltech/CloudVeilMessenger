@@ -38,5 +38,7 @@
     <string name="sent_app_code_with_phone">We\'ve sent the code to the **CloudVeil Messenger** app for %1$s on your other device.</string>
     <string name="cloudveil_open_in_external_browser">Open in external browser</string>
     <string name="one_moment">One moment…</string>
+    <string name="delete_cloudveil_account">Delete CloudVeil Account</string>
+    <string name="delete_cloudveil_account_failed">Account deletion failed</string>
 <!--CloudVeil end-->
 </resources>

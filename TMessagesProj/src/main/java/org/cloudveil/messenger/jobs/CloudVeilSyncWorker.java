@@ -26,6 +26,7 @@ import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.api.service.holder.ServiceClientHolders;
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.FileLog;
@@ -33,6 +34,7 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import java.io.IOException;
@@ -157,15 +159,7 @@ public class CloudVeilSyncWorker extends Worker {
 
         request.userPhone = currentUser.phone;
         request.userId = currentUser.id;
-        request.userName = currentUser.username;
-        ArrayList<String> userNames = new ArrayList<>();
-        for (TLRPC.TL_username un : currentUser.usernames) {
-            userNames.add(un.username);
-        }
-        if (!userNames.contains(currentUser.username)) {
-            userNames.add(currentUser.username);
-        }
-        request.userNames = userNames;
+        request.userNames = collectUserNames(currentUser.username, currentUser.usernames);
         request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
 
         addDialogsToRequest(request);
@@ -203,7 +197,9 @@ public class CloudVeilSyncWorker extends Worker {
         lastServerCallTime = System.currentTimeMillis();
         User user = new User();
         user.setId("" + request.userId);
-        user.setUsername(request.userName);
+        if (!request.userNames.isEmpty()) {
+            user.setUsername(request.userNames.get(0));
+        }
         sendDataAndPingServer(user, request, cached);
         postFilterDialogsReady(accountNumber);
     }
@@ -261,10 +257,50 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
 
+    public static void fetchRemoveAccountUrl(int accountNumber, Utilities.Callback<String> callback) {
+        TLRPC.User currentUser = UserConfig.getInstance(accountNumber).getCurrentUser();
+        if (currentUser == null) {
+            AndroidUtilities.runOnUIThread(() -> callback.run(null));
+            return;
+        }
+        SettingsRequest request = new SettingsRequest();
+        request.userId = currentUser.id;
+        request.userPhone = currentUser.phone;
+        request.userNames = collectUserNames(currentUser.username, currentUser.usernames);
+        request.clientSessionId = CloudVeilSecuritySettings.getInstallId(accountNumber);
+        ServiceClientHolders.getSettingsService().loadSettings(request)
+            .subscribeOn(Schedulers.io())
+            .subscribe(response -> {
+                String url = response != null ? response.removeAccountUrl : null;
+                if (!TextUtils.isEmpty(url)) {
+                    CloudVeilSecuritySettings.setRemoveAccountUrl(url);
+                }
+                AndroidUtilities.runOnUIThread(() -> callback.run(url));
+            }, throwable -> {
+                String cached = CloudVeilSecuritySettings.getRemoveAccountUrl();
+                AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(cached) ? null : cached));
+            });
+    }
+
     private static void postFilterDialogsReady(int accountNumber) {
         if (mainLooperHandler != null) {
             mainLooperHandler.post(() -> NotificationCenter.getInstance(accountNumber).postNotificationName(NotificationCenter.filterDialogsReady));
         }
+    }
+
+    private static ArrayList<String> collectUserNames(String primaryUsername, ArrayList<TLRPC.TL_username> extraUsernames) {
+        ArrayList<String> userNames = new ArrayList<>();
+        if (extraUsernames != null) {
+            for (TLRPC.TL_username un : extraUsernames) {
+                if (un != null && !TextUtils.isEmpty(un.username) && !userNames.contains(un.username)) {
+                    userNames.add(un.username);
+                }
+            }
+        }
+        if (!TextUtils.isEmpty(primaryUsername) && !userNames.contains(primaryUsername)) {
+            userNames.add(primaryUsername);
+        }
+        return userNames;
     }
 
     private void addInlineBotsToRequest(SettingsRequest request) {
@@ -275,15 +311,9 @@ public class CloudVeilSyncWorker extends Worker {
                 row.id = user.id;
 
                 row.title = user.first_name != null ? user.first_name : user.username;
-
-                ArrayList<String> userNames = new ArrayList<>();
-                for (TLRPC.TL_username un : user.usernames) {
-                    userNames.add(un.username);
-                }
-                if (!userNames.contains(user.username)) {
-                    userNames.add(user.username);
-                }
-                row.userNames = userNames;
+                row.userNames = collectUserNames(user.username, user.usernames);
+                // Inline bots have no dialog; freshness comes only from a prior full-user load.
+                row.lastUpdated = getLastUpdateForUser(null, user);
 
                 request.addBot(row);
             }
@@ -313,6 +343,7 @@ public class CloudVeilSyncWorker extends Worker {
         SettingsRequest.Row row = new SettingsRequest.Row();
         row.id = stickerSet.id;
         row.title = stickerSet.title;
+        row.isCreatorAdmin = stickerSet.creator;
 
         ArrayList<String> userNames = new ArrayList<>();
         userNames.add(stickerSet.short_name);
@@ -336,6 +367,7 @@ public class CloudVeilSyncWorker extends Worker {
         if (settingsResponse == null || settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
+        CloudVeilDialogHelper.checkDeprecationAlert(accountNumber, settingsResponse.deprecation);
 
         ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
         // if last response's org is this response's org,
@@ -353,6 +385,7 @@ public class CloudVeilSyncWorker extends Worker {
         appendAllowedDialogs(allowedDialogs, settingsResponse.access.users);
 
         if (settingsResponse.access.bots != null) {
+            // TODO: should this have allowedBots.clear()?
             ConcurrentHashMap<Long, Boolean> allowedBots = CloudVeilDialogHelper.getInstance(accountNumber).allowedBots;
             allowedBots.clear();
             appendAllowedDialogs(allowedBots, settingsResponse.access.bots);
@@ -377,13 +410,17 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsProfileVideoDisabled(settingsResponse.disableProfileVideo);
         CloudVeilSecuritySettings.setIsProfileVideoChangeDisabled(settingsResponse.disableProfileVideoChange);
         CloudVeilSecuritySettings.setIsEmojiStatusDisabled(settingsResponse.disableEmojiStatus);
+        CloudVeilSecuritySettings.setIsMusicStatusDisabled(settingsResponse.disableMusicStatus);
+        CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
+        CloudVeilSecuritySettings.setIsMiniAppsDisabled(settingsResponse.disableMiniApps);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
+        CloudVeilSecuritySettings.setRemoveAccountUrl(settingsResponse.removeAccountUrl);
+
+        if (settingsResponse.nonblockableBots != null) {
+            CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
+        }
 
         CloudVeilSecuritySettings.setOrganization(settingsResponse.organization);
-        
-        if(settingsResponse.googleMapsKeys != null) {
-            CloudVeilSecuritySettings.setGoogleMapsKey(settingsResponse.googleMapsKeys.android);
-        }
 
         postFilterDialogsReady(accountNumber);
     }
@@ -425,19 +462,59 @@ public class CloudVeilSyncWorker extends Worker {
         addDialogsToRequest(request, MessagesController.getInstance(accountNumber).dialogsServerOnly);
 
         if (additionalDialogId != 0) {
-            addDialogToRequest(additionalDialogId, request);
+            TLRPC.Dialog dialog = MessagesController.getInstance(accountNumber).dialogs_dict.get(additionalDialogId);
+            addDialogToRequest(additionalDialogId, dialog, request);
             additionalDialogId = 0;
         }
     }
 
     private void addDialogsToRequest(@NonNull SettingsRequest request, ArrayList<TLRPC.Dialog> dialogs) {
         for (TLRPC.Dialog dlg : dialogs) {
-            long currentDialogId = dlg.id;
-            addDialogToRequest(currentDialogId, request);
+            addDialogToRequest(dlg.id, dlg, request);
         }
     }
 
-    private void addDialogToRequest(long currentDialogId, @NonNull SettingsRequest request) {
+    private long getLastUpdateForChat(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.Chat chat) {
+        if (ChatObject.isNotInChat(chat)) {
+            return SettingsRequest.Row.LAST_UPDATE_UNTRUSTWORTHY;
+        }
+
+        // Telegram-authored, seconds. Drafts are deliberately excluded: a local unsent draft
+        // is not evidence that this client has fresh info about the chat itself.
+        long lastMessageDateSec = dialog != null ? dialog.last_message_date : 0;
+
+        // loadedFullChats is keyed by positive chat.id and stored in local-clock millis.
+        long fullChatLoadedSec = fullLoadSeconds(MessagesController.getInstance(accountNumber).loadedFullChats.get(chat.id, 0));
+
+        long merged = Math.max(lastMessageDateSec, fullChatLoadedSec);
+        return merged > 0 ? merged : SettingsRequest.Row.LAST_UPDATE_UNKNOWN;
+    }
+
+    private long getLastUpdateForUser(@Nullable TLRPC.Dialog dialog, @NonNull TLRPC.User user) {
+        // Users/bots have no "not in chat" concept; there is simply a conversation or not.
+        // Inline bots reached via addInlineBotsToRequest pass a null dialog and typically
+        // resolve to UNKNOWN unless their full user was loaded at some point.
+        long lastMessageDateSec = dialog != null ? dialog.last_message_date : 0;
+
+        long fullUserLoadedSec = fullLoadSeconds(MessagesController.getInstance(accountNumber).loadedFullUsers.get(user.id, 0));
+
+        long merged = Math.max(lastMessageDateSec, fullUserLoadedSec);
+        return merged > 0 ? merged : SettingsRequest.Row.LAST_UPDATE_UNKNOWN;
+    }
+
+    /**
+     * Converts a loadedFull* timestamp (local-clock millis, 0 if never loaded) to Unix seconds,
+     * clamped to "now" so a skewed device clock cannot rank this client as falsely authoritative.
+     */
+    private static long fullLoadSeconds(long loadedAtMs) {
+        if (loadedAtMs <= 0) {
+            return 0;
+        }
+        long nowSec = System.currentTimeMillis() / 1000L;
+        return Math.min(loadedAtMs / 1000L, nowSec);
+    }
+
+    private void addDialogToRequest(long currentDialogId, @Nullable TLRPC.Dialog dialog, @NonNull SettingsRequest request) {
         TLRPC.Chat chat = null;
         TLRPC.ChatFull chatFull = null;
         TLRPC.User user = null;
@@ -474,15 +551,9 @@ public class CloudVeilSyncWorker extends Worker {
                 row.isRestricted = true;
             }
 
-            ArrayList<String> userNames = new ArrayList<>();
-            for (TLRPC.TL_username un : chat.usernames) {
-                userNames.add(un.username);
-            }
-            if (chat.username != null && !userNames.contains(chat.username)) {
-                userNames.add(chat.username);
-            }
-            row.userNames = userNames;
+            row.userNames = collectUserNames(chat.username, chat.usernames);
             row.isPublic = ChatObject.isPublic(chat);
+            row.lastUpdated = getLastUpdateForChat(dialog, chat);
             if (isChannel) {
                 request.addChannel(row);
             } else {
@@ -499,6 +570,15 @@ public class CloudVeilSyncWorker extends Worker {
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";
+                if (user.bot_can_edit) {
+                    row.isCreatorAdmin = true;
+                }
+                if (user.bot_forum_view) {
+                    row.isForum = true;
+                }
+                if (user.restricted || user.explicit_content) {
+                    row.isRestricted = true;
+                }
                 if (user.first_name != null) {
                     row.title = user.first_name;
                 }
@@ -509,14 +589,8 @@ public class CloudVeilSyncWorker extends Worker {
                     row.title += user.last_name;
                 }
 
-                ArrayList<String> userNames = new ArrayList<>();
-                for (TLRPC.TL_username un : user.usernames) {
-                    userNames.add(un.username);
-                }
-                if (!userNames.contains(user.username)) {
-                    userNames.add(user.username);
-                }
-                row.userNames = userNames;
+                row.userNames = collectUserNames(user.username, user.usernames);
+                row.lastUpdated = getLastUpdateForUser(dialog, user);
 
                 if (user.bot) {
                     request.addBot(row);

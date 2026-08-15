@@ -35,6 +35,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.customview.widget.ExploreByTouchHelper;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.Emoji;
@@ -148,6 +151,11 @@ public class BottomSheetTabs extends FrameLayout {
     }
 
     public WebTabData tryReopenTab(WebViewRequestProps props) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return null;
+        }
+        // CloudVeil end: disable mini apps
         ArrayList<WebTabData> tabs = this.tabs.get(currentAccount);
         if (tabs == null) this.tabs.put(currentAccount, tabs = new ArrayList<>());
 

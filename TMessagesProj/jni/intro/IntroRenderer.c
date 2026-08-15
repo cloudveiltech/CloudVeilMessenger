@@ -2725,7 +2725,9 @@ JNIEXPORT void Java_org_telegram_messenger_Intro_onSurfaceCreated(JNIEnv *env, j
 
     telegram_sphere = create_textured_rectangle(CSizeMake(150, 150), telegram_sphere_texture);
     telegram_mask = create_textured_rectangle(CSizeMake(200, 150), telegram_mask_texture);
-    telegram_plane = create_textured_rectangle(CSizeMake(82, 74), telegram_plane_texture);
+    //CloudVeil start
+    telegram_plane = create_textured_rectangle(CSizeMake(155, 155), telegram_plane_texture);
+    //CloudVeil end
     telegram_plane.params.anchor = xyzMake(0, 0, 0);
 
     fast_body = create_textured_rectangle(CSizeMake(148, 148), fast_body_texture);

@@ -3430,8 +3430,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 statusDrawable.center = true;
                 //CloudVeil start
                 logoDrawable = context.getResources().getDrawable(R.drawable.cloudveil_logo).mutate();
+                int logoH = dp(24);
+                int logoW = logoDrawable.getIntrinsicHeight() > 0
+                        ? Math.round(logoH * (logoDrawable.getIntrinsicWidth() / (float) logoDrawable.getIntrinsicHeight()))
+                        : dp(166);
+                logoDrawable.setBounds(0, dp(1), logoW, dp(1) + logoH);
                 //CloudVeil end
-                logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());
                 logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);
                 SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));
                 ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -4621,7 +4625,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 @Override
                 protected boolean showOpenBotButton() {
-                    return initialDialogsType == DIALOGS_TYPE_DEFAULT;
+                    // CloudVeil start: disable mini apps
+                    return initialDialogsType == DIALOGS_TYPE_DEFAULT && !CloudVeilSecuritySettings.getIsMiniAppsDisabled();
+                    // CloudVeil end: disable mini apps
                 }
                 @Override
                 protected void onOpenBot(TLRPC.User bot) {
@@ -8363,6 +8369,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             return false;
         }
         long dialogId = cell.getDialogId();
+        // CloudVeil start: block chat preview for unchecked or blocked dialogs
+        if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId)) {
+            CloudVeilDialogHelper.openUncheckedDialog(dialogId, null, getMessagesController().getChat(-dialogId), getFragmentForAlert(0), 1, true);
+            return true;
+        } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId)) {
+            Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialogId);
+            CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialogId, null, null);
+            return true;
+        }
+        // CloudVeil end
         Bundle args = new Bundle();
         int message_id = cell.getMessageId();
         if (DialogObject.isEncryptedDialog(dialogId)) {
@@ -9456,7 +9472,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             } else {
                 getMessagesController().deleteDialog(selectedDialog, 0, revoke);
-                if (isBot && revoke) {
+                // CloudVeil start
+                if (isBot && revoke && !CloudVeilSecuritySettings.isNonblockableBot(selectedDialog)) {
+                    // CloudVeil end
                     getMessagesController().blockPeer(selectedDialog);
                 }
             }
@@ -10523,7 +10541,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 } else {
                     getMessagesController().deleteDialog(dialogId, 0, revoke);
-                    if (user != null && user.bot && botBlock) {
+                    // CloudVeil start
+                    if (user != null && user.bot && botBlock && !CloudVeilSecuritySettings.isNonblockableBot(user.id)) {
+                        // CloudVeil end
                         getMessagesController().blockPeer(user.id);
                     }
                 }
