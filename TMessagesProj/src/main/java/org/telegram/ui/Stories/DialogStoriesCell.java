@@ -334,14 +334,19 @@ public class DialogStoriesCell extends FrameLayout implements NotificationCenter
 
         telegramLogoView = new ImageView(context);
         telegramLogoView.setContentDescription(getString(R.string.AppName));
-        telegramLogoView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        //CloudVeil start
+        //CloudVeil start: custom logo
+        telegramLogoView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         telegramLogoView.setImageResource(R.drawable.cloudveil_logo);
-        //CloudVeil end
+        Drawable cloudVeilLogo = telegramLogoView.getDrawable();
+        int logoHeightDp = 22;
+        int logoWidthDp = cloudVeilLogo != null && cloudVeilLogo.getIntrinsicHeight() > 0
+                ? Math.round(logoHeightDp * (cloudVeilLogo.getIntrinsicWidth() / (float) cloudVeilLogo.getIntrinsicHeight()))
+                : 152;
         telegramLogoView.setColorFilter(getTextLogoColor(), PorterDuff.Mode.MULTIPLY);
         telegramLogoView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         telegramLogoView.setFocusableInTouchMode(true);
-        addView(telegramLogoView, LayoutHelper.createFrame(90, 22));
+        addView(telegramLogoView, LayoutHelper.createFrame(logoWidthDp, logoHeightDp));
+        //CloudVeil end
 
         statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
         statusDrawable.center = true;

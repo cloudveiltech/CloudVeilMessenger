@@ -3430,8 +3430,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 statusDrawable.center = true;
                 //CloudVeil start
                 logoDrawable = context.getResources().getDrawable(R.drawable.cloudveil_logo).mutate();
+                int logoH = dp(24);
+                int logoW = logoDrawable.getIntrinsicHeight() > 0
+                        ? Math.round(logoH * (logoDrawable.getIntrinsicWidth() / (float) logoDrawable.getIntrinsicHeight()))
+                        : dp(166);
+                logoDrawable.setBounds(0, dp(1), logoW, dp(1) + logoH);
                 //CloudVeil end
-                logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());
                 logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);
                 SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));
                 ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);

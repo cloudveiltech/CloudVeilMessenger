@@ -155,7 +155,11 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
     public View createView(Context context) {
         //CloudVeil start
         logoDrawable = context.getResources().getDrawable(R.drawable.cloudveil_logo).mutate();
-        logoDrawable.setBounds(0, dp(8.666f), dp(115), dp(26));
+        int logoH = dp(24);
+        int logoW = logoDrawable.getIntrinsicHeight() > 0
+                ? Math.round(logoH * (logoDrawable.getIntrinsicWidth() / (float) logoDrawable.getIntrinsicHeight()))
+                : dp(166);
+        logoDrawable.setBounds(0, dp(2), logoW, dp(2) + logoH);
         //CloudVeil end
         SpannableStringBuilder ssb = new SpannableStringBuilder(LocaleController.getString(R.string.Page1Title));
         ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
