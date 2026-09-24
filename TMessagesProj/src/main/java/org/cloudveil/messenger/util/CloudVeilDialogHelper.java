@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 public class CloudVeilDialogHelper {
     private static final long SUPPORT_BOT_ID = 689684671;
     private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    private static final String KEY_DEPRECATION_ALERT_SHOWN_TIME = "deprecationAlertShownTime";
     private final int accountNumber;
 
     public enum DialogType {
@@ -424,55 +425,60 @@ public class CloudVeilDialogHelper {
         return matcher.find();
     }
 
-    public static void checkDeprecationAlert(int accountNumber, SettingsResponse.Deprecation deprecation) {
-        if (deprecation == null || !deprecation.deprecated) {
+    // Shows the "please update" alert if the saved state says so.
+    // Only call from the UI thread when a screen resumes (LaunchActivity / DialogsActivity) or after passcode unlock.
+    // Background sync must never call this: it only saves state via CloudVeilSecuritySettings.setDeprecation,
+    // because showing a dialog with no screen open crashed with BadTokenException.
+    // Any check that fails just returns; the next screen resume tries again.
+    public static void checkDeprecationAlert(int accountNumber) {
+        // App is in the background; same check as LaunchActivity.showLanguageAlert.
+        if (ApplicationLoader.mainInterfacePaused) {
             return;
         }
-
-        long now = System.currentTimeMillis();
+        // Returns "not deprecated" if the state was saved by an older app version (user has updated since).
+        SettingsResponse.Deprecation deprecation = CloudVeilSecuritySettings.getDeprecation(accountNumber);
+        if (!deprecation.deprecated) {
+            return;
+        }
+        // Server-controlled cooldown. reminder <= 0 means no cooldown at all.
         SharedPreferences preferences = MessagesController.getMainSettings(accountNumber);
-        long lastShownTime = preferences.getLong("deprecationAlertShownTime", 0);
-        if (deprecation.reminder > 0 && now - lastShownTime < deprecation.reminder * 1000L) {
+        long lastShownTime = preferences.getLong(KEY_DEPRECATION_ALERT_SHOWN_TIME, 0);
+        if (deprecation.reminder > 0 && System.currentTimeMillis() - lastShownTime < deprecation.reminder * 1000L) {
             return;
         }
-        preferences.edit().putLong("deprecationAlertShownTime", now).apply();
+        // Need a real screen to attach to. Never fall back to the application context: that was the crash.
+        // getVisibleDialog() != null: both LaunchActivity and DialogsActivity call this on every app open,
+        // so the second call must skip. It also stops showDialog() from closing another open popup
+        // (e.g. the blocked-chat warning).
+        BaseFragment fragment = LaunchActivity.getLastFragment();
+        if (fragment == null || fragment.getParentActivity() == null || fragment.getVisibleDialog() != null) {
+            return;
+        }
+        Context context = fragment.getParentActivity();
 
-        AndroidUtilities.runOnUIThread(() -> {
-            BaseFragment fragment = LaunchActivity.getLastFragment();
-            Context resolvedContext = LaunchActivity.instance;
-            if (fragment != null && fragment.getParentActivity() != null) {
-                resolvedContext = fragment.getParentActivity();
-            }
-            if (resolvedContext == null) {
-                resolvedContext = ApplicationLoader.applicationContext;
-            }
-            final Context context = resolvedContext;
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle(context.getString(R.string.warning))
-                    .setMessage(deprecation.message)
-                    .setPositiveButton(context.getString(R.string.UpdateApp), (dialog, which) -> {
-                        Browser.openUrl(context, BuildVars.PLAYSTORE_APP_URL);
-                        dialog.dismiss();
-                    });
-            AlertDialog dialog = builder.create();
-            dialog.setOnShowListener(d -> {
-                View button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-                if (button != null && button.getParent() instanceof ViewGroup) {
-                    ViewGroup parent = (ViewGroup) button.getParent();
-                    int parentWidth = parent.getWidth();
-                    int buttonWidth = button.getWidth();
-                    if (parentWidth > 0 && buttonWidth > 0) {
-                        button.setTranslationX((parentWidth - buttonWidth) / 2f - button.getLeft());
-                    }
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(deprecation.message)
+                .setPositiveButton(context.getString(R.string.UpdateApp), (dialog, which) -> {
+                    Browser.openUrl(context, BuildVars.PLAYSTORE_APP_URL);
+                    dialog.dismiss();
+                });
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            // Start the cooldown only once the alert is really on screen. showDialog() can refuse
+            // (e.g. during a screen transition); saving earlier would hide the alert for the whole cooldown.
+            preferences.edit().putLong(KEY_DEPRECATION_ALERT_SHOWN_TIME, System.currentTimeMillis()).apply();
+            View button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (button != null && button.getParent() instanceof ViewGroup) {
+                ViewGroup parent = (ViewGroup) button.getParent();
+                int parentWidth = parent.getWidth();
+                int buttonWidth = button.getWidth();
+                if (parentWidth > 0 && buttonWidth > 0) {
+                    button.setTranslationX((parentWidth - buttonWidth) / 2f - button.getLeft());
                 }
-            });
-            if (fragment != null && fragment.getParentActivity() != null) {
-                fragment.showDialog(dialog);
-            } else {
-                dialog.show();
             }
         });
+        fragment.showDialog(dialog);
     }
 
     public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {

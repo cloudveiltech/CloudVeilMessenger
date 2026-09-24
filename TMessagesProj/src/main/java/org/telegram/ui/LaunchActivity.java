@@ -1498,6 +1498,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             } catch (Exception e) {
                 FileLog.e(e);
             }
+            // CloudVeil start
+            // Unlocking only redraws screens (rebuildFragments), it doesn't call onResume(),
+            // and the onResume() check was skipped while the lock was showing. So check here too.
+            CloudVeilDialogHelper.checkDeprecationAlert(currentAccount);
+            // CloudVeil end
         };
         passcodeDialog.passcodeView.setDelegate(delegate);
         for (PasscodeView overlay : overlayPasscodeViews) {
@@ -7005,6 +7010,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     layersActionBarLayout.onResume();
                 }
             }
+            // CloudVeil start
+            // Only when the passcode lock isn't showing: the else branch below calls dismissDialogs(),
+            // which would close the alert right away (and the cooldown would already be used up).
+            // If the lock is showing, the unlock handler in showPasscodeActivity() does the check instead.
+            CloudVeilDialogHelper.checkDeprecationAlert(currentAccount);
+            // CloudVeil end
         } else {
             actionBarLayout.dismissDialogs();
             if (AndroidUtilities.isTablet()) {

@@ -7034,6 +7034,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         CloudVeilSyncWorker.preloadCachedResponse(ApplicationLoader.applicationContext, currentAccount);
         CloudVeilSyncWorker.startDataChecking(currentAccount, ApplicationLoader.applicationContext);
         MediaDataController.getInstance(currentAccount).loadStickers(MediaDataController.TYPE_IMAGE, true, false);
+        // Also checked here (not only in LaunchActivity.onResume) to catch returning to the chat list
+        // from another screen without leaving the app. Double calls on app open are skipped inside.
+        CloudVeilDialogHelper.checkDeprecationAlert(currentAccount);
         // CloudVeil end
 
         showFiltersHint();

@@ -9,6 +9,7 @@ import androidx.core.content.pm.ShortcutManagerCompat;
 
 import com.google.gson.Gson;
 
+import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
@@ -26,6 +27,9 @@ import java.util.UUID;
  */
 
 public class CloudVeilSecuritySettings {
+    private static final String KEY_DEPRECATION_PREFIX = "deprecation__";
+    private static final String KEY_VERSION_SUFFIX = "_version";
+
     public static final boolean LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE = true;
     public static final boolean LOCK_FORCE_ENABLE_BACKGROUND_SERVICE = true;
     public static final boolean LOCK_DISABLE_DELETE_CHAT = false;
@@ -304,6 +308,40 @@ public class CloudVeilSecuritySettings {
             organization = new SettingsResponse.Organization();
         }
         return organization;
+    }
+
+    // Saves the server's deprecation answer for this account, stamped with the running app version code.
+    // Must only be called with a LIVE server response (CloudVeilSyncWorker success callback), never with a
+    // cached one: the stamp must record which app version the server judged. If a cached answer from before
+    // an app update were saved here, it would be stamped with the new version and wrongly look fresh.
+    // deprecated=false removes the state, so the alert stops once the server clears it.
+    public static void setDeprecation(int accountNumber, SettingsResponse.Deprecation deprecation) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String key = KEY_DEPRECATION_PREFIX + accountNumber;
+        if (deprecation == null || !deprecation.deprecated) {
+            preferences.edit().remove(key).remove(key + KEY_VERSION_SUFFIX).apply();
+        } else {
+            preferences.edit()
+                    .putString(key, new Gson().toJson(deprecation))
+                    .putInt(key + KEY_VERSION_SUFFIX, SettingsRequest.getAppVersionCode())
+                    .apply();
+        }
+    }
+
+    // Returns the saved deprecation state, or "not deprecated" if it was saved under a different app version.
+    // Saved data survives an app update, so without this check the first launch after updating would still
+    // show "please update" until the next live sync. Missing version key reads as 0, which never matches.
+    public @NonNull static SettingsResponse.Deprecation getDeprecation(int accountNumber) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String key = KEY_DEPRECATION_PREFIX + accountNumber;
+        SettingsResponse.Deprecation deprecation = null;
+        if (preferences.getInt(key + KEY_VERSION_SUFFIX, 0) == SettingsRequest.getAppVersionCode()) {
+            deprecation = new Gson().fromJson(preferences.getString(key, ""), SettingsResponse.Deprecation.class);
+        }
+        if (deprecation == null) {
+            deprecation = new SettingsResponse.Deprecation();
+        }
+        return deprecation;
     }
 
     public static boolean isUrlWhileListedForInternalView(@NonNull String url) {
