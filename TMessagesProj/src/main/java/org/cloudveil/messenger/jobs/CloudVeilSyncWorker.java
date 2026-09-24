@@ -222,6 +222,11 @@ public class CloudVeilSyncWorker extends Worker {
         )
         .subscribe(settingsResponse -> {
             saveToCache(settingsResponse);
+            // Deprecation is saved only here, from a live response, and never in processResponse():
+            // processResponse() also replays cached answers (cold-start preload, failed-sync fallback),
+            // which may predate an app update. See CloudVeilSecuritySettings.setDeprecation.
+            // The alert itself is shown later from a screen resume, never from this background task.
+            CloudVeilSecuritySettings.setDeprecation(accountNumber, settingsResponse.deprecation);
             processResponse(settingsResponse, accountNumber);
             freeSubscription();
         }, throwable -> {
@@ -367,8 +372,6 @@ public class CloudVeilSyncWorker extends Worker {
         if (settingsResponse == null || settingsResponse.access == null || !settingsResponse.access.isValid()) {
             return;
         }
-        CloudVeilDialogHelper.checkDeprecationAlert(accountNumber, settingsResponse.deprecation);
-
         ConcurrentHashMap<Long, Boolean> allowedDialogs = CloudVeilDialogHelper.getInstance(accountNumber).allowedDialogs;
         // if last response's org is this response's org,
         // keep old peers around even when this response doesn't have them

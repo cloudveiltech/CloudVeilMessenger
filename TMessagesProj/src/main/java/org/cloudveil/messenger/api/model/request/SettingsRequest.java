@@ -147,7 +147,12 @@ public class SettingsRequest {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         SettingsRequest that = (SettingsRequest) o;
+        // App version is included so a request from a new app version never reuses a cached response
+        // (30s reuse in CloudVeilSyncWorker.sendDataCheckRequest). hashCode() stays userId-only on purpose:
+        // hashing a subset of the equals() fields is valid, and this class is never used as a hash key.
         return userId == that.userId &&
+                clientVersionCode == that.clientVersionCode &&
+                Objects.equals(clientVersionName, that.clientVersionName) &&
                 Objects.equals(clientSessionId, that.clientSessionId) &&
                 groups.equals(that.groups) &&
                 channels.equals(that.channels) &&
