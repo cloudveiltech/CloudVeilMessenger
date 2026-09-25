@@ -383,40 +383,33 @@ public class CloudVeilDialogHelper {
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
         String message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString());
-        long unlockItemId = dialogId;
-        boolean canRequestUnlock = true;
+        // Secret chat alerts never offer the unblock form ("Continue"):
+        // - secret chats turned off: asking to unblock one chat can't turn the feature back on;
+        // - other participant blocked: the form would need that person's user id, and in testing the
+        //   website treated a person's id as the requester ("unblock myself"). That looks like a backend
+        //   bug and is waiting for confirmation, so the form is left out for secret chats for now.
+        //   Normal chats with a blocked person still offer it, unchanged.
+        boolean canRequestUnlock = !DialogObject.isEncryptedDialog(dialogId);
         if (DialogObject.isEncryptedDialog(dialogId)) {
             // Secret chat alerts get their own texts. The label is set here instead of trusting the
             // caller's type, because the chat list works out its own type and calls a secret chat "group".
-            String secretChatLabel = DialogType.secretChat.toString();
-            TLRPC.User partner = getInstance(fragment.getCurrentAccount()).getSecretChatPartner(dialogId);
             if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
-                // Secret chats turned off for the whole account. No unblock form: asking to unblock one
-                // chat can't turn the feature back on.
                 message = fragment.getParentActivity().getString(R.string.cloudveil_secret_chats_disabled);
-                canRequestUnlock = false;
-            } else if (partner == null) {
-                // Participant not loaded yet, so they couldn't be checked: say "checking" rather than
-                // "blocked", and offer no form, since there is no user id to send.
-                message = fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, secretChatLabel);
-                canRequestUnlock = false;
+            } else if (getInstance(fragment.getCurrentAccount()).getSecretChatPartner(dialogId) == null) {
+                // Participant not loaded yet, so they couldn't be checked: say "checking", not "blocked".
+                message = fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, DialogType.secretChat.toString());
             } else {
                 // The other participant is blocked (or, with "manage users" on, not approved yet).
-                // The unblock form gets their user id, like a normal chat with them does; the server
-                // can't look up a secret chat's own id. Keeping "Continue" here is provisional until
-                // the website form is confirmed to handle a person's id.
-                message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, secretChatLabel);
-                unlockItemId = partner.id;
+                message = fragment.getParentActivity().getString(R.string.cloudveil_secret_chat_blocked);
             }
         }
-        final long finalUnlockItemId = unlockItemId;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(message);
         if (canRequestUnlock) {
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
-                        sendUnlockRequest(finalUnlockItemId, fragment.getCurrentAccount(), fragment);
+                        sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
                         if (onOkRunnable != null) {
                             onOkRunnable.run();
                         }
