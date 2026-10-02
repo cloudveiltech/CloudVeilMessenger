@@ -17374,8 +17374,10 @@ public class MessagesStorage extends BaseController {
                         continue;
                     }
                 } else if (DialogObject.isEncryptedDialog(id)){
-                    // catch secret chats
-                    if (CloudVeilSecuritySettings.isDisabledSecretChat()){
+                    // catch secret chats: hidden when secret chats are turned off, and also when the other
+                    // participant is blocked (or not checked yet). Uses the same rule as opening the chat, so
+                    // search no longer lists a secret chat with a person whose normal chat is hidden.
+                    if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(id)){
                         continue;
                     }
                 } else {
