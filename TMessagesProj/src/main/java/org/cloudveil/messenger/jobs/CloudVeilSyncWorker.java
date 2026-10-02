@@ -448,7 +448,14 @@ public class CloudVeilSyncWorker extends Worker {
             chat = (TLRPC.Chat) object;
             chatFull = MessagesController.getInstance(accountNumber).getChatFull(chat.id);
             isSuperGroup = chatFull != null && chatFull.migrated_from_chat_id != 0;
-        } else {
+        } else if (object instanceof TLRPC.EncryptedChat) {
+            // Secret chat while secret chats are turned off: getObjectByDialogId returns the
+            // EncryptedChat itself. The old "else: must be a User" cast threw here, which aborted the
+            // whole sync before it reached the server, so the account could never receive the setting
+            // that turns secret chats back on. Report the other participant as a regular user instead,
+            // the same as when secret chats are on (the server only knows people by user id).
+            user = MessagesController.getInstance(accountNumber).getUser(((TLRPC.EncryptedChat) object).user_id);
+        } else if (object instanceof TLRPC.User) {
             user = (TLRPC.User) object;
         }
 

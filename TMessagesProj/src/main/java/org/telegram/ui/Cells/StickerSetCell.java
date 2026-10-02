@@ -78,6 +78,11 @@ public class StickerSetCell extends FrameLayout {
     private RadialProgressView progressView;
     private CheckBox2 checkBox;
     private boolean needDivider;
+    //CloudVeil start
+    // A pack blocked by organization policy is hidden by collapsing this row to zero height
+    // rather than being dropped from the list. See setCloudVeilHidden() for why.
+    private boolean cloudVeilHidden;
+    //CloudVeil end
     private ImageView optionsButton;
     private ImageView reorderButton;
     private TLRPC.TL_messages_stickerSet stickersSet;
@@ -240,8 +245,52 @@ public class StickerSetCell extends FrameLayout {
 
     }
 
+    //CloudVeil start
+    /**
+     * Hides a sticker pack that organization policy blocks, by collapsing this row to zero
+     * height. The pack is deliberately still present in the list behind it.
+     *
+     * WHY HIDE IN THE UI INSTEAD OF FILTERING THE DATA:
+     * The obvious approach — dropping blocked packs from the list that StickersActivity holds
+     * — breaks reordering, because that same list is also the authoritative pack order:
+     *
+     *   1. whenReordered() sorts the live MediaDataController list using indexOf() against it.
+     *      A pack missing from it returns -1, the comparator then reports that pack equal to
+     *      every other pack, equality stops being transitive, and Collections.sort is entitled
+     *      to throw IllegalArgumentException ("Comparison method violates its general
+     *      contract!") or silently scramble the order.
+     *   2. sendReorder() builds messages.reorderStickerSets from that same list, so every
+     *      blocked pack's id would be omitted from the order sent to Telegram — corrupting
+     *      the account's pack order on all of the user's other devices.
+     *
+     * Keeping blocked packs in the list and hiding them at render time avoids both: the list
+     * stays complete, so every upstream reorder path keeps working untouched and needs no
+     * CloudVeil changes at all. The user sees exactly what filtering would have shown them.
+     *
+     * The row is measured to zero height (this cell forces its own height in onMeasure, so
+     * LayoutParams.height is ignored), its content is left unbound so blocked artwork is never
+     * fetched, and it is removed from the accessibility tree so TalkBack cannot read it out.
+     */
+    public void setCloudVeilHidden(boolean hidden) {
+        if (cloudVeilHidden == hidden) {
+            return;
+        }
+        cloudVeilHidden = hidden;
+        setImportantForAccessibility(hidden
+            ? IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            : IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        requestLayout();
+    }
+    //CloudVeil end
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        //CloudVeil start
+        if (cloudVeilHidden) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.EXACTLY));
+            return;
+        }
+        //CloudVeil end
         super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(58) + (needDivider ? 1 : 0), MeasureSpec.EXACTLY));
     }
 
@@ -709,6 +758,20 @@ public class StickerSetCell extends FrameLayout {
         public void bindView(View view, UItem item, boolean divider, UniversalAdapter adapter, UniversalRecyclerView listView) {
             final StickerSetCell cell = (StickerSetCell) view;
             final TLRPC.TL_messages_stickerSet set = (TLRPC.TL_messages_stickerSet) item.object;
+            //CloudVeil start
+            // Collapse packs blocked by organization policy instead of removing them from the
+            // list — see setCloudVeilHidden() for why the data must stay complete. Emoji packs
+            // are exempt from the allow-list; keyed off set.set.emojis because the screen's
+            // currentType is not available here, which is equivalent in practice.
+            final boolean cloudVeilHidden = set != null && set.set != null && !set.set.emojis
+                && !MediaDataController.getInstance(adapter.currentAccount).isStickerAllowed(set);
+            cell.setCloudVeilHidden(cloudVeilHidden);
+            if (cloudVeilHidden) {
+                // Leave the content unbound so blocked artwork is never requested. Cells are
+                // recycled, so setCloudVeilHidden(false) above restores height on reuse.
+                return;
+            }
+            //CloudVeil end
             cell.setStickersSet(set, divider);
             cell.setChecked(item.checked, false);
             cell.setReorderable(listView.isReorderAllowed(), true);

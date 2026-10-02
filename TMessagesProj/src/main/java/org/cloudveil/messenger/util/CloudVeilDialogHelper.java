@@ -12,6 +12,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
@@ -44,7 +45,16 @@ public class CloudVeilDialogHelper {
     private final int accountNumber;
 
     public enum DialogType {
-        channel, group, user, bot, chat
+        channel, group, user, bot, chat,
+        // The type's name fills the "%1$s" in the CloudVeil alert texts. Before this existed a
+        // secret chat was labeled "group" or "user", depending on which screen showed the alert.
+        secretChat {
+            @NonNull
+            @Override
+            public String toString() {
+                return "secret chat";
+            }
+        }
     }
 
     private static volatile CloudVeilDialogHelper[] Instance = new CloudVeilDialogHelper[UserConfig.MAX_ACCOUNT_COUNT];
@@ -166,8 +176,11 @@ public class CloudVeilDialogHelper {
             }
         }
 
+        // A secret chat is labeled "secret chat" in alerts, whichever object is returned for it.
+        // Only the label changes: the returned object is the same as before.
+        boolean isSecretChat = DialogObject.isEncryptedDialog(currentDialogId);
         if (encryptedChat != null && CloudVeilSecuritySettings.isDisabledSecretChat()) {
-            return new Pair<>(encryptedChat, DialogType.group);
+            return new Pair<>(encryptedChat, DialogType.secretChat);
         } else if (chat != null) {
             if (ChatObject.isChannel(chat)) {
                 return new Pair<>(chat, chat.megagroup ? DialogType.group : DialogType.channel);
@@ -175,9 +188,9 @@ public class CloudVeilDialogHelper {
                 return new Pair<>(chat, DialogType.group);
             }
         } else if (user != null) {
-            return new Pair<>(user, user.bot ? DialogType.bot : DialogType.user);
+            return new Pair<>(user, isSecretChat ? DialogType.secretChat : user.bot ? DialogType.bot : DialogType.user);
         }
-        return new Pair<>(null, DialogType.group);
+        return new Pair<>(null, isSecretChat ? DialogType.secretChat : DialogType.group);
     }
 
 
@@ -186,7 +199,16 @@ public class CloudVeilDialogHelper {
             return true;
         }
         if (DialogObject.isEncryptedDialog(currentDialogId)) {
-            return !CloudVeilSecuritySettings.isDisabledSecretChat();
+            // Secret chats turned off by the server: every secret chat is blocked by that one setting.
+            if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
+                return false;
+            }
+            // Otherwise a secret chat follows the server's answer for the other participant, so
+            // blocking a person also blocks secret chats with them. Before, only the on/off setting
+            // was checked, and a secret chat with a blocked person still opened.
+            // Participant not loaded yet: blocked until they can be checked (the "checking" alert).
+            TLRPC.User partner = getSecretChatPartner(currentDialogId);
+            return partner != null && isUserAllowed(partner);
         } else if (DialogObject.isUserDialog(currentDialogId)) {
             return isUserAllowed(MessagesController.getInstance(accountNumber).getUser(currentDialogId));
         } else {
@@ -202,13 +224,28 @@ public class CloudVeilDialogHelper {
         if(currentDialogId == SUPPORT_BOT_ID) {
             return true;
         }
+        if (DialogObject.isEncryptedDialog(currentDialogId)) {
+            // Secret chats turned off: that one setting decides, there is no server answer to wait for.
+            if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
+                return true;
+            }
+            // Otherwise the answer that matters is the other participant's, and the server's answers
+            // are stored by user id, not by the secret chat's own id (looking up the secret chat's id
+            // never matched, so with "manage users" on a secret chat counted as never checked).
+            // Participant not loaded yet: not checked, so the chat shows "checking" instead of opening.
+            TLRPC.User partner = getSecretChatPartner(currentDialogId);
+            return partner != null && isDialogCheckedOnServer(partner.id);
+        }
+
         TLRPC.Chat chat = null;
         TLRPC.User user = null;
 
         TLObject object = CloudVeilDialogHelper.getInstance(accountNumber).getObjectByDialogId(currentDialogId).first;
+        // instanceof instead of a blind cast: getObjectByDialogId can also return an EncryptedChat,
+        // and casting that to User crashed (the ClassCastException this fix is about).
         if (object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
-        } else {
+        } else if (object instanceof TLRPC.User) {
             user = (TLRPC.User) object;
         }
 
@@ -223,6 +260,20 @@ public class CloudVeilDialogHelper {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Finds the other participant of a secret chat, straight from the in-memory caches.
+     * Deliberately not getObjectByDialogId: that returns the EncryptedChat itself while secret
+     * chats are turned off, and it reads that setting again, so the caller's own read of the
+     * setting and this lookup could disagree if a sync flipped it in between.
+     * Returns null when the secret chat or its participant is not loaded.
+     */
+    @Nullable
+    private TLRPC.User getSecretChatPartner(long encryptedDialogId) {
+        MessagesController messagesController = MessagesController.getInstance(accountNumber);
+        TLRPC.EncryptedChat encryptedChat = messagesController.getEncryptedChat(DialogObject.getEncryptedChatId(encryptedDialogId));
+        return encryptedChat != null ? messagesController.getUser(encryptedChat.user_id) : null;
     }
 
 
@@ -331,23 +382,51 @@ public class CloudVeilDialogHelper {
     }
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        String message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString());
+        // Secret chat alerts never offer the unblock form ("Continue"):
+        // - secret chats turned off: asking to unblock one chat can't turn the feature back on;
+        // - other participant blocked: the form would need that person's user id, and in testing the
+        //   website treated a person's id as the requester ("unblock myself"). That looks like a backend
+        //   bug and is waiting for confirmation, so the form is left out for secret chats for now.
+        //   Normal chats with a blocked person still offer it, unchanged.
+        boolean canRequestUnlock = !DialogObject.isEncryptedDialog(dialogId);
+        if (DialogObject.isEncryptedDialog(dialogId)) {
+            // Secret chat alerts get their own texts. The label is set here instead of trusting the
+            // caller's type, because the chat list works out its own type and calls a secret chat "group".
+            if (CloudVeilSecuritySettings.isDisabledSecretChat()) {
+                message = fragment.getParentActivity().getString(R.string.cloudveil_secret_chats_disabled);
+            } else if (getInstance(fragment.getCurrentAccount()).getSecretChatPartner(dialogId) == null) {
+                // Participant not loaded yet, so they couldn't be checked: say "checking", not "blocked".
+                message = fragment.getParentActivity().getString(R.string.cloudveil_checking_server_policy, DialogType.secretChat.toString());
+            } else {
+                // The other participant is blocked (or, with "manage users" on, not approved yet).
+                message = fragment.getParentActivity().getString(R.string.cloudveil_secret_chat_blocked);
+            }
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
-                .setMessage(fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString()))
-                .setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
-                    sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
-                    if (onOkRunnable != null) {
-                        onOkRunnable.run();
-                    }
-                    dialog.dismiss();
-                })
-                .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
-                    dialog.dismiss();
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnDismissListener(dialog -> {
+                .setMessage(message);
+        if (canRequestUnlock) {
+            builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
+                        sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
+                        if (onOkRunnable != null) {
+                            onOkRunnable.run();
+                        }
+                        dialog.dismiss();
+                    })
+                    .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
+                        dialog.dismiss();
+                        if (onDismissRunnable != null) {
+                            onDismissRunnable.run();
+                        }
+                    });
+        } else {
+            // Only dismiss: the dismiss listener installed by fragment.showDialog below already runs
+            // onDismissRunnable. Running it here too made the chat screen close itself twice.
+            builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
+        }
+        builder.setOnDismissListener(dialog -> {
                     if (onDismissRunnable != null) {
                         onDismissRunnable.run();
                     }
