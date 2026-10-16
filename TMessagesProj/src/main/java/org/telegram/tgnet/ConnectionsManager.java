@@ -11,6 +11,9 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Base64;
+// CloudVeil start: log JNI callback failures
+import android.util.Log;
+// CloudVeil end
 
 import androidx.annotation.Keep;
 
@@ -47,6 +50,10 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.ui.Components.VideoPlayer;
 import org.telegram.ui.LoginActivity;
+
+// CloudVeil start: report JNI callback failures
+import io.sentry.Sentry;
+// CloudVeil end
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -496,6 +503,23 @@ public class ConnectionsManager extends BaseController {
 //            FileLog.d("{rc} listenCancel(" + currentAccount + ", " + requestToken + "): callback not found, " + requestCallbacks.size() + " requests' callbacks");
         }
     }
+
+    // CloudVeil start: report a pending JNI exception instead of letting ART abort
+    public static void reportNativeException(Throwable error, String site) {
+        if (error == null) {
+            return;
+        }
+        String callback = site == null ? "unknown" : site;
+        try {
+            Log.e("tgnet", "JNI callback failed: " + callback, error);
+        } catch (Throwable ignored) {
+        }
+        try {
+            Sentry.captureException(error, scope -> scope.setTag("jni.callback", callback));
+        } catch (Throwable ignored) {
+        }
+    }
+    // CloudVeil end
 
     public static void onRequestClear(int currentAccount, int requestToken, boolean cancelled) {
         ConnectionsManager connectionsManager = getInstance(currentAccount);

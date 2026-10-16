@@ -1,7 +1,5 @@
 package org.cloudveil.messenger.api.model.response;
 
-import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -24,18 +22,18 @@ public class SettingsResponse {
         }
     }
 
-    public static class GoogleMapsKeys {
-        public String ios;
-        public String android;
-        public String desktop;
-    }
-
     public static class Organization {
         public int id;
         public String name = "";
         public boolean needChange;
         public String aboutUrl = "";
         public String policyUrl = "";
+    }
+
+    public static class Deprecation {
+        public boolean deprecated;
+        public String message = "";
+        public int reminder;
     }
 
     public AccessList access;
@@ -49,13 +47,18 @@ public class SettingsResponse {
     public boolean disableProfilePhotoChange;
     public boolean disableStickers;
     public boolean disableEmojiStatus;
+    public boolean disableMusicStatus;
+    public boolean disableStars;
+    public boolean disableMiniApps;
     public boolean disableStories;
+    public String removeAccountUrl;
     public boolean manageUsers;
     public boolean inputToggleVoiceVideo;
     public boolean disableProfileVideo;
     public boolean disableProfileVideoChange;
     public String disableStickersImage;
     public int profilePhotoLimit;
-    public GoogleMapsKeys googleMapsKeys;
+    public ArrayList<Long> nonblockableBots;
     public Organization organization;
+    public Deprecation deprecation;
 }

@@ -59,6 +59,9 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.core.math.MathUtils;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.cloudveil.messenger.util.CloudVeilDialogHelper;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -2488,7 +2491,11 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     messageNameLeft += w;
                 }
             }
-        } else if (allowBotOpenButton && !isFolderCell() && !isForumCell() && !isDialogFolder() && UserObject.isBot(user) && user.bot_has_main_app) {
+        } else if (allowBotOpenButton && !isFolderCell() && !isForumCell() && !isDialogFolder() && UserObject.isBot(user) && user.bot_has_main_app
+                // CloudVeil start: disable mini apps
+                && !CloudVeilSecuritySettings.getIsMiniAppsDisabled()
+                // CloudVeil end: disable mini apps
+        ) {
             setOpenBotButton(true);
             int buttonWidth = (int) (dp(2 * 13) + openButtonText.getCurrentWidth()), p = dp(13);
             messageWidth -= buttonWidth;

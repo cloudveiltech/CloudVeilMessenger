@@ -10,14 +10,18 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.cloudveil.messenger.CloudVeilSecuritySettings;
 import org.cloudveil.messenger.api.model.request.SettingsRequest;
+import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.cloudveil.messenger.jobs.CloudVeilSyncWorker;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
@@ -33,6 +37,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.LaunchActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +47,7 @@ import java.util.regex.Pattern;
 public class CloudVeilDialogHelper {
     private static final long SUPPORT_BOT_ID = 689684671;
     private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    private static final String KEY_DEPRECATION_ALERT_SHOWN_TIME = "deprecationAlertShownTime";
     private final int accountNumber;
 
     public enum DialogType {
@@ -134,8 +140,12 @@ public class CloudVeilDialogHelper {
         long id = user.id;
         if (user.bot) {
             return isBotIdAllowed(id);
+        } else if (allowedDialogs.containsKey(id)) {
+            // users which are specifically allowed or blocked override the manage users setting
+            return Boolean.TRUE.equals(allowedDialogs.get(id));
         } else if (CloudVeilSecuritySettings.getManageUsers()) {
-            return allowedDialogs.containsKey(id) && Boolean.TRUE.equals(allowedDialogs.get(id));
+            // if manage users is enabled, and the user is not specifically allowed or blocked, return false
+            return false;
         }
         return true;
     }
@@ -153,6 +163,7 @@ public class CloudVeilDialogHelper {
             return false;
         }
         if(!allowedBots.containsKey(id)) {
+            // TODO: in this case, force bot into next sync request. This code should not be reached in normal operation.
             return false;
         }
         return Boolean.TRUE.equals(allowedBots.get(id));
@@ -170,9 +181,9 @@ public class CloudVeilDialogHelper {
         } else if (DialogObject.isUserDialog(currentDialogId)) {
             user = MessagesController.getInstance(accountNumber).getUser(currentDialogId);
         } else {
-            chat = MessagesController.getInstance(accountNumber).getChat(currentDialogId);
+            chat = MessagesController.getInstance(accountNumber).getChat(-currentDialogId);
             if (chat == null) {
-                chat = MessagesController.getInstance(accountNumber).getChat(-currentDialogId);
+                chat = MessagesController.getInstance(accountNumber).getChat(currentDialogId);
             }
         }
 
@@ -382,6 +393,9 @@ public class CloudVeilDialogHelper {
     }
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
         String message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString());
         // Secret chat alerts never offer the unblock form ("Continue"):
         // - secret chats turned off: asking to unblock one chat can't turn the feature back on;
@@ -404,41 +418,33 @@ public class CloudVeilDialogHelper {
             }
         }
 
+        final boolean[] handled = new boolean[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(message);
         if (canRequestUnlock) {
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
                         sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
-                        if (onOkRunnable != null) {
-                            onOkRunnable.run();
+                        if (!handled[0]) {
+                            handled[0] = true;
+                            if (onOkRunnable != null) {
+                                onOkRunnable.run();
+                            }
                         }
                         dialog.dismiss();
                     })
-                    .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> {
-                        dialog.dismiss();
-                        if (onDismissRunnable != null) {
-                            onDismissRunnable.run();
-                        }
-                    });
+                    .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> dialog.dismiss());
         } else {
             // Only dismiss: the dismiss listener installed by fragment.showDialog below already runs
             // onDismissRunnable. Running it here too made the chat screen close itself twice.
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
         }
-        builder.setOnDismissListener(dialog -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                })
-                .setOnBackButtonListener((dialog, which) -> {
-                    if (onDismissRunnable != null) {
-                        onDismissRunnable.run();
-                    }
-                });
         fragment.showDialog(builder.create(), dialog -> {
-            if (onDismissRunnable != null) {
-                onDismissRunnable.run();
+            if (!handled[0]) {
+                handled[0] = true;
+                if (onDismissRunnable != null) {
+                    onDismissRunnable.run();
+                }
             }
         });
     }
@@ -496,6 +502,62 @@ public class CloudVeilDialogHelper {
         }
         Matcher matcher = youtubeIdRegex.matcher(url);
         return matcher.find();
+    }
+
+    // Shows the "please update" alert if the saved state says so.
+    // Only call from the UI thread when a screen resumes (LaunchActivity / DialogsActivity) or after passcode unlock.
+    // Background sync must never call this: it only saves state via CloudVeilSecuritySettings.setDeprecation,
+    // because showing a dialog with no screen open crashed with BadTokenException.
+    // Any check that fails just returns; the next screen resume tries again.
+    public static void checkDeprecationAlert(int accountNumber) {
+        // App is in the background; same check as LaunchActivity.showLanguageAlert.
+        if (ApplicationLoader.mainInterfacePaused) {
+            return;
+        }
+        // Returns "not deprecated" if the state was saved by an older app version (user has updated since).
+        SettingsResponse.Deprecation deprecation = CloudVeilSecuritySettings.getDeprecation(accountNumber);
+        if (!deprecation.deprecated) {
+            return;
+        }
+        // Server-controlled cooldown. reminder <= 0 means no cooldown at all.
+        SharedPreferences preferences = MessagesController.getMainSettings(accountNumber);
+        long lastShownTime = preferences.getLong(KEY_DEPRECATION_ALERT_SHOWN_TIME, 0);
+        if (deprecation.reminder > 0 && System.currentTimeMillis() - lastShownTime < deprecation.reminder * 1000L) {
+            return;
+        }
+        // Need a real screen to attach to. Never fall back to the application context: that was the crash.
+        // getVisibleDialog() != null: both LaunchActivity and DialogsActivity call this on every app open,
+        // so the second call must skip. It also stops showDialog() from closing another open popup
+        // (e.g. the blocked-chat warning).
+        BaseFragment fragment = LaunchActivity.getLastFragment();
+        if (fragment == null || fragment.getParentActivity() == null || fragment.getVisibleDialog() != null) {
+            return;
+        }
+        Context context = fragment.getParentActivity();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(context.getString(R.string.warning))
+                .setMessage(deprecation.message)
+                .setPositiveButton(context.getString(R.string.UpdateApp), (dialog, which) -> {
+                    Browser.openUrl(context, BuildVars.PLAYSTORE_APP_URL);
+                    dialog.dismiss();
+                });
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            // Start the cooldown only once the alert is really on screen. showDialog() can refuse
+            // (e.g. during a screen transition); saving earlier would hide the alert for the whole cooldown.
+            preferences.edit().putLong(KEY_DEPRECATION_ALERT_SHOWN_TIME, System.currentTimeMillis()).apply();
+            View button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (button != null && button.getParent() instanceof ViewGroup) {
+                ViewGroup parent = (ViewGroup) button.getParent();
+                int parentWidth = parent.getWidth();
+                int buttonWidth = button.getWidth();
+                if (parentWidth > 0 && buttonWidth > 0) {
+                    button.setTranslationX((parentWidth - buttonWidth) / 2f - button.getLeft());
+                }
+            }
+        });
+        fragment.showDialog(dialog);
     }
 
     public void checkOrganizationChangeRequired(BaseFragment fragment, Context context) {
