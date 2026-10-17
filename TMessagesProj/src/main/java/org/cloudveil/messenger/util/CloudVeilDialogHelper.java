@@ -394,6 +394,10 @@ public class CloudVeilDialogHelper {
 
     public static void showWarning(BaseFragment fragment, DialogType type, long dialogId, Runnable onOkRunnable, Runnable onDismissRunnable) {
         if (fragment == null || fragment.getParentActivity() == null) {
+            // No screen to show the alert on. Still run the close action, so a blocked chat doesn't stay open.
+            if (onDismissRunnable != null) {
+                onDismissRunnable.run();
+            }
             return;
         }
         String message = fragment.getParentActivity().getString(R.string.cloudveil_message_dialog_forbidden, type.toString());
