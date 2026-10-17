@@ -1,6 +1,7 @@
 package org.cloudveil.messenger.util;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -41,6 +42,7 @@ import org.telegram.ui.LaunchActivity;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -422,35 +424,37 @@ public class CloudVeilDialogHelper {
             }
         }
 
-        final boolean[] handled = new boolean[1];
+        // Remembers whether the alert was closed with Continue, so the close handler below runs
+        // onOkRunnable instead of onDismissRunnable. A plain boolean can't be changed from inside
+        // the button's lambda, so it needs a holder object.
+        AtomicBoolean continueTapped = new AtomicBoolean(false);
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle(fragment.getParentActivity().getString(R.string.warning))
                 .setMessage(message);
         if (canRequestUnlock) {
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
                         sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
-                        if (!handled[0]) {
-                            handled[0] = true;
-                            if (onOkRunnable != null) {
-                                onOkRunnable.run();
-                            }
-                        }
+                        continueTapped.set(true);
                         dialog.dismiss();
                     })
                     .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> dialog.dismiss());
         } else {
-            // Only dismiss: the dismiss listener installed by fragment.showDialog below already runs
-            // onDismissRunnable. Running it here too made the chat screen close itself twice.
+            // Only dismiss: the close handler below runs onDismissRunnable.
+            // Running it here too made the chat screen close itself twice.
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.OK), (dialog, which) -> dialog.dismiss());
         }
-        fragment.showDialog(builder.create(), dialog -> {
-            if (!handled[0]) {
-                handled[0] = true;
-                if (onDismissRunnable != null) {
-                    onDismissRunnable.run();
-                }
+        // An alert closes only once, however it's closed (Continue, Cancel, OK, Back, tap outside),
+        // so this runs exactly one close action.
+        DialogInterface.OnDismissListener runCloseAction = dialog -> {
+            Runnable closeAction = continueTapped.get() ? onOkRunnable : onDismissRunnable;
+            if (closeAction != null) {
+                closeAction.run();
             }
-        });
+        };
+        // Set on the builder too: fragment.showDialog replaces it with its own listener, except when a
+        // bottom sheet is open. Then it hands the alert to the sheet and sets no listener at all.
+        builder.setOnDismissListener(runCloseAction);
+        fragment.showDialog(builder.create(), runCloseAction);
     }
 
     public static void showCheckingServerPolicy(BaseFragment fragment, DialogType type, Runnable onOkRunnable) {
