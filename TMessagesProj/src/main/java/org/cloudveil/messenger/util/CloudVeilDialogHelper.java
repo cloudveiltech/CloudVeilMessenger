@@ -433,8 +433,9 @@ public class CloudVeilDialogHelper {
                 .setMessage(message);
         if (canRequestUnlock) {
             builder.setPositiveButton(fragment.getParentActivity().getString(R.string.continue_label), (dialog, which) -> {
-                        sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
+                        // Set first: opening the unblock link can close this alert before the next line runs.
                         continueTapped.set(true);
+                        sendUnlockRequest(dialogId, fragment.getCurrentAccount(), fragment);
                         dialog.dismiss();
                     })
                     .setNegativeButton(fragment.getParentActivity().getString(R.string.cancel), (dialog, i) -> dialog.dismiss());
@@ -451,9 +452,6 @@ public class CloudVeilDialogHelper {
                 closeAction.run();
             }
         };
-        // Set on the builder too: fragment.showDialog replaces it with its own listener, except when a
-        // bottom sheet is open. Then it hands the alert to the sheet and sets no listener at all.
-        builder.setOnDismissListener(runCloseAction);
         fragment.showDialog(builder.create(), runCloseAction);
     }
 
