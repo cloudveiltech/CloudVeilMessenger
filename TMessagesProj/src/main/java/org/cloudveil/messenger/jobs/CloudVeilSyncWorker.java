@@ -276,11 +276,13 @@ public class CloudVeilSyncWorker extends Worker {
         ServiceClientHolders.getSettingsService().loadSettings(request)
             .subscribeOn(Schedulers.io())
             .subscribe(response -> {
-                String url = response != null ? response.removeAccountUrl : null;
-                if (!TextUtils.isEmpty(url)) {
-                    CloudVeilSecuritySettings.setRemoveAccountUrl(url);
+                String fresh = response != null ? response.removeAccountUrl : null;
+                if (!TextUtils.isEmpty(fresh)) {
+                    CloudVeilSecuritySettings.setRemoveAccountUrl(fresh);
                 }
-                AndroidUtilities.runOnUIThread(() -> callback.run(url));
+                // Holds the fresh link just saved, or the previous one when the reply had none.
+                String url = CloudVeilSecuritySettings.getRemoveAccountUrl();
+                AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(url) ? null : url));
             }, throwable -> {
                 String cached = CloudVeilSecuritySettings.getRemoveAccountUrl();
                 AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(cached) ? null : cached));
