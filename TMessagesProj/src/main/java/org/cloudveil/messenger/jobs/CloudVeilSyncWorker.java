@@ -417,7 +417,11 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
         CloudVeilSecuritySettings.setIsMiniAppsDisabled(settingsResponse.disableMiniApps);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
-        CloudVeilSecuritySettings.setRemoveAccountUrl(settingsResponse.removeAccountUrl);
+        // Only overwrite when the reply has a link: a reply without one would erase the saved link,
+        // which fetchRemoveAccountUrl falls back to when it can't reach the server.
+        if (!TextUtils.isEmpty(settingsResponse.removeAccountUrl)) {
+            CloudVeilSecuritySettings.setRemoveAccountUrl(settingsResponse.removeAccountUrl);
+        }
 
         if (settingsResponse.nonblockableBots != null) {
             CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
