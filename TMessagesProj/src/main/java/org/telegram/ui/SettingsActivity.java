@@ -703,9 +703,6 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         if (!getMessagesController().premiumFeaturesBlocked()) {
             items.add(SettingCell.Factory.of(11, 0xFFB659FF, 0xFF617CFF, R.drawable.settings_premium, getString(R.string.TelegramPremium)));
         }
-        // CloudVeil start
-        if (!CloudVeilSecuritySettings.getIsStarsDisabled()) {
-            // CloudVeil end
         if (getMessagesController().starsPurchaseAvailable()) {
             StarsController c = StarsController.getInstance(currentAccount);
             long balance = c.getBalance().amount;
@@ -714,7 +711,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         StarsController.getInstance(currentAccount, true).getBalance();
         */
         // CloudVeil end
-        if (ApplicationLoader.isBetaBuild() || ApplicationLoader.isStandaloneBuild() || ApplicationLoader.isHuaweiStoreBuild() || (StarsController.getInstance(currentAccount, true).balanceAvailable() && (StarsController.getInstance(currentAccount, true).hasTransactions() || StarsController.getInstance(currentAccount, true).getBalance().positive()))) {
+        // CloudVeil start: disable stars
+        if (!CloudVeilSecuritySettings.getIsStarsDisabled() && (ApplicationLoader.isBetaBuild() || ApplicationLoader.isStandaloneBuild() || ApplicationLoader.isHuaweiStoreBuild() || (StarsController.getInstance(currentAccount, true).balanceAvailable() && (StarsController.getInstance(currentAccount, true).hasTransactions() || StarsController.getInstance(currentAccount, true).getBalance().positive())))) {
+        // CloudVeil end: disable stars
             StarsController c = StarsController.getTonInstance(currentAccount);
             long balance = c.getBalance().amount;
             items.add(SettingCell.Factory.of(13, 0xFF1BA4ED, 0xFF1488E1, R.drawable.settings_ton, getString(R.string.MyTON), null, c.balanceAvailable() && balance > 0 ? StarsIntroActivity.formatStarsAmount(c.getBalance(), 0.85f, ' ') : ""));
