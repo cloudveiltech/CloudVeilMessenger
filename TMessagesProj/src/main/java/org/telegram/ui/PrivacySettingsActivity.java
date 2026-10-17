@@ -426,6 +426,10 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     } catch (Exception e) {
                         FileLog.e(e);
                     }
+                    if (getParentActivity() == null) {
+                        // The request can outlive this screen (for example the activity was recreated). Nothing to show then.
+                        return;
+                    }
                     if (TextUtils.isEmpty(url)) {
                         BulletinFactory.of(PrivacySettingsActivity.this).createSimpleBulletin(R.raw.error, getString(R.string.delete_cloudveil_account_failed)).show();
                         return;
