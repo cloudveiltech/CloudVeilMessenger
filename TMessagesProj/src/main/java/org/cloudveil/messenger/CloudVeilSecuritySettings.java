@@ -9,6 +9,7 @@ import androidx.core.content.pm.ShortcutManagerCompat;
 
 import com.google.gson.Gson;
 
+import org.cloudveil.messenger.api.model.request.SettingsRequest;
 import org.cloudveil.messenger.api.model.response.SettingsResponse;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.BuildConfig;
@@ -16,6 +17,9 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.UserConfig;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,6 +27,9 @@ import java.util.UUID;
  */
 
 public class CloudVeilSecuritySettings {
+    private static final String KEY_DEPRECATION_PREFIX = "deprecation__";
+    private static final String KEY_VERSION_SUFFIX = "_version";
+
     public static final boolean LOCK_FORCE_ENABLE_KEEP_ALIVE_SERVICE = true;
     public static final boolean LOCK_FORCE_ENABLE_BACKGROUND_SERVICE = true;
     public static final boolean LOCK_DISABLE_DELETE_CHAT = false;
@@ -37,6 +44,10 @@ public class CloudVeilSecuritySettings {
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_DISABLED = false;
     private static final boolean DEFAULT_IS_PROFILE_VIDEO_CHANGE_DISABLED = false;
     private static final boolean DEFAULT_IS_EMOJI_STATUS_DISABLED = true;
+    private static final boolean DEFAULT_DISABLE_MUSIC_STATUS = true;
+    private static final boolean DEFAULT_DISABLE_STARS = true;
+    private static final boolean DEFAULT_DISABLE_MINI_APPS = true;
+    private static final long DEFAULT_NONBLOCKABLE_BOT_ID = 689684671L;
     private static final int PROFILE_PHOTO_NO_LIMIT = -1;
     private static boolean DEFAULT_LOCK_DISABLE_SECRET_CHAT = false;
     private static int DEFAULT_MIN_SECRET_CHAT_TTL = 0;
@@ -186,6 +197,86 @@ public class CloudVeilSecuritySettings {
         return res;
     }
 
+    public static void setIsMusicStatusDisabled(boolean isMusicStatusDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isMusicStatusDisabled", isMusicStatusDisabled).apply();
+    }
+
+    public static boolean getIsMusicStatusDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isMusicStatusDisabled", DEFAULT_DISABLE_MUSIC_STATUS);
+    }
+
+    public static void setIsStarsDisabled(boolean isStarsDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isStarsDisabled", isStarsDisabled).apply();
+    }
+
+    public static boolean getIsStarsDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isStarsDisabled", DEFAULT_DISABLE_STARS);
+    }
+
+    public static void setIsMiniAppsDisabled(boolean isMiniAppsDisabled) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        preferences.edit().putBoolean("isMiniAppsDisabled", isMiniAppsDisabled).apply();
+    }
+
+    public static boolean getIsMiniAppsDisabled() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getBoolean("isMiniAppsDisabled", DEFAULT_DISABLE_MINI_APPS);
+    }
+
+    public static void setRemoveAccountUrl(String url) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if (TextUtils.isEmpty(url)) {
+            preferences.edit().remove("removeAccountUrl").apply();
+        } else {
+            preferences.edit().putString("removeAccountUrl", url).apply();
+        }
+    }
+
+    public static String getRemoveAccountUrl() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        return preferences.getString("removeAccountUrl", "");
+    }
+
+    public static void setNonblockableBots(ArrayList<Long> botIds) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        HashSet<String> set = new HashSet<>();
+        for (Long id : botIds) {
+            if (id != null) {
+                set.add(String.valueOf(id));
+            }
+        }
+        preferences.edit().putStringSet("nonblockableBots", set).apply();
+    }
+
+    @NonNull
+    public static ArrayList<Long> getNonblockableBots() {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        if (!preferences.contains("nonblockableBots")) {
+            ArrayList<Long> defaultList = new ArrayList<>();
+            defaultList.add(DEFAULT_NONBLOCKABLE_BOT_ID);
+            return defaultList;
+        }
+        Set<String> set = preferences.getStringSet("nonblockableBots", null);
+        ArrayList<Long> result = new ArrayList<>();
+        if (set != null) {
+            for (String s : set) {
+                try {
+                    result.add(Long.parseLong(s));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return result;
+    }
+
+    public static boolean isNonblockableBot(long botId) {
+        return getNonblockableBots().contains(botId);
+    }
+
     public static void setIsProfileVideoChangeDisabled(boolean isProfileVideoChangeDisabled) {
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
         preferences.edit().putBoolean("isProfileVideoChangeDisabled", isProfileVideoChangeDisabled).apply();
@@ -197,18 +288,8 @@ public class CloudVeilSecuritySettings {
         return res || getLockDisableOwnPhoto();
     }
 
-    public static void setGoogleMapsKey(String key) {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        preferences.edit().putString("googleMapsKey", key).apply();
-    }
-
     public static String getGoogleMapsKey() {
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
-        String v = preferences.getString("googleMapsKey", "");
-        if (TextUtils.isEmpty(v)) {
-            return BuildConfig.MAP_SDK_KEY;
-        }
-        return v;
+        return BuildConfig.MAP_SDK_KEY;
     }
 
     public static void setOrganization(SettingsResponse.Organization organization) {
@@ -227,6 +308,40 @@ public class CloudVeilSecuritySettings {
             organization = new SettingsResponse.Organization();
         }
         return organization;
+    }
+
+    // Saves the server's deprecation answer for this account, stamped with the running app version code.
+    // Must only be called with a LIVE server response (CloudVeilSyncWorker success callback), never with a
+    // cached one: the stamp must record which app version the server judged. If a cached answer from before
+    // an app update were saved here, it would be stamped with the new version and wrongly look fresh.
+    // deprecated=false removes the state, so the alert stops once the server clears it.
+    public static void setDeprecation(int accountNumber, SettingsResponse.Deprecation deprecation) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String key = KEY_DEPRECATION_PREFIX + accountNumber;
+        if (deprecation == null || !deprecation.deprecated) {
+            preferences.edit().remove(key).remove(key + KEY_VERSION_SUFFIX).apply();
+        } else {
+            preferences.edit()
+                    .putString(key, new Gson().toJson(deprecation))
+                    .putInt(key + KEY_VERSION_SUFFIX, SettingsRequest.getAppVersionCode())
+                    .apply();
+        }
+    }
+
+    // Returns the saved deprecation state, or "not deprecated" if it was saved under a different app version.
+    // Saved data survives an app update, so without this check the first launch after updating would still
+    // show "please update" until the next live sync. Missing version key reads as 0, which never matches.
+    public @NonNull static SettingsResponse.Deprecation getDeprecation(int accountNumber) {
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(CloudVeilSecuritySettings.class.getCanonicalName(), Activity.MODE_PRIVATE);
+        String key = KEY_DEPRECATION_PREFIX + accountNumber;
+        SettingsResponse.Deprecation deprecation = null;
+        if (preferences.getInt(key + KEY_VERSION_SUFFIX, 0) == SettingsRequest.getAppVersionCode()) {
+            deprecation = new Gson().fromJson(preferences.getString(key, ""), SettingsResponse.Deprecation.class);
+        }
+        if (deprecation == null) {
+            deprecation = new SettingsResponse.Deprecation();
+        }
+        return deprecation;
     }
 
     public static boolean isUrlWhileListedForInternalView(@NonNull String url) {

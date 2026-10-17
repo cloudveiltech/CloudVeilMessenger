@@ -869,6 +869,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private Object onBackInvokedCallback;
 
     public static void showAttachMenuBot(LaunchActivity launchActivity, int currentAccount, TLRPC.TL_attachMenuBot attachMenuBot, String startApp, boolean sidemenu) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         BaseFragment lastFragment = getLastFragment();
         if (lastFragment == null) return;
         WebViewRequestProps props = WebViewRequestProps.of(currentAccount, attachMenuBot.bot_id, attachMenuBot.bot_id, attachMenuBot.short_name, null, BotWebViewAttachedSheet.TYPE_SIMPLE_WEB_VIEW_BUTTON, 0, 0L, false, null, false, startApp, null, BotWebViewSheet.FLAG_FROM_SIDE_MENU, false, false);
@@ -1493,6 +1498,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             } catch (Exception e) {
                 FileLog.e(e);
             }
+            // CloudVeil start
+            // Unlocking only redraws screens (rebuildFragments), it doesn't call onResume(),
+            // and the onResume() check was skipped while the lock was showing. So check here too.
+            CloudVeilDialogHelper.checkDeprecationAlert(currentAccount);
+            // CloudVeil end
         };
         passcodeDialog.passcodeView.setDelegate(delegate);
         for (PasscodeView overlay : overlayPasscodeViews) {
@@ -5576,6 +5586,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
             CloudVeilDialogHelper.showWarning(fragment, objectByDialogId.second, botAppMaybeId, null, null);
             return;
         }
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
         //CloudVeil end
         final TLRPC.TL_messages_getBotApp getBotApp = new TLRPC.TL_messages_getBotApp();
         final TLRPC.TL_inputBotAppShortName app = new TLRPC.TL_inputBotAppShortName();
@@ -6997,6 +7010,12 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     layersActionBarLayout.onResume();
                 }
             }
+            // CloudVeil start
+            // Only when the passcode lock isn't showing: the else branch below calls dismissDialogs(),
+            // which would close the alert right away (and the cooldown would already be used up).
+            // If the lock is showing, the unlock handler in showPasscodeActivity() does the check instead.
+            CloudVeilDialogHelper.checkDeprecationAlert(currentAccount);
+            // CloudVeil end
         } else {
             actionBarLayout.dismissDialogs();
             if (AndroidUtilities.isTablet()) {
