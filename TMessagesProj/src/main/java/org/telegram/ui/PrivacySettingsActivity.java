@@ -1117,6 +1117,16 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     holder.itemView.setTag(position);
                     TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
                     textCell.setBetterLayout(true);
+                    // CloudVeil start: reset the text color, because a reused cell keeps the red of the delete-account row
+                    // Why it is needed: TextSettingsCell sets its text color only once, in its constructor, and its
+                    // setText and setTextAndValue never reset it. Rows share this cell type, so a cell that showed the red row
+                    // keeps the red when the list reuses it for another row.
+                    // Which color: key_windowBackgroundWhiteBlackText is the same color the constructor gives a new cell
+                    // (TextSettingsCell.java, textView.setTextColor in the constructor). This cell is built without a
+                    // custom theme provider, so the call here must also pass none. If the constructor's color ever changes,
+                    // change this line too.
+                    textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                    // CloudVeil end
                     if (position == webSessionsRow) {
                         textCell.setText(getString("WebSessionsTitle", R.string.WebSessionsTitle), false);
                     } else if (position == phoneNumberRow) {
