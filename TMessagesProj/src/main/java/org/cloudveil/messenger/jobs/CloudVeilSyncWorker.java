@@ -315,11 +315,27 @@ public class CloudVeilSyncWorker extends Worker {
 
                 row.title = user.first_name != null ? user.first_name : user.username;
                 row.userNames = collectUserNames(user.username, user.usernames);
+                setUserFlags(row, user);
                 // Inline bots have no dialog; freshness comes only from a prior full-user load.
                 row.lastUpdated = getLastUpdateForUser(null, user);
 
                 request.addBot(row);
             }
+        }
+    }
+
+    // Shared by addDialogToRequest and addInlineBotsToRequest, so a bot reports the same flags
+    // whether or not it has a chat. Before, only the dialog path set them, and an inline-only
+    // restricted bot was reported as not restricted.
+    private static void setUserFlags(SettingsRequest.Row row, TLRPC.User user) {
+        if (user.bot_can_edit) {
+            row.isCreatorAdmin = true;
+        }
+        if (user.bot_forum_view) {
+            row.isForum = true;
+        }
+        if (user.restricted || user.explicit_content) {
+            row.isRestricted = true;
         }
     }
 
@@ -577,15 +593,7 @@ public class CloudVeilSyncWorker extends Worker {
             if (!user.self) {
                 row.id = user.id;
                 row.title = "";
-                if (user.bot_can_edit) {
-                    row.isCreatorAdmin = true;
-                }
-                if (user.bot_forum_view) {
-                    row.isForum = true;
-                }
-                if (user.restricted || user.explicit_content) {
-                    row.isRestricted = true;
-                }
+                setUserFlags(row, user);
                 if (user.first_name != null) {
                     row.title = user.first_name;
                 }
