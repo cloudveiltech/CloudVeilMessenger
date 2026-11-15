@@ -262,6 +262,10 @@ public class CloudVeilSyncWorker extends Worker {
     }
 
 
+    // The server creates this link for one user and it expires after 24 hours, so it is never saved:
+    // a saved link could be expired or belong to another account on this device. The server also
+    // sends no link on purpose in some cases (fully open server or group, deprecated app version).
+    // No link means the caller shows an error (iOS does the same).
     public static void fetchRemoveAccountUrl(int accountNumber, Utilities.Callback<String> callback) {
         TLRPC.User currentUser = UserConfig.getInstance(accountNumber).getCurrentUser();
         if (currentUser == null) {
@@ -276,17 +280,9 @@ public class CloudVeilSyncWorker extends Worker {
         ServiceClientHolders.getSettingsService().loadSettings(request)
             .subscribeOn(Schedulers.io())
             .subscribe(response -> {
-                String fresh = response != null ? response.removeAccountUrl : null;
-                if (!TextUtils.isEmpty(fresh)) {
-                    CloudVeilSecuritySettings.setRemoveAccountUrl(fresh);
-                }
-                // Holds the fresh link just saved, or the previous one when the reply had none.
-                String url = CloudVeilSecuritySettings.getRemoveAccountUrl();
+                String url = response != null ? response.removeAccountUrl : null;
                 AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(url) ? null : url));
-            }, throwable -> {
-                String cached = CloudVeilSecuritySettings.getRemoveAccountUrl();
-                AndroidUtilities.runOnUIThread(() -> callback.run(TextUtils.isEmpty(cached) ? null : cached));
-            });
+            }, throwable -> AndroidUtilities.runOnUIThread(() -> callback.run(null)));
     }
 
     private static void postFilterDialogsReady(int accountNumber) {
@@ -419,11 +415,6 @@ public class CloudVeilSyncWorker extends Worker {
         CloudVeilSecuritySettings.setIsStarsDisabled(settingsResponse.disableStars);
         CloudVeilSecuritySettings.setIsMiniAppsDisabled(settingsResponse.disableMiniApps);
         CloudVeilSecuritySettings.setIsDisableStories(settingsResponse.disableStories);
-        // Only overwrite when the reply has a link: a reply without one would erase the saved link,
-        // which fetchRemoveAccountUrl falls back to when it can't reach the server.
-        if (!TextUtils.isEmpty(settingsResponse.removeAccountUrl)) {
-            CloudVeilSecuritySettings.setRemoveAccountUrl(settingsResponse.removeAccountUrl);
-        }
 
         if (settingsResponse.nonblockableBots != null) {
             CloudVeilSecuritySettings.setNonblockableBots(settingsResponse.nonblockableBots);
