@@ -17469,6 +17469,12 @@ public class MessagesStorage extends BaseController {
                                 if (dialogsType == DialogsActivity.DIALOGS_TYPE_BOT_REQUEST_PEER && (onlyDialogIds == null || !onlyDialogIds.contains(user.id))) {
                                     continue;
                                 }
+                                // CloudVeil start: the dialogs loop above checks isUserAllowed(getUser(id)), and getUser returns null
+                                // for users not loaded in memory. isUserAllowed(null) returns true, so check the full user here.
+                                if (!CloudVeilDialogHelper.getInstance(currentAccount).isUserAllowed(user)) {
+                                    break;
+                                }
+                                // CloudVeil end
                                 DialogsSearchAdapter.DialogSearchResult dialogSearchResult = dialogsResult.get(user.id);
                                 if (user.status != null) {
                                     user.status.expires = cursor.intValue(1);
