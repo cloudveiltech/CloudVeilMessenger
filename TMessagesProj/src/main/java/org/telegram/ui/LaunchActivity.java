@@ -5764,6 +5764,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     private void processAttachMenuBot(int intentAccount, long peerId, String attachMenuBotChoose, TLRPC.User user,  String setAsAttachBot, String startAppParam) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         TLRPC.TL_messages_getAttachMenuBot getAttachMenuBot = new TLRPC.TL_messages_getAttachMenuBot();
         getAttachMenuBot.bot = MessagesController.getInstance(intentAccount).getInputUser(peerId);
         ConnectionsManager.getInstance(intentAccount).sendRequest(getAttachMenuBot, (response1, error1) -> AndroidUtilities.runOnUIThread(() -> {
