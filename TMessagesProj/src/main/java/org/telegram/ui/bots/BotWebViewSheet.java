@@ -49,6 +49,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.json.JSONObject;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
@@ -1335,6 +1338,11 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
     Drawable verifiedDrawable;
 
     public void requestWebView(BaseFragment fragment, WebViewRequestProps props) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         this.requestProps = props;
         this.currentAccount = props.currentAccount;
         this.peerId = props.peerId;
@@ -1599,7 +1607,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
                     req.bot = MessagesController.getInstance(currentAccount).getInputUser(props.botId);
                     req.platform = "android";
                     req.peer = fragment instanceof ChatActivity ? ((ChatActivity) fragment).getCurrentUser() != null ? MessagesController.getInputPeer(((ChatActivity) fragment).getCurrentUser()) : MessagesController.getInputPeer(((ChatActivity) fragment).getCurrentChat())
-                            : MessagesController.getInputPeer(props.botUser);
+                            : MessagesController.getInstance(currentAccount).getInputPeer(props.peerId);
                     req.compact = props.compact;
                     req.fullscreen = props.fullscreen;
 
@@ -1866,7 +1874,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
             if (user != null && user.photo != null) {
                 File f = FileLoader.getInstance(currentAccount).getPathToAttach(user.photo.photo_small, true);
                 if (!f.exists()) {
-                    MediaDataController.getInstance(currentAccount).preloadImage(ImageLocation.getForUser(user, ImageLocation.TYPE_SMALL), FileLoader.PRIORITY_LOW);
+                    MediaDataController.getInstance(currentAccount).preloadImage(ImageLocation.getForUser(currentAccount, user, ImageLocation.TYPE_SMALL), FileLoader.PRIORITY_LOW);
                 }
             }
         }
@@ -1914,6 +1922,11 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
 
     @Override
     public void show() {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         if (!AndroidUtilities.isSafeToShow(getContext())) return;
         setOpen(true);
         windowView.setAlpha(0f);
@@ -2622,7 +2635,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
 
             clipPath.rewind();
             float radius = dp(16) * (AndroidUtilities.isTablet() ? 1f : 1f - actionBarTransitionProgress);
-            final float r = lerp(radius, dp(10), progress);
+            final float r = lerp(radius, dp(18), progress);
             clipPath.addRoundRect(clipRect, r, r, Path.Direction.CW);
             canvas.clipPath(clipPath);
             canvas.drawPaint(backgroundPaint);

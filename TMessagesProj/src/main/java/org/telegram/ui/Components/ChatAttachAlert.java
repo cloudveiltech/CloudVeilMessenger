@@ -43,6 +43,7 @@ import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -88,6 +89,9 @@ import androidx.dynamicanimation.animation.SpringForce;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+// CloudVeil start: disable mini apps
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+// CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ChatObject;
@@ -272,6 +276,11 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     }
 
     public void showBotLayout(long id, String startCommand, boolean justAdded, boolean animated) {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         if (botAttachLayouts.get(id) == null || !Objects.equals(startCommand, botAttachLayouts.get(id).getStartCommand()) || botAttachLayouts.get(id).needReload()) {
             if (baseFragment instanceof ChatActivity) {
                 ChatAttachAlertBotWebViewLayout webViewLayout = new ChatAttachAlertBotWebViewLayout(this, getContext(), resourcesProvider);
@@ -1236,7 +1245,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         occupyNavigationBarWithoutKeyboard = true;
 
         if (parentFragment instanceof ChatActivity) {
-            setImageReceiverNumLevel(0, 4);
+            // setImageReceiverNumLevel(0, 4);
         }
 
         iBlur3SourceColor = new BlurredBackgroundSourceColor();
@@ -3105,7 +3114,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                     shouldAnimateEditTextWithBounds = false;
                 }
                 if (!captionAbove) {
-                    showAiButton(MessagesController.getInstance(currentAccount).aiEditorAvailable() && newLineCount > 2 && !TextUtils.isEmpty(getEditText().getText().toString().trim()));
+                    showAiButton(newLineCount > 2 && !TextUtils.isEmpty(getEditText().getText().toString().trim()));
                 }
                 chatActivityEnterViewAnimateFromTop = frameLayout2.getTop() + captionEditTextTopOffset;
                 frameLayout2.invalidate();
@@ -3238,7 +3247,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 }
 
                 if (!captionAbove) {
-                    showAiButton(MessagesController.getInstance(currentAccount).aiEditorAvailable() && commentTextView.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(commentTextView.getText().toString().trim()));
+                    showAiButton(commentTextView.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(commentTextView.getText().toString().trim()));
                 }
             }
         });
@@ -3268,7 +3277,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 super.onLineCountChanged(oldLineCount, newLineCount);
                 updatedTopCaptionHeight();
                 if (captionAbove) {
-                    showAiButton(MessagesController.getInstance(currentAccount).aiEditorAvailable() && newLineCount > 2 && !TextUtils.isEmpty(getEditText().getText().toString().trim()));
+                    showAiButton(newLineCount > 2 && !TextUtils.isEmpty(getEditText().getText().toString().trim()));
                 }
             }
 
@@ -3386,7 +3395,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 }
 
                 if (captionAbove) {
-                    showAiButton(MessagesController.getInstance(currentAccount).aiEditorAvailable() && topCommentTextView.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(topCommentTextView.getText().toString().trim()));
+                    showAiButton(topCommentTextView.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(topCommentTextView.getText().toString().trim()));
                 }
             }
         });
@@ -3642,9 +3651,16 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                             if (photoEntry.isVideo) {
                                 if (photoEntry.videoOrientation == -1) {
                                     MediaMetadataRetriever retriever = null;
+                                    ParcelFileDescriptor fd = null;
                                     try {
                                         retriever = new MediaMetadataRetriever();
-                                        retriever.setDataSource(photoEntry.path);
+                                        if (photoEntry.isLivePhoto() && photoEntry.livePhotoVideoOffset > 0) {
+                                            final File file = new File(photoEntry.path);
+                                            fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+                                            retriever.setDataSource(fd.getFileDescriptor(), photoEntry.livePhotoVideoOffset, file.length() - photoEntry.livePhotoVideoOffset);
+                                        } else {
+                                            retriever.setDataSource(photoEntry.path);
+                                        }
                                         photoEntry.videoOrientation = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION));
                                     } catch (Exception e) {
                                         photoEntry.videoOrientation = 0;
@@ -3653,6 +3669,13 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                                         if (retriever != null) {
                                             try {
                                                 retriever.release();
+                                            } catch (IOException e) {
+                                                FileLog.e(e);
+                                            }
+                                        }
+                                        if (fd != null) {
+                                            try {
+                                                fd.close();
                                             } catch (IOException e) {
                                                 FileLog.e(e);
                                             }
@@ -3666,7 +3689,23 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                                 w = h;
                                 h = _w;
                             }
-                            if (photoEntry.isVideo) {
+                            if (photoEntry.isLivePhoto()) {
+                                msg.media = new TLRPC.TL_messageMediaPhoto();
+                                msg.media.live_photo = true;
+                                msg.media.photo = new TLRPC.TL_photo();
+                                TLRPC.TL_photoSize photoSize = new TLRPC.TL_photoSize();
+                                photoSize.w = w;
+                                photoSize.h = h;
+                                photoSize.location = new TLRPC.TL_fileLocationToBeDeprecated();
+                                msg.media.photo.sizes.add(photoSize);
+                                msg.media.document = new TLRPC.TL_document();
+                                msg.media.document.mime_type = MimeTypeMap.getSingleton().getExtensionFromMimeType(msg.attachPath);
+                                TLRPC.TL_documentAttributeVideo attr = new TLRPC.TL_documentAttributeVideo();
+                                attr.w = w;
+                                attr.h = h;
+                                attr.duration = photoEntry.duration;
+                                msg.media.document.attributes.add(attr);
+                            } else if (photoEntry.isVideo) {
                                 msg.media = new TLRPC.TL_messageMediaDocument();
                                 msg.media.document = new TLRPC.TL_document();
                                 msg.media.document.mime_type = MimeTypeMap.getSingleton().getExtensionFromMimeType(msg.attachPath);
@@ -5954,6 +5993,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         avatarPicker = 1;
         isPhotoPicker = true;
         isStickerMode = true;
+        allowLivePhotos = false;
         this.customStickerHandler = customStickerHandler;
         if (optionsItem != null) {
             selectedTextView.setTranslationY(-dp(8));
@@ -5993,6 +6033,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         avatarPicker = 0;
         isPhotoPicker = false;
         isStickerMode = false;
+        allowLivePhotos = true;
         customStickerHandler = null;
         if (optionsItem != null) {
             selectedTextView.setTranslationY(0);
@@ -6091,6 +6132,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         final boolean show = show_ && (baseFragment instanceof ChatActivity && !((ChatActivity) baseFragment).isSecretChat());
 
         if (shownAiButton == show) return;
+        if (show) {
+            MessagesController.getInstance(currentAccount).getTonesController().load();
+        }
         shownAiButton = show;
         aiButton.setVisibility(View.VISIBLE);
         topAiButton.setVisibility(View.VISIBLE);
@@ -6353,11 +6397,17 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
                         attachBotsStartRow = buttonsCount;
                         attachMenuBots.clear();
+                        // CloudVeil start: disable mini apps
+                        if (!CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+                        // CloudVeil end: disable mini apps
                         for (TLRPC.TL_attachMenuBot bot : MediaDataController.getInstance(currentAccount).getAttachMenuBots().bots) {
                             if (bot.show_in_attach_menu && MediaDataController.canShowAttachMenuBot(bot, chatActivity.getCurrentChat() != null ? chatActivity.getCurrentChat() : chatActivity.getCurrentUser())) {
                                 attachMenuBots.add(bot);
                             }
                         }
+                        // CloudVeil start: disable mini apps
+                        }
+                        // CloudVeil end: disable mini apps
 
                         buttonsCount += attachMenuBots.size();
                         attachBotsEndRow = buttonsCount;
@@ -6615,7 +6665,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
     public MentionsContainerView mentionContainer;
     private void createMentionsContainer() {
-        mentionContainer = new MentionsContainerView(getContext(), UserConfig.getInstance(currentAccount).getClientUserId(), 0, LaunchActivity.getLastFragment(), resourcesProvider) {
+        mentionContainer = new MentionsContainerView(getContext(), dialogId, 0, LaunchActivity.getLastFragment(), resourcesProvider) {
             @Override
             protected void onScrolled(boolean atTop, boolean atBottom) {
                 if (photoLayout != null) {
@@ -6649,13 +6699,14 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         mentionContainer.getAdapter().setAllowStickers(false);
         mentionContainer.getAdapter().setAllowBots(false);
         mentionContainer.getAdapter().setAllowChats(false);
-        mentionContainer.getAdapter().setSearchInDailogs(true);
         if (baseFragment instanceof ChatActivity) {
-            ChatActivity chatActivity = (ChatActivity) baseFragment;
+            mentionContainer.getAdapter().setSearchInDialogs(false);
+            final ChatActivity chatActivity = (ChatActivity) baseFragment;
             mentionContainer.getAdapter().setUserOrChat(chatActivity.getCurrentUser(), chatActivity.getCurrentChat());
             mentionContainer.getAdapter().setChatInfo(chatActivity.getCurrentChatInfo());
             mentionContainer.getAdapter().setNeedUsernames(chatActivity.getCurrentChat() != null);
         } else {
+            mentionContainer.getAdapter().setSearchInDialogs(true);
             mentionContainer.getAdapter().setChatInfo(null);
             mentionContainer.getAdapter().setNeedUsernames(false);
         }
@@ -6732,7 +6783,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
         AndroidUtilities.runOnUIThread(() -> {
             final EditTextEmoji editText = captionAbove ? topCommentTextView : commentTextView;
-            showAiButton(MessagesController.getInstance(currentAccount).aiEditorAvailable() && editText.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(editText.getText().toString().trim()));
+            showAiButton(editText.getEditText().getLineCount() > 2 && !TextUtils.isEmpty(editText.getText().toString().trim()));
         });
     }
 

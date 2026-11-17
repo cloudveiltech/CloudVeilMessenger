@@ -218,7 +218,9 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
             final TL_account.RequirementToContact r = showPremiumBlocked && user != null ? MessagesController.getInstance(currentAccount).isUserContactBlocked(user.id) : null;
             premiumBlocked = DialogObject.isPremiumBlocked(r);
             starsPriceBlocked = DialogObject.getMessagesStarsPrice(r);
-            setOpenBotButton(allowBotOpenButton && user.bot_has_main_app);
+            // CloudVeil start: disable mini apps
+            setOpenBotButton(allowBotOpenButton && user.bot_has_main_app && !CloudVeilSecuritySettings.getIsMiniAppsDisabled());
+            // CloudVeil end: disable mini apps
         } else if (object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
             user = null;
@@ -834,7 +836,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
                         thumb = user.photo.strippedBitmap;
                     }
                 }
-                avatarImage.setImage(ImageLocation.getForUserOrChat(user, ImageLocation.TYPE_SMALL), "50_50", ImageLocation.getForUserOrChat(user, ImageLocation.TYPE_STRIPPED), "50_50", thumb, user, 0);
+                avatarImage.setImage(ImageLocation.getForUserOrChat(currentAccount, user, ImageLocation.TYPE_SMALL), "50_50", ImageLocation.getForUserOrChat(user, ImageLocation.TYPE_STRIPPED), "50_50", thumb, user, 0);
             }
         } else if (chat != null) {
             Drawable thumb = avatarDrawable;
@@ -850,7 +852,7 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
                 ForumUtilities.setMonoForumAvatar(currentAccount, chat, avatarDrawable, avatarImage);
             } else {
                 avatarDrawable.setInfo(currentAccount, chat);
-                avatarImage.setImage(ImageLocation.getForUserOrChat(chat, ImageLocation.TYPE_SMALL), "50_50", ImageLocation.getForUserOrChat(chat, ImageLocation.TYPE_STRIPPED), "50_50", thumb, chat, 0);
+                avatarImage.setImage(ImageLocation.getForUserOrChat(currentAccount, chat, ImageLocation.TYPE_SMALL), "50_50", ImageLocation.getForUserOrChat(chat, ImageLocation.TYPE_STRIPPED), "50_50", thumb, chat, 0);
             }
         } else if (contact != null) {
             avatarDrawable.setInfo(0, contact.first_name, contact.last_name);

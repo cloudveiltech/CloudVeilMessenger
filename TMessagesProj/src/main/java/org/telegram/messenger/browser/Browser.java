@@ -423,7 +423,7 @@ public class Browser {
                     //CloudVeil start
                     if(CloudVeilSecuritySettings.LOCK_DISABLE_IN_APP_BROWSER) {
                         if (baseFragment != null) {
-                            baseFragment.presentFragment(new WebviewActivity(uri.toString(), "organisation", "organisation", "", null));
+                            baseFragment.presentFragment(new WebviewActivity(uri.toString(), "cloudveilbot", "messenger.cloudveil.org", "", null));
                         }
                     } else {
                         PendingIntent copy = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, 0, new Intent(ApplicationLoader.applicationContext, CustomTabsCopyReceiver.class), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);

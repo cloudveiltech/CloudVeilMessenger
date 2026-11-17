@@ -70,6 +70,9 @@ import androidx.core.math.MathUtils;
 import androidx.recyclerview.widget.ChatListItemAnimator;
 
 import org.telegram.messenger.AccountInstance;
+//CloudVeil start
+import org.cloudveil.messenger.CloudVeilSecuritySettings;
+//CloudVeil end
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ApplicationLoader;
@@ -185,6 +188,7 @@ import org.telegram.ui.Components.blur3.source.BlurredBackgroundSource;
 import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
 import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceRenderNode;
 import org.telegram.ui.Components.chat.ViewPositionWatcher;
+import org.telegram.ui.Components.chat.layouts.ChatActivitySideControlsButtonsLayout;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 import org.telegram.ui.DialogsActivity;
 import org.telegram.ui.EmojiAnimationsOverlay;
@@ -322,6 +326,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
     private PaidReactionButton starsButton;
     private MuteButton muteButton;
     ChatActivityEnterView chatActivityEnterView;
+    ChatActivitySideControlsButtonsLayout sideControlsButtonsLayout;
     HintView2 highlightMessageHintView;
     private ValueAnimator changeBoundAnimator;
     ReactionsContainerLayout reactionsContainerLayout;
@@ -949,6 +954,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                 } else if (span instanceof URLSpanNoUnderline) {
                     String str = ((URLSpanNoUnderline) span).getURL();
                     if (str != null && (str.startsWith("#") || str.startsWith("$"))) {
+                        /* CloudVeil start: disable hashtag search from stories
                         if (str.contains("@")) {
                             if (storyViewer != null) {
                                 storyViewer.presentFragment(new HashtagActivity(str));
@@ -961,6 +967,7 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                                 storyViewer.presentFragment(new MediaActivity(args, null));
                             }
                         }
+                        // CloudVeil end */
                     } else {
                         String username = Browser.extractUsername(str);
                         if (username != null) {
@@ -1077,7 +1084,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                                 )
                                 .show(true);
                         })
-                        .add(R.drawable.msg_tone_add, getString(R.string.StoryAudioAddToProfile), () -> {
+                        // CloudVeil start
+                        .addIf(!CloudVeilSecuritySettings.getIsMusicStatusDisabled(), R.drawable.msg_tone_add, getString(R.string.StoryAudioAddToProfile), () -> {
+                            // CloudVeil end
                             final TLRPC.TL_account_saveMusic req = new TLRPC.TL_account_saveMusic();
                             req.id = new TLRPC.TL_inputDocument();
                             req.id.id = music.id;
@@ -3626,7 +3635,19 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
             chatActivityEnterView.setVisibility(View.GONE);
         }
 
+        sideControlsButtonsLayout = new ChatActivitySideControlsButtonsLayout(getContext(), resourcesProvider, blurredBackgroundColorProvider, blurredBackgroundDrawableFactory);
+        sideControlsButtonsLayout.setOnClickListener(this::onSideControlButtonOnClick);
+        addView(sideControlsButtonsLayout, LayoutHelper.createFrame(57, 300, Gravity.RIGHT | Gravity.BOTTOM));
+        sideControlsButtonsLayout.setVisibility(View.GONE);
+        chatActivityEnterView.setSideButtonsForAttach(sideControlsButtonsLayout);
+
         reactionsContainerIndex = getChildCount();
+    }
+
+    private void onSideControlButtonOnClick(int buttonId, View view) {
+        if (buttonId == ChatActivitySideControlsButtonsLayout.BUTTON_ATTACH) {
+            openAttachMenu();
+        }
     }
 
     private void createMentionsContainer() {
@@ -5448,6 +5469,9 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
             if (bottomActionsLinearLayout != null) {
                 bottomActionsLinearLayout.setVisibility(isBotsPreview() ? View.GONE : View.VISIBLE);
             }
+        }
+        if (sideControlsButtonsLayout != null) {
+            sideControlsButtonsLayout.setVisibility(chatActivityEnterView != null && chatActivityEnterView.getVisibility() == View.VISIBLE && !currentStory.isLive ? View.VISIBLE : View.GONE);
         }
         if (commentButton != null) {
             commentButton.setVisibility(!unsupported && currentStory.isLive ? View.VISIBLE : View.GONE);
@@ -7538,6 +7562,10 @@ public class PeerStoriesView extends SizeNotifierFrameLayout implements Notifica
                     translationY -= chatActivityEnterView.getMeasuredHeight() - chatActivityEnterView.getAnimatedTop();
                     alpha = progressToKeyboard;
                     child.invalidate();
+                }
+                if (child == sideControlsButtonsLayout) {
+                    translationY -= chatActivityEnterView.getMeasuredHeight() - chatActivityEnterView.getAnimatedTop();
+                    alpha *= progressToKeyboard;
                 }
                 if (child == reactionsContainerLayout) {
                     float finalProgress = progressToKeyboard * (1f - progressToRecording.get()) * (1f - progressToStickerExpandedLocal) * (1f - progressToTextA.get());

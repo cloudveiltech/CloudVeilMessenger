@@ -178,9 +178,15 @@ public class CacheByChatsController {
                     file.keepMedia = exception.keepMedia;
                 }
                 // CloudVeil start
-                boolean allowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId);
-                boolean checked = CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId);
-                file.shouldRemove = !allowed && checked;
+                // Secret chat media is never marked for removal, even when the chat is blocked. Without
+                // this, the daily AutoDeleteMediaTask would permanently delete all cached secret chat media
+                // whenever the server turns secret chats off (an on/off switch that can be flipped back).
+                // The chat itself stays blocked everywhere else. Final behavior is still to be decided.
+                if (!DialogObject.isEncryptedDialog(dialogId)) {
+                    boolean allowed = CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialogId);
+                    boolean checked = CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialogId);
+                    file.shouldRemove = !allowed && checked;
+                }
                 // CloudVeil end
             }
         }
