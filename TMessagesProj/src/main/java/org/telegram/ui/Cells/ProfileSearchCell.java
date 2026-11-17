@@ -218,7 +218,9 @@ public class ProfileSearchCell extends BaseCell implements NotificationCenter.No
             final TL_account.RequirementToContact r = showPremiumBlocked && user != null ? MessagesController.getInstance(currentAccount).isUserContactBlocked(user.id) : null;
             premiumBlocked = DialogObject.isPremiumBlocked(r);
             starsPriceBlocked = DialogObject.getMessagesStarsPrice(r);
-            setOpenBotButton(allowBotOpenButton && user.bot_has_main_app);
+            // CloudVeil start: disable mini apps
+            setOpenBotButton(allowBotOpenButton && user.bot_has_main_app && !CloudVeilSecuritySettings.getIsMiniAppsDisabled());
+            // CloudVeil end: disable mini apps
         } else if (object instanceof TLRPC.Chat) {
             chat = (TLRPC.Chat) object;
             user = null;

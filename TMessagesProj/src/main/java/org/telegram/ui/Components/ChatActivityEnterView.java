@@ -4415,6 +4415,11 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private void openWebViewMenu() {
+        // CloudVeil start: disable mini apps
+        if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            return;
+        }
+        // CloudVeil end: disable mini apps
         createBotWebViewMenuContainer();
         Runnable onRequestWebView = () -> {
             AndroidUtilities.hideKeyboard(this);
@@ -10917,6 +10922,11 @@ public class ChatActivityEnterView extends FrameLayout implements
             parentFragment.openPollCreate((button.flags & 1) != 0 ? button.quiz : null);
             return false;
         } else if (button instanceof TLRPC.TL_keyboardButtonWebView || button instanceof TLRPC.TL_keyboardButtonSimpleWebView) {
+            // CloudVeil start: disable mini apps
+            if (CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+                return false;
+            }
+            // CloudVeil end: disable mini apps
             long botId = messageObject.messageOwner.via_bot_id != 0 ? messageObject.messageOwner.via_bot_id : messageObject.messageOwner.from_id.user_id;
             TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(botId);
             Runnable onRequestWebView = new Runnable() {
@@ -12972,7 +12982,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             TL_bots.BotMenuButton botMenuButton = (TL_bots.BotMenuButton) args[1];
 
             if (botId == dialog_id) {
-                if (botMenuButton instanceof TL_bots.TL_botMenuButton) {
+                // CloudVeil start: disable mini apps
+                if (botMenuButton instanceof TL_bots.TL_botMenuButton && !CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+                // CloudVeil end: disable mini apps
                     TL_bots.TL_botMenuButton webViewButton = (TL_bots.TL_botMenuButton) botMenuButton;
                     botMenuWebViewTitle = webViewButton.text;
                     botMenuWebViewUrl = webViewButton.url;
@@ -13963,7 +13975,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (botInfo.size() == 1 && botInfo.valueAt(0).user_id == dialog_id) {
             TL_bots.BotInfo info = botInfo.valueAt(0);
             TL_bots.BotMenuButton menuButton = info.menu_button;
-            if (menuButton instanceof TL_bots.TL_botMenuButton) {
+            // CloudVeil start: disable mini apps
+            if (menuButton instanceof TL_bots.TL_botMenuButton && !CloudVeilSecuritySettings.getIsMiniAppsDisabled()) {
+            // CloudVeil end: disable mini apps
                 TL_bots.TL_botMenuButton webViewButton = (TL_bots.TL_botMenuButton) menuButton;
                 botMenuWebViewTitle = webViewButton.text;
                 botMenuWebViewUrl = webViewButton.url;

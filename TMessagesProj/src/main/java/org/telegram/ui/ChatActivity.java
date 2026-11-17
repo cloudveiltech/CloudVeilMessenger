@@ -20033,7 +20033,7 @@ public class ChatActivity extends BaseFragment implements
                 }
             } else if (!isDialogAllowed) {
                 Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = cloudVeilDialogHelper.getObjectByDialogId(dialog_id);
-                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishCloudVeilBlockedChat, this::finishCloudVeilBlockedChat);
                 return;
             }
             //CloudVeil end
@@ -29128,6 +29128,15 @@ public class ChatActivity extends BaseFragment implements
 
     Bulletin.Delegate bulletinDelegate;
 
+    // CloudVeil start: block chat preview for blocked dialogs
+    private void finishCloudVeilBlockedChat() {
+        if (isInPreviewMode()) {
+            finishPreviewFragment();
+        } else {
+            finishFragment();
+        }
+    }
+
     @Override
     public void onResume() {
         //CloudVeil start
@@ -29135,11 +29144,11 @@ public class ChatActivity extends BaseFragment implements
             if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogCheckedOnServer(dialog_id)) {
                 CloudVeilSyncWorker.startDataChecking(currentAccount, dialog_id, getParentActivity());
                 Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
-                CloudVeilDialogHelper.showCheckingServerPolicy(this, objectByDialogId.second, this::finishFragment);
+                CloudVeilDialogHelper.showCheckingServerPolicy(this, objectByDialogId.second, this::finishCloudVeilBlockedChat);
                 return;
             } else if (!CloudVeilDialogHelper.getInstance(currentAccount).isDialogIdAllowed(dialog_id)) {
                 Pair<TLObject, CloudVeilDialogHelper.DialogType> objectByDialogId = CloudVeilDialogHelper.getInstance(currentAccount).getObjectByDialogId(dialog_id);
-                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishFragment, this::finishFragment);
+                CloudVeilDialogHelper.showWarning(this, objectByDialogId.second, dialog_id, this::finishCloudVeilBlockedChat, this::finishCloudVeilBlockedChat);
                 return;
             }
         }
