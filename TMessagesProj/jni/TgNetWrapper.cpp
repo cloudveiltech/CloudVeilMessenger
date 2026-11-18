@@ -39,8 +39,45 @@ jmethodID jclass_ConnectionsManager_getInitFlags;
 jmethodID jclass_ConnectionsManager_onPremiumFloodWait;
 jmethodID jclass_ConnectionsManager_onIntegrityCheckClassic;
 jmethodID jclass_ConnectionsManager_onCaptchaCheck;
+// CloudVeil start: method id for reporting a pending JNI exception
+jmethodID jclass_ConnectionsManager_reportNativeException;
+// CloudVeil end
 
 bool check_utf8(const char *data, size_t len);
+
+// CloudVeil start: report and clear a pending JNI exception so ART does not abort
+static bool consumeJniException(JNIEnv *env, const char *site) {
+    if (env == nullptr || !env->ExceptionCheck()) {
+        return false;
+    }
+    jthrowable thrown = env->ExceptionOccurred();
+    env->ExceptionClear();
+    if (thrown == nullptr) {
+        return true;
+    }
+    if (jclass_ConnectionsManager != nullptr && jclass_ConnectionsManager_reportNativeException != nullptr) {
+        jstring siteStr = env->NewStringUTF(site != nullptr ? site : "");
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            siteStr = nullptr;
+        }
+        env->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_reportNativeException, thrown, siteStr);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
+        if (siteStr != nullptr) {
+            env->DeleteLocalRef(siteStr);
+        }
+    } else {
+        env->Throw(thrown);
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+    }
+    env->DeleteLocalRef(thrown);
+    return true;
+}
+// CloudVeil end
 
 jlong getFreeBuffer(JNIEnv *env, jclass c, jint length) {
     return (jlong) (intptr_t) BuffersStorage::getInstance().getFreeBuffer((uint32_t) length);
@@ -125,23 +162,43 @@ void sendRequest(JNIEnv *env, jclass c, jint instanceNum, jlong object, jint fla
             } else {
                 errorText = jniEnv[instanceNum]->NewStringUTF("UTF-8 ERROR");
             }
+            // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+            if (consumeJniException(jniEnv[instanceNum], "sendRequest")) {
+                errorText = nullptr;
+            }
+            // CloudVeil end
         }
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestComplete, instanceNum, token, ptr, errorCode, errorText, networkType, responseTime, msgId, dcId);
+        // CloudVeil start: clear a pending exception from onRequestComplete
+        consumeJniException(jniEnv[instanceNum], "onRequestComplete");
+        // CloudVeil end
         if (errorText != nullptr) {
             jniEnv[instanceNum]->DeleteLocalRef(errorText);
         }
     }), ([instanceNum, token] {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestQuickAck, instanceNum, token);
+        // CloudVeil start: clear a pending exception from onRequestQuickAck
+        consumeJniException(jniEnv[instanceNum], "onRequestQuickAck");
+        // CloudVeil end
     }), ([instanceNum, token] {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestWriteToSocket, instanceNum, token);
+        // CloudVeil start: clear a pending exception from onRequestWriteToSocket
+        consumeJniException(jniEnv[instanceNum], "onRequestWriteToSocket");
+        // CloudVeil end
     }), ([instanceNum, token] {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, false);
+        // CloudVeil start: clear a pending exception from onRequestClear
+        consumeJniException(jniEnv[instanceNum], "onRequestClear");
+        // CloudVeil end
     }), (uint32_t) flags, (uint32_t) datacenterId, (ConnectionType) connectionType, immediate, token);
 }
 
 void cancelRequest(JNIEnv *env, jclass c, jint instanceNum, jint token, jboolean notifyServer) {
     return ConnectionsManager::getInstance(instanceNum).cancelRequest(token, notifyServer, ([instanceNum, token]() -> void {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestClear, instanceNum, token, true);
+        // CloudVeil start: clear a pending exception from onRequestClear
+        consumeJniException(jniEnv[instanceNum], "onRequestClear");
+        // CloudVeil end
     }));
 }
 
@@ -312,6 +369,9 @@ jlong checkProxy(JNIEnv *env, jclass c, jint instanceNum, jstring address, jint 
     jlong result = ConnectionsManager::getInstance(instanceNum).checkProxy(addressStr, (uint16_t) port, usernameStr, passwordStr, secretStr, [instanceNum, requestTimeFunc](int64_t time) {
         if (requestTimeFunc != nullptr) {
             jniEnv[instanceNum]->CallVoidMethod(requestTimeFunc, jclass_RequestTimeDelegate_run, time);
+            // CloudVeil start: clear a pending exception from RequestTimeDelegate.run
+            consumeJniException(jniEnv[instanceNum], "RequestTimeDelegate.run");
+            // CloudVeil end
         }
     }, requestTimeFunc);
 
@@ -335,24 +395,39 @@ class Delegate : public ConnectiosManagerDelegate {
     
     void onUpdate(int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdate, instanceNum);
+        // CloudVeil start: clear a pending exception from onUpdate
+        consumeJniException(jniEnv[instanceNum], "onUpdate");
+        // CloudVeil end
     }
     
     void onSessionCreated(int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onSessionCreated, instanceNum);
+        // CloudVeil start: clear a pending exception from onSessionCreated
+        consumeJniException(jniEnv[instanceNum], "onSessionCreated");
+        // CloudVeil end
     }
     
     void onConnectionStateChanged(ConnectionState state, int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onConnectionStateChanged, state, instanceNum);
+        // CloudVeil start: clear a pending exception from onConnectionStateChanged
+        consumeJniException(jniEnv[instanceNum], "onConnectionStateChanged");
+        // CloudVeil end
     }
     
     void onUnparsedMessageReceived(int64_t reqMessageId, NativeByteBuffer *buffer, ConnectionType connectionType, int32_t instanceNum) {
         if (connectionType == ConnectionTypeGeneric) {
             jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUnparsedMessageReceived, (jlong) (intptr_t) buffer, instanceNum, reqMessageId);
+            // CloudVeil start: clear a pending exception from onUnparsedMessageReceived
+            consumeJniException(jniEnv[instanceNum], "onUnparsedMessageReceived");
+            // CloudVeil end
         }
     }
     
     void onLogout(int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onLogout, instanceNum);
+        // CloudVeil start: clear a pending exception from onLogout
+        consumeJniException(jniEnv[instanceNum], "onLogout");
+        // CloudVeil end
     }
     
     void onUpdateConfig(TL_config *config, int32_t instanceNum) {
@@ -360,55 +435,118 @@ class Delegate : public ConnectiosManagerDelegate {
         config->serializeToStream(buffer);
         buffer->position(0);
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onUpdateConfig, (jlong) (intptr_t) buffer, instanceNum);
+        // CloudVeil start: clear a pending exception from onUpdateConfig
+        consumeJniException(jniEnv[instanceNum], "onUpdateConfig");
+        // CloudVeil end
         buffer->reuse();
     }
     
     void onInternalPushReceived(int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onInternalPushReceived, instanceNum);
+        // CloudVeil start: clear a pending exception from onInternalPushReceived
+        consumeJniException(jniEnv[instanceNum], "onInternalPushReceived");
+        // CloudVeil end
     }
 
     void onBytesReceived(int32_t amount, int32_t networkType, int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesReceived, amount, networkType, instanceNum);
+        // CloudVeil start: clear a pending exception from onBytesReceived
+        consumeJniException(jniEnv[instanceNum], "onBytesReceived");
+        // CloudVeil end
     }
 
     void onBytesSent(int32_t amount, int32_t networkType, int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onBytesSent, amount, networkType, instanceNum);
+        // CloudVeil start: clear a pending exception from onBytesSent
+        consumeJniException(jniEnv[instanceNum], "onBytesSent");
+        // CloudVeil end
     }
 
     void onRequestNewServerIpAndPort(int32_t second, int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onRequestNewServerIpAndPort, second, instanceNum);
+        // CloudVeil start: clear a pending exception from onRequestNewServerIpAndPort
+        consumeJniException(jniEnv[instanceNum], "onRequestNewServerIpAndPort");
+        // CloudVeil end
     }
 
     void onProxyError(int32_t instanceNum) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onProxyError);
+        // CloudVeil start: clear a pending exception from onProxyError
+        consumeJniException(jniEnv[instanceNum], "onProxyError");
+        // CloudVeil end
     }
 
     void getHostByName(std::string domain, int32_t instanceNum, ConnectionSocket *socket) {
         jstring domainName = jniEnv[instanceNum]->NewStringUTF(domain.c_str());
+        // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+        if (consumeJniException(jniEnv[instanceNum], "getHostByName")) {
+            return;
+        }
+        // CloudVeil end
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getHostByName, domainName, (jlong) (intptr_t) socket);
+        // CloudVeil start: clear a pending exception from getHostByName
+        consumeJniException(jniEnv[instanceNum], "getHostByName");
+        // CloudVeil end
         jniEnv[instanceNum]->DeleteLocalRef(domainName);
     }
 
     int32_t getInitFlags(int32_t instanceNum) {
-        return (int32_t) jniEnv[instanceNum]->CallStaticIntMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getInitFlags);
+        int32_t flags = (int32_t) jniEnv[instanceNum]->CallStaticIntMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_getInitFlags);
+        // CloudVeil start: clear a pending exception from getInitFlags
+        if (consumeJniException(jniEnv[instanceNum], "getInitFlags")) {
+            return 0;
+        }
+        // CloudVeil end
+        return flags;
     }
 
     void onPremiumFloodWait(int32_t instanceNum, int32_t requestToken, bool isUpload) {
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onPremiumFloodWait, instanceNum, requestToken, isUpload);
+        // CloudVeil start: clear a pending exception from onPremiumFloodWait
+        consumeJniException(jniEnv[instanceNum], "onPremiumFloodWait");
+        // CloudVeil end
     }
 
     void onIntegrityCheckClassic(int32_t instanceNum, int32_t requestToken, std::string project, std::string nonce) {
         jstring projectStr = jniEnv[instanceNum]->NewStringUTF(project.c_str());
+        // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+        if (consumeJniException(jniEnv[instanceNum], "onIntegrityCheckClassic")) {
+            return;
+        }
+        // CloudVeil end
         jstring nonceStr = jniEnv[instanceNum]->NewStringUTF(nonce.c_str());
+        // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+        if (consumeJniException(jniEnv[instanceNum], "onIntegrityCheckClassic")) {
+            jniEnv[instanceNum]->DeleteLocalRef(projectStr);
+            return;
+        }
+        // CloudVeil end
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onIntegrityCheckClassic, instanceNum, requestToken, projectStr, nonceStr);
+        // CloudVeil start: clear a pending exception from onIntegrityCheckClassic
+        consumeJniException(jniEnv[instanceNum], "onIntegrityCheckClassic");
+        // CloudVeil end
         jniEnv[instanceNum]->DeleteLocalRef(projectStr);
         jniEnv[instanceNum]->DeleteLocalRef(nonceStr);
     }
 
     void onCaptchaCheck(int32_t instanceNum, int32_t requestToken, std::string action, std::string key_id) {
         jstring actionStr = jniEnv[instanceNum]->NewStringUTF(action.c_str());
+        // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+        if (consumeJniException(jniEnv[instanceNum], "onCaptchaCheck")) {
+            return;
+        }
+        // CloudVeil end
         jstring keyIdStr = jniEnv[instanceNum]->NewStringUTF(key_id.c_str());
+        // CloudVeil start: clear a pending exception from NewStringUTF before the next JNI call
+        if (consumeJniException(jniEnv[instanceNum], "onCaptchaCheck")) {
+            jniEnv[instanceNum]->DeleteLocalRef(actionStr);
+            return;
+        }
+        // CloudVeil end
         jniEnv[instanceNum]->CallStaticVoidMethod(jclass_ConnectionsManager, jclass_ConnectionsManager_onCaptchaCheck, instanceNum, requestToken, actionStr, keyIdStr);
+        // CloudVeil start: clear a pending exception from onCaptchaCheck
+        consumeJniException(jniEnv[instanceNum], "onCaptchaCheck");
+        // CloudVeil end
         jniEnv[instanceNum]->DeleteLocalRef(actionStr);
         jniEnv[instanceNum]->DeleteLocalRef(keyIdStr);
     }
@@ -692,6 +830,12 @@ extern "C" int registerNativeTgNetFunctions(JavaVM *vm, JNIEnv *env) {
     if (jclass_ConnectionsManager_onCaptchaCheck == 0) {
         return JNI_FALSE;
     }
+    // CloudVeil start: resolve reportNativeException
+    jclass_ConnectionsManager_reportNativeException = env->GetStaticMethodID(jclass_ConnectionsManager, "reportNativeException", "(Ljava/lang/Throwable;Ljava/lang/String;)V");
+    if (jclass_ConnectionsManager_reportNativeException == 0) {
+        return JNI_FALSE;
+    }
+    // CloudVeil end
 
     return JNI_TRUE;
 }
